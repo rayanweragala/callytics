@@ -1,0 +1,74 @@
+# Features
+
+## Flow builder
+
+- Drag-and-drop canvas with custom nodes and labeled connections
+- Left sidebar for node types, center canvas for flow layout, right panel for node settings
+- Start node that marks the entry point for incoming calls
+- Play audio node for uploaded or TTS-generated prompts
+- Menu node for DTMF keypress routing such as `1 for sales`, `2 for support`
+- Condition node for time-based rules, caller ID matching, business hours, and simple variable checks
+- Transfer node for sending calls to an extension, ring group, queue, or external number
+- Queue node for holding callers and routing to available agents
+- Voicemail node with mailbox target, greeting, and recording rules
+- Record node for capturing a caller message or consent clip
+- Set variable node for storing branch state inside the call
+- Webhook node for later product versions that need external integration
+- Hangup node with selectable cause or reason
+- Validation before publish so flows cannot be activated with broken links or missing prompts
+- Draft and published versions so users can edit safely before applying changes
+
+## Audio management
+
+- Upload audio in common formats such as `mp3`, `wav`, `m4a`, and `ogg`
+- Automatic conversion into Asterisk-safe formats during import
+- Audio library with search, tags, duration, source type, and usage count
+- Replace an audio file while keeping the same logical asset reference
+- Preview player in the UI before assigning audio to a node
+- Show where each audio file is used before deletion
+
+## Text to speech
+
+- Create an audio prompt from typed text inside the UI
+- Voice selection from installed offline voice packs
+- Adjustable speaking rate and volume normalization presets
+- Saved output appears in the same audio library as uploaded files
+- Re-generate a prompt when text changes while keeping the asset history
+
+## Live dashboard
+
+- Active calls list with caller ID, call state, duration, queue, and current flow node
+- Queue status cards with waiting callers, available agents, busy agents, and longest wait time
+- Recent event feed for answered calls, missed calls, transfers, voicemails, and hangups
+- Service health panel for Asterisk, database, Redis, and API status
+- Realtime counters for current calls, calls today, missed today, voicemail today, and average wait time
+
+## Reports
+
+- Call volume report by hour, day, and date range
+- Missed calls report with caller ID, time, target flow, and missed reason
+- Answered calls report with answer time, talk time, queue, and agent or destination
+- Abandoned queue calls report with wait time before hangup
+- Voicemail report with mailbox, caller, timestamp, and recording link
+- Flow performance report showing entry count, branch count, and node-by-node drop-off
+- Audio usage report showing which prompts are used most and where
+- SIP trunk activity report with inbound count, outbound count, failures, and registration status
+- Export to `CSV` for tabular reports
+
+## SIP trunk setup
+
+- Optional setup during first run
+- Support for basic provider fields: host, username, password, auth ID, caller ID, codecs
+- Registration status indicator in settings and dashboard
+- Test call action to confirm inbound and outbound routing
+- Skip mode that leaves the system local only
+
+## User settings
+
+- Local admin account and password change
+- Timezone, business hours, and default locale
+- Default audio language and TTS voice
+- Recording retention settings
+- Dashboard refresh and event noise filters
+- SIP settings page
+- Backup and restore entry point for future versions
