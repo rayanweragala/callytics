@@ -79,15 +79,16 @@ That is the core runtime model.
 
 ## Current implemented runtime behavior
 
-After Phase 4 the runtime now exists in code, not just in design. The Stasis app currently:
+After Phase 10 the runtime now exists in code, not just in design. The Stasis app currently:
 
 - runs startup migrations for the flow and call-log tables
-- seeds a published `Test Flow` if no published flow exists yet
+- seeds a published `Test Flow` only when flow 1 does not already exist with saved nodes
 - loads the first matching published flow from PostgreSQL
 - creates an in-memory session per call
 - executes the current node
-- resolves the next edge by branch key, falling back to `default`
+- resolves conditional edges by `condition` first, then falls back to `branchKey` and `default`
 - removes the session when the flow ends or the channel hangs up
+- ignores `StasisStart` events for the `h` extension so the hangup path does not re-run flow logic
 
 The currently implemented node executors are:
 
@@ -95,17 +96,19 @@ The currently implemented node executors are:
 - `play_audio`
 - `get_digits`
 - `branch`
-- `transfer` placeholder
+- `transfer`
 - `voicemail` placeholder
 - `hangup`
 - `set_variable`
 
-The current seed flow is:
+The original seed flow is still:
 
 - `start` -> `greet` -> `menu` -> `bye`
 - built-in Asterisk sound `tt-monkeys` for greeting
 - built-in Asterisk sound `tt-weasels` for digit collection prompt
 - `menu` routes `1`, `2`, `timeout`, and `default` to `bye`
+
+But once a user saves a richer flow in the builder, that saved flow is now treated as source-of-truth and is no longer overwritten on Stasis restart.
 
 ## Runtime networking change
 

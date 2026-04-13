@@ -27,7 +27,7 @@ export interface DiagnosticsSnapshot {
   timeline: Record<string, CallTimelineEvent[]>;
 }
 
-export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup';
+export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup' | 'transfer';
 
 export interface FlowNodeData {
   label: string;
@@ -51,6 +51,7 @@ export interface FlowApiEdge {
   sourceNodeKey: string;
   targetNodeKey: string;
   branchKey: string;
+  condition: string | null;
 }
 
 export interface FlowSummary {
@@ -72,7 +73,6 @@ export interface FlowDetail {
   nodes: FlowApiNode[];
   edges: FlowApiEdge[];
 }
-
 
 export interface AudioFileItem {
   id: number;

@@ -76,4 +76,5 @@
 .start { color: var(--color-active); }
 .playAudio { color: var(--color-info); }
 .getDigits { color: var(--color-warning); }
+.transfer { color: var(--color-info); }
 .hangup { color: var(--text-muted); }

@@ -114,6 +114,7 @@
 .barstart { background: var(--color-active); }
 .barplayaudio { background: var(--color-info); }
 .bargetdigits { background: var(--color-warning); }
+.bartransfer { background: var(--color-info); }
 .barhangup { background: var(--text-muted); }
 
 .paletteType, .meta {

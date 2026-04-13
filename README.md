@@ -13,6 +13,8 @@ Current completed implementation phases:
 - Phase 6: React Flow builder UI with flow list, editor canvas, config panel, node and edge editing
 - Phase 7: thin-slice backend REST API for flow CRUD powering the builder
 - Phase 8: audio management, ffmpeg conversion, offline Piper TTS, static media serving, and builder audio asset integration
+- Phase 9: end-to-end live call verification with database-backed audio assets and `.ulaw` telephony playback
+- Phase 10: conditional routing, transfer node execution, DTMF capture fix, Stasis hangup-extension guard, and seed overwrite protection
 
 Current important infrastructure state:
 

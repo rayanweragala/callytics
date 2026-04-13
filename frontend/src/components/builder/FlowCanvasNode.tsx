@@ -10,6 +10,8 @@ function toneClass(type: FlowNodeData['type']): string {
       return styles.playAudio;
     case 'get_digits':
       return styles.getDigits;
+    case 'transfer':
+      return styles.transfer;
     case 'hangup':
       return styles.hangup;
     default:
@@ -26,6 +28,9 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
         <div className={styles.label}>{data.label}</div>
         {data.type === 'get_digits' && typeof data.config.timeout_ms === 'number' ? (
           <div className={styles.meta}>timeout: {Math.round(Number(data.config.timeout_ms) / 1000)}s</div>
+        ) : null}
+        {data.type === 'transfer' && typeof data.config.destination === 'string' ? (
+          <div className={styles.meta}>{String(data.config.destination || 'no destination')}</div>
         ) : null}
       </div>
       {selected && data.type !== 'start' && data.onDelete ? (

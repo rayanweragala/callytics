@@ -19,3 +19,14 @@
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
+
+.label {
+  position: absolute;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-base);
+  padding: 2px 6px;
+  border-radius: 6px;
+  pointer-events: none;
+}

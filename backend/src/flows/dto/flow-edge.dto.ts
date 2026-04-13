@@ -1,4 +1,6 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
+
+const allowedConditions = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'timeout', 'invalid', 'default'];
 
 export class FlowEdgeDto {
   @IsString()
@@ -10,4 +12,9 @@ export class FlowEdgeDto {
   @IsOptional()
   @IsString()
   branchKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(allowedConditions)
+  condition?: string;
 }

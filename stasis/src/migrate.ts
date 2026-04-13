@@ -57,6 +57,7 @@ export default async function migrate(): Promise<void> {
           source_node_key VARCHAR(255) NOT NULL,
           target_node_key VARCHAR(255) NOT NULL,
           branch_key VARCHAR(100) DEFAULT 'default',
+          condition VARCHAR(100),
           created_at TIMESTAMP DEFAULT NOW()
         )
       `,
@@ -91,6 +92,8 @@ export default async function migrate(): Promise<void> {
     await pool.query(table.sql);
     console.log(`Checked table: ${table.name}`);
   }
+
+  await pool.query(`ALTER TABLE flow_edges ADD COLUMN IF NOT EXISTS condition VARCHAR(100)`);
 
   console.log('Tables checked successfully');
 }

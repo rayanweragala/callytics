@@ -40,6 +40,7 @@ export interface SaveFlowPayload {
     sourceNodeKey: string;
     targetNodeKey: string;
     branchKey?: string;
+    condition?: string | null;
   }>;
 }
 

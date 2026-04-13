@@ -1,15 +1,36 @@
 import { CallSession, removeSession } from './callSession';
+import { FlowEdge } from './flowLoader';
 import { executeNode } from './nodes';
 
-export async function runFlow(
-  channel: any,
-  session: CallSession,
-  ariClient: any
-): Promise<void> {
+function resolveNextEdge(currentNodeKey: string, result: string, edges: FlowEdge[]): FlowEdge | null {
+  const outgoing = edges.filter((edge) => edge.sourceNodeKey === currentNodeKey);
+  if (outgoing.length === 0) {
+    return null;
+  }
 
-  // Find entry node — type 'start' or first node
-  let currentNode = session.flow.nodes.find(n => n.type === 'start')
-    || session.flow.nodes[0];
+  const conditionalEdges = outgoing.filter((edge) => edge.condition !== null && edge.condition !== undefined);
+  if (conditionalEdges.length > 0) {
+    return (
+      conditionalEdges.find((edge) => edge.condition === result)
+      || conditionalEdges.find((edge) => edge.condition === 'default')
+      || null
+    );
+  }
+
+  return (
+    outgoing.find((edge) => edge.branchKey === result)
+    || outgoing.find((edge) => edge.branchKey === 'default')
+    || outgoing.find((edge) => edge.condition === null)
+    || null
+  );
+}
+
+export async function runFlow(
+  channel: { id: string },
+  session: CallSession,
+  ariClient: unknown
+): Promise<void> {
+  const currentNode = session.flow.nodes.find((node) => node.type === 'start') || session.flow.nodes[0];
 
   if (!currentNode) {
     console.error('No entry node found in flow');
@@ -20,9 +41,7 @@ export async function runFlow(
   session.currentNodeKey = currentNode.nodeKey;
 
   while (true) {
-    const node = session.flow.nodes.find(
-      n => n.nodeKey === session.currentNodeKey
-    );
+    const node = session.flow.nodes.find((item) => item.nodeKey === session.currentNodeKey);
 
     if (!node) {
       console.warn(`Node not found: ${session.currentNodeKey}`);
@@ -31,7 +50,7 @@ export async function runFlow(
 
     console.log(`Executing node: ${node.type} (${node.nodeKey})`);
 
-    const result = await executeNode(channel, node, session, ariClient);
+    const result = await executeNode(channel as never, node, session, ariClient);
 
     console.log(`Node result: ${result}`);
 
@@ -39,23 +58,15 @@ export async function runFlow(
       break;
     }
 
-    // Find next edge matching result, fall back to default
-    let edge = session.flow.edges.find(
-      e => e.sourceNodeKey === session.currentNodeKey 
-        && e.branchKey === result
-    );
-
-    if (!edge) {
-      edge = session.flow.edges.find(
-        e => e.sourceNodeKey === session.currentNodeKey 
-          && e.branchKey === 'default'
-      );
+    if (result.startsWith('route:')) {
+      session.currentNodeKey = result.slice('route:'.length);
+      continue;
     }
 
+    const edge = resolveNextEdge(session.currentNodeKey, result, session.flow.edges);
+
     if (!edge) {
-      console.warn(
-        `No edge found from ${session.currentNodeKey} with result ${result}`
-      );
+      console.error(`No edge found from ${session.currentNodeKey} with result ${result}`);
       break;
     }
 

@@ -2,6 +2,7 @@ import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { publishNodeTelemetry } from '../telemetry';
+import { registerTransferWaiter } from '../transferManager';
 
 async function executeStart(): Promise<string> {
   return 'default';
@@ -63,16 +64,26 @@ async function executePlayAudio(
 }
 
 async function executeGetDigits(
-  channel: { id: string; play: (opts: { media: string }, playback: { id: string; stop: () => Promise<void> }) => Promise<void> },
+  channel: {
+    id: string;
+    play: (opts: { media: string }, playback: { id: string; stop: () => Promise<void> }) => Promise<void>;
+    on?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+    removeListener?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+  },
   node: FlowNode,
   ariClient: unknown,
 ): Promise<string> {
+  console.log(`[get_digits] start channel=${channel.id} config=${JSON.stringify(node.config)}`);
   const promptPath = await resolveAudioMediaPath(node.config, 'prompt_audio_file_id', 'prompt_path');
   const timeoutMs = Number(node.config.timeout_ms) || 5000;
   const client = ariClient as {
     Playback: () => { id: string; stop: () => Promise<void> };
     on: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
     removeListener: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+  };
+  const channelEmitter = channel as {
+    on?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+    removeListener?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
   };
 
   return new Promise(async (resolve, reject) => {
@@ -82,23 +93,31 @@ async function executeGetDigits(
 
     const cleanup = () => {
       client.removeListener('ChannelDtmfReceived', onDtmf);
+      channelEmitter.removeListener?.('ChannelDtmfReceived', onDtmf);
       client.removeListener('StasisEnd', onHangup);
       client.removeListener('ChannelDestroyed', onHangup);
       if (timer) clearTimeout(timer);
+    };
+
+    const stopPlaybackSafely = async () => {
+      await Promise.race([
+        playback.stop().catch(() => undefined),
+        new Promise<void>((resolveStop) => setTimeout(resolveStop, 250)),
+      ]);
     };
 
     const settle = async (value: string) => {
       if (finished) return;
       finished = true;
       cleanup();
-      try {
-        await playback.stop();
-      } catch {}
+      await stopPlaybackSafely();
+      console.log(`[get_digits] returning channel=${channel.id} result=${value}`);
       resolve(value);
     };
 
     const onDtmf = async (event: { channel?: { id?: string }; digit?: string }) => {
-      if (event.channel?.id !== channel.id) return;
+      if (event.channel?.id && event.channel.id !== channel.id) return;
+      console.log(`[get_digits] ChannelDtmfReceived channel=${channel.id} digit=${String(event.digit || '')}`);
       await settle(String(event.digit || 'default'));
     };
 
@@ -107,11 +126,14 @@ async function executeGetDigits(
       await settle('hangup');
     };
 
+    console.log(`[get_digits] listening for DTMF on channel=${channel.id}`);
     client.on('ChannelDtmfReceived', onDtmf);
+    channelEmitter.on?.('ChannelDtmfReceived', onDtmf);
     client.on('StasisEnd', onHangup);
     client.on('ChannelDestroyed', onHangup);
 
     timer = setTimeout(() => {
+      console.log('[get_digits] timeout fired');
       void settle('timeout');
     }, timeoutMs);
 
@@ -129,9 +151,96 @@ async function executeBranch(): Promise<string> {
   return 'default';
 }
 
-async function executeTransfer(node: FlowNode): Promise<string> {
-  console.log('transfer: not yet implemented for target: ' + String(node.config.target || ''));
-  return 'default';
+
+function waitForChannelEnd(
+  ariClient: unknown,
+  channelIds: string[],
+): Promise<void> {
+  const client = ariClient as {
+    on: (event: string, listener: (event: { channel?: { id?: string } }) => void) => void;
+    removeListener: (event: string, listener: (event: { channel?: { id?: string } }) => void) => void;
+  };
+
+  return new Promise((resolve) => {
+    const onEnd = (event: { channel?: { id?: string } }) => {
+      if (event.channel?.id && channelIds.includes(event.channel.id)) {
+        cleanup();
+        resolve();
+      }
+    };
+
+    const cleanup = () => {
+      client.removeListener('StasisEnd', onEnd);
+      client.removeListener('ChannelDestroyed', onEnd);
+    };
+
+    client.on('StasisEnd', onEnd);
+    client.on('ChannelDestroyed', onEnd);
+  });
+}
+
+async function executeTransfer(
+  channel: { id: string },
+  node: FlowNode,
+  session: CallSession,
+  ariClient: unknown,
+): Promise<string> {
+  const destination = String(node.config.destination || '').trim();
+  const timeoutMs = Number(node.config.timeout_ms) || 30000;
+  const onNoAnswer = String(node.config.on_no_answer || '').trim();
+
+  if (!destination) {
+    console.log('transfer: missing destination');
+    return 'hangup';
+  }
+
+  const client = ariClient as {
+    channels: {
+      originate: (params: { endpoint: string; app: string; appArgs: string; callerId: string; timeout: number }) => Promise<void>;
+    };
+    bridges: {
+      create: (params: { type: string }) => Promise<{ id: string }>;
+      addChannel: (params: { bridgeId: string; channel: string }) => Promise<void>;
+      destroy: (params: { bridgeId: string }) => Promise<void>;
+    };
+  };
+
+  const waitForAnswer = registerTransferWaiter(channel.id);
+  const appName = process.env.ARI_APP || 'callytics';
+
+  try {
+    await client.channels.originate({
+      endpoint: destination,
+      app: appName,
+      appArgs: `transfer-outbound,${channel.id}`,
+      callerId: session.callerNumber,
+      timeout: Math.ceil(timeoutMs / 1000),
+    });
+
+    const outboundChannel = await Promise.race([
+      waitForAnswer,
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+
+    if (!outboundChannel) {
+      console.log(`transfer: no answer for destination ${destination}`);
+      return onNoAnswer ? `route:${onNoAnswer}` : 'hangup';
+    }
+
+    const bridge = await client.bridges.create({ type: 'mixing' });
+    await client.bridges.addChannel({ bridgeId: bridge.id, channel: channel.id });
+    await client.bridges.addChannel({ bridgeId: bridge.id, channel: outboundChannel.id });
+    await waitForChannelEnd(ariClient, [channel.id, outboundChannel.id]);
+    try {
+      await client.bridges.destroy({ bridgeId: bridge.id });
+    } catch {}
+    return 'done';
+  } catch (error) {
+    console.error('transfer failed:', error);
+    return onNoAnswer ? `route:${onNoAnswer}` : 'hangup';
+  }
 }
 
 async function executeVoicemail(node: FlowNode): Promise<string> {
@@ -178,7 +287,7 @@ export async function executeNode(
         result = await executeBranch();
         break;
       case 'transfer':
-        result = await executeTransfer(node);
+        result = await executeTransfer(channel, node, session, ariClient);
         break;
       case 'voicemail':
         result = await executeVoicemail(node);

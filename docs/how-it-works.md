@@ -33,11 +33,11 @@ If a SIP trunk is configured, Asterisk can place and receive real calls through 
 The runtime engine is no longer just a plan. The current implementation now does the following:
 
 - The NestJS backend starts in Docker and connects to PostgreSQL
-- The Stasis app starts in Docker, connects to PostgreSQL, runs migrations, and seeds a published test flow if none exists
+- The Stasis app starts in Docker, connects to PostgreSQL, runs migrations, and seeds a published test flow only when flow 1 does not already exist with saved nodes
 - Incoming calls enter Asterisk through the static dialplan and are handed to the `callytics` Stasis app
 - The Stasis app loads the published flow from PostgreSQL, creates an in-memory call session, and executes the flow node by node
 - The first implemented node executors are `start`, `play_audio`, `get_digits`, `branch`, `transfer`, `voicemail`, `hangup`, and `set_variable`
-- The current seed flow is a simple test path using built-in Asterisk sounds: `start -> greet -> menu -> bye`
+- The published flow is now expected to come from the builder and database state rather than being reset back to the original seed on every restart
 
 The Stasis app now also owns the initial schema for:
 
@@ -154,9 +154,9 @@ Current audio mount path into Asterisk:
 
 That lets the browser preview and the telephony runtime share one asset pipeline while still using the format each side needs.
 
-## Current implementation status after Phase 9
+## Current implementation status after Phase 10
 
-The end-to-end call path is now verified with database-backed audio assets and live diagnostics cleanup.
+The end-to-end call path is now verified with database-backed audio assets, conditional routing, and builder-owned flow persistence.
 
 What now works:
 
@@ -164,4 +164,9 @@ What now works:
 - The backend diagnostics service derives active call count from the in-memory timeline rather than a Redis counter
 - The backend now evicts stale non-terminal timeline entries after one hour, checked every five minutes
 - Audio playback uses `sound:callytics/<id>` and Asterisk resolves that to the mounted `.ulaw` asset
+- `get_digits` subscribes to DTMF on the active ARI channel and returns live digit results such as `3` and `timeout`
+- The runtime resolves conditional edges from flow data, so menu branches such as `3`, `timeout`, and `default` can route to different nodes
+- The transfer node now executes and attempts outbound originate/bridge flow rather than acting as a placeholder
+- Stasis ignores `StasisStart` events for the `h` extension in `callytics-inbound`, preventing a second answer/run attempt on an already-ended channel
+- The Stasis seed path no longer overwrites flow 1 on restart; if flow 1 already has saved nodes, seeding is skipped entirely
 - Completed calls no longer need to remain stuck as active if a terminal event was missed in an older session

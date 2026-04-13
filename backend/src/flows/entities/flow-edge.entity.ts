@@ -17,6 +17,9 @@ export class FlowEdgeEntity {
   @Column({ name: 'branch_key', type: 'varchar', length: 100, default: 'default' })
   branchKey!: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  condition!: string | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

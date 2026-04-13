@@ -4,13 +4,14 @@ export interface FlowNode {
   nodeKey: string;
   type: string;
   label: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface FlowEdge {
   sourceNodeKey: string;
   targetNodeKey: string;
   branchKey: string;
+  condition: string | null;
 }
 
 export interface Flow {
@@ -62,7 +63,7 @@ export async function loadFlow(entryValue?: string): Promise<Flow | null> {
 
   const edgesRows = await query(
     `
-      SELECT source_node_key, target_node_key, branch_key
+      SELECT source_node_key, target_node_key, branch_key, condition
       FROM flow_edges
       WHERE flow_version_id = $1
       ORDER BY id ASC
@@ -74,16 +75,17 @@ export async function loadFlow(entryValue?: string): Promise<Flow | null> {
     id: Number(flowRow.id),
     name: flowRow.name,
     versionId: Number(versionId),
-    nodes: nodesRows.map((row: any) => ({
+    nodes: nodesRows.map((row: { node_key: string; type: string; label: string | null; config_json: Record<string, unknown> | null }) => ({
       nodeKey: row.node_key,
       type: row.type,
       label: row.label || '',
       config: row.config_json || {},
     })),
-    edges: edgesRows.map((row: any) => ({
+    edges: edgesRows.map((row: { source_node_key: string; target_node_key: string; branch_key: string | null; condition: string | null }) => ({
       sourceNodeKey: row.source_node_key,
       targetNodeKey: row.target_node_key,
       branchKey: row.branch_key || 'default',
+      condition: row.condition,
     })),
   };
 }

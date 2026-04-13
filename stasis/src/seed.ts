@@ -5,12 +5,25 @@
 import pool, { query } from './db';
 
 export default async function seed(): Promise<void> {
-  const existing = await query(
-    `SELECT id FROM call_flows WHERE status = 'published' LIMIT 1`
+  const existingFlowRows = await query(
+    `
+      SELECT cf.id, cf.current_version_id, COUNT(fn.id)::int AS node_count
+      FROM call_flows cf
+      LEFT JOIN flow_nodes fn ON fn.flow_version_id = cf.current_version_id
+      WHERE cf.id = 1
+      GROUP BY cf.id, cf.current_version_id
+      LIMIT 1
+    `,
   );
 
-  if (existing.length > 0) {
-    console.log('Seed flow already exists, skipping');
+  const existingFlow = existingFlowRows[0] as {
+    id: number;
+    current_version_id: number | null;
+    node_count: number;
+  } | undefined;
+
+  if (existingFlow && existingFlow.node_count > 0) {
+    console.log(`Flow 1 already exists with ${existingFlow.node_count} nodes, skipping seed`);
     return;
   }
 
@@ -60,13 +73,13 @@ export default async function seed(): Promise<void> {
         node_key: 'greet',
         type: 'play_audio',
         label: 'Greeting',
-        config_json: { audio_file_path: 'tt-monkeys' },
+        config_json: { audio_file_id: '2', audio_file_path: 'tt-monkeys' },
       },
       {
         node_key: 'menu',
         type: 'get_digits',
         label: 'Main Menu',
-        config_json: { prompt_path: 'tt-weasels', timeout_ms: 5000 },
+        config_json: { prompt_audio_file_id: 1, prompt_path: 'tt-weasels', timeout_ms: 5000 },
       },
       { node_key: 'bye', type: 'hangup', label: 'Goodbye', config_json: {} },
     ];
@@ -83,22 +96,22 @@ export default async function seed(): Promise<void> {
     }
 
     const edges = [
-      ['start', 'greet', 'default'],
-      ['greet', 'menu', 'default'],
-      ['menu', 'bye', '1'],
-      ['menu', 'bye', '2'],
-      ['menu', 'bye', 'timeout'],
-      ['menu', 'bye', 'default'],
+      ['start', 'greet', 'default', null],
+      ['greet', 'menu', 'default', null],
+      ['menu', 'bye', '1', '1'],
+      ['menu', 'bye', '2', '2'],
+      ['menu', 'bye', 'timeout', 'timeout'],
+      ['menu', 'bye', 'default', 'default'],
     ];
 
-    for (const [source, target, branch] of edges) {
+    for (const [source, target, branch, condition] of edges) {
       await client.query(
         `
           INSERT INTO flow_edges (
-            flow_version_id, source_node_key, target_node_key, branch_key
-          ) VALUES ($1, $2, $3, $4)
+            flow_version_id, source_node_key, target_node_key, branch_key, condition
+          ) VALUES ($1, $2, $3, $4, $5)
         `,
-        [versionId, source, target, branch],
+        [versionId, source, target, branch, condition],
       );
     }
 

@@ -3,6 +3,10 @@ import styles from './FlowCanvasEdge.module.css';
 
 interface EdgeData {
   branchKey?: string;
+  condition?: string | null;
+  sourceNodeType?: string;
+  parallelIndex?: number;
+  parallelTotal?: number;
   onDelete?: (edgeId: string) => void;
 }
 
@@ -20,14 +24,18 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
     data,
   } = props;
 
+  const parallelOffset = ((data?.parallelIndex || 0) - (((data?.parallelTotal || 1) - 1) / 2)) * 18;
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
-    sourceY,
+    sourceY: sourceY + parallelOffset,
     sourcePosition,
     targetX,
-    targetY,
+    targetY: targetY + parallelOffset,
     targetPosition,
   });
+
+  const showLabel = data?.sourceNodeType === 'get_digits' && Boolean(data?.condition);
 
   return (
     <>
@@ -39,13 +47,21 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
           strokeWidth: selected ? 2.5 : 1.5,
         }}
       />
+      {showLabel ? (
+        <EdgeLabelRenderer>
+          <div
+            className={styles.label}
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - (selected ? 14 : 0)}px)` }}
+          >
+            {data?.condition}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
       {selected && data?.onDelete ? (
         <EdgeLabelRenderer>
           <button
             className={styles.deleteButton}
-            style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            }}
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + (showLabel ? 14 : 0)}px)` }}
             onClick={(event) => {
               event.stopPropagation();
               data.onDelete?.(id);

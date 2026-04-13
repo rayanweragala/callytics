@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreateFlowDto } from './dto/create-flow.dto';
@@ -30,6 +30,7 @@ interface FlowEdgeResponse {
   sourceNodeKey: string;
   targetNodeKey: string;
   branchKey: string;
+  condition: string | null;
 }
 
 interface FlowDetailResponse {
@@ -46,7 +47,14 @@ interface FlowDetailResponse {
 }
 
 @Injectable()
-export class FlowsService {
+export class FlowsService implements OnModuleInit {
+
+  async onModuleInit(): Promise<void> {
+    await this.dataSource.query(
+      `ALTER TABLE flow_edges ADD COLUMN IF NOT EXISTS condition VARCHAR(100)`
+    );
+  }
+
   constructor(
     @InjectRepository(CallFlowEntity)
     private readonly callFlowsRepository: Repository<CallFlowEntity>,
@@ -249,7 +257,8 @@ export class FlowsService {
         flowVersionId: versionId,
         sourceNodeKey: edge.sourceNodeKey,
         targetNodeKey: edge.targetNodeKey,
-        branchKey: edge.branchKey ?? 'default',
+        branchKey: edge.branchKey ?? edge.condition ?? 'default',
+        condition: edge.condition ?? null,
       }),
     );
     if (edgeEntities.length > 0) {
@@ -294,6 +303,7 @@ export class FlowsService {
         sourceNodeKey: edge.sourceNodeKey,
         targetNodeKey: edge.targetNodeKey,
         branchKey: edge.branchKey,
+        condition: edge.condition ?? null,
       })),
     };
   }
