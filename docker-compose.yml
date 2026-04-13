@@ -83,8 +83,15 @@ services:
       ARI_USER: callytics
       ARI_PASS: callytics
       ARI_APP: callytics
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: callytics
+      DB_USER: callytics
+      DB_PASS: callytics
     depends_on:
       asterisk:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
