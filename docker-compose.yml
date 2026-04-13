@@ -19,9 +19,14 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - 127.0.0.1:6379:6379
+      - 127.0.0.1:6380:6379
     volumes:
       - callytics_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   asterisk:
@@ -51,10 +56,14 @@ services:
       DB_NAME: callytics
       DB_USER: callytics
       DB_PASS: callytics
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       BACKEND_PORT: 3001
       NODE_ENV: development
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -85,10 +94,18 @@ services:
       DB_NAME: callytics
       DB_USER: callytics
       DB_PASS: callytics
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6380
+      AMI_HOST: 127.0.0.1
+      AMI_PORT: 5038
+      AMI_USER: callytics
+      AMI_PASS: callytics
     depends_on:
       asterisk:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

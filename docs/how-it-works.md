@@ -59,3 +59,22 @@ The working state is now:
 - `stasis` database host: `127.0.0.1`
 
 The older bridge-networked Stasis setup should not be restored.
+
+
+## Current implementation status after Phase 5
+
+The diagnostics loop is now partially live end to end.
+
+What now works:
+
+- Stasis publishes structured node execution events to Redis before and after node execution
+- Stasis also publishes SIP endpoint registration snapshots derived from AMI endpoint polling
+- NestJS subscribes to Redis pub/sub and relays those updates to connected browsers with Socket.io
+- The React frontend renders a diagnostics surface with a SIP status panel and a live per-call execution timeline
+- The frontend receives these updates through Socket.io push only; it does not poll for timeline data
+
+Current diagnostics data flow:
+
+- `Stasis -> Redis pub/sub -> NestJS -> Socket.io -> React frontend`
+
+The current diagnostics UI is meant as an operations surface, not a general dashboard template. It is the first concrete implementation of the Control Room design system.

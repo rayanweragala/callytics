@@ -86,3 +86,11 @@ Current service networking is mixed by design:
 - `asterisk`: host networking
 - `stasis`: host networking
 - `backend`, `postgres`, `redis`, `frontend`: verify per service before assuming; they may still use bridge networking
+
+
+Current Redis access is split by network mode:
+
+- `backend` reaches Redis through the Docker service name `redis:6379`
+- `stasis` reaches Redis through host-local `127.0.0.1:6380`
+
+This split exists because `stasis` uses host networking while Redis still runs on bridge networking and host port `6379` was unavailable on this machine.

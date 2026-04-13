@@ -1,120 +1,117 @@
-import { FlowNode } from '../flowLoader';
 import { CallSession } from '../callSession';
+import { FlowNode } from '../flowLoader';
+import { publishNodeTelemetry } from '../telemetry';
+
+async function executeStart(): Promise<string> {
+  return 'default';
+}
 
 function waitForPlaybackFinished(
-  ariClient: any,
+  ariClient: unknown,
   playbackId: string,
   channelId: string,
 ): Promise<void> {
+  const client = ariClient as {
+    on: (event: string, listener: (event: { playback?: { id?: string }; channel?: { id?: string } }) => void) => void;
+    removeListener: (event: string, listener: (event: { playback?: { id?: string }; channel?: { id?: string } }) => void) => void;
+  };
+
   return new Promise((resolve, reject) => {
-    const onFinished = (event: any) => {
-      if (event?.playback?.id === playbackId) {
+    const onFinished = (event: { playback?: { id?: string } }) => {
+      if (event.playback?.id === playbackId) {
         cleanup();
         resolve();
       }
     };
 
-    const onHangup = (event: any) => {
-      if (event?.channel?.id === channelId) {
+    const onHangup = (event: { channel?: { id?: string } }) => {
+      if (event.channel?.id === channelId) {
         cleanup();
         reject(new Error('hangup'));
       }
     };
 
     const cleanup = () => {
-      ariClient.removeListener('PlaybackFinished', onFinished);
-      ariClient.removeListener('StasisEnd', onHangup);
-      ariClient.removeListener('ChannelDestroyed', onHangup);
+      client.removeListener('PlaybackFinished', onFinished);
+      client.removeListener('StasisEnd', onHangup);
+      client.removeListener('ChannelDestroyed', onHangup);
     };
 
-    ariClient.on('PlaybackFinished', onFinished);
-    ariClient.on('StasisEnd', onHangup);
-    ariClient.on('ChannelDestroyed', onHangup);
+    client.on('PlaybackFinished', onFinished);
+    client.on('StasisEnd', onHangup);
+    client.on('ChannelDestroyed', onHangup);
   });
 }
 
-async function executeStart(): Promise<string> {
-  return 'default';
-}
-
 async function executePlayAudio(
-  channel: any,
+  channel: { id: string; play: (opts: { media: string }, playback: { id: string }) => Promise<void> },
   node: FlowNode,
-  _session: CallSession,
-  ariClient: any,
+  ariClient: unknown,
 ): Promise<string> {
-  const audioFilePath = node.config?.audio_file_path;
+  const audioFilePath = String(node.config.audio_file_path || '');
 
   if (!audioFilePath) {
     return 'default';
   }
 
-  try {
-    const playback = ariClient.Playback();
-    await channel.play({ media: 'sound:' + audioFilePath }, playback);
-    await waitForPlaybackFinished(ariClient, playback.id, channel.id);
-    return 'default';
-  } catch (error) {
-    console.error('play_audio failed:', error);
-    return 'hangup';
-  }
+  const playbackFactory = ariClient as { Playback: () => { id: string } };
+  const playback = playbackFactory.Playback();
+  await channel.play({ media: 'sound:' + audioFilePath }, playback);
+  await waitForPlaybackFinished(ariClient, playback.id, channel.id);
+  return 'default';
 }
 
 async function executeGetDigits(
-  channel: any,
+  channel: { id: string; play: (opts: { media: string }, playback: { id: string; stop: () => Promise<void> }) => Promise<void> },
   node: FlowNode,
-  _session: CallSession,
-  ariClient: any,
+  ariClient: unknown,
 ): Promise<string> {
-  const promptPath = node.config?.prompt_path;
-  const timeoutMs = Number(node.config?.timeout_ms) || 5000;
+  const promptPath = String(node.config.prompt_path || '');
+  const timeoutMs = Number(node.config.timeout_ms) || 5000;
+  const client = ariClient as {
+    Playback: () => { id: string; stop: () => Promise<void> };
+    on: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+    removeListener: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+  };
 
-  return new Promise(async (resolve) => {
-    const playback = ariClient.Playback();
+  return new Promise(async (resolve, reject) => {
+    const playback = client.Playback();
     let finished = false;
     let timer: NodeJS.Timeout | null = null;
 
     const cleanup = () => {
-      ariClient.removeListener('ChannelDtmfReceived', onDtmf);
-      ariClient.removeListener('StasisEnd', onHangup);
-      ariClient.removeListener('ChannelDestroyed', onHangup);
-      if (timer) {
-        clearTimeout(timer);
-      }
+      client.removeListener('ChannelDtmfReceived', onDtmf);
+      client.removeListener('StasisEnd', onHangup);
+      client.removeListener('ChannelDestroyed', onHangup);
+      if (timer) clearTimeout(timer);
     };
 
     const settle = async (value: string) => {
-      if (finished) {
-        return;
-      }
+      if (finished) return;
       finished = true;
       cleanup();
       try {
         await playback.stop();
-      } catch (_) {}
+      } catch {}
       resolve(value);
     };
 
-    const onDtmf = async (event: any) => {
-      if (event?.channel?.id !== channel.id) {
-        return;
-      }
-      await settle(String(event?.digit ?? 'default'));
+    const onDtmf = async (event: { channel?: { id?: string }; digit?: string }) => {
+      if (event.channel?.id !== channel.id) return;
+      await settle(String(event.digit || 'default'));
     };
 
-    const onHangup = async (event: any) => {
-      if (event?.channel?.id !== channel.id) {
-        return;
-      }
+    const onHangup = async (event: { channel?: { id?: string } }) => {
+      if (event.channel?.id !== channel.id) return;
       await settle('hangup');
     };
 
-    ariClient.on('ChannelDtmfReceived', onDtmf);
-    ariClient.on('StasisEnd', onHangup);
-    ariClient.on('ChannelDestroyed', onHangup);
+    client.on('ChannelDtmfReceived', onDtmf);
+    client.on('StasisEnd', onHangup);
+    client.on('ChannelDestroyed', onHangup);
 
-    timer = setTimeout(async () => {
-      await settle('timeout');
+    timer = setTimeout(() => {
+      void settle('timeout');
     }, timeoutMs);
 
     try {
@@ -122,8 +119,7 @@ async function executeGetDigits(
         await channel.play({ media: 'sound:' + promptPath }, playback);
       }
     } catch (error) {
-      console.error('get_digits failed:', error);
-      await settle('hangup');
+      reject(error instanceof Error ? error : new Error('get_digits_failed'));
     }
   });
 }
@@ -132,59 +128,79 @@ async function executeBranch(): Promise<string> {
   return 'default';
 }
 
-async function executeTransfer(_channel: any, node: FlowNode): Promise<string> {
-  console.log('transfer: not yet implemented for target: ' + node.config?.target);
+async function executeTransfer(node: FlowNode): Promise<string> {
+  console.log('transfer: not yet implemented for target: ' + String(node.config.target || ''));
   return 'default';
 }
 
-async function executeVoicemail(_channel: any, node: FlowNode): Promise<string> {
-  console.log('voicemail: not yet implemented for mailbox: ' + node.config?.mailbox);
+async function executeVoicemail(node: FlowNode): Promise<string> {
+  console.log('voicemail: not yet implemented for mailbox: ' + String(node.config.mailbox || ''));
   return 'default';
 }
 
-async function executeHangup(channel: any): Promise<string> {
+async function executeHangup(channel: { hangup: () => Promise<void> }): Promise<string> {
   try {
     await channel.hangup();
-  } catch (_) {}
+  } catch {}
   return 'done';
 }
 
-async function executeSetVariable(_channel: any, node: FlowNode, session: CallSession): Promise<string> {
-  const variableName = node.config?.variable_name;
-  const variableValue = node.config?.variable_value;
-
-  if (variableName) {
-    session.variables[String(variableName)] = String(variableValue ?? '');
-  }
-
+async function executeSetVariable(node: FlowNode, session: CallSession): Promise<string> {
+  const variableName = String(node.config.variable_name || '');
+  const variableValue = String(node.config.variable_value || '');
+  if (variableName) session.variables[variableName] = variableValue;
   return 'default';
 }
 
 export async function executeNode(
-  channel: any,
+  channel: { id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void>; hangup: () => Promise<void> },
   node: FlowNode,
   session: CallSession,
-  ariClient: any,
+  ariClient: unknown,
 ): Promise<string> {
-  switch (node.type) {
-    case 'start':
-      return executeStart();
-    case 'play_audio':
-      return executePlayAudio(channel, node, session, ariClient);
-    case 'get_digits':
-      return executeGetDigits(channel, node, session, ariClient);
-    case 'branch':
-      return executeBranch();
-    case 'transfer':
-      return executeTransfer(channel, node);
-    case 'voicemail':
-      return executeVoicemail(channel, node);
-    case 'hangup':
-      return executeHangup(channel);
-    case 'set_variable':
-      return executeSetVariable(channel, node, session);
-    default:
-      console.warn(`Unknown node type: ${node.type}`);
-      return 'default';
+  await publishNodeTelemetry(session, node, 'started');
+
+  try {
+    let result = 'default';
+
+    switch (node.type) {
+      case 'start':
+        result = await executeStart();
+        break;
+      case 'play_audio':
+        result = await executePlayAudio(channel, node, ariClient);
+        break;
+      case 'get_digits':
+        result = await executeGetDigits(channel, node, ariClient);
+        break;
+      case 'branch':
+        result = await executeBranch();
+        break;
+      case 'transfer':
+        result = await executeTransfer(node);
+        break;
+      case 'voicemail':
+        result = await executeVoicemail(node);
+        break;
+      case 'hangup':
+        result = await executeHangup(channel);
+        break;
+      case 'set_variable':
+        result = await executeSetVariable(node, session);
+        break;
+      default:
+        console.warn(`Unknown node type: ${node.type}`);
+        result = 'default';
+        break;
+    }
+
+    await publishNodeTelemetry(session, node, 'completed', { result });
+    return result;
+  } catch (error) {
+    console.error(`Node execution failed for ${node.nodeKey}:`, error);
+    await publishNodeTelemetry(session, node, 'error', {
+      message: error instanceof Error ? error.message : 'unknown error',
+    });
+    return 'hangup';
   }
 }

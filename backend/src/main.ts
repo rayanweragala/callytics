@@ -5,10 +5,11 @@ import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  const port = 3001;
+  app.enableCors({ origin: '*' });
+  const port = Number(process.env.BACKEND_PORT || 3001);
 
   await app.listen(port);
   Logger.log(`callytics backend running on port ${port}`);
 }
 
-bootstrap();
+void bootstrap();
