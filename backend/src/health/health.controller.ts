@@ -1,13 +1,19 @@
 import { Controller, Get } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
-@Controller('health')
+@Controller()
 export class HealthController {
-  @Get()
-  getHealth() {
+  constructor(@InjectDataSource() private dataSource: DataSource) {}
+
+  @Get('health')
+  async health() {
+    const dbConnected = this.dataSource.isInitialized;
     return {
       status: 'ok',
       service: 'callytics-backend',
       timestamp: new Date().toISOString(),
+      database: dbConnected ? 'connected' : 'disconnected',
     };
   }
 }

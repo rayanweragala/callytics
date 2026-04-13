@@ -9,6 +9,11 @@ services:
       - 127.0.0.1:5432:5432
     volumes:
       - callytics_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U callytics -d callytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   redis:
@@ -44,12 +49,17 @@ services:
       dockerfile: ./docker/api/Dockerfile
     ports:
       - 127.0.0.1:3001:3001
-    env_file:
-      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: callytics
+      DB_USER: callytics
+      DB_PASS: callytics
+      BACKEND_PORT: 3001
+      NODE_ENV: development
     depends_on:
-      - postgres
-      - redis
-      - asterisk
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
