@@ -1,90 +1,124 @@
 # Audio handling
 
-Audio has to feel simple in the UI, even though Asterisk is picky about file formats.
+Audio is now an implemented part of the product, not just a future design note. The current system supports upload, offline TTS generation, conversion, browser preview, and telephony playback.
 
-## What users can upload
+## What users can do now
 
-The UI should accept common formats:
+- Upload audio from the `/audio` page
+- Generate new prompts from text with offline Piper TTS
+- Browse the paginated audio library
+- Preview ready assets in the browser
+- Delete assets through the UI when they are not used by a published flow
+- Select audio assets from the flow builder node config panel
 
-- `mp3`
-- `wav`
-- `m4a`
-- `ogg`
-- `flac`
+## Current backend endpoints
 
-Users should not need to know what Asterisk wants internally.
+- `GET /audio?page=X&limit=Y`
+- `GET /audio/:id`
+- `POST /audio/upload`
+- `POST /audio/tts`
+- `GET /audio/voices`
+- `DELETE /audio/:id`
 
-## What Asterisk needs
+`GET /audio` currently returns the paginated envelope:
 
-For predictable playback, the system should normalize uploaded audio into Asterisk-safe output such as:
+- `data`
+- `total`
+- `page`
+- `limit`
+- `totalPages`
 
-- `wav` for source-quality archival when useful
-- `ulaw` or `gsm` versions for telephony playback depending on configured codec support
+## Actual storage layout
 
-Exact output formats may vary by deployment, but the product should choose a standard internal set and generate those automatically.
-
-## Conversion flow
-
-1. User uploads a file through the UI
-2. Backend stores the original file in `storage/audio/originals`
-3. A background job sends the file through `ffmpeg`
-4. The job creates normalized output files in `storage/audio/converted`
-5. Metadata is written to the database: original name, MIME type, duration, converted paths, sample rate, and status
-6. The UI shows the file as ready when conversion succeeds
-
-If conversion fails:
-
-- Keep the original file for inspection
-- Mark the asset as failed
-- Show the user a clear error message
-
-## File storage
-
-Suggested storage layout:
+Current storage paths under the backend-mounted `./storage` directory:
 
 - `storage/audio/originals`
-  Raw user uploads
+  Source uploads and raw generated TTS WAV files
 - `storage/audio/converted`
-  Generated playback files used by Asterisk
+  Telephony WAV files used by Asterisk playback
+- `storage/audio/previews`
+  Browser-preview WAV files served by NestJS
 - `storage/audio/tts`
-  Generated speech files from text input
+  Intermediate/generated TTS working files
+- `storage/audio/voices`
+  Voice model files available inside the backend runtime
 
-The database should store logical asset references, not hard-coded UI paths. Asterisk should mount the converted output path into its sounds directory.
+The backend container mounts `./storage` at `/app/storage`.
 
-## TTS flow
+## Current conversion pipeline
 
-The default offline TTS engine should be `Piper`.
+When audio is uploaded or generated with TTS:
 
-Flow:
+1. NestJS creates an `audio_files` record
+2. The original or generated source file is written into `storage/audio/...`
+3. `ffmpeg` creates:
+   - a telephony WAV in `storage/audio/converted`
+   - a preview WAV in `storage/audio/previews`
+4. The database record is updated with duration, converted path, preview path, and status
+5. The browser uses the preview WAV, while Asterisk uses the telephony WAV
 
-1. User opens `Create from text`
-2. User enters text and picks a voice
-3. Backend runs a TTS job with Piper
-4. The generated file is saved into `storage/audio/tts`
-5. The file is then normalized through the same audio pipeline as uploaded files
-6. The finished asset appears in the audio library like any other audio file
+The current telephony output is generated with:
 
-This matters because uploaded files and TTS files should behave the same once they are ready. The flow builder should not care where a prompt came from.
+- `8000 Hz`
+- mono
+- `pcm_mulaw`
 
-## Preview in the UI
+The current preview output is generated with:
 
-The UI should let users preview audio before using it in a flow.
+- `22050 Hz`
+- mono
+- `pcm_s16le`
 
-Preview behavior:
+## Static media serving
 
-- Play from the browser using the converted preview-safe file
-- Show duration and source type: uploaded or TTS
-- Show conversion status if still processing
-- Let the user test the exact file attached to a node from the node settings panel
+NestJS serves stored media through `/media/audio/...`.
 
-## Deletion and replacement
+Current path patterns include:
 
-Deleting an audio file should be blocked if it is used in a published flow, unless the user replaces it first.
+- `/media/audio/originals/...`
+- `/media/audio/previews/...`
+- `/media/audio/converted/...`
+- `/media/audio/tts/...`
 
-Replacing an audio file should:
+These URLs are returned by the backend for the browser preview player.
 
-- Keep the same logical asset ID if the user chooses replace
-- Re-run conversion
-- Update future playbacks without forcing the user to rewire every node
+## Piper TTS runtime
 
-That replacement path is important for agencies and businesses that update greetings often.
+Offline TTS now runs inside the backend container.
+
+Current backend image/runtime facts:
+
+- base image: `node:20-bookworm-slim`
+- installed tools: `python3`, `python3-pip`, `ffmpeg`, `piper-tts`
+- bundled voice model files live in `backend/voices/`
+- backend image copies bundled voice files into the runtime audio voices path
+
+The current bundled voice model is:
+
+- `en_US-lessac-medium`
+
+`GET /audio/voices` currently serves the local voice catalog used by the frontend voice picker.
+
+## Asterisk playback path
+
+Asterisk does not read browser preview files directly. It reads the converted telephony assets through the mounted sounds directory:
+
+- host path: `./storage/audio/converted`
+- container path: `/var/lib/asterisk/sounds/callytics`
+
+This is why telephony playback can use `sound:callytics/<id>` while the browser preview uses `/media/audio/...`.
+
+## Runtime resolution in Stasis
+
+The Stasis runtime now resolves audio assets from the database through `audioResolver.ts`.
+
+Current behavior:
+
+- `play_audio` first tries `audio_file_id`
+- `get_digits` first tries `prompt_audio_file_id`
+- If a ready `audio_files.storage_path_converted` row exists, the runtime maps it to `sound:callytics/<basename>`
+- If no database-backed asset is available, the runtime falls back to the static path fields:
+  - `audio_file_path`
+  - `prompt_path`
+
+That keeps existing built-in prompt paths working while allowing real audio asset management through the database-backed flow builder.

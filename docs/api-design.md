@@ -11,9 +11,9 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
 - What it does:
   Returns all flows as thin summaries for the builder and diagnostics UI
 - Input:
-  None
+  `page` and `limit` query parameters
 - Returns:
-  `{ data: FlowSummary[], total: number }`
+  `{ data, total, page, limit, totalPages }`
 - Current summary fields:
   - `id`
   - `name`
@@ -92,68 +92,74 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
 
 ## Audio
 
-### `GET /api/audio`
+### `GET /audio?page=X&limit=Y`
 
 - What it does:
-  Returns audio library entries
+  Returns the audio library as a paginated list
 - Input:
-  Optional filters for search, source type, and status
+  `page` and `limit` query parameters
 - Returns:
-  Audio file summaries with duration, source, and usage count
+  `{ data, total, page, limit, totalPages }`
 
-### `POST /api/audio/upload`
+### `GET /audio/:id`
 
 - What it does:
-  Uploads one audio file
-- Input:
-  Multipart file upload and optional tags
-- Returns:
-  Audio asset record with conversion status
-
-### `POST /api/audio/tts`
-
-- What it does:
-  Generates a new audio asset from text
-- Input:
-  Text, voice, and optional speaking rate settings
-- Returns:
-  Audio asset record with generation status
-
-### `GET /api/audio/:audioId`
-
-- What it does:
-  Returns full metadata for one audio asset
+  Returns one audio asset with resolved media URLs
 - Input:
   Audio ID in the path
 - Returns:
-  Metadata, usage references, and preview URL
+  `{ data: AudioDetail }`
 
-### `PUT /api/audio/:audioId`
+### `POST /audio/upload`
 
 - What it does:
-  Updates metadata such as display name or tags
+  Uploads one audio file, stores it, and runs the `ffmpeg` conversion pipeline
 - Input:
-  Editable metadata fields
+  Multipart file upload with optional `name`
 - Returns:
-  Updated audio asset
+  `{ data: AudioDetail }`
 
-### `POST /api/audio/:audioId/replace`
+### `POST /audio/tts`
 
 - What it does:
-  Replaces the file contents while keeping the logical asset
+  Generates a new audio asset from text using offline Piper inside the backend container
 - Input:
-  Multipart file upload
+  `name`, `text`, and `voice`
 - Returns:
-  Updated asset with fresh conversion status
+  `{ data: AudioDetail }`
 
-### `DELETE /api/audio/:audioId`
+### `GET /audio/voices`
 
 - What it does:
-  Deletes an audio asset if safe
+  Returns the local voice catalog used by the audio page
+- Input:
+  None
+- Returns:
+  `{ data: VoiceSummary[], total: number }`
+
+### `DELETE /audio/:id`
+
+- What it does:
+  Deletes an audio asset if it is not used in a published flow
 - Input:
   Audio ID in the path
 - Returns:
-  Success flag or a blocking reason if the file is used in a published flow
+  `{ data: { id: number, deleted: true } }`
+
+### Static media serving
+
+NestJS serves audio files through `/media/audio/...` with the current storage paths:
+
+- `/media/audio/originals/...`
+- `/media/audio/previews/...`
+- `/media/audio/converted/...`
+- `/media/audio/tts/...`
+
+### Audio API notes
+
+- `GET /audio` uses the paginated response envelope `{ data, total, page, limit, totalPages }`
+- Browser preview uses the preview WAV path served by NestJS
+- Telephony playback uses the converted WAV path mounted into Asterisk
 
 ## Calls
 
@@ -320,3 +326,12 @@ The current editor persists:
 - node labels
 - node config
 - edges and edge reconnection changes
+
+
+### Phase 8 builder integration note
+
+The flow builder node config now supports real audio asset selection:
+
+- `play_audio` nodes can select `audio_file_id` through the searchable audio picker
+- `get_digits` nodes can select `prompt_audio_file_id` through the searchable audio picker
+- Static fallback fields remain available for built-in or manually named sound paths

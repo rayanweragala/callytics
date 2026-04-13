@@ -123,3 +123,33 @@ What now works:
 - save feedback and delete confirmations are implemented in the Control Room UI
 
 This means the builder is no longer blocked on mock data. The browser now edits real flows stored through the backend CRUD API.
+
+
+## Current implementation status after Phase 8
+
+The audio path is now a real implemented part of the system, not just a design note.
+
+What now works:
+
+- Audio can be uploaded into the backend and stored as database-backed assets
+- The backend writes an `audio_files` record before and after conversion work
+- `ffmpeg` produces a telephony playback WAV and a browser-preview WAV for each asset
+- NestJS statically serves audio files from `/media/audio/...` for browser preview
+- Offline Piper TTS runs inside the backend container and writes generated assets into the same audio pipeline
+- The Stasis runtime now resolves `audio_file_id` from the database through `audioResolver.ts` before playback
+- `play_audio` and `get_digits` still support direct built-in/static sound paths as fallback fields
+
+Current implemented Phase 8 pipeline:
+
+1. User uploads audio or generates TTS in the frontend
+2. NestJS creates an `audio_files` record in PostgreSQL
+3. The backend stores the source file under `storage/audio/...`
+4. `ffmpeg` produces a converted telephony WAV and a preview WAV
+5. NestJS serves those files at `/media/audio/...`
+6. Stasis resolves `audio_file_id` to the converted asset path and plays it through Asterisk
+
+Current audio mount path into Asterisk:
+
+- `./storage/audio/converted -> /var/lib/asterisk/sounds/callytics`
+
+That lets the browser preview and the telephony runtime share one asset pipeline while still using the format each side needs.

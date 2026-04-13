@@ -15,8 +15,9 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
 } from 'reactflow';
-import { getFlow, updateFlow } from '../lib/api';
-import type { BuilderNodeType, FlowDetail, FlowNodeData } from '../types';
+import { getFlow, listAudio, updateFlow } from '../lib/api';
+import type { AudioFileItem, BuilderNodeType, FlowDetail, FlowNodeData } from '../types';
+import { SearchableSelect } from '../components/common/SearchableSelect';
 import { FlowCanvasEdge } from '../components/builder/FlowCanvasEdge';
 import { FlowCanvasNode } from '../components/builder/FlowCanvasNode';
 import styles from './FlowEditorPage.module.css';
@@ -148,6 +149,7 @@ export function FlowEditorPage() {
   const [flow, setFlow] = useState<FlowDetail | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [audioItems, setAudioItems] = useState<AudioFileItem[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -180,6 +182,14 @@ export function FlowEditorPage() {
   const deleteEdge = useCallback((edgeId: string) => {
     setEdges((current) => current.filter((edge) => edge.id !== edgeId));
   }, [setEdges]);
+
+  useEffect(() => {
+    const loadAudio = async () => {
+      const response = await listAudio();
+      setAudioItems(response.data);
+    };
+    void loadAudio();
+  }, []);
 
   useEffect(() => {
     fitDone.current = false;
@@ -364,6 +374,9 @@ export function FlowEditorPage() {
   };
 
   const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;
+  const audioFileSelected = Number(selectedConfig.audio_file_id || 0) > 0;
+  const promptAudioSelected = Number(selectedConfig.prompt_audio_file_id || 0) > 0;
+  const audioOptions = audioItems.map((item) => ({ value: String(item.id), label: item.name }));
 
   const saveFlow = async () => {
     if (!flow) return;
@@ -504,23 +517,47 @@ export function FlowEditorPage() {
               </label>
 
               {selectedNode.data.type === 'play_audio' ? (
-                <label className={styles.field}>
-                  <span className={styles.fieldLabel}>audio_file_path</span>
-                  <input
-                    className={styles.input}
-                    value={String(selectedConfig.audio_file_path || '')}
-                    onChange={(event) => handleConfigChange('audio_file_path', event.target.value)}
-                  />
-                </label>
+                <>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>audio file</span>
+                    <SearchableSelect
+                      options={audioOptions}
+                      value={selectedConfig.audio_file_id ? String(selectedConfig.audio_file_id) : null}
+                      onChange={(value) => handleConfigChange('audio_file_id', value || '')}
+                      placeholder="built-in path / manual"
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>audio_file_path</span>
+                    <input
+                      className={styles.input}
+                      disabled={audioFileSelected}
+                      placeholder={audioFileSelected ? 'disabled — using audio file above' : 'built-in sound path'}
+                      value={audioFileSelected ? 'disabled — using audio file above' : String(selectedConfig.audio_file_path || '')}
+                      onChange={(event) => handleConfigChange('audio_file_path', event.target.value)}
+                    />
+                  </label>
+                </>
               ) : null}
 
               {selectedNode.data.type === 'get_digits' ? (
                 <>
                   <label className={styles.field}>
+                    <span className={styles.fieldLabel}>prompt audio</span>
+                    <SearchableSelect
+                      options={audioOptions}
+                      value={selectedConfig.prompt_audio_file_id ? String(selectedConfig.prompt_audio_file_id) : null}
+                      onChange={(value) => handleConfigChange('prompt_audio_file_id', value || '')}
+                      placeholder="built-in path / manual"
+                    />
+                  </label>
+                  <label className={styles.field}>
                     <span className={styles.fieldLabel}>prompt_path</span>
                     <input
                       className={styles.input}
-                      value={String(selectedConfig.prompt_path || '')}
+                      disabled={promptAudioSelected}
+                      placeholder={promptAudioSelected ? 'disabled — using audio file above' : 'built-in sound path'}
+                      value={promptAudioSelected ? 'disabled — using audio file above' : String(selectedConfig.prompt_path || '')}
                       onChange={(event) => handleConfigChange('prompt_path', event.target.value)}
                     />
                   </label>

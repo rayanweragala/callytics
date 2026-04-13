@@ -43,6 +43,7 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 5: diagnostics UI completed: SIP status panel, Redis-to-Socket.io event relay, and live execution timeline
 - Phase 6: React Flow builder UI completed with live backend persistence
 - Phase 7: thin-slice backend REST API for flow CRUD implemented for the builder
+- Phase 8: audio management completed with `audio_files`, ffmpeg conversion, offline Piper TTS, `/audio` page, builder audio picker integration, Stasis audio resolver, and shared pagination/search UI
 
 Important infrastructure change made during Phase 4:
 

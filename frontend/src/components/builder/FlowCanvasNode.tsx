@@ -24,6 +24,9 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
       <div className={styles.body}>
         <div className={styles.type}>{data.type}</div>
         <div className={styles.label}>{data.label}</div>
+        {data.type === 'get_digits' && typeof data.config.timeout_ms === 'number' ? (
+          <div className={styles.meta}>timeout: {Math.round(Number(data.config.timeout_ms) / 1000)}s</div>
+        ) : null}
       </div>
       {selected && data.type !== 'start' && data.onDelete ? (
         <button

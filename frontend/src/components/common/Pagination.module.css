@@ -1,0 +1,32 @@
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.pageCount {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.button,
+.select {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 8px 12px;
+}
+
+.button:disabled {
+  color: var(--text-muted);
+}

@@ -50,6 +50,8 @@ services:
       dockerfile: ./docker/api/Dockerfile
     ports:
       - 127.0.0.1:3001:3001
+    volumes:
+      - ./storage:/app/storage
     environment:
       DB_HOST: postgres
       DB_PORT: 5432

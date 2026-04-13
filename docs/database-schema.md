@@ -17,6 +17,12 @@ Phase 7 API note:
 - The first flow CRUD API now works directly against `call_flows`, `flow_versions`, `flow_nodes`, and `flow_edges`
 - The backend uses `current_version_id` to resolve the latest version returned to the builder
 
+Phase 8 audio note:
+
+- The `audio_files` table is now implemented and active in the backend
+- NestJS writes audio asset records there for uploads and offline TTS generation
+- Stasis now resolves `audio_file_id` from the database before playback
+
 ## `users`
 
 - `id`
@@ -131,6 +137,8 @@ Phase 7 API note:
 
 ## `audio_files`
 
+This table is now implemented and active.
+
 - `id`
 - `name`
 - `source_type`
@@ -139,8 +147,11 @@ Phase 7 API note:
 - `mime_type`
 - `duration_ms`
 - `storage_path_original`
+  Source upload or raw TTS WAV path
 - `storage_path_converted`
+  Telephony WAV path mounted into Asterisk
 - `storage_path_preview`
+  Browser-preview WAV path served by NestJS
 - `conversion_status`
 - `tts_text`
   Nullable, only for TTS assets
@@ -151,6 +162,8 @@ Phase 7 API note:
 - `updated_at`
 
 ## `audio_usage`
+
+This table is still planned and not currently implemented in the backend. Current delete protection is done by querying `flow_nodes.config_json` directly.
 
 - `id`
 - `audio_file_id`

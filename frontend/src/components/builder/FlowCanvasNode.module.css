@@ -36,6 +36,13 @@
   margin-top: 4px;
 }
 
+.meta {
+  margin-top: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .deleteButton {
   position: absolute;
   top: 8px;

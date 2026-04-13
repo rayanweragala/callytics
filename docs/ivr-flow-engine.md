@@ -175,10 +175,13 @@ Purpose:
 
 How it runs:
 
-1. The app makes an ARI request to play media on the live channel
-2. Asterisk starts playback
-3. The app waits for the playback finished event
-4. When playback ends, the node returns `completed`
+1. The runtime first tries to resolve `audio_file_id` from the node config through `audioResolver.ts`
+2. If found, it loads `storage_path_converted` from `audio_files` and maps it to `sound:callytics/<id>` for Asterisk playback
+3. If no `audio_file_id` is set or no ready asset exists, it falls back to `audio_file_path` for built-in or static sounds
+4. The app makes an ARI request to play media on the live channel
+5. Asterisk starts playback
+6. The app waits for the playback finished event
+7. When playback ends, the node returns `completed`
 
 Main ARI control:
 
@@ -186,7 +189,8 @@ Main ARI control:
 
 Notes:
 
-- This is straightforward
+- `audioResolver.ts` is the bridge between database-backed audio assets and Asterisk sound playback
+- Built-in/static sound paths still work as fallback
 - The app still has to watch for hangup while playback is happening
 
 ### Get Digits
@@ -199,11 +203,14 @@ Purpose:
 
 How it runs:
 
-1. The app starts prompt playback on the channel
-2. The app listens for DTMF events on the ARI event stream
-3. The app starts a timeout timer
-4. If the caller presses a key, the node returns that digit
-5. If the timer expires first, the node returns `timeout`
+1. The runtime first tries to resolve `prompt_audio_file_id` from the node config through `audioResolver.ts`
+2. If found, it loads the converted asset path from `audio_files` and maps it into the Asterisk sounds mount
+3. If no database-backed prompt asset exists, it falls back to `prompt_path` for built-in or static sounds
+4. The app starts prompt playback on the channel
+5. The app listens for DTMF events on the ARI event stream
+6. The app starts a timeout timer
+7. If the caller presses a key, the node returns that digit
+8. If the timer expires first, the node returns `timeout`
 
 Main ARI control:
 
@@ -214,6 +221,7 @@ Notes:
 
 - ARI does not turn this into one magic IVR call for us
 - We have to coordinate playback, DTMF, and timeout logic in our own code
+- Database-backed prompt assets and fallback prompt paths are both supported
 
 ### Branch
 
@@ -435,3 +443,13 @@ There is now a working React Flow editor on the frontend that can:
 - save the edited graph back through the backend CRUD API
 
 This is still a thin slice, but it gives the runtime engine a real visual editor instead of static seeded data only.
+
+
+## Phase 8 builder integration
+
+The flow builder now exposes database-backed audio selection in node config:
+
+- `play_audio` nodes can select `audio_file_id` from the shared searchable audio picker
+- `get_digits` nodes can select `prompt_audio_file_id` from the same picker
+- Static path fields remain available for built-in or manual sound paths
+- When an asset ID is selected, the runtime prefers that database-backed asset and only falls back to the path fields if no ready asset is found

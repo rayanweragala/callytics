@@ -1,0 +1,180 @@
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.panel, .libraryPanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.panelTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: lowercase;
+  margin-bottom: 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.input, .textarea {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.textarea { min-height: 120px; resize: vertical; }
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  text-transform: lowercase;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.deleteButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.failedButton,
+.deleteButton,
+.failedText {
+  color: var(--color-error);
+}
+
+.confirmText,
+.deletedText,
+.failedText,
+.createdAt {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+}
+
+.deletedText {
+  color: var(--color-active);
+}
+
+.actionRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tableHead, .row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 100px 100px minmax(260px, 1fr) 170px 220px;
+  gap: 16px;
+  align-items: center;
+}
+
+.tableHead {
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.row {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.row:last-child { border-bottom: none; }
+.name, .meta { font-family: 'Space Mono', monospace; }
+.name { color: var(--text-primary); font-size: 13px; }
+.meta { color: var(--text-secondary); font-size: 11px; }
+.createdAt { color: var(--text-secondary); }
+.empty { color: var(--text-muted); padding-top: 16px; }
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  text-align: right;
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-overlay);
+}
+
+.confirmText {
+  color: var(--text-secondary);
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

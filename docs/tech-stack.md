@@ -53,12 +53,19 @@
 ## Audio handling
 
 - `ffmpeg`
-  Chosen because users will upload mixed formats and Asterisk wants predictable output. We are not relying on users to pre-convert files themselves.
+  Now implemented inside the backend container to convert uploads and TTS output into a telephony WAV for Asterisk playback and a preview WAV for browser playback.
 
 ## Text to speech
 
 - `Piper`
-  Chosen because it runs offline, is good enough for product prompts, and avoids tying core functionality to a paid cloud API. Cloud TTS can be an optional addon later.
+  Now implemented inside the backend container for offline generation. The current bundled voice model is `en_US-lessac-medium`, stored in `backend/voices/` and copied into the backend image. Cloud TTS is still optional future work, not required for the current product.
+
+## Current backend audio runtime
+
+- Backend container base: `node:20-bookworm-slim`
+- Backend container installs: `python3`, `python3-pip`, `ffmpeg`, and `piper-tts`
+- NestJS statically serves generated and uploaded media from `/media/audio/...`
+- The backend image bundles `en_US-lessac-medium` voice model files from `backend/voices/`
 
 ## Realtime updates
 
@@ -94,3 +101,9 @@ Current Redis access is split by network mode:
 - `stasis` reaches Redis through host-local `127.0.0.1:6380`
 
 This split exists because `stasis` uses host networking while Redis still runs on bridge networking and host port `6379` was unavailable on this machine.
+
+
+Current API pagination now implemented:
+
+- `GET /audio` is paginated
+- `GET /flows` is paginated

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { FlowsService } from './flows.service';
@@ -8,8 +8,11 @@ export class FlowsController {
   constructor(private readonly flowsService: FlowsService) {}
 
   @Get()
-  findAll() {
-    return this.flowsService.findAll();
+  findAll(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number,
+  ) {
+    return this.flowsService.findAll(page, limit);
   }
 
   @Get(':id')

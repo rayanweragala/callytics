@@ -1,0 +1,36 @@
+.hiddenInput {
+  display: none;
+}
+
+.zone {
+  width: 100%;
+  min-height: 120px;
+  border: 1px dashed var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.zone:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: lowercase;
+}
+
+.fileName {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+}

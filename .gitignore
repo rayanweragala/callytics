@@ -9,3 +9,11 @@ build/
 .DS_Store
 .codex
 .omx/
+
+# Runtime audio storage — generated at runtime, never commit
+storage/audio/converted/*
+storage/audio/originals/*
+storage/audio/previews/*
+storage/audio/tts/*
+storage/audio/voices/*
+storage/voicemail/*

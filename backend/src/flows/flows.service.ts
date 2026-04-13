@@ -59,9 +59,13 @@ export class FlowsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(): Promise<{ data: FlowListItem[]; total: number }> {
-    const flows = await this.callFlowsRepository.find({
+  async findAll(page = 1, limit = 5): Promise<{ data: FlowListItem[]; total: number; page: number; limit: number; totalPages: number }> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const [flows, total] = await this.callFlowsRepository.findAndCount({
       order: { createdAt: 'ASC' },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
     });
 
     const data = flows.map((flow) => ({
@@ -71,7 +75,13 @@ export class FlowsService {
       createdAt: flow.createdAt.toISOString(),
     }));
 
-    return { data, total: data.length };
+    return {
+      data,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+    };
   }
 
   async findOne(id: number): Promise<{ data: FlowDetailResponse }> {

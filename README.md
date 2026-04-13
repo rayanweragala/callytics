@@ -12,6 +12,7 @@ Current completed implementation phases:
 - Phase 5: diagnostics UI, SIP status panel, Redis pub/sub telemetry, Socket.io relay
 - Phase 6: React Flow builder UI with flow list, editor canvas, config panel, node and edge editing
 - Phase 7: thin-slice backend REST API for flow CRUD powering the builder
+- Phase 8: audio management, ffmpeg conversion, offline Piper TTS, static media serving, and builder audio asset integration
 
 Current important infrastructure state:
 
@@ -21,3 +22,31 @@ Current important infrastructure state:
 - `stasis` uses `DB_HOST=127.0.0.1`
 - `backend` uses bridge networking and talks to Postgres/Redis by service name
 - `stasis` uses host-local Redis at `127.0.0.1:6380`
+
+Current audio management capabilities:
+
+- Upload audio through the backend and convert it with `ffmpeg` into telephony and browser-preview WAV outputs
+- Generate offline TTS with bundled Piper using the `en_US-lessac-medium` voice model
+- Browse and manage assets in the frontend audio library at `/audio`
+- Preview converted audio in the browser before assigning it to nodes
+- Resolve database-backed audio assets in the Stasis runtime through `audio_file_id`
+
+Current backend audio endpoints:
+
+- `GET /audio?page=X&limit=Y`
+- `GET /audio/:id`
+- `POST /audio/upload`
+- `POST /audio/tts`
+- `GET /audio/voices`
+- `DELETE /audio/:id`
+- Static media at `/media/audio/...`
+
+Current API pagination:
+
+- `GET /audio` returns `{ data, total, page, limit, totalPages }`
+- `GET /flows` returns `{ data, total, page, limit, totalPages }`
+
+Current asset/runtime notes:
+
+- `backend/voices/` contains the bundled Piper voice model files used during backend image build
+- Host-exposed Redis now uses `127.0.0.1:6380` rather than `6379`

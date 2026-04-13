@@ -27,13 +27,15 @@ callytics/
 │   ├── tsconfig.json
 │   ├── vite.config.ts
 │   └── src/                      # pages, components, API clients, and flow editor code
-├── backend/                      # NestJS API, realtime gateways, integrations, and jobs
+├── backend/                      # NestJS API, realtime gateways, integrations, jobs, static media serving, and offline TTS
 │   ├── package.json
 │   ├── tsconfig.json
+│   ├── voices/                   # bundled Piper voice model files included in the backend image
 │   └── src/
 │       ├── app.module.ts
 │       ├── health/               # health and service readiness controllers
 │       ├── modules/              # domain modules such as flows, audio, calls, reports, settings
+│       ├── audio/                # audio API, conversion pipeline, voice catalog, and media-serving helpers
 │       ├── asterisk/             # AMI and ARI clients plus Asterisk integration helpers
 │       ├── realtime/             # Socket.io gateways and event fanout
 │       ├── workers/              # background jobs for audio conversion and report tasks
@@ -48,7 +50,12 @@ callytics/
 │   ├── sounds/                   # mounted path for converted audio assets
 │   └── voicemail/                # voicemail config and storage mounts
 ├── storage/                      # persistent app data outside source code
-│   ├── audio/                    # source uploads and converted prompt files
+│   ├── audio/                    # source uploads, converted telephony WAVs, preview WAVs, generated TTS, and copied voice assets
+│   │   ├── originals/
+│   │   ├── converted/
+│   │   ├── previews/
+│   │   ├── tts/
+│   │   ├── voices/
 │   ├── voicemail/                # voicemail recordings
 │   ├── reports/                  # generated report exports
 │   └── backups/                  # user-triggered backup artifacts
@@ -65,7 +72,11 @@ Notes:
 
 - `stasis/` is a real standalone Node.js package in the npm workspace. It is not embedded inside the NestJS backend process.
 - `stasis/src/` now includes the flow runtime engine, database migration/seed entrypoints, flow loader, call session manager, and node executors.
-- `frontend/src/` now contains routed pages for diagnostics and the flow builder, plus canonical Control Room components and builder-specific canvas components.
+- `frontend/src/` now contains routed pages for diagnostics, audio, and the flow builder, plus canonical Control Room components and builder-specific canvas components.
+- `frontend/src/components/common/` contains shared `SearchableSelect` and `Pagination` components used across multiple pages.
 - `asterisk/base` should stay mostly hand-maintained and small.
 - `asterisk/trunks` should be fully machine-generated from saved SIP trunk settings.
 - `storage` should be mount-backed so reinstalls do not destroy user data.
+
+- The backend container mounts the repo `./storage` directory at `/app/storage` for audio and other persistent assets.
+- Asterisk mounts `./storage/audio/converted` at `/var/lib/asterisk/sounds/callytics` for telephony playback.

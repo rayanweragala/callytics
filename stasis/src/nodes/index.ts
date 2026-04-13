@@ -1,5 +1,6 @@
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
+import { resolveAudioMediaPath } from '../audioResolver';
 import { publishNodeTelemetry } from '../telemetry';
 
 async function executeStart(): Promise<string> {
@@ -48,7 +49,7 @@ async function executePlayAudio(
   node: FlowNode,
   ariClient: unknown,
 ): Promise<string> {
-  const audioFilePath = String(node.config.audio_file_path || '');
+  const audioFilePath = await resolveAudioMediaPath(node.config, 'audio_file_id', 'audio_file_path');
 
   if (!audioFilePath) {
     return 'default';
@@ -66,7 +67,7 @@ async function executeGetDigits(
   node: FlowNode,
   ariClient: unknown,
 ): Promise<string> {
-  const promptPath = String(node.config.prompt_path || '');
+  const promptPath = await resolveAudioMediaPath(node.config, 'prompt_audio_file_id', 'prompt_path');
   const timeoutMs = Number(node.config.timeout_ms) || 5000;
   const client = ariClient as {
     Playback: () => { id: string; stop: () => Promise<void> };

@@ -27,6 +27,11 @@
   padding: 10px 12px;
 }
 
+.input:disabled {
+  color: var(--text-muted);
+  background: var(--bg-overlay);
+}
+
 .flowNameInput {
   min-width: 280px;
   font-size: 15px;

@@ -72,3 +72,26 @@ export interface FlowDetail {
   nodes: FlowApiNode[];
   edges: FlowApiEdge[];
 }
+
+
+export interface AudioFileItem {
+  id: number;
+  name: string;
+  sourceType: string;
+  originalFilename: string | null;
+  mimeType: string | null;
+  durationMs: number | null;
+  conversionStatus: string;
+  ttsText: string | null;
+  ttsVoice: string | null;
+  originalUrl: string | null;
+  previewUrl: string | null;
+  convertedUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AudioVoiceItem {
+  id: string;
+  label: string;
+}

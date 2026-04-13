@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Pagination } from '../components/common/Pagination';
 import { createFlow, deleteFlow, listFlows } from '../lib/api';
 import { formatDate } from '../lib/time';
 import type { FlowSummary } from '../types';
@@ -12,21 +13,27 @@ export function FlowsPage() {
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
-  const loadFlows = async () => {
+  const loadFlows = async (nextPage = page, nextLimit = limit) => {
     setLoading(true);
     try {
-      const response = await listFlows();
+      const response = await listFlows(nextPage, nextLimit);
       setFlows(response.data);
+      setPage(response.page);
+      setLimit(response.limit);
+      setTotalPages(response.totalPages);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadFlows();
-  }, []);
+    void loadFlows(page, limit);
+  }, [page, limit]);
 
   const handleCreate = async () => {
     setBusyId(-1);
@@ -59,7 +66,7 @@ export function FlowsPage() {
       setDeletedId(id);
       setConfirmId(null);
       window.setTimeout(() => {
-        setFlows((current) => current.filter((flow) => flow.id !== id));
+        void loadFlows(page, limit);
         setDeletedId((current) => (current === id ? null : current));
       }, 1200);
     } catch {
@@ -89,7 +96,7 @@ export function FlowsPage() {
         <div className={styles.tableHead}>
           <div>name</div>
           <div>created</div>
-          <div>actions</div>
+          <div className={styles.actionsHeader}>actions</div>
         </div>
         {loading ? (
           <div className={styles.empty}>—</div>
@@ -127,6 +134,16 @@ export function FlowsPage() {
             </div>
           ))
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={(value) => {
+            setPage(1);
+            setLimit(value);
+          }}
+        />
       </div>
     </div>
   );

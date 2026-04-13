@@ -1,13 +1,16 @@
 import axios from 'axios';
-import type { FlowDetail, FlowSummary } from '../types';
+import type { AudioFileItem, AudioVoiceItem, FlowDetail, FlowSummary } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001',
 });
 
-export interface FlowListResponse {
-  data: FlowSummary[];
+export interface PaginatedResponse<T> {
+  data: T[];
   total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface FlowDetailResponse {
@@ -40,8 +43,17 @@ export interface SaveFlowPayload {
   }>;
 }
 
-export async function listFlows(): Promise<FlowListResponse> {
-  const response = await api.get<FlowListResponse>('/flows');
+export interface AudioDetailResponse {
+  data: AudioFileItem;
+}
+
+export interface AudioVoicesResponse {
+  data: AudioVoiceItem[];
+  total: number;
+}
+
+export async function listFlows(page = 1, limit = 5): Promise<PaginatedResponse<FlowSummary>> {
+  const response = await api.get<PaginatedResponse<FlowSummary>>('/flows', { params: { page, limit } });
   return response.data;
 }
 
@@ -62,5 +74,38 @@ export async function updateFlow(id: string, payload: SaveFlowPayload): Promise<
 
 export async function deleteFlow(id: number): Promise<DeleteFlowResponse> {
   const response = await api.delete<DeleteFlowResponse>(`/flows/${id}`);
+  return response.data;
+}
+
+export async function listAudio(page = 1, limit = 5): Promise<PaginatedResponse<AudioFileItem>> {
+  const response = await api.get<PaginatedResponse<AudioFileItem>>('/audio', { params: { page, limit } });
+  return response.data;
+}
+
+export async function getAudio(id: number): Promise<AudioDetailResponse> {
+  const response = await api.get<AudioDetailResponse>(`/audio/${id}`);
+  return response.data;
+}
+
+export async function listAudioVoices(): Promise<AudioVoicesResponse> {
+  const response = await api.get<AudioVoicesResponse>('/audio/voices');
+  return response.data;
+}
+
+export async function uploadAudio(file: File, name?: string): Promise<AudioDetailResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  if (name) form.append('name', name);
+  const response = await api.post<AudioDetailResponse>('/audio/upload', form);
+  return response.data;
+}
+
+export async function createTts(payload: { name: string; text: string; voice: string }): Promise<AudioDetailResponse> {
+  const response = await api.post<AudioDetailResponse>('/audio/tts', payload);
+  return response.data;
+}
+
+export async function deleteAudio(id: number): Promise<DeleteFlowResponse> {
+  const response = await api.delete<DeleteFlowResponse>(`/audio/${id}`);
   return response.data;
 }

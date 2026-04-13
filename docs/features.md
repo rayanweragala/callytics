@@ -2,11 +2,11 @@
 
 ## Flow builder
 
-- Drag-and-drop canvas with custom nodes and labeled connections
+- Drag-and-drop canvas with custom nodes and editable connections
 - Left sidebar for node types, center canvas for flow layout, right panel for node settings
 - Start node that marks the entry point for incoming calls
-- Play audio node for uploaded or TTS-generated prompts
-- Menu node for DTMF keypress routing such as `1 for sales`, `2 for support`
+- Play audio node for uploaded or TTS-generated prompts, including searchable database-backed audio asset selection
+- Menu node for DTMF keypress routing such as `1 for sales`, `2 for support`, with prompt asset selection from the audio library
 - Condition node for time-based rules, caller ID matching, business hours, and simple variable checks
 - Transfer node for sending calls to an extension, ring group, queue, or external number
 - Queue node for holding callers and routing to available agents
@@ -20,20 +20,19 @@
 
 ## Audio management
 
+- `/audio` page with upload form, offline TTS generation form, and paginated library table
 - Upload audio in common formats such as `mp3`, `wav`, `m4a`, and `ogg`
-- Automatic conversion into Asterisk-safe formats during import
-- Audio library with search, tags, duration, source type, and usage count
-- Replace an audio file while keeping the same logical asset reference
-- Preview player in the UI before assigning audio to a node
-- Show where each audio file is used before deletion
+- Automatic `ffmpeg` conversion into telephony and preview WAV outputs during import
+- Browser preview player for ready assets
+- Inline delete confirmation in the audio library
+- Paginated audio library driven by the backend
 
 ## Text to speech
 
 - Create an audio prompt from typed text inside the UI
-- Voice selection from installed offline voice packs
-- Adjustable speaking rate and volume normalization presets
+- Offline Piper TTS bundled in the backend container
+- Bundled `en_US-lessac-medium` voice model available from first boot
 - Saved output appears in the same audio library as uploaded files
-- Re-generate a prompt when text changes while keeping the asset history
 
 ## Live dashboard
 
@@ -72,3 +71,9 @@
 - Dashboard refresh and event noise filters
 - SIP settings page
 - Backup and restore entry point for future versions
+
+
+## Shared UI components
+
+- `SearchableSelect` is now a reusable picker used for voices and audio assets
+- `Pagination` is now a reusable backend-driven list footer used across pages

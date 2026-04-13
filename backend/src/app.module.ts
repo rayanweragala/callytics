@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AudioModule } from './audio/audio.module';
+import { AudioFileEntity } from './audio/entities/audio-file.entity';
 import { DiagnosticsModule } from './diagnostics/diagnostics.module';
 import { CallFlowEntity } from './flows/entities/call-flow.entity';
 import { FlowEdgeEntity } from './flows/entities/flow-edge.entity';
@@ -24,7 +26,7 @@ import { HealthController } from './health/health.controller';
         database: config.get('DB_NAME', 'callytics'),
         username: config.get('DB_USER', 'callytics'),
         password: config.get('DB_PASS', 'callytics'),
-        entities: [CallFlowEntity, FlowVersionEntity, FlowNodeEntity, FlowEdgeEntity],
+        entities: [CallFlowEntity, FlowVersionEntity, FlowNodeEntity, FlowEdgeEntity, AudioFileEntity],
         synchronize: false,
         logging: false,
         retryAttempts: 10,
@@ -33,6 +35,7 @@ import { HealthController } from './health/health.controller';
     }),
     DiagnosticsModule,
     FlowsModule,
+    AudioModule,
   ],
   controllers: [HealthController],
 })

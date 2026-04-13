@@ -47,7 +47,7 @@ Suggested default ports:
 - `3000` for the frontend web UI
 - `3001` for the backend API
 - `5432` for PostgreSQL, bound locally only
-- `6379` for Redis, bound locally only
+- `6380` for Redis on the host, mapped to container port `6379`
 - `8088` for Asterisk HTTP and ARI, bound locally only
 - `5038` for AMI, bound internally and not exposed publicly by default
 - `5080/udp` for SIP
@@ -63,6 +63,18 @@ The current working telephony runtime uses host networking for both `asterisk` a
 - `stasis` reaches PostgreSQL at `127.0.0.1:5432`
 
 This replaced the older design where Stasis stayed on bridge networking while Asterisk moved to host networking. That older layout broke ARI connectivity during first-call debugging.
+
+The current backend runtime also includes local audio tooling:
+
+- backend container base `node:20-bookworm-slim`
+- `python3`, `python3-pip`, `ffmpeg`, and `piper-tts` installed in the backend image
+- bundled `en_US-lessac-medium` voice available from first boot
+- no network access required for TTS generation after install
+
+Current audio mount expectations:
+
+- backend mounts `./storage` at `/app/storage`, including `./storage/audio/`
+- Asterisk mounts `./storage/audio/converted` at `/var/lib/asterisk/sounds/callytics`
 
 ## What the user sees when it works
 
