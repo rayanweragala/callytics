@@ -44,6 +44,7 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 6: React Flow builder UI completed with live backend persistence
 - Phase 7: thin-slice backend REST API for flow CRUD implemented for the builder
 - Phase 8: audio management completed with `audio_files`, ffmpeg conversion, offline Piper TTS, `/audio` page, builder audio picker integration, Stasis audio resolver, and shared pagination/search UI
+- Phase 9: end-to-end live call verification completed with database-backed audio assets, Stasis flow execution, DTMF capture, and Asterisk playback fixed through `.ulaw` telephony assets
 
 Important infrastructure change made during Phase 4:
 

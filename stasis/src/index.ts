@@ -2,12 +2,13 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import * as ari from 'ari-client';
-import { addSession, createSession, removeSession } from './callSession';
+import { addSession, createSession, getSession, removeSession } from './callSession';
 import { loadFlow } from './flowLoader';
 import migrate from './migrate';
 import { runFlow } from './runtime';
 import seed from './seed';
 import { startAmiMonitor } from './amiMonitor';
+import { publishCallEndTelemetry } from './telemetry';
 
 const ARI_URL = process.env.ARI_URL || 'http://127.0.0.1:8088';
 const ARI_USER = process.env.ARI_USER || 'callytics';
@@ -55,7 +56,11 @@ async function start(): Promise<void> {
       }
     });
 
-    client.on('StasisEnd', (_event: unknown, channel: { id: string }) => {
+    client.on('StasisEnd', async (_event: unknown, channel: { id: string }) => {
+      const session = getSession(channel.id);
+      if (session) {
+        await publishCallEndTelemetry(channel.id, session.flow.id, session.callerNumber);
+      }
       removeSession(channel.id);
       console.log(`StasisEnd: ${channel.id}`);
     });

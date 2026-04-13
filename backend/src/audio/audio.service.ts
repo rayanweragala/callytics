@@ -172,10 +172,12 @@ export class AudioService implements OnModuleInit {
 
   private async processAudio(id: number, inputPath: string): Promise<AudioFileEntity> {
     const convertedPath = join(this.convertedDir, `${id}.wav`);
+    const ulawPath = join(this.convertedDir, `${id}.ulaw`);
     const previewPath = join(this.previewsDir, `${id}.wav`);
 
     try {
       await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '8000', '-ac', '1', '-c:a', 'pcm_mulaw', convertedPath]);
+      await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '8000', '-ac', '1', '-acodec', 'pcm_mulaw', '-f', 'mulaw', ulawPath]);
       await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '22050', '-ac', '1', '-c:a', 'pcm_s16le', previewPath]);
       const durationMs = await this.getDurationMs(previewPath);
 

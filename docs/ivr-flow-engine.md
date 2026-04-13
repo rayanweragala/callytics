@@ -177,11 +177,12 @@ How it runs:
 
 1. The runtime first tries to resolve `audio_file_id` from the node config through `audioResolver.ts`
 2. If found, it loads `storage_path_converted` from `audio_files` and maps it to `sound:callytics/<id>` for Asterisk playback
-3. If no `audio_file_id` is set or no ready asset exists, it falls back to `audio_file_path` for built-in or static sounds
-4. The app makes an ARI request to play media on the live channel
-5. Asterisk starts playback
-6. The app waits for the playback finished event
-7. When playback ends, the node returns `completed`
+3. Asterisk resolves that `sound:` lookup to `callytics/<id>.ulaw` inside the mounted sounds directory
+4. If no `audio_file_id` is set or no ready asset exists, it falls back to `audio_file_path` for built-in or static sounds
+5. The app makes an ARI request to play media on the live channel
+6. Asterisk starts playback
+7. The app waits for the playback finished event
+8. When playback ends, the node returns `completed`
 
 Main ARI control:
 
@@ -190,6 +191,7 @@ Main ARI control:
 Notes:
 
 - `audioResolver.ts` is the bridge between database-backed audio assets and Asterisk sound playback
+- In the current runtime, `sound:callytics/<id>` resolves to the `.ulaw` asset in the mounted Asterisk sounds directory
 - Built-in/static sound paths still work as fallback
 - The app still has to watch for hangup while playback is happening
 
@@ -205,12 +207,13 @@ How it runs:
 
 1. The runtime first tries to resolve `prompt_audio_file_id` from the node config through `audioResolver.ts`
 2. If found, it loads the converted asset path from `audio_files` and maps it into the Asterisk sounds mount
-3. If no database-backed prompt asset exists, it falls back to `prompt_path` for built-in or static sounds
-4. The app starts prompt playback on the channel
-5. The app listens for DTMF events on the ARI event stream
-6. The app starts a timeout timer
-7. If the caller presses a key, the node returns that digit
-8. If the timer expires first, the node returns `timeout`
+3. Asterisk resolves `sound:callytics/<id>` to the `.ulaw` telephony asset in the mounted sounds directory
+4. If no database-backed prompt asset exists, it falls back to `prompt_path` for built-in or static sounds
+5. The app starts prompt playback on the channel
+6. The app listens for DTMF events on the ARI event stream
+7. The app starts a timeout timer
+8. If the caller presses a key, the node returns that digit
+9. If the timer expires first, the node returns `timeout`
 
 Main ARI control:
 

@@ -153,3 +153,15 @@ Current audio mount path into Asterisk:
 - `./storage/audio/converted -> /var/lib/asterisk/sounds/callytics`
 
 That lets the browser preview and the telephony runtime share one asset pipeline while still using the format each side needs.
+
+## Current implementation status after Phase 9
+
+The end-to-end call path is now verified with database-backed audio assets and live diagnostics cleanup.
+
+What now works:
+
+- Stasis publishes a terminal hangup telemetry event when `StasisEnd` fires
+- The backend diagnostics service derives active call count from the in-memory timeline rather than a Redis counter
+- The backend now evicts stale non-terminal timeline entries after one hour, checked every five minutes
+- Audio playback uses `sound:callytics/<id>` and Asterisk resolves that to the mounted `.ulaw` asset
+- Completed calls no longer need to remain stuck as active if a terminal event was missed in an older session

@@ -53,9 +53,10 @@ When audio is uploaded or generated with TTS:
 2. The original or generated source file is written into `storage/audio/...`
 3. `ffmpeg` creates:
    - a telephony WAV in `storage/audio/converted`
+   - a raw telephony `.ulaw` file in `storage/audio/converted`
    - a preview WAV in `storage/audio/previews`
 4. The database record is updated with duration, converted path, preview path, and status
-5. The browser uses the preview WAV, while Asterisk uses the telephony WAV
+5. The browser uses the preview WAV, while Asterisk uses the telephony asset path
 
 The current telephony output is generated with:
 
@@ -106,7 +107,14 @@ Asterisk does not read browser preview files directly. It reads the converted te
 - host path: `./storage/audio/converted`
 - container path: `/var/lib/asterisk/sounds/callytics`
 
-This is why telephony playback can use `sound:callytics/<id>` while the browser preview uses `/media/audio/...`.
+The current conversion pipeline writes both:
+
+- `<id>.wav`
+- `<id>.ulaw`
+
+The `.wav` output is still useful for inspection and parity, but the important telephony playback detail is that Asterisk expects raw `ulaw` with a `.ulaw` extension for this path. Asterisk rejects `pcm_mulaw` inside a WAV container for `sound:` playback in this setup.
+
+This is why telephony playback now resolves to `sound:callytics/<id>` and Asterisk ultimately opens `callytics/<id>.ulaw`, while the browser preview uses `/media/audio/...`.
 
 ## Runtime resolution in Stasis
 

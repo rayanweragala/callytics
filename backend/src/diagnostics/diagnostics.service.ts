@@ -14,6 +14,9 @@ interface RedisSipStatusMessage {
   endpoints: SipEndpointStatus[];
 }
 
+const STALE_CALL_MAX_AGE_MS = 60 * 60 * 1000;
+const STALE_CALL_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class DiagnosticsService implements OnModuleInit {
   private readonly startedAt = Date.now();
@@ -34,6 +37,9 @@ export class DiagnosticsService implements OnModuleInit {
     setInterval(() => {
       void this.refreshFlowCount();
     }, 10000);
+    setInterval(() => {
+      this.cleanupStaleCalls();
+    }, STALE_CALL_CLEANUP_INTERVAL_MS);
 
     this.redisSubscriber = createClient({
       socket: {
@@ -90,12 +96,10 @@ export class DiagnosticsService implements OnModuleInit {
 
   getMetrics(): DiagnosticsSnapshot['metrics'] {
     const activeCalls = Array.from(this.timeline.values()).filter((events) => {
-      const lastEvent = events[events.length - 1];
-      if (!lastEvent) {
+      if (events.length === 0) {
         return false;
       }
-      const result = String(lastEvent.meta.result || '');
-      return result !== 'hangup' && result !== 'done' && lastEvent.status !== 'error';
+      return !this.hasTerminalEvent(events);
     }).length;
 
     const registeredEndpoints = this.getSipStatuses().filter((status) => status.state === 'registered').length;
@@ -114,5 +118,44 @@ export class DiagnosticsService implements OnModuleInit {
       sipStatuses: this.getSipStatuses(),
       timeline: this.getTimeline(),
     };
+  }
+
+  private hasTerminalEvent(events: CallTimelineEvent[]): boolean {
+    return events.some((event) => {
+      const result = String(event.meta.result || '');
+      return (
+        event.status === 'error'
+        || (event.nodeType === 'hangup' && event.status === 'completed')
+        || result === 'hangup'
+        || result === 'done'
+        || String(event.meta.eventType || '') === 'StasisEnd'
+      );
+    });
+  }
+
+  private cleanupStaleCalls(): void {
+    let removed = 0;
+    const now = Date.now();
+
+    for (const [callId, events] of this.timeline.entries()) {
+      const lastEvent = events[events.length - 1];
+      if (!lastEvent) {
+        this.timeline.delete(callId);
+        removed += 1;
+        continue;
+      }
+
+      const ageMs = now - lastEvent.ts;
+      if (ageMs > STALE_CALL_MAX_AGE_MS && !this.hasTerminalEvent(events)) {
+        this.timeline.delete(callId);
+        removed += 1;
+      }
+    }
+
+    if (removed > 0) {
+      console.log(`[diagnostics] evicted ${removed} stale call timeline entr${removed === 1 ? 'y' : 'ies'}`);
+      this.gateway?.broadcastSnapshot();
+      this.gateway?.broadcastSipStatuses();
+    }
   }
 }

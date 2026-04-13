@@ -40,6 +40,29 @@ export async function publishNodeTelemetry(
   await publish('callytics:call-timeline', payload);
 }
 
+export async function publishCallEndTelemetry(
+  callId: string,
+  flowId: number,
+  callerNumber: string,
+): Promise<void> {
+  const payload: NodeTelemetryEvent = {
+    callId,
+    flowId,
+    nodeId: 'hangup',
+    nodeType: 'hangup',
+    status: 'completed',
+    ts: Date.now(),
+    meta: {
+      result: 'hangup',
+      eventType: 'StasisEnd',
+      callerNumber,
+    },
+  };
+
+  console.log(`[telemetry] publishing node event ${payload.nodeType}:${payload.status} for ${payload.callId}`);
+  await publish('callytics:call-timeline', payload);
+}
+
 export async function publishSipStatus(endpoints: SipEndpointStatus[]): Promise<void> {
   console.log(`[telemetry] publishing sip status for ${endpoints.length} endpoints`);
   await publish('callytics:sip-status', {
