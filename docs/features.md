@@ -2,6 +2,23 @@
 
 ## Flow builder
 
+
+## Hunt Group Node
+
+Dial multiple SIP destinations with configurable strategy.
+
+**Strategies:**
+- Sequential: dial each destination in order, retry until total timeout
+- Random: same as sequential, no consecutive repeats
+- Group: originate all simultaneously, first to answer wins, rest cancelled
+
+**Features:**
+- Hold audio loops on caller channel during dialing
+- Busy audio plays between retry attempts
+- Failed or unreachable endpoints count as failed attempts — retries continue
+- Bare extension destinations auto-normalized to PJSIP/ prefix
+- Routes to on_no_answer node when all attempts exhausted
+
 - Drag-and-drop canvas with custom nodes and editable connections
 - Left sidebar for node types, center canvas for flow layout, right panel for node settings
 - Start node that marks the entry point for incoming calls

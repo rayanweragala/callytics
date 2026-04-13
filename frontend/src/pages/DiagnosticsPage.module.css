@@ -37,7 +37,8 @@
 .panelBody {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -110,9 +111,8 @@
 .groups {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  flex: 1;
-  overflow: hidden;
+  gap: 4px;
+  width: 100%;
 }
 
 .callCard {
@@ -121,6 +121,8 @@
   border-radius: 8px;
   overflow: hidden;
   background: var(--bg-surface);
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .callCard:hover {
@@ -151,6 +153,11 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+.summaryLeft {
+  flex: 1;
 }
 
 .summaryRight {
@@ -161,11 +168,15 @@
   color: var(--text-primary);
   font-size: 11px;
   letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .caller {
   color: var(--text-secondary);
   font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .finalStatus {

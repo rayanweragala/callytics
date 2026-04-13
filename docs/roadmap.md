@@ -47,6 +47,16 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 9: end-to-end live call verification completed with database-backed audio assets, Stasis flow execution, DTMF capture, and Asterisk playback fixed through `.ulaw` telephony assets
 - Phase 10: conditional edge routing and transfer-node execution completed; `get_digits` now subscribes correctly to DTMF on the live ARI channel, ignores `h`-extension Stasis re-entry, and the Stasis seed path now skips any existing flow 1 with saved nodes instead of overwriting user-built routing
 - Phase 11: call recording completed with a `call_recordings` table, NestJS `RecordingsModule`, bridge-based ARI recording, a `/recordings` frontend page with inline preview/download/delete actions, and diagnostics pagination for the live execution and SIP panels
+- Phase 12: hunt group node, retry semantics, builder canvas minimap/layout improvements, and diagnostics live execution expanded-row layout fix completed
+  - Hunt group node: sequential, random, group strategies
+  - Hold audio loop during dialing, busy audio between retries
+  - on_no_answer routing on exhaustion
+  - Destination normalization (bare extension → PJSIP/ prefix)
+  - Failed originate treated as retry attempt, not fatal error
+  - get_digits implicit fallback: unmatched digit → invalid → default edge
+  - Canvas mini-map with per-node-type accent colors
+  - Canvas auto-layout via dagre (tidy layout button)
+  - Diagnostics live execution expanded row layout fix
 
 Important infrastructure change made during Phase 4:
 

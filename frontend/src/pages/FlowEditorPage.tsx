@@ -7,6 +7,7 @@ import ReactFlow, {
   Controls,
   Edge,
   EdgeMouseHandler,
+  MiniMap,
   Node,
   NodeMouseHandler,
   OnSelectionChangeParams,
@@ -20,10 +21,14 @@ import type { AudioFileItem, BuilderNodeType, FlowDetail, FlowNodeData } from '.
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { FlowCanvasEdge } from '../components/builder/FlowCanvasEdge';
 import { FlowCanvasNode } from '../components/builder/FlowCanvasNode';
+import { HuntNode } from '../components/nodes/HuntNode';
+import { HuntConfigPanel } from '../components/panels/HuntConfigPanel';
+import { layoutFlow } from '../utils/layoutFlow';
 import styles from './FlowEditorPage.module.css';
 
 const nodeTypes = {
   flowNode: FlowCanvasNode,
+  huntNode: HuntNode,
 };
 
 const edgeTypes = {
@@ -35,6 +40,7 @@ const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'play_audio', label: 'play audio' },
   { type: 'get_digits', label: 'get digits' },
   { type: 'transfer', label: 'transfer' },
+  { type: 'hunt', label: 'Hunt Group' },
   { type: 'hangup', label: 'hangup' },
 ];
 
@@ -53,6 +59,17 @@ function typeConfig(type: BuilderNodeType): Record<string, unknown> {
   if (type === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
   if (type === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
   if (type === 'transfer') return { destination: '', timeout_ms: 30000, on_no_answer: '' };
+  if (type === 'hunt') {
+    return {
+      destinations: ['SIP/101'],
+      strategy: 'sequential',
+      attempt_timeout_ms: 20000,
+      total_timeout_ms: 60000,
+      hold_audio_file_id: null,
+      busy_audio_file_id: null,
+      on_no_answer: '',
+    };
+  }
   return {};
 }
 
@@ -60,7 +77,7 @@ function buildCanvasNode(type: BuilderNodeType, index: number): Node<FlowNodeDat
   const key = `${type}-${Date.now()}-${index}`;
   return {
     id: key,
-    type: 'flowNode',
+    type: type === 'hunt' ? 'huntNode' : 'flowNode',
     position: { x: 120 + index * 40, y: 120 + index * 30 },
     data: {
       label: palette.find((item) => item.type === type)?.label || type,
@@ -148,7 +165,7 @@ function attachEdgeMetadata(
 function mapFlowToNodes(flow: FlowDetail): Array<Node<FlowNodeData>> {
   return flow.nodes.map((node) => ({
     id: node.nodeKey,
-    type: 'flowNode',
+    type: node.type === 'hunt' ? 'huntNode' : 'flowNode',
     position: { x: node.positionX, y: node.positionY },
     data: {
       label: node.label || node.nodeKey,
@@ -181,6 +198,27 @@ function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
 function makeEdgeKey(source: string | null, target: string | null, sourceHandle: string | null | undefined, condition: string | null): string {
   return `${source || ''}|${target || ''}|${sourceHandle || ''}|${condition || ''}`;
 }
+
+function minimapNodeColor(node: Node<FlowNodeData>): string {
+  switch (node.data?.type) {
+    case 'start':
+      return '#00dc82';
+    case 'play_audio':
+      return '#3b82f6';
+    case 'get_digits':
+      return '#f5a623';
+    case 'transfer':
+      return '#3b82f6';
+    case 'hunt':
+      return '#f5a623';
+    case 'hangup':
+      return '#ff4444';
+    default:
+      return '#555555';
+  }
+}
+
+const miniMapSizeProps = { width: 160, height: 120 } as unknown as Record<string, number>;
 
 export function FlowEditorPage() {
   const { id = '' } = useParams();
@@ -289,10 +327,13 @@ export function FlowEditorPage() {
     (connection: Connection) => {
       const sourceNodeType = nodes.find((node) => node.id === connection.source)?.data.type || 'hangup';
       const condition = sourceNodeType === 'get_digits' ? 'default' : null;
-      const branchKey = condition || 'default';
+      const branchKey = sourceNodeType === 'hunt' ? 'no answer' : condition || 'default';
       const newKey = makeEdgeKey(connection.source, connection.target, connection.sourceHandle, condition);
 
       setEdges((current) => {
+        if (sourceNodeType === 'hunt' && current.some((edge) => edge.source === connection.source)) {
+          return current;
+        }
         const duplicate = current.find((edge) => makeEdgeKey(edge.source, edge.target, edge.sourceHandle, edge.data?.condition ?? null) === newKey);
         if (duplicate) {
           return current;
@@ -420,7 +461,7 @@ current,
     );
   };
 
-  const handleConfigChange = (field: string, value: string) => {
+  const handleConfigValueChange = (field: string, value: unknown) => {
     if (!selectedNodeId) return;
     setNodes((current) =>
       withNodeDeleteCallbacks(
@@ -432,11 +473,30 @@ current,
               ...node.data,
               config: {
                 ...node.data.config,
-                [field]: field === 'timeout_ms' ? Number(value) || 0 : value,
+                [field]: value,
               },
             },
           };
         }),
+        deleteNode,
+      ),
+    );
+  };
+
+  const handleConfigChange = (field: string, value: string) => {
+    const numericFields = new Set(['timeout_ms', 'attempt_timeout_ms', 'total_timeout_ms']);
+    handleConfigValueChange(field, numericFields.has(field) ? Number(value) || 0 : value);
+  };
+
+  const handleConfigReplace = (nextConfig: Record<string, unknown>) => {
+    if (!selectedNodeId) return;
+    setNodes((current) =>
+      withNodeDeleteCallbacks(
+        current.map((node) => (
+          node.id === selectedNodeId
+            ? { ...node, data: { ...node.data, config: nextConfig } }
+            : node
+        )),
         deleteNode,
       ),
     );
@@ -522,6 +582,14 @@ current,
     setFlow({ ...flow, name: value });
   };
 
+  const handleTidyLayout = () => {
+    const nextNodes = withNodeDeleteCallbacks(layoutFlow(nodes, edges), deleteNode);
+    setNodes(nextNodes);
+    window.setTimeout(() => {
+      void rfInstance?.fitView({ padding: 0.2, duration: 400 });
+    }, 50);
+  };
+
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : 'save';
   const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
 
@@ -530,6 +598,7 @@ current,
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>
           <button className={styles.secondaryButton} onClick={() => navigate('/flows')} type="button">back</button>
+          <button className={styles.secondaryButton} onClick={handleTidyLayout} type="button">tidy layout</button>
           <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => setFlowName(event.target.value)} />
         </div>
         <button className={saveButtonClass} onClick={() => void saveFlow()} type="button">{saveLabel}</button>
@@ -558,7 +627,8 @@ current,
         </section>
 
         <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-          <ReactFlow
+          <div className={styles.canvasWrapper}>
+            <ReactFlow
             fitView
             fitViewOptions={{ padding: 0.2 }}
             nodes={nodes}
@@ -593,8 +663,24 @@ current,
             deleteKeyCode={['Backspace', 'Delete']}
           >
             <Background color="#1f1f1f" gap={24} />
-            <Controls />
+            <Controls position="bottom-left" />
+            <MiniMap
+              nodeColor={minimapNodeColor}
+              maskColor="rgba(0, 0, 0, 0.6)"
+              position="bottom-right"
+              {...miniMapSizeProps}
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-default)',
+                borderRadius: '6px',
+                width: 160,
+                height: 120,
+              }}
+              pannable
+              zoomable
+            />
           </ReactFlow>
+          </div>
         </section>
 
         <section className={styles.rightPanel}>
@@ -670,6 +756,16 @@ current,
                     <input className={styles.input} type="number" value={String(selectedConfig.timeout_ms || 5000)} onChange={(event) => handleConfigChange('timeout_ms', event.target.value)} />
                   </label>
                 </>
+              ) : null}
+
+              {selectedNode.data.type === 'hunt' ? (
+                <HuntConfigPanel
+                  nodeId={selectedNode.id}
+                  config={selectedConfig}
+                  audioOptions={audioOptions}
+                  nodeOptions={nodeOptions}
+                  onConfigReplace={handleConfigReplace}
+                />
               ) : null}
 
               {selectedNode.data.type === 'transfer' ? (

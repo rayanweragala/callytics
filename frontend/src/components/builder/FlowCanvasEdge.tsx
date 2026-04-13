@@ -35,7 +35,8 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
     targetPosition,
   });
 
-  const showLabel = data?.sourceNodeType === 'get_digits' && Boolean(data?.condition);
+  const showLabel = (data?.sourceNodeType === 'get_digits' && Boolean(data?.condition)) || data?.sourceNodeType === 'hunt';
+  const labelText = data?.sourceNodeType === 'hunt' ? String(data?.branchKey || 'no answer') : String(data?.condition || '');
 
   return (
     <>
@@ -53,7 +54,7 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
             className={styles.label}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - (selected ? 14 : 0)}px)` }}
           >
-            {data?.condition}
+            {labelText}
           </div>
         </EdgeLabelRenderer>
       ) : null}

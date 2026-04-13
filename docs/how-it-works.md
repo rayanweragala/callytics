@@ -125,6 +125,11 @@ What now works:
 This means the builder is no longer blocked on mock data. The browser now edits real flows stored through the backend CRUD API.
 
 
+**Canvas tools:**
+- Mini-map (bottom-right): shows all nodes with type-colored indicators, pannable and zoomable
+- Tidy layout button: auto-arranges nodes into a clean top-down tree using the dagre layout algorithm
+
+
 ## Current implementation status after Phase 8
 
 The audio path is now a real implemented part of the system, not just a design note.

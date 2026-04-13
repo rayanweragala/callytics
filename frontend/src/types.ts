@@ -27,7 +27,7 @@ export interface DiagnosticsSnapshot {
   timeline: Record<string, CallTimelineEvent[]>;
 }
 
-export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup' | 'transfer';
+export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup' | 'transfer' | 'hunt';
 
 export interface FlowNodeData {
   label: string;

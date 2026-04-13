@@ -234,6 +234,12 @@ Notes:
 - We have to coordinate playback, DTMF, and timeout logic in our own code
 - Database-backed prompt assets and fallback prompt paths are both supported
 
+
+**Implicit fallback for unmatched digits:**
+If a pressed digit has no explicit edge, the engine falls back to the `invalid`
+edge if one exists, then to the `default` edge. You do not need to draw an
+edge for every possible digit — only the ones you explicitly handle.
+
 ### Branch
 
 Purpose:
@@ -254,6 +260,23 @@ Notes:
 
 - This is app logic, not an Asterisk media action
 - ARI is not called here unless the next node needs it
+
+
+
+### hunt
+
+Dials multiple SIP destinations with configurable strategy.
+
+Config:
+- `destinations`: array of SIP endpoint strings (e.g. `["PJSIP/101", "PJSIP/102"]`)
+- `strategy`: `sequential` | `random` | `group`
+- `attempt_timeout_ms`: per-attempt dial timeout
+- `total_timeout_ms`: total hunt window before exhaustion
+- `hold_audio_file_id`: audio file ID to loop during dialing (nullable)
+- `busy_audio_file_id`: audio file ID to play between retries (nullable)
+- `on_no_answer`: node key to route to on exhaustion
+
+Result: `route:<nodeKey>` on exhaustion, or waits for answer and bridges.
 
 ### Transfer
 

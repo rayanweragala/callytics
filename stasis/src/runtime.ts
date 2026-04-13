@@ -2,10 +2,30 @@ import { CallSession } from './callSession';
 import { FlowEdge } from './flowLoader';
 import { executeNode } from './nodes';
 
-function resolveNextEdge(currentNodeKey: string, result: string, edges: FlowEdge[]): FlowEdge | null {
+function resolveGetDigitsEdge(edges: FlowEdge[], result: string): FlowEdge | null {
+  const exact = edges.find((edge) => edge.condition === result);
+  if (exact) {
+    return exact;
+  }
+
+  if (result !== 'timeout') {
+    const invalid = edges.find((edge) => edge.condition === 'invalid');
+    if (invalid) {
+      return invalid;
+    }
+  }
+
+  return edges.find((edge) => edge.condition === 'default' || edge.condition === null) || null;
+}
+
+function resolveNextEdge(currentNodeKey: string, nodeType: string, result: string, edges: FlowEdge[]): FlowEdge | null {
   const outgoing = edges.filter((edge) => edge.sourceNodeKey === currentNodeKey);
   if (outgoing.length === 0) {
     return null;
+  }
+
+  if (nodeType === 'get_digits') {
+    return resolveGetDigitsEdge(outgoing, result);
   }
 
   const conditionalEdges = outgoing.filter((edge) => edge.condition !== null && edge.condition !== undefined);
@@ -62,7 +82,7 @@ export async function runFlow(
       continue;
     }
 
-    const edge = resolveNextEdge(session.currentNodeKey, result, session.flow.edges);
+    const edge = resolveNextEdge(session.currentNodeKey, node.type, result, session.flow.edges);
 
     if (!edge) {
       console.error(`No edge found from ${session.currentNodeKey} with result ${result}`);

@@ -10,6 +10,7 @@ import seed from './seed';
 import { startAmiMonitor } from './amiMonitor';
 import { publishCallEndTelemetry } from './telemetry';
 import { resolveTransferWaiter } from './transferManager';
+import { resolveHuntWaiter } from './huntManager';
 
 const ARI_URL = process.env.ARI_URL || 'http://127.0.0.1:8088';
 const ARI_USER = process.env.ARI_USER || 'callytics';
@@ -200,6 +201,12 @@ async function start(): Promise<void> {
       if (event.args?.[0] === 'transfer-outbound' && event.args[1]) {
         resolveTransferWaiter(event.args[1], channel);
         console.log(`Transfer leg answered: ${channel.id} for ${event.args[1]}`);
+        return;
+      }
+
+      if (event.args?.[0] === 'hunt-outbound' && event.args[1]) {
+        resolveHuntWaiter(event.args[1], channel);
+        console.log(`Hunt leg entered Stasis: ${channel.id} token=${event.args[1]}`);
         return;
       }
 

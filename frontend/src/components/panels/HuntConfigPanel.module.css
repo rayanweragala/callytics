@@ -1,0 +1,69 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel,
+.meta {
+  font-family: 'Space Mono', monospace;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.destinationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.destinationRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.addButton,
+.removeButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  text-transform: lowercase;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.addButton:hover,
+.removeButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.removeButton:disabled {
+  color: var(--text-muted);
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}

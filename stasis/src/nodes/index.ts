@@ -3,6 +3,7 @@ import { FlowNode } from '../flowLoader';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { publishNodeTelemetry } from '../telemetry';
 import { registerTransferWaiter } from '../transferManager';
+import { executeHunt } from './hunt.executor';
 
 type PlaybackTarget =
   | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void> }
@@ -343,6 +344,25 @@ async function executeSetVariable(node: FlowNode, session: CallSession): Promise
   return 'default';
 }
 
+type NodeExecutor = (
+  channel: { id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void>; hangup: () => Promise<void> },
+  node: FlowNode,
+  session: CallSession,
+  ariClient: unknown,
+) => Promise<string>;
+
+const executorMap: Record<string, NodeExecutor> = {
+  start: async () => executeStart(),
+  play_audio: executePlayAudio,
+  get_digits: executeGetDigits,
+  branch: async () => executeBranch(),
+  transfer: executeTransfer,
+  hunt: executeHunt,
+  voicemail: async (_channel, node) => executeVoicemail(node),
+  hangup: async (channel) => executeHangup(channel),
+  set_variable: async (_channel, node, session) => executeSetVariable(node, session),
+};
+
 export async function executeNode(
   channel: { id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void>; hangup: () => Promise<void> },
   node: FlowNode,
@@ -352,39 +372,14 @@ export async function executeNode(
   await publishNodeTelemetry(session, node, 'started');
 
   try {
-    let result = 'default';
-
-    switch (node.type) {
-      case 'start':
-        result = await executeStart();
-        break;
-      case 'play_audio':
-        result = await executePlayAudio(channel, node, session, ariClient);
-        break;
-      case 'get_digits':
-        result = await executeGetDigits(channel, node, session, ariClient);
-        break;
-      case 'branch':
-        result = await executeBranch();
-        break;
-      case 'transfer':
-        result = await executeTransfer(channel, node, session, ariClient);
-        break;
-      case 'voicemail':
-        result = await executeVoicemail(node);
-        break;
-      case 'hangup':
-        result = await executeHangup(channel);
-        break;
-      case 'set_variable':
-        result = await executeSetVariable(node, session);
-        break;
-      default:
-        console.warn(`Unknown node type: ${node.type}`);
-        result = 'default';
-        break;
+    const executor = executorMap[node.type];
+    if (!executor) {
+      console.warn(`Unknown node type: ${node.type}`);
+      await publishNodeTelemetry(session, node, 'completed', { result: 'default' });
+      return 'default';
     }
 
+    const result = await executor(channel, node, session, ariClient);
     await publishNodeTelemetry(session, node, 'completed', { result });
     return result;
   } catch (error) {
