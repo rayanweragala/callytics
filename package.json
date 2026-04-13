@@ -1,0 +1,18 @@
+{
+  "name": "callytics",
+  "version": "0.1.0",
+  "description": "Self-hosted open source call center platform",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "stasis"
+  ],
+  "scripts": {
+    "dev": "docker compose up --build",
+    "start": "docker compose up -d",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "status": "docker compose ps"
+  }
+}

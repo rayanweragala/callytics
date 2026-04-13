@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: callytics
+      POSTGRES_USER: callytics
+      POSTGRES_PASSWORD: callytics
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      - callytics_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 127.0.0.1:6379:6379
+    volumes:
+      - callytics_redis_data:/data
+    restart: unless-stopped
+
+  asterisk:
+    build:
+      context: .
+      dockerfile: ./docker/asterisk/Dockerfile
+    ports:
+      - 127.0.0.1:8088:8088
+      - 127.0.0.1:5038:5038
+      - 5060:5060/udp
+      - 10000-10100:10000-10100/udp
+    volumes:
+      - ./asterisk/base:/etc/asterisk
+      - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics
+      - ./storage/voicemail:/var/spool/asterisk/voicemail
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./docker/api/Dockerfile
+    ports:
+      - 127.0.0.1:3001:3001
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+      - asterisk
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    ports:
+      - 127.0.0.1:3000:3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  stasis:
+    build:
+      context: .
+      dockerfile: ./docker/stasis/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - asterisk
+    restart: unless-stopped
+
+volumes:
+  callytics_postgres_data:
+  callytics_redis_data:
