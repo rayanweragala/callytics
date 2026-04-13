@@ -4,77 +4,91 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
 
 ## Flows
 
-### `GET /api/flows`
+### Current thin-slice endpoints implemented in Phase 7
+
+### `GET /flows`
 
 - What it does:
-  Returns all flows with summary fields such as name, status, entry target, active version, and last updated time
+  Returns all flows as thin summaries for the builder and diagnostics UI
 - Input:
-  Optional query filters for status and search text
+  None
 - Returns:
-  A list of flow summaries
+  `{ data: FlowSummary[], total: number }`
+- Current summary fields:
+  - `id`
+  - `name`
+  - `description`
+  - `createdAt`
 
-### `POST /api/flows`
+### `GET /flows/:id`
 
 - What it does:
-  Creates a new flow shell
-- Input:
-  Name, description, entry type, and optional entry value
-- Returns:
-  The created flow summary
-
-### `GET /api/flows/:flowId`
-
-- What it does:
-  Returns one flow with draft metadata and version pointers
+  Returns one flow with the latest active version, including all nodes and edges
 - Input:
   Flow ID in the path
 - Returns:
-  Full flow metadata
+  `{ data: FlowDetail }`
+- Current detail fields:
+  - flow metadata
+  - `versionId`
+  - `versionNumber`
+  - `nodes[]`
+  - `edges[]`
 
-### `GET /api/flows/:flowId/draft`
+### `POST /flows`
 
 - What it does:
-  Returns the editable graph for the current draft version
+  Creates a new flow and its initial version, then stores all provided nodes and edges in that version
+- Input:
+  - `name`
+  - `description?`
+  - `slug?`
+  - `nodes[]`
+  - `edges[]`
+- Returns:
+  `{ data: FlowDetail }`
+
+### `PUT /flows/:id`
+
+- What it does:
+  Updates a flow by creating a new latest version and replacing nodes and edges in that version
+- Input:
+  - `name`
+  - `description?`
+  - `slug?`
+  - `nodes[]`
+  - `edges[]`
+- Returns:
+  `{ data: FlowDetail }`
+
+### `DELETE /flows/:id`
+
+- What it does:
+  Deletes the flow and removes its related versions, nodes, and edges
 - Input:
   Flow ID in the path
 - Returns:
-  Nodes, edges, version info, and validation warnings if any
+  `{ data: { id: number, deleted: true } }`
 
-### `PUT /api/flows/:flowId/draft`
+### Thin-slice notes
 
-- What it does:
-  Saves the full draft graph
-- Input:
-  Nodes array, edges array, flow metadata, and optional client version token
-- Returns:
-  Updated draft version info and validation result
+- This is intentionally not the full long-term API yet
+- The builder now has real persistence instead of mock data
+- The backend currently works against the existing Phase 4 schema:
+  - `call_flows`
+  - `flow_versions`
+  - `flow_nodes`
+  - `flow_edges`
+- The API uses the latest version per flow through `current_version_id`
+- Authentication, pagination, publish workflows, and rollback endpoints can be added later without changing the basic response contract
 
-### `POST /api/flows/:flowId/validate`
+### Planned later flow endpoints
 
-- What it does:
-  Runs server-side flow validation without publishing
-- Input:
-  Optional draft payload or existing draft reference
-- Returns:
-  Errors, warnings, and publish readiness status
-
-### `POST /api/flows/:flowId/publish`
-
-- What it does:
-  Marks the current flow version as published so the Stasis app uses it on the next incoming call
-- Input:
-  Flow ID and optional publish note
-- Returns:
-  New published version info and publish metadata
-
-### `POST /api/flows/:flowId/rollback`
-
-- What it does:
-  Re-publishes an older version as the active one
-- Input:
-  Target version ID
-- Returns:
-  Active version info and reload result
+- `GET /api/flows/:flowId/draft`
+- `PUT /api/flows/:flowId/draft`
+- `POST /api/flows/:flowId/validate`
+- `POST /api/flows/:flowId/publish`
+- `POST /api/flows/:flowId/rollback`
 
 ## Audio
 

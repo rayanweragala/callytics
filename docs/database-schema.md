@@ -12,6 +12,11 @@ Tables currently created by the Stasis migration:
 
 Other tables in this document are still planning targets for later phases.
 
+Phase 7 API note:
+
+- The first flow CRUD API now works directly against `call_flows`, `flow_versions`, `flow_nodes`, and `flow_edges`
+- The backend uses `current_version_id` to resolve the latest version returned to the builder
+
 ## `users`
 
 - `id`

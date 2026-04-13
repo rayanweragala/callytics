@@ -78,3 +78,27 @@ Current diagnostics data flow:
 - `Stasis -> Redis pub/sub -> NestJS -> Socket.io -> React frontend`
 
 The current diagnostics UI is meant as an operations surface, not a general dashboard template. It is the first concrete implementation of the Control Room design system.
+
+
+## Current implementation status after Phase 7
+
+The flow builder now has a real backend persistence slice instead of mocked flow data.
+
+What now works:
+
+- NestJS exposes a thin REST API for flow CRUD
+- The API lists existing flows, including the seed flow created in Phase 4
+- The API returns a single flow with nested nodes and edges for the latest stored version
+- New flows can be created with nodes and edges in one request
+- Existing flows can be updated by writing a new latest version and replacing nodes and edges for that version
+- Flows can be deleted together with their related versions, nodes, and edges
+
+Current flow API endpoints:
+
+- `GET /flows`
+- `GET /flows/:id`
+- `POST /flows`
+- `PUT /flows/:id`
+- `DELETE /flows/:id`
+
+This is intentionally a thin slice. It exists to unblock the flow builder UI with real saved data while keeping the backend small and understandable.
