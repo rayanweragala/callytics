@@ -154,6 +154,37 @@ Current audio mount path into Asterisk:
 
 That lets the browser preview and the telephony runtime share one asset pipeline while still using the format each side needs.
 
+## Current implementation status after Phase 11
+
+Phase 11 adds call recording, a recordings management surface, and a fix for the playback regression discovered when recording was first introduced.
+
+What now works:
+
+- The backend owns a `call_recordings` startup migration and persists recording metadata through `RecordingsModule`
+- NestJS now exposes `GET /recordings`, `GET /recordings/:id`, `GET /recordings/:id/stream`, `GET /recordings/:id/download`, `DELETE /recordings/:id`, and `POST /recordings/internal`
+- Stasis answers the inbound call, creates a mixing bridge for the inbound channel, plays prompts on that bridge, and records the same bridge through ARI
+- Recording metadata is persisted on `StasisEnd` after the live bridge recording is stopped
+- The frontend now includes a `/recordings` page with inline `AudioPreviewPlayer`, download/delete controls, and backend-driven pagination
+- The diagnostics page now paginates both the live execution panel and the SIP endpoints panel in pages of 10 rows
+
+Why bridge-based recording is required:
+
+- The original Phase 11 attempt used channel-level recording started immediately after answer
+- In live testing that caused prompts to be delayed until after hangup, so greeting and menu playback became effectively silent during the call
+- Moving playback and recording onto the same inbound ARI mixing bridge fixed the regression: the caller hears bridge playback live while ARI records that same mixed bridge
+
+Current recording volume layout:
+
+- Docker volume: `asterisk_recordings`
+- Asterisk mounts it at both `/var/lib/asterisk/recording` and `/var/spool/asterisk/recording`
+- Backend mounts the same volume at `/var/lib/asterisk/recording`
+- Reason: ARI writes recordings under `/var/spool/asterisk/recording`, while the backend serves files from `/var/lib/asterisk/recording`; dual-mounting the same named volume keeps both paths valid without copying files
+
+Transfer-path note after the bridge change:
+
+- Before outbound bridging, the runtime stops the temporary inbound bridge recording and tears down the temporary inbound recording/playback bridge
+- The transfer node then originates the outbound leg, creates a new ARI mixing bridge, and adds both inbound and outbound channels to that bridge for the live conversation
+
 ## Current implementation status after Phase 10
 
 The end-to-end call path is now verified with database-backed audio assets, conditional routing, and builder-owned flow persistence.

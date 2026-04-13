@@ -95,3 +95,19 @@ export interface AudioVoiceItem {
   id: string;
   label: string;
 }
+
+export interface RecordingItem {
+  id: number;
+  callId: string;
+  channelId: string;
+  flowId: number | null;
+  flowName: string | null;
+  fileName: string;
+  filePath: string;
+  format: string;
+  durationSeconds: number | null;
+  startedAt: string;
+  endedAt: string | null;
+  createdAt: string;
+  streamUrl: string;
+}

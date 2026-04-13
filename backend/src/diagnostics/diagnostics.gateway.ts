@@ -1,5 +1,7 @@
 import {
+  MessageBody,
   OnGatewayConnection,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
@@ -21,6 +23,20 @@ export class DiagnosticsGateway implements OnGatewayConnection {
 
   handleConnection(client: Socket): void {
     client.emit('diagnostics:bootstrap', this.diagnosticsService.getSnapshot());
+  }
+
+  @SubscribeMessage('diagnostics:live-execution:list')
+  handleLiveExecutionList(
+    @MessageBody() payload: { limit?: number; offset?: number } = {},
+  ) {
+    return this.diagnosticsService.listTimelineCalls(payload.limit ?? 10, payload.offset ?? 0);
+  }
+
+  @SubscribeMessage('diagnostics:sip-status:list')
+  handleSipStatusList(
+    @MessageBody() payload: { limit?: number; offset?: number } = {},
+  ) {
+    return this.diagnosticsService.listSipStatuses(payload.limit ?? 10, payload.offset ?? 0);
   }
 
   broadcastSnapshot(): void {

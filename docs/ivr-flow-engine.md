@@ -79,14 +79,18 @@ That is the core runtime model.
 
 ## Current implemented runtime behavior
 
-After Phase 10 the runtime now exists in code, not just in design. The Stasis app currently:
+After Phase 11 the runtime now exists in code, not just in design. The Stasis app currently:
 
 - runs startup migrations for the flow and call-log tables
+- works alongside backend-owned startup migration for the `call_recordings` table
 - seeds a published `Test Flow` only when flow 1 does not already exist with saved nodes
 - loads the first matching published flow from PostgreSQL
 - creates an in-memory session per call
 - executes the current node
 - resolves conditional edges by `condition` first, then falls back to `branchKey` and `default`
+- answers the inbound channel, creates an inbound ARI mixing bridge, and records that bridge for call recording
+- plays prompt audio on the inbound bridge when bridge playback is available
+- persists recording metadata through the backend when `StasisEnd` fires
 - removes the session when the flow ends or the channel hangs up
 - ignores `StasisStart` events for the `h` extension so the hangup path does not re-run flow logic
 
@@ -190,6 +194,7 @@ How it runs:
 Main ARI control:
 
 - `POST /channels/{channelId}/play`
+- or bridge playback through `POST /bridges/{bridgeId}/play` when the inbound bridge exists
 
 Notes:
 
@@ -273,7 +278,7 @@ Main ARI control:
 Notes:
 
 - This is more complex than a dialplan `Dial()` step
-- The app has to manage answer, failure, timeout, and cleanup itself
+- The app has to manage answer, failure, timeout, teardown of the temporary inbound bridge, and cleanup itself
 
 ### Voicemail
 
@@ -459,3 +464,29 @@ The flow builder now exposes database-backed audio selection in node config:
 - `get_digits` nodes can select `prompt_audio_file_id` from the same picker
 - Static path fields remain available for built-in or manual sound paths
 - When an asset ID is selected, the runtime prefers that database-backed asset and only falls back to the path fields if no ready asset is found
+
+## Phase 11 recording architecture
+
+Phase 11 added a bridge-based recording path after live testing proved that channel-level ARI recording blocked audible prompt playback.
+
+What changed:
+
+- Old state: start recording directly on the inbound channel after answer
+- Problem: prompt playback requests returned, but the caller did not hear them until after hangup
+- New state: create an inbound mixing bridge, add the inbound channel to it, play prompts on that bridge, and record that same bridge through ARI
+
+Current recording flow:
+
+1. `StasisStart` answers the inbound channel
+2. Stasis creates an inbound mixing bridge and adds the inbound channel
+3. Stasis starts ARI bridge recording on that bridge
+4. `play_audio` and `get_digits` play prompts on the bridge with `announcer_format: 'ulaw'`
+5. `get_digits` still listens for DTMF on the inbound channel event source
+6. `StasisEnd` stops recording and persists metadata through `POST /recordings/internal`
+
+Current storage layout for recordings:
+
+- Docker named volume: `asterisk_recordings`
+- Asterisk write paths: `/var/spool/asterisk/recording` and `/var/lib/asterisk/recording`
+- Backend read path: `/var/lib/asterisk/recording`
+- The same named volume is mounted at both Asterisk paths because ARI writes to `/var/spool/asterisk/recording` while the backend serves files from `/var/lib/asterisk/recording`

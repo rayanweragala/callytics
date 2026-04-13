@@ -4,6 +4,10 @@ import { resolveAudioMediaPath } from '../audioResolver';
 import { publishNodeTelemetry } from '../telemetry';
 import { registerTransferWaiter } from '../transferManager';
 
+type PlaybackTarget =
+  | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void> }
+  | { kind: 'bridge'; id: string };
+
 async function executeStart(): Promise<string> {
   return 'default';
 }
@@ -45,9 +49,61 @@ function waitForPlaybackFinished(
   });
 }
 
+function getPlaybackTarget(
+  channel: { id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void> },
+  session: CallSession,
+): PlaybackTarget {
+  if (session.inboundBridge) {
+    return { kind: 'bridge', id: session.inboundBridge.id };
+  }
+  return { kind: 'channel', id: channel.id, play: channel.play };
+}
+
+async function stopLiveRecording(name: string): Promise<void> {
+  const ariUrl = (process.env.ARI_URL || 'http://127.0.0.1:8088').replace(/\/+$/, '');
+  const ariUser = process.env.ARI_USER || 'callytics';
+  const ariPass = process.env.ARI_PASS || 'callytics';
+  const response = await fetch(`${ariUrl}/ari/recordings/live/${encodeURIComponent(name)}/stop`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${ariUser}:${ariPass}`).toString('base64')}`,
+    },
+  });
+
+  if (response.status === 404) {
+    return;
+  }
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`record_stop_failed status=${response.status} body=${body}`);
+  }
+}
+
+async function playMedia(
+  target: PlaybackTarget,
+  ariClient: unknown,
+  media: string,
+  playback: { id: string; stop?: () => Promise<void> },
+): Promise<void> {
+  if (target.kind === 'channel') {
+    await target.play({ media }, playback);
+    return;
+  }
+
+  const client = ariClient as {
+    bridges: {
+      play: (params: { bridgeId: string; media: string; playbackId?: string; announcer_format?: string }) => Promise<void>;
+    };
+  };
+
+  await client.bridges.play({ bridgeId: target.id, media, playbackId: playback.id, announcer_format: 'ulaw' });
+}
+
 async function executePlayAudio(
   channel: { id: string; play: (opts: { media: string }, playback: { id: string }) => Promise<void> },
   node: FlowNode,
+  session: CallSession,
   ariClient: unknown,
 ): Promise<string> {
   const audioFilePath = await resolveAudioMediaPath(node.config, 'audio_file_id', 'audio_file_path');
@@ -58,7 +114,10 @@ async function executePlayAudio(
 
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
-  await channel.play({ media: 'sound:' + audioFilePath }, playback);
+  const target = getPlaybackTarget(channel as never, session);
+  console.log(`[play_audio] request target=${target.kind}:${target.id} media=sound:${audioFilePath} at=${new Date().toISOString()}`);
+  await playMedia(target, ariClient, 'sound:' + audioFilePath, playback);
+  console.log(`[play_audio] request returned target=${target.kind}:${target.id} media=sound:${audioFilePath} playbackId=${playback.id} at=${new Date().toISOString()}`);
   await waitForPlaybackFinished(ariClient, playback.id, channel.id);
   return 'default';
 }
@@ -71,6 +130,7 @@ async function executeGetDigits(
     removeListener?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
   },
   node: FlowNode,
+  session: CallSession,
   ariClient: unknown,
 ): Promise<string> {
   console.log(`[get_digits] start channel=${channel.id} config=${JSON.stringify(node.config)}`);
@@ -139,7 +199,10 @@ async function executeGetDigits(
 
     try {
       if (promptPath) {
-        await channel.play({ media: 'sound:' + promptPath }, playback);
+        const target = getPlaybackTarget(channel as never, session);
+        console.log(`[get_digits] play request target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
+        await playMedia(target, ariClient, 'sound:' + promptPath, playback);
+        console.log(`[get_digits] play request returned target=${target.kind}:${target.id} media=sound:${promptPath} playbackId=${playback.id} at=${new Date().toISOString()}`);
       }
     } catch (error) {
       reject(error instanceof Error ? error : new Error('get_digits_failed'));
@@ -204,6 +267,24 @@ async function executeTransfer(
       destroy: (params: { bridgeId: string }) => Promise<void>;
     };
   };
+
+  if (session.inboundBridge) {
+    if (session.recording && !session.recording.endedAt) {
+      try {
+        await stopLiveRecording(session.recording.name);
+      } catch (error) {
+        console.error(`[recording] transfer stop failed call_id=${session.callUuid} file=${session.recording.fileName}:`, error);
+      }
+      session.recording.endedAt = new Date();
+    }
+    try {
+      await client.bridges.destroy({ bridgeId: session.inboundBridge.id });
+      console.log(`[bridge] transfer teardown inbound bridge=${session.inboundBridge.id}`);
+    } catch (error) {
+      console.error(`[bridge] transfer teardown failed bridge=${session.inboundBridge.id}:`, error);
+    }
+    session.inboundBridge = null;
+  }
 
   const waitForAnswer = registerTransferWaiter(channel.id);
   const appName = process.env.ARI_APP || 'callytics';
@@ -278,10 +359,10 @@ export async function executeNode(
         result = await executeStart();
         break;
       case 'play_audio':
-        result = await executePlayAudio(channel, node, ariClient);
+        result = await executePlayAudio(channel, node, session, ariClient);
         break;
       case 'get_digits':
-        result = await executeGetDigits(channel, node, ariClient);
+        result = await executeGetDigits(channel, node, session, ariClient);
         break;
       case 'branch':
         result = await executeBranch();

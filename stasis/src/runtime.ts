@@ -1,4 +1,4 @@
-import { CallSession, removeSession } from './callSession';
+import { CallSession } from './callSession';
 import { FlowEdge } from './flowLoader';
 import { executeNode } from './nodes';
 
@@ -34,7 +34,6 @@ export async function runFlow(
 
   if (!currentNode) {
     console.error('No entry node found in flow');
-    removeSession(session.channelId);
     return;
   }
 
@@ -74,5 +73,4 @@ export async function runFlow(
   }
 
   console.log(`Call ended: ${session.channelId}`);
-  removeSession(session.channelId);
 }

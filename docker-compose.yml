@@ -36,6 +36,8 @@ services:
       - ./asterisk/base:/etc/asterisk
       - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics
       - ./storage/voicemail:/var/spool/asterisk/voicemail
+      - asterisk_recordings:/var/lib/asterisk/recording
+      - asterisk_recordings:/var/spool/asterisk/recording
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8088/ari/api-docs/resources.json --user callytics:callytics || exit 1"]
       interval: 10s
@@ -52,6 +54,7 @@ services:
       - 127.0.0.1:3001:3001
     volumes:
       - ./storage:/app/storage
+      - asterisk_recordings:/var/lib/asterisk/recording
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -62,6 +65,7 @@ services:
       REDIS_PORT: 6379
       BACKEND_PORT: 3001
       NODE_ENV: development
+      RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,6 +106,7 @@ services:
       AMI_PORT: 5038
       AMI_USER: callytics
       AMI_PASS: callytics
+      RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
     depends_on:
       asterisk:
         condition: service_healthy
@@ -114,3 +119,4 @@ services:
 volumes:
   callytics_postgres_data:
   callytics_redis_data:
+  asterisk_recordings:

@@ -27,6 +27,14 @@
 - Inline delete confirmation in the audio library
 - Paginated audio library driven by the backend
 
+## Call recordings
+
+- Automatic inbound call recording through ARI bridge recording
+- `/recordings` page with paginated table, inline preview player, download button, and delete action
+- Browser preview through `GET /recordings/:id/stream`
+- Direct WAV download through `GET /recordings/:id/download`
+- Recording metadata persisted in `call_recordings`
+
 ## Text to speech
 
 - Create an audio prompt from typed text inside the UI
@@ -41,6 +49,8 @@
 - Recent event feed for answered calls, missed calls, transfers, voicemails, and hangups
 - Service health panel for Asterisk, database, Redis, and API status
 - Realtime counters for current calls, calls today, missed today, voicemail today, and average wait time
+- Diagnostics live execution panel paginated to 10 calls per page
+- Diagnostics SIP endpoints panel paginated to 10 rows per page
 
 ## Reports
 

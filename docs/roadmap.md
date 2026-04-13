@@ -46,6 +46,7 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 8: audio management completed with `audio_files`, ffmpeg conversion, offline Piper TTS, `/audio` page, builder audio picker integration, Stasis audio resolver, and shared pagination/search UI
 - Phase 9: end-to-end live call verification completed with database-backed audio assets, Stasis flow execution, DTMF capture, and Asterisk playback fixed through `.ulaw` telephony assets
 - Phase 10: conditional edge routing and transfer-node execution completed; `get_digits` now subscribes correctly to DTMF on the live ARI channel, ignores `h`-extension Stasis re-entry, and the Stasis seed path now skips any existing flow 1 with saved nodes instead of overwriting user-built routing
+- Phase 11: call recording completed with a `call_recordings` table, NestJS `RecordingsModule`, bridge-based ARI recording, a `/recordings` frontend page with inline preview/download/delete actions, and diagnostics pagination for the live execution and SIP panels
 
 Important infrastructure change made during Phase 4:
 

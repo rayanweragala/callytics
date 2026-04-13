@@ -3,6 +3,7 @@ import styles from './AudioPreviewPlayer.module.css';
 
 interface AudioPreviewPlayerProps {
   src: string;
+  isActive?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -12,7 +13,7 @@ function formatTime(seconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-export function AudioPreviewPlayer({ src }: AudioPreviewPlayerProps) {
+export function AudioPreviewPlayer({ src, isActive = true }: AudioPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -43,6 +44,15 @@ export function AudioPreviewPlayer({ src }: AudioPreviewPlayerProps) {
       audioRef.current = null;
     };
   }, [src]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || isActive) return;
+    audio.pause();
+    audio.currentTime = 0;
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, [isActive]);
 
   const togglePlay = async () => {
     const audio = audioRef.current;

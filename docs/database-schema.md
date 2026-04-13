@@ -23,6 +23,12 @@ Phase 8 audio note:
 - NestJS writes audio asset records there for uploads and offline TTS generation
 - Stasis now resolves `audio_file_id` from the database before playback
 
+Phase 11 recording note:
+
+- The `call_recordings` table is now implemented and active in the backend
+- Stasis persists one row per completed inbound bridge recording through `POST /recordings/internal`
+- Recording files are stored in the shared `asterisk_recordings` Docker volume
+
 ## `users`
 
 - `id`
@@ -207,6 +213,33 @@ The current runtime migration creates a smaller initial version of this table fo
 - duration and talk seconds
 - linked flow and flow version
 - entry and exit node keys
+
+## `call_recordings`
+
+This table is now implemented and active.
+
+- `id`
+- `call_id`
+  ARI/Stasis call identifier, currently matching the inbound channel ID
+- `channel_id`
+  Inbound channel recorded for the call
+- `flow_id`
+  Nullable foreign key to `call_flows(id)` with `ON DELETE SET NULL`
+- `file_name`
+  Recording basename such as `1776099073.26.wav`
+- `file_path`
+  Backend-readable path, currently `/var/lib/asterisk/recording/<name>.wav`
+- `format`
+  Current default is `wav`
+- `duration_seconds`
+- `started_at`
+- `ended_at`
+- `created_at`
+
+Current indexes created by the backend startup migration:
+
+- `idx_call_recordings_call_id`
+- `idx_call_recordings_created_at`
 
 ## `call_events`
 

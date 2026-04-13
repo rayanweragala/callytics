@@ -10,6 +10,8 @@ import { FlowNodeEntity } from './flows/entities/flow-node.entity';
 import { FlowVersionEntity } from './flows/entities/flow-version.entity';
 import { FlowsModule } from './flows/flows.module';
 import { HealthController } from './health/health.controller';
+import { CallRecordingEntity } from './recordings/entities/call-recording.entity';
+import { RecordingsModule } from './recordings/recordings.module';
 
 @Module({
   imports: [
@@ -26,7 +28,7 @@ import { HealthController } from './health/health.controller';
         database: config.get('DB_NAME', 'callytics'),
         username: config.get('DB_USER', 'callytics'),
         password: config.get('DB_PASS', 'callytics'),
-        entities: [CallFlowEntity, FlowVersionEntity, FlowNodeEntity, FlowEdgeEntity, AudioFileEntity],
+        entities: [CallFlowEntity, FlowVersionEntity, FlowNodeEntity, FlowEdgeEntity, AudioFileEntity, CallRecordingEntity],
         synchronize: false,
         logging: false,
         retryAttempts: 10,
@@ -36,6 +38,7 @@ import { HealthController } from './health/health.controller';
     DiagnosticsModule,
     FlowsModule,
     AudioModule,
+    RecordingsModule,
   ],
   controllers: [HealthController],
 })

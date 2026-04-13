@@ -14,6 +14,9 @@ export function SidebarNav() {
               diagnostics
             </NavLink>
             <button className={styles.item} type="button">call logs</button>
+            <NavLink to="/recordings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              recordings
+            </NavLink>
           </div>
           <div className={styles.group}>
             <div className={styles.groupLabel}>CONFIGURE</div>

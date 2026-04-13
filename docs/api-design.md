@@ -161,6 +161,70 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
 - Browser preview uses the preview WAV path served by NestJS
 - Telephony playback uses the converted WAV path mounted into Asterisk
 
+## Recordings
+
+### `GET /recordings?page=X&limit=Y`
+
+- What it does:
+  Returns the call recordings library as a paginated list
+- Input:
+  `page` and `limit` query parameters
+- Returns:
+  `{ data, total, page, limit, totalPages }`
+
+### `GET /recordings/:id`
+
+- What it does:
+  Returns one recording row with resolved `streamUrl`
+- Input:
+  Recording ID in the path
+- Returns:
+  `{ data: RecordingDetail }`
+
+### `GET /recordings/:id/stream`
+
+- What it does:
+  Streams the WAV file inline for browser preview playback
+- Input:
+  Recording ID in the path
+- Returns:
+  `audio/wav`
+
+### `GET /recordings/:id/download`
+
+- What it does:
+  Downloads the WAV file with an attachment filename derived from `file_name`
+- Input:
+  Recording ID in the path
+- Returns:
+  `audio/wav` with `Content-Disposition: attachment`
+
+### `DELETE /recordings/:id`
+
+- What it does:
+  Deletes the DB row and attempts to remove the backing recording file
+- Input:
+  Recording ID in the path
+- Returns:
+  `{ data: { id: number, deleted: true } }`
+
+### `POST /recordings/internal`
+
+- What it does:
+  Internal persistence endpoint called by Stasis when a bridge recording completes
+- Input:
+  `callId`, `channelId`, `flowId?`, `fileName`, `format`, `durationSeconds?`, `startedAt`, `endedAt?`
+- Returns:
+  `{ data: RecordingDetail }`
+
+### Recording API notes
+
+- The backend owns the `call_recordings` startup migration through `RecordingsService.ensureSchema()`
+- `RecordingsModule` is registered in `AppModule` together with the `CallRecordingEntity`
+- `POST /recordings/internal` is intended for the Stasis service only and is protected by the shared `x-internal-token` header
+- `GET /recordings/:id/stream` is used by the inline browser preview player on `/recordings`
+- `GET /recordings/:id/download` is used by the labeled download button on `/recordings`
+
 ## Calls
 
 ### `GET /api/calls/live`

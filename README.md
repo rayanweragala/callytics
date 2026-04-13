@@ -15,6 +15,7 @@ Current completed implementation phases:
 - Phase 8: audio management, ffmpeg conversion, offline Piper TTS, static media serving, and builder audio asset integration
 - Phase 9: end-to-end live call verification with database-backed audio assets and `.ulaw` telephony playback
 - Phase 10: conditional routing, transfer node execution, DTMF capture fix, Stasis hangup-extension guard, and seed overwrite protection
+- Phase 11: call recordings, bridge-based recording/playback fix, recordings page, recording download support, and diagnostics panel pagination
 
 Current important infrastructure state:
 
@@ -43,12 +44,31 @@ Current backend audio endpoints:
 - `DELETE /audio/:id`
 - Static media at `/media/audio/...`
 
+Current recording capabilities:
+
+- Stasis automatically records inbound calls through ARI bridge recording and persists metadata to `call_recordings`
+- The backend exposes paginated recording list/detail/stream/download/delete endpoints plus an internal persistence endpoint
+- The frontend provides a `/recordings` page with inline preview playback, download, delete, and pagination
+- Recording files are written by Asterisk into a shared Docker volume and read by the backend from the mirrored mount path
+
+Current backend recording endpoints:
+
+- `GET /recordings?page=X&limit=Y`
+- `GET /recordings/:id`
+- `GET /recordings/:id/stream`
+- `GET /recordings/:id/download`
+- `DELETE /recordings/:id`
+- `POST /recordings/internal`
+
 Current API pagination:
 
 - `GET /audio` returns `{ data, total, page, limit, totalPages }`
 - `GET /flows` returns `{ data, total, page, limit, totalPages }`
+- `GET /recordings` returns `{ data, total, page, limit, totalPages }`
+- diagnostics socket pagination now returns `{ data, total }` for the live execution panel and SIP endpoints panel using `limit=10`
 
 Current asset/runtime notes:
 
 - `backend/voices/` contains the bundled Piper voice model files used during backend image build
 - Host-exposed Redis now uses `127.0.0.1:6380` rather than `6379`
+- `asterisk_recordings` is mounted into Asterisk at both `/var/lib/asterisk/recording` and `/var/spool/asterisk/recording`; ARI writes under `/var/spool/asterisk/recording` while the backend reads the same named volume at `/var/lib/asterisk/recording`

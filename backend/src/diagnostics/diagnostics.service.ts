@@ -14,6 +14,16 @@ interface RedisSipStatusMessage {
   endpoints: SipEndpointStatus[];
 }
 
+interface PaginatedDiagnosticsResult<T> {
+  data: T[];
+  total: number;
+}
+
+interface LiveExecutionItem {
+  callId: string;
+  events: CallTimelineEvent[];
+}
+
 const STALE_CALL_MAX_AGE_MS = 60 * 60 * 1000;
 const STALE_CALL_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -84,10 +94,22 @@ export class DiagnosticsService implements OnModuleInit {
     return Array.from(this.sipStatuses.values()).sort((a, b) => a.endpoint.localeCompare(b.endpoint));
   }
 
+  listSipStatuses(limit = 10, offset = 0): PaginatedDiagnosticsResult<SipEndpointStatus> {
+    return this.paginate(this.getSipStatuses(), limit, offset);
+  }
+
   getTimeline(): Record<string, CallTimelineEvent[]> {
     return Object.fromEntries(
       Array.from(this.timeline.entries()).map(([callId, events]) => [callId, events]),
     );
+  }
+
+  listTimelineCalls(limit = 10, offset = 0): PaginatedDiagnosticsResult<LiveExecutionItem> {
+    const orderedCalls = Array.from(this.timeline.entries())
+      .sort((a, b) => (b[1][b[1].length - 1]?.ts || 0) - (a[1][a[1].length - 1]?.ts || 0))
+      .map(([callId, events]) => ({ callId, events }));
+
+    return this.paginate(orderedCalls, limit, offset);
   }
 
   getTimelineForCall(callId: string): CallTimelineEvent[] | undefined {
@@ -157,5 +179,15 @@ export class DiagnosticsService implements OnModuleInit {
       this.gateway?.broadcastSnapshot();
       this.gateway?.broadcastSipStatuses();
     }
+  }
+
+  private paginate<T>(items: T[], limit = 10, offset = 0): PaginatedDiagnosticsResult<T> {
+    const safeLimit = Math.max(1, limit);
+    const safeOffset = Math.max(0, offset);
+
+    return {
+      data: items.slice(safeOffset, safeOffset + safeLimit),
+      total: items.length,
+    };
   }
 }

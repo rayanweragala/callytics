@@ -203,6 +203,17 @@ Current browser-facing realtime events:
 - `diagnostics:metrics`
 - `diagnostics:timeline`
 
+## Later diagnostics refinement after Phase 11
+
+The diagnostics page still updates live through Socket.io, but the two growing list panels no longer render every row in memory on screen.
+
+Current panel behavior now includes:
+
+- The live execution panel shows only the 10 most recent calls for the selected page
+- The SIP endpoints panel shows only 10 endpoint rows for the selected page
+- Both panels use inline `← Newer` / `Older →` pagination controls in-panel instead of the shared full-page `Pagination` component
+- The diagnostics gateway now serves paginated list requests over Socket.io with `{ data, total }` payloads for both panel types
+
 ## Infrastructure note from Phase 5
 
 Redis is still containerized on bridge networking, but the host-exposed port changed during diagnostics work.

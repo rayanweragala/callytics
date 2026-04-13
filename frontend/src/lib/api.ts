@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AudioFileItem, AudioVoiceItem, FlowDetail, FlowSummary } from '../types';
+import type { AudioFileItem, AudioVoiceItem, FlowDetail, FlowSummary, RecordingItem } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001',
@@ -51,6 +51,10 @@ export interface AudioDetailResponse {
 export interface AudioVoicesResponse {
   data: AudioVoiceItem[];
   total: number;
+}
+
+export interface RecordingDetailResponse {
+  data: RecordingItem;
 }
 
 export async function listFlows(page = 1, limit = 5): Promise<PaginatedResponse<FlowSummary>> {
@@ -108,5 +112,20 @@ export async function createTts(payload: { name: string; text: string; voice: st
 
 export async function deleteAudio(id: number): Promise<DeleteFlowResponse> {
   const response = await api.delete<DeleteFlowResponse>(`/audio/${id}`);
+  return response.data;
+}
+
+export async function listRecordings(page = 1, limit = 20): Promise<PaginatedResponse<RecordingItem>> {
+  const response = await api.get<PaginatedResponse<RecordingItem>>('/recordings', { params: { page, limit } });
+  return response.data;
+}
+
+export async function getRecording(id: number): Promise<RecordingDetailResponse> {
+  const response = await api.get<RecordingDetailResponse>(`/recordings/${id}`);
+  return response.data;
+}
+
+export async function deleteRecording(id: number): Promise<DeleteFlowResponse> {
+  const response = await api.delete<DeleteFlowResponse>(`/recordings/${id}`);
   return response.data;
 }

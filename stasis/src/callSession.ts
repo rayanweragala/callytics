@@ -1,5 +1,18 @@
 import { Flow } from './flowLoader';
 
+export interface CallRecordingState {
+  name: string;
+  fileName: string;
+  filePath: string;
+  format: string;
+  startedAt: Date;
+  endedAt: Date | null;
+}
+
+export interface InboundBridgeState {
+  id: string;
+}
+
 export interface CallSession {
   callUuid: string;
   channelId: string;
@@ -8,6 +21,8 @@ export interface CallSession {
   currentNodeKey: string;
   variables: Record<string, string>;
   startedAt: Date;
+  recording: CallRecordingState | null;
+  inboundBridge: InboundBridgeState | null;
 }
 
 export function createSession(
@@ -24,6 +39,8 @@ export function createSession(
     currentNodeKey: entryNodeKey,
     variables: {},
     startedAt: new Date(),
+    recording: null,
+    inboundBridge: null,
   };
 }
 
