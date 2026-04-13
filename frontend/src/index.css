@@ -43,7 +43,6 @@ body { margin: 0; padding: 0; background: var(--bg-base); }
   background: var(--bg-base);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
 }
 .brand-mark, .stat-value, .endpoint-name, .endpoint-since, .timeline-call-id, .timeline-time, .timeline-status, .live-indicator, .badge {
   font-family: 'Space Mono', monospace;
@@ -106,6 +105,7 @@ body { margin: 0; padding: 0; background: var(--bg-base); }
   font-size: 11px;
   font-family: 'Space Mono', monospace;
   letter-spacing: 0.04em;
+  margin-top: auto;
 }
 
 .content-area { flex: 1; margin-left: 240px; padding: 24px; }
