@@ -2,10 +2,55 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update             && apt-get install -y --no-install-recommends asterisk             && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    wget \
+    libssl-dev \
+    libncurses5-dev \
+    libnewt-dev \
+    libxml2-dev \
+    libsqlite3-dev \
+    uuid-dev \
+    libjansson-dev \
+    libedit-dev \
+    binutils-dev \
+    libsrtp2-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY asterisk/base /etc/asterisk
+RUN cd /usr/src && \
+    wget -q http://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20-current.tar.gz && \
+    tar xzf asterisk-20-current.tar.gz && \
+    AST_DIR=$(find /usr/src -maxdepth 1 -type d -name 'asterisk-20*' | head -1) && \
+    cd "$AST_DIR" && \
+    ./configure --with-jansson-bundled && \
+    make menuselect.makeopts && \
+    menuselect/menuselect \
+        --enable res_ari \
+        --enable res_ari_channels \
+        --enable res_ari_bridges \
+        --enable res_ari_applications \
+        --enable res_ari_events \
+        --enable res_ari_recordings \
+        --enable res_stasis \
+        --enable res_stasis_playback \
+        --enable res_stasis_recording \
+        --enable res_stasis_answer \
+        --enable res_stasis_snoop \
+        --enable res_http_websocket \
+        --enable res_pjsip \
+        --enable res_pjsip_session \
+        --enable chan_pjsip \
+        --enable app_stasis \
+        menuselect.makeopts && \
+    make -j$(nproc) && \
+    make install && \
+    make samples && \
+    make config && \
+    ldconfig
 
-EXPOSE 8088 5038 5060/udp 10000-10100/udp
+EXPOSE 8088 5038 5060/udp
+EXPOSE 10000-10100/udp
 
-CMD ["asterisk", "-f"]
+CMD ["asterisk", "-f", "-C", "/etc/asterisk/asterisk.conf"]
