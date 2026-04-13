@@ -26,11 +26,7 @@ services:
 
   asterisk:
     build: ./docker/asterisk
-    ports:
-      - 127.0.0.1:8088:8088
-      - 127.0.0.1:5038:5038
-      - 5060:5060/udp
-      - 10000-10100:10000-10100/udp
+    network_mode: "host"
     volumes:
       - ./asterisk/base:/etc/asterisk
       - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics
@@ -78,12 +74,13 @@ services:
       dockerfile: ./docker/stasis/Dockerfile
     env_file:
       - .env
+    network_mode: "host"
     environment:
-      ARI_URL: http://asterisk:8088
+      ARI_URL: http://127.0.0.1:8088
       ARI_USER: callytics
       ARI_PASS: callytics
       ARI_APP: callytics
-      DB_HOST: postgres
+      DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_NAME: callytics
       DB_USER: callytics

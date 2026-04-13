@@ -33,6 +33,20 @@ Minimum useful product:
 
 If v1.0 does not install cleanly and run locally without telephony expertise, it misses the point.
 
+
+## Current completed foundation phases
+
+- Phase 1: workspace skeleton, Docker Compose, and base Asterisk config
+- Phase 2: Asterisk 20 built from source, ARI and AMI verified, Stasis app connectivity working
+- Phase 3: NestJS backend running in Docker with PostgreSQL health check and `/health` endpoint
+- Phase 4: Stasis flow execution engine, schema migration, seed flow, flow loader, session manager, and node executors
+
+Important infrastructure change made during Phase 4:
+
+- Old state: `stasis` on bridge networking while `asterisk` used host networking
+- New state: both `asterisk` and `stasis` use `network_mode: host`
+- Reason: the bridge-networked Stasis container could not reliably reach ARI once Asterisk moved to host networking
+
 ## v2.0
 
 What gets added once people are using it:

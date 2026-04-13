@@ -8,7 +8,7 @@ There are three parts:
 
 - A small static dialplan inside Asterisk
 - A Node.js Stasis app connected to ARI
-- A flow definition stored as JSON in the database
+- A flow definition stored in PostgreSQL across `call_flows`, `flow_versions`, `flow_nodes`, and `flow_edges`
 
 The static dialplan does one thing: send incoming calls into the Stasis app. It does not contain the IVR logic. It does not change when a user edits a flow.
 
@@ -48,7 +48,7 @@ The app uses that data to decide which flow should run. It loads the published f
 
 ## Where the flow lives
 
-The visual flow builder saves a flow as JSON in the database.
+The visual flow builder persists a flow in relational tables in PostgreSQL. At runtime the Stasis app loads those rows and assembles them into an in-memory flow object.
 
 Each node stores:
 
@@ -66,7 +66,7 @@ Each connection says what the next node is for a given result, such as:
 - error
 - success
 
-The Stasis app reads this JSON and treats it like a state machine:
+The Stasis app reads these rows and treats the flow like a state machine:
 
 - load current node
 - execute node
@@ -75,6 +75,56 @@ The Stasis app reads this JSON and treats it like a state machine:
 - move to next node
 
 That is the core runtime model.
+
+
+## Current implemented runtime behavior
+
+After Phase 4 the runtime now exists in code, not just in design. The Stasis app currently:
+
+- runs startup migrations for the flow and call-log tables
+- seeds a published `Test Flow` if no published flow exists yet
+- loads the first matching published flow from PostgreSQL
+- creates an in-memory session per call
+- executes the current node
+- resolves the next edge by branch key, falling back to `default`
+- removes the session when the flow ends or the channel hangs up
+
+The currently implemented node executors are:
+
+- `start`
+- `play_audio`
+- `get_digits`
+- `branch`
+- `transfer` placeholder
+- `voicemail` placeholder
+- `hangup`
+- `set_variable`
+
+The current seed flow is:
+
+- `start` -> `greet` -> `menu` -> `bye`
+- built-in Asterisk sound `tt-monkeys` for greeting
+- built-in Asterisk sound `tt-weasels` for digit collection prompt
+- `menu` routes `1`, `2`, `timeout`, and `default` to `bye`
+
+## Runtime networking change
+
+The first live-call debugging pass changed the infrastructure around the runtime.
+
+Old state:
+
+- `asterisk` on host networking
+- `stasis` on bridge networking
+- `stasis` attempting to reach ARI through Docker host aliases
+
+New working state:
+
+- `asterisk` on `network_mode: host`
+- `stasis` on `network_mode: host`
+- `stasis` uses `ARI_URL=http://127.0.0.1:8088`
+- `stasis` uses `DB_HOST=127.0.0.1`
+
+This change fixed ARI connectivity and allowed the `callytics` Stasis app to register correctly in Asterisk.
 
 ## ARI vs AMI
 

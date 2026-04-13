@@ -21,3 +21,9 @@ What makes it different:
 - Keeps Asterisk underneath, but hides most of the painful parts
 
 This project is open core. The local self-hosted core stays free and open source. Paid features come later and should add convenience, not take the basics away.
+
+
+Current implementation note:
+
+- The core runtime path is now proven end to end through Asterisk 20, ARI, PostgreSQL-backed flow loading, and the Node.js Stasis execution engine.
+- During first-call debugging both `asterisk` and `stasis` were moved to `network_mode: host`. This replaced the older bridge-networked Stasis setup because ARI connectivity broke after Asterisk moved to host networking.

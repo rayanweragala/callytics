@@ -37,6 +37,19 @@
 - `ARI` with a `Stasis` app for flow execution
   Chosen because the visual flow lives in the database while the Node.js runtime executes each call step through ARI. Asterisk keeps a small static dialplan that hands calls into the Stasis app.
 
+## Current telephony runtime topology
+
+- `Asterisk 20` built from source in Docker
+  Chosen because Ubuntu apt gave Asterisk 18, which was not acceptable for the Stasis runtime we need.
+- `Asterisk` container uses `network_mode: host`
+  Chosen because Docker's UDP proxying caused RTP and SIP media-path problems during live-call debugging.
+- `Stasis` container also uses `network_mode: host`
+  This was changed after Phase 4. The old state was bridge networking, but once Asterisk moved to host networking the Stasis app could no longer reach ARI reliably through Docker host aliases. Running Stasis on host networking and targeting `127.0.0.1` fixed ARI registration.
+- SIP transport now binds to `5080`
+  Chosen because the host already occupies `5060`.
+- `ari-client`
+  Chosen because `node-ari-client` does not exist on npm.
+
 ## Audio handling
 
 - `ffmpeg`
@@ -66,3 +79,10 @@
 
 - SQL views or service-layer queries on PostgreSQL
   Chosen because the reporting needs are tabular and aggregations fit SQL well. We are not adding a separate analytics database in the early versions.
+
+
+Current service networking is mixed by design:
+
+- `asterisk`: host networking
+- `stasis`: host networking
+- `backend`, `postgres`, `redis`, `frontend`: verify per service before assuming; they may still use bridge networking

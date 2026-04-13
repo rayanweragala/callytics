@@ -26,3 +26,36 @@ Asterisk is the telephony engine. It still answers calls, plays prompts, receive
 The web UI does not talk to Asterisk directly. It talks to the backend API. The backend stores the flow in the database, and the Stasis app reads the published flow from the database on each incoming call and executes it through ARI while the backend listens to Asterisk event streams for live dashboard updates.
 
 If a SIP trunk is configured, Asterisk can place and receive real calls through the provider. If no trunk is configured, the same call flows still work inside the local setup using softphones or local SIP endpoints. That keeps development and testing possible without needing a public phone number on day one.
+
+
+## Current implementation status after Phase 4
+
+The runtime engine is no longer just a plan. The current implementation now does the following:
+
+- The NestJS backend starts in Docker and connects to PostgreSQL
+- The Stasis app starts in Docker, connects to PostgreSQL, runs migrations, and seeds a published test flow if none exists
+- Incoming calls enter Asterisk through the static dialplan and are handed to the `callytics` Stasis app
+- The Stasis app loads the published flow from PostgreSQL, creates an in-memory call session, and executes the flow node by node
+- The first implemented node executors are `start`, `play_audio`, `get_digits`, `branch`, `transfer`, `voicemail`, `hangup`, and `set_variable`
+- The current seed flow is a simple test path using built-in Asterisk sounds: `start -> greet -> menu -> bye`
+
+The Stasis app now also owns the initial schema for:
+
+- `call_flows`
+- `flow_versions`
+- `flow_nodes`
+- `flow_edges`
+- `call_logs`
+
+## Networking change made during first-call debugging
+
+The original Docker layout used bridge networking for the Stasis container and host networking for Asterisk. That did not work once Asterisk moved to `network_mode: host`, because the Stasis container could no longer reliably reach ARI through Docker host aliases.
+
+The working state is now:
+
+- `asterisk`: `network_mode: host`
+- `stasis`: `network_mode: host`
+- `stasis` ARI URL: `http://127.0.0.1:8088`
+- `stasis` database host: `127.0.0.1`
+
+The older bridge-networked Stasis setup should not be restored.

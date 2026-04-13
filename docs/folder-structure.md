@@ -18,7 +18,7 @@ callytics/
 │   ├── risks.md
 │   └── roadmap.md
 ├── package.json                  # npm workspace root, CLI commands, and install metadata
-├── docker-compose.yml            # local development and self-hosted service orchestration
+├── docker-compose.yml            # local development and self-hosted service orchestration, including host networking for asterisk and stasis
 ├── .env.example                  # environment variable template for local and containerized runs
 ├── README.md                     # top-level project intro and quick start
 ├── frontend/                     # React + Vite web app for flows, dashboard, settings, and reports
@@ -64,6 +64,7 @@ callytics/
 Notes:
 
 - `stasis/` is a real standalone Node.js package in the npm workspace. It is not embedded inside the NestJS backend process.
+- `stasis/src/` now includes the flow runtime engine, database migration/seed entrypoints, flow loader, call session manager, and node executors.
 - `asterisk/base` should stay mostly hand-maintained and small.
 - `asterisk/trunks` should be fully machine-generated from saved SIP trunk settings.
 - `storage` should be mount-backed so reinstalls do not destroy user data.

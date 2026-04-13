@@ -1,6 +1,16 @@
 # Database schema
 
-This is a planning schema, not a migration. Field names may change slightly later, but the shape should stay close to this.
+This started as a planning schema, but Phase 4 now includes a real runtime migration in the Stasis app that creates the initial flow-execution tables on startup.
+
+Tables currently created by the Stasis migration:
+
+- `call_flows`
+- `flow_versions`
+- `flow_nodes`
+- `flow_edges`
+- `call_logs`
+
+Other tables in this document are still planning targets for later phases.
 
 ## `users`
 
@@ -168,6 +178,17 @@ This is a planning schema, not a migration. Field names may change slightly late
 - `agent_extension`
 - `recording_path`
 - `voicemail_path`
+
+The current runtime migration creates a smaller initial version of this table focused on:
+
+- core call identity
+- direction
+- caller and callee numbers
+- start, answer, and end timestamps
+- end reason
+- duration and talk seconds
+- linked flow and flow version
+- entry and exit node keys
 
 ## `call_events`
 

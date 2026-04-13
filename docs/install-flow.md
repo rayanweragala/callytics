@@ -50,10 +50,19 @@ Suggested default ports:
 - `6379` for Redis, bound locally only
 - `8088` for Asterisk HTTP and ARI, bound locally only
 - `5038` for AMI, bound internally and not exposed publicly by default
-- `5060/udp` for SIP
+- `5080/udp` for SIP
 - `10000-10100/udp` for RTP media in local development
 
 Real port values may need to change if conflicts are found, but the installer should prefer stable defaults and only prompt when a conflict exists.
+
+The current working telephony runtime uses host networking for both `asterisk` and `stasis`.
+
+- `asterisk` uses `network_mode: host`
+- `stasis` uses `network_mode: host`
+- `stasis` reaches ARI at `http://127.0.0.1:8088`
+- `stasis` reaches PostgreSQL at `127.0.0.1:5432`
+
+This replaced the older design where Stasis stayed on bridge networking while Asterisk moved to host networking. That older layout broke ARI connectivity during first-call debugging.
 
 ## What the user sees when it works
 
