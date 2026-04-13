@@ -1,0 +1,21 @@
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--bg-base);
+}
+
+.contentArea {
+  flex: 1;
+  margin-left: 240px;
+  padding: 24px;
+}
+
+@media (max-width: 900px) {
+  .appShell {
+    flex-direction: column;
+  }
+
+  .contentArea {
+    margin-left: 0;
+  }
+}

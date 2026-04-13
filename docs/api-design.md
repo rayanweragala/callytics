@@ -304,3 +304,19 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
   Editable profile and settings fields
 - Returns:
   Updated user summary and preferences
+
+
+### Phase 6 builder integration note
+
+The React Flow builder now uses the current thin-slice flow endpoints directly from the browser:
+
+- `/flows` for list/create/delete flows
+- `/flows/:id` for loading and saving a single flow
+
+The current editor persists:
+
+- flow name and description
+- node positions
+- node labels
+- node config
+- edges and edge reconnection changes

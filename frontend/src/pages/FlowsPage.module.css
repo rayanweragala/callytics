@@ -1,0 +1,146 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tableCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 220px 280px;
+  gap: 16px;
+  padding: 16px 20px;
+  align-items: center;
+}
+
+.tableHead {
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.row {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.row:last-child { border-bottom: none; }
+
+.flowName, .createdAt {
+  font-family: 'Space Mono', monospace;
+}
+
+.flowName {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.flowDescription {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.createdAt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  text-transform: lowercase;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.deleteButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.deleteButton {
+  color: var(--color-error);
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-overlay);
+}
+
+.confirmText,
+.deletedText,
+.failedText {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+}
+
+.confirmText {
+  color: var(--text-secondary);
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.deletedText {
+  color: var(--color-active);
+}
+
+.failedText {
+  color: var(--color-error);
+}
+
+.empty {
+  padding: 24px 20px;
+  color: var(--text-muted);
+}

@@ -65,6 +65,7 @@ Notes:
 
 - `stasis/` is a real standalone Node.js package in the npm workspace. It is not embedded inside the NestJS backend process.
 - `stasis/src/` now includes the flow runtime engine, database migration/seed entrypoints, flow loader, call session manager, and node executors.
+- `frontend/src/` now contains routed pages for diagnostics and the flow builder, plus canonical Control Room components and builder-specific canvas components.
 - `asterisk/base` should stay mostly hand-maintained and small.
 - `asterisk/trunks` should be fully machine-generated from saved SIP trunk settings.
 - `storage` should be mount-backed so reinstalls do not destroy user data.

@@ -102,3 +102,24 @@ Current flow API endpoints:
 - `DELETE /flows/:id`
 
 This is intentionally a thin slice. It exists to unblock the flow builder UI with real saved data while keeping the backend small and understandable.
+
+
+## Current implementation status after Phase 6
+
+The flow builder now has a real frontend editing surface wired to the live Phase 7 backend API.
+
+What now works:
+
+- `/flows` lists flows from the backend
+- users can create a new flow from the UI
+- users can open `/flows/:id` and edit a flow on a React Flow canvas
+- the editor supports the current node types:
+  - `start`
+  - `play_audio`
+  - `get_digits`
+  - `hangup`
+- users can drag nodes onto the canvas, connect nodes, delete nodes, delete edges, and reconnect edges
+- users can edit node config in the right-side config panel and save changes back to the backend
+- save feedback and delete confirmations are implemented in the Control Room UI
+
+This means the builder is no longer blocked on mock data. The browser now edits real flows stored through the backend CRUD API.

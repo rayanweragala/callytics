@@ -40,7 +40,8 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 2: Asterisk 20 built from source, ARI and AMI verified, Stasis app connectivity working
 - Phase 3: NestJS backend running in Docker with PostgreSQL health check and `/health` endpoint
 - Phase 4: Stasis flow execution engine, schema migration, seed flow, flow loader, session manager, and node executors
-- Phase 5: Diagnostics UI slice in progress: SIP status panel, Redis-to-Socket.io event relay, and live execution timeline
+- Phase 5: diagnostics UI completed: SIP status panel, Redis-to-Socket.io event relay, and live execution timeline
+- Phase 6: React Flow builder UI completed with live backend persistence
 - Phase 7: thin-slice backend REST API for flow CRUD implemented for the builder
 
 Important infrastructure change made during Phase 4:

@@ -421,3 +421,17 @@ Hard parts include:
 - deciding what state lives in memory, Redis, or the database
 
 So the architecture is better aligned with the product, but the runtime engine will need careful engineering.
+
+
+## Builder status after Phase 6
+
+There is now a working React Flow editor on the frontend that can:
+
+- load the latest stored version of a flow from the backend
+- render nodes and edges on a canvas
+- edit node labels and supported config fields
+- create and delete nodes
+- create, delete, and reconnect edges
+- save the edited graph back through the backend CRUD API
+
+This is still a thin slice, but it gives the runtime engine a real visual editor instead of static seeded data only.

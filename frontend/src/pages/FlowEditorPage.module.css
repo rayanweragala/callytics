@@ -1,0 +1,188 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100vh - 48px);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.flowNameInput,
+.input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.flowNameInput {
+  min-width: 280px;
+  font-size: 15px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  text-transform: lowercase;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.failedButton {
+  color: var(--color-error);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.paletteItem:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.editorShell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  gap: 12px;
+  min-height: 720px;
+}
+
+.leftPanel,
+.canvasPanel,
+.rightPanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.canvasPanel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.panelTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: lowercase;
+  margin-bottom: 16px;
+}
+
+.paletteList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paletteItem {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-surface);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.paletteBar {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 999px;
+}
+
+.barstart { background: var(--color-active); }
+.barplayaudio { background: var(--color-info); }
+.bargetdigits { background: var(--color-warning); }
+.barhangup { background: var(--text-muted); }
+
+.paletteType, .meta {
+  font-family: 'Space Mono', monospace;
+}
+
+.paletteType {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.paletteLabel {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+:global(.react-flow) {
+  background: var(--bg-base);
+}
+
+:global(.react-flow__controls-button) {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+:global(.react-flow__controls) {
+  box-shadow: none;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+:global(.react-flow__attribution) {
+  display: none;
+}
+
+@media (max-width: 1280px) {
+  .editorShell {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .rightPanel {
+    grid-column: 1 / -1;
+  }
+}

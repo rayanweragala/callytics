@@ -1,0 +1,140 @@
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 20px;
+  min-height: 420px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+}
+
+.live {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-active);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.callCard {
+  border: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 16px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.callCard:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.callId,
+.time,
+.status {
+  font-family: 'Space Mono', monospace;
+}
+
+.callId {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.rail {
+  position: relative;
+  padding-left: 16px;
+}
+
+.rail::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-default);
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 16px;
+  animation: timeline-enter 200ms ease;
+}
+
+.marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.content {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.node {
+  color: var(--text-primary);
+  font-size: 13px;
+  text-transform: lowercase;
+}
+
+.status {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.time {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 120px;
+}
+
+.toneActive { background: var(--color-active); }
+.toneInfo { background: var(--color-info); }
+.toneWarning { background: var(--color-warning); }
+.toneError { background: var(--color-error); }
+.toneCompleted, .toneDefault { background: var(--text-muted); }
+
+@keyframes timeline-enter {
+  from { opacity: 0; transform: translateY(8px) translateX(-8px); }
+  to { opacity: 1; transform: translateY(0) translateX(0); }
+}

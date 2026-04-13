@@ -1,0 +1,35 @@
+import { NavLink } from 'react-router-dom';
+import styles from './SidebarNav.module.css';
+
+export function SidebarNav() {
+  return (
+    <aside className={styles.sidebar}>
+      <div>
+        <div className={styles.brand}>CALLYTICS</div>
+        <div className={styles.label}>CONTROL ROOM</div>
+        <nav className={styles.nav} aria-label="Primary navigation">
+          <div className={styles.group}>
+            <div className={styles.groupLabel}>MONITOR</div>
+            <NavLink to="/" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item} end>
+              diagnostics
+            </NavLink>
+            <button className={styles.item} type="button">call logs</button>
+          </div>
+          <div className={styles.group}>
+            <div className={styles.groupLabel}>CONFIGURE</div>
+            <NavLink to="/flows" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              flow builder
+            </NavLink>
+            <button className={styles.item} type="button">audio</button>
+            <button className={styles.item} type="button">endpoints</button>
+          </div>
+          <div className={styles.group}>
+            <div className={styles.groupLabel}>SYSTEM</div>
+            <button className={styles.item} type="button">settings</button>
+          </div>
+        </nav>
+      </div>
+      <div className={styles.version}>v0.6.0-dev</div>
+    </aside>
+  );
+}
