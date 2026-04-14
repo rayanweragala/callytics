@@ -225,6 +225,82 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
 - `GET /recordings/:id/stream` is used by the inline browser preview player on `/recordings`
 - `GET /recordings/:id/download` is used by the labeled download button on `/recordings`
 
+## Extensions
+
+### `GET /extensions`
+
+- What it does:
+  Returns all database-backed SIP extensions
+- Input:
+  `limit` and `offset`
+- Returns:
+  `{ data, total }`
+
+### `POST /extensions`
+
+- What it does:
+  Creates one extension, regenerates `pjsip_callytics_extensions.conf`, ensures the include in `pjsip.conf`, and reloads PJSIP through AMI
+- Input:
+  `username`, `password`, `displayName?`
+- Returns:
+  `{ data: ExtensionDetail }`
+
+### `PUT /extensions/:id`
+
+- What it does:
+  Updates one extension and rewrites the managed PJSIP config
+- Input:
+  Extension ID in the path plus `username?`, `password?`, `displayName?`
+- Returns:
+  `{ data: ExtensionDetail }`
+
+### `DELETE /extensions/:id`
+
+- What it does:
+  Deletes one extension and rewrites the managed PJSIP config
+- Input:
+  Extension ID in the path
+- Returns:
+  `{ data: { id: number, deleted: true } }`
+
+## Inbound routes
+
+### `GET /inbound-routes`
+
+- What it does:
+  Returns all inbound DID routes, with optional `did` query filtering for Stasis lookup
+- Input:
+  Optional `did`, plus `limit` and `offset`
+- Returns:
+  `{ data, total }`
+
+### `POST /inbound-routes`
+
+- What it does:
+  Creates one DID-to-flow mapping, regenerates `extensions_callytics_inbound.conf`, ensures the include in `extensions.conf`, and reloads the dialplan through AMI
+- Input:
+  `did`, `flowId`, `label?`
+- Returns:
+  `{ data: InboundRouteDetail }`
+
+### `PUT /inbound-routes/:id`
+
+- What it does:
+  Updates one DID route and rewrites the managed inbound dialplan config
+- Input:
+  Route ID in the path plus `did?`, `flowId?`, `label?`
+- Returns:
+  `{ data: InboundRouteDetail }`
+
+### `DELETE /inbound-routes/:id`
+
+- What it does:
+  Deletes one DID route and rewrites the managed inbound dialplan config
+- Input:
+  Route ID in the path
+- Returns:
+  `{ data: { id: number, deleted: true } }`
+
 ## Calls
 
 ### `GET /api/calls/live`

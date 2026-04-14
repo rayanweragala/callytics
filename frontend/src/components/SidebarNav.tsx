@@ -23,10 +23,15 @@ export function SidebarNav() {
             <NavLink to="/flows" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               flow builder
             </NavLink>
+            <NavLink to="/extensions" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              extensions
+            </NavLink>
+            <NavLink to="/inbound" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              inbound
+            </NavLink>
             <NavLink to="/audio" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               audio
             </NavLink>
-            <button className={styles.item} type="button">endpoints</button>
           </div>
           <div className={styles.group}>
             <div className={styles.groupLabel}>SYSTEM</div>

@@ -50,19 +50,25 @@ services:
     build:
       context: .
       dockerfile: ./docker/api/Dockerfile
-    ports:
-      - 127.0.0.1:3001:3001
+    network_mode: "host"
     volumes:
+      - ./asterisk/base:/etc/asterisk
       - ./storage:/app/storage
       - asterisk_recordings:/var/lib/asterisk/recording
     environment:
-      DB_HOST: postgres
+      AMI_HOST: 127.0.0.1
+      AMI_PORT: 5038
+      AMI_USER: callytics
+      AMI_PASSWORD: callytics
+      HOST_IP: ${HOST_IP:-127.0.0.1}
+      SIP_PORT: ${SIP_PORT:-5080}
+      DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_NAME: callytics
       DB_USER: callytics
       DB_PASS: callytics
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6380
       BACKEND_PORT: 3001
       NODE_ENV: development
       RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal

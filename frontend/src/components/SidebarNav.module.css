@@ -70,7 +70,7 @@
 }
 
 .itemActive {
-  background: rgba(0, 220, 130, 0.08);
+  background: var(--accent-dim);
   border-color: transparent;
   color: var(--color-active);
   border-radius: 6px;

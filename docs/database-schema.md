@@ -29,6 +29,13 @@ Phase 11 recording note:
 - Stasis persists one row per completed inbound bridge recording through `POST /recordings/internal`
 - Recording files are stored in the shared `asterisk_recordings` Docker volume
 
+Phase 13 extension and routing note:
+
+- The `sip_extensions` table is now implemented and active in the backend
+- The `inbound_routes` table is now implemented and active in the backend
+- NestJS regenerates managed PJSIP and inbound dialplan include files in `/etc/asterisk` from those tables on startup and after CRUD changes
+- Managed extension generation now uses the same object name for the endpoint and AOR (`[2001]` endpoint plus `[2001]` AOR with `aors=2001`), matching the working static phone pattern and fixing PJSIP registrar lookups
+
 ## `users`
 
 - `id`

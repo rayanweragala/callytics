@@ -96,6 +96,23 @@ export interface AudioVoiceItem {
   label: string;
 }
 
+export interface ExtensionItem {
+  id: number;
+  username: string;
+  password: string;
+  displayName: string | null;
+  createdAt: string;
+}
+
+export interface InboundRouteItem {
+  id: number;
+  did: string;
+  flowId: number;
+  flowName: string | null;
+  label: string | null;
+  createdAt: string;
+}
+
 export interface RecordingItem {
   id: number;
   callId: string;

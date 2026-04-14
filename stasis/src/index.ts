@@ -3,7 +3,7 @@ dotenv.config();
 
 import * as ari from 'ari-client';
 import { addSession, createSession, getSession, removeSession } from './callSession';
-import { loadFlow } from './flowLoader';
+import { loadFlow, loadFlowById } from './flowLoader';
 import migrate from './migrate';
 import { runFlow } from './runtime';
 import seed from './seed';
@@ -38,6 +38,27 @@ async function ariRequest(path: string, options: RequestInit = {}, query?: Recor
       ...(options.headers || {}),
     },
   });
+}
+
+async function resolveInboundRoute(did: string): Promise<{ did: string; flowId: number } | null> {
+  const url = new URL(`${BACKEND_URL}/inbound-routes`);
+  url.searchParams.set('did', did);
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`route_lookup_failed status=${response.status} body=${body}`);
+  }
+
+  const payload = (await response.json()) as { data?: Array<{ did?: string; flowId?: number }> };
+  const route = payload.data?.[0];
+  if (!route?.did || typeof route.flowId !== 'number') {
+    return null;
+  }
+
+  return {
+    did: route.did,
+    flowId: route.flowId,
+  };
 }
 
 async function startBridgeRecording(
@@ -193,6 +214,7 @@ async function start(): Promise<void> {
         args?: string[];
         channel?: {
           caller?: { number?: string };
+          dnid?: string;
           dialplan?: { context?: string; exten?: string };
         };
       },
@@ -218,9 +240,27 @@ async function start(): Promise<void> {
       }
 
       const callerNumber = event.channel?.caller?.number || 'unknown';
+      const inboundDid = String(event.channel?.dnid || channelExten || '').trim();
       console.log(`Incoming call: ${channel.id} from ${callerNumber}`);
 
-      const flow = await loadFlow();
+      let flow = null;
+      if (inboundDid) {
+        try {
+          const route = await resolveInboundRoute(inboundDid);
+          if (route) {
+            console.log(`[routing] inbound route found DID=${route.did} flow_id=${route.flowId}`);
+            flow = await loadFlowById(route.flowId);
+          } else {
+            console.warn(`[routing] no inbound route for DID ${inboundDid}, using default flow`);
+          }
+        } catch (error) {
+          console.error(`[routing] inbound route lookup failed DID=${inboundDid}:`, error);
+        }
+      }
+
+      if (!flow) {
+        flow = await loadFlow();
+      }
       if (!flow) {
         console.warn('No published flow found. Hanging up.');
         try {

@@ -22,7 +22,7 @@ export function RecordingsPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(5);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
   const load = async (nextPage = page, nextLimit = limit) => {
@@ -115,12 +115,7 @@ export function RecordingsPage() {
         <Pagination
           page={page}
           totalPages={totalPages}
-          limit={limit}
           onPageChange={setPage}
-          onLimitChange={(value) => {
-            setPage(1);
-            setLimit(value);
-          }}
         />
       </section>
     </div>

@@ -97,7 +97,10 @@ Current service networking is mixed by design:
 
 Current Redis access is split by network mode:
 
-- `backend` reaches Redis through the Docker service name `redis:6379`
+- `backend` now also uses `network_mode: host`
+- This changed during Phase 13 extension management because the backend needs direct host-local access to AMI on `127.0.0.1:5038` while still regenerating `/etc/asterisk` config files; the older bridge-networked backend could not reliably reach host-networked Asterisk AMI from Docker bridge networking
+- `backend` now reaches PostgreSQL through host-local `127.0.0.1:5432`
+- `backend` now reaches Redis through host-local `127.0.0.1:6380`
 - `stasis` reaches Redis through host-local `127.0.0.1:6380`
 
 This split exists because `stasis` uses host networking while Redis still runs on bridge networking and host port `6379` was unavailable on this machine.

@@ -16,6 +16,8 @@ Current completed implementation phases:
 - Phase 9: end-to-end live call verification with database-backed audio assets and `.ulaw` telephony playback
 - Phase 10: conditional routing, transfer node execution, DTMF capture fix, Stasis hangup-extension guard, and seed overwrite protection
 - Phase 11: call recordings, bridge-based recording/playback fix, recordings page, recording download support, and diagnostics panel pagination
+- Phase 12: hunt group node execution with sequential, random, and group dialing strategies
+- Phase 13: SIP extension management, QR provisioning, and DID-based inbound routing
 
 Current important infrastructure state:
 
@@ -23,7 +25,10 @@ Current important infrastructure state:
 - `stasis`: `network_mode: host`
 - `stasis` uses `ARI_URL=http://127.0.0.1:8088`
 - `stasis` uses `DB_HOST=127.0.0.1`
-- `backend` uses bridge networking and talks to Postgres/Redis by service name
+- `backend`: `network_mode: host`
+- `backend` uses `DB_HOST=127.0.0.1`
+- `backend` uses `REDIS_HOST=127.0.0.1` and `REDIS_PORT=6380`
+- `backend` now also mounts the shared `./asterisk/base` config directory at `/etc/asterisk` so NestJS can regenerate PJSIP and inbound dialplan snippets from database state on startup and after UI changes
 - `stasis` uses host-local Redis at `127.0.0.1:6380`
 
 Current audio management capabilities:
@@ -60,6 +65,19 @@ Current backend recording endpoints:
 - `DELETE /recordings/:id`
 - `POST /recordings/internal`
 
+Current extension and inbound routing endpoints:
+
+- `GET /extensions`
+- `POST /extensions`
+- `PUT /extensions/:id`
+- `DELETE /extensions/:id`
+- `GET /inbound-routes`
+- `GET /inbound-routes?did=<did>`
+- `POST /inbound-routes`
+- `PUT /inbound-routes/:id`
+- `DELETE /inbound-routes/:id`
+- `GET /config/host`
+
 Current API pagination:
 
 - `GET /audio` returns `{ data, total, page, limit, totalPages }`
@@ -72,3 +90,5 @@ Current asset/runtime notes:
 - `backend/voices/` contains the bundled Piper voice model files used during backend image build
 - Host-exposed Redis now uses `127.0.0.1:6380` rather than `6379`
 - `asterisk_recordings` is mounted into Asterisk at both `/var/lib/asterisk/recording` and `/var/spool/asterisk/recording`; ARI writes under `/var/spool/asterisk/recording` while the backend reads the same named volume at `/var/lib/asterisk/recording`
+- Backend-managed `pjsip.conf` include placement is now normalized automatically so `#include pjsip_callytics_extensions.conf` stays at top level instead of inside the endpoint template stanza
+- Generated extension objects now use the same object name for endpoint and AOR (for example `[2001]` endpoint + `[2001]` AOR with `aors=2001`), matching the known-good static `test-phone` pattern and fixing registrar lookups for softphone registration

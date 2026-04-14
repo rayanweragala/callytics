@@ -5,7 +5,7 @@ When a user runs the install command, `callytics` installs a small control layer
 At a high level, these parts come up:
 
 - A web UI on `localhost` for flows, audio, dashboards, and settings
-- A backend API that stores data, talks to Asterisk, and handles live events
+- `backend API` that stores data, talks to Asterisk, regenerates managed config snippets, and handles live events
 - A PostgreSQL database for saved configuration and call history
 - A Redis instance for short-lived live state and background jobs
 - An Asterisk service that handles calls, IVR logic, voicemail, and SIP
@@ -23,7 +23,7 @@ What the user sees:
 
 Asterisk is the telephony engine. It still answers calls, plays prompts, receives DTMF key presses, records voicemail, and bridges calls. `callytics` does not replace that. It sits on top of Asterisk and uses a Stasis app plus runtime commands to drive each published flow.
 
-The web UI does not talk to Asterisk directly. It talks to the backend API. The backend stores the flow in the database, and the Stasis app reads the published flow from the database on each incoming call and executes it through ARI while the backend listens to Asterisk event streams for live dashboard updates.
+The web UI does not talk to Asterisk directly. It talks to the backend API. The backend stores flow and routing state in the database, regenerates managed extension and inbound dialplan snippets under `/etc/asterisk`, and the Stasis app reads the published flow from the database on each incoming call while the backend listens to Asterisk event streams for live dashboard updates.
 
 If a SIP trunk is configured, Asterisk can place and receive real calls through the provider. If no trunk is configured, the same call flows still work inside the local setup using softphones or local SIP endpoints. That keeps development and testing possible without needing a public phone number on day one.
 

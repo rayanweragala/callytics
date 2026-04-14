@@ -238,12 +238,7 @@ export function AudioPage() {
         <Pagination
           page={page}
           totalPages={totalPages}
-          limit={limit}
           onPageChange={setPage}
-          onLimitChange={(value) => {
-            setPage(1);
-            setLimit(value);
-          }}
         />
       </section>
     </div>

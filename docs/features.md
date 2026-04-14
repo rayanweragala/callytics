@@ -35,6 +35,22 @@ Dial multiple SIP destinations with configurable strategy.
 - Validation before publish so flows cannot be activated with broken links or missing prompts
 - Draft and published versions so users can edit safely before applying changes
 
+## SIP extension management
+
+- `/extensions` page with inline create/edit/delete controls
+- Database-backed PJSIP extensions written into `pjsip_callytics_extensions.conf`
+- QR code provisioning modal for `sip:<username>@<host>:5080`
+- Backend-triggered PJSIP reload after extension changes
+- Host IP and SIP port come from backend `GET /config/host` so provisioning URIs and QR codes use the real machine address instead of `localhost`
+
+## Inbound DID routing
+
+- `/inbound` page with inline create/edit/delete controls
+- Database-backed DID-to-flow mappings in `inbound_routes`
+- Backend-generated `extensions_callytics_inbound.conf` dialplan include
+- Stasis resolves the inbound DID on each call and loads the mapped flow live without restart
+- Inbound routing add/edit forms use the shared `SearchableSelect` flow picker and the diagnostics-style inline pagination layout
+
 ## Audio management
 
 - `/audio` page with upload form, offline TTS generation form, and paginated library table

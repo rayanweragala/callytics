@@ -1,0 +1,281 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.formPanel,
+.tablePanel,
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.formPanel,
+.tablePanel {
+  padding: 18px;
+}
+
+.panelTitle,
+.modalTitle {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.formGrid,
+.editorRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.formGrid {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.editorRow {
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: -1px;
+}
+
+.field {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  height: 36px;
+  padding: 0 14px;
+  text-transform: lowercase;
+}
+
+.deleteButton,
+.failedText {
+  color: var(--color-error);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.deleteButton:hover,
+.input:hover,
+.input:focus {
+  border-color: var(--border-strong);
+}
+
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(160px, 1fr) minmax(250px, 1.2fr) minmax(220px, 260px);
+  gap: 16px;
+  align-items: center;
+}
+
+.tableHead {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.row {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.row:last-of-type {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.actions,
+.formActions,
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.formActions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.confirmText,
+.successText,
+.failedText,
+.uriText,
+.dataMono {
+  font-family: 'Space Mono', monospace;
+}
+
+.confirmText,
+.uriText,
+.displayName {
+  color: var(--text-secondary);
+}
+
+.dataMono {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.displayName,
+.successText,
+.failedText,
+.empty {
+  font-size: 12px;
+}
+
+.successText {
+  margin-top: 14px;
+  color: var(--color-active);
+}
+
+.empty {
+  padding-top: 16px;
+  color: var(--text-muted);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal {
+  width: min(420px, 100%);
+  padding: 18px;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.qrFrame {
+  margin-top: 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+.qrImage {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  background: var(--text-primary);
+  border-radius: 6px;
+}
+
+.uriText {
+  margin-top: 12px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+@media (max-width: 1100px) {
+  .formGrid,
+  .editorRow,
+  .tableHead,
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid,
+  .editorRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionsHeader,
+  .actions,
+  .formActions {
+    text-align: left;
+    justify-content: flex-start;
+  }
+}

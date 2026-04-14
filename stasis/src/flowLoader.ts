@@ -40,8 +40,24 @@ export async function loadFlow(entryValue?: string): Promise<Flow | null> {
     `;
 
   const flows = await query(flowSql, entryValue ? [entryValue] : []);
-  const flowRow = flows[0];
+  return buildFlowFromRow(flows[0]);
+}
 
+export async function loadFlowById(id: number): Promise<Flow | null> {
+  const flows = await query(
+    `
+      SELECT *
+      FROM call_flows
+      WHERE id = $1 AND status = 'published'
+      LIMIT 1
+    `,
+    [id],
+  );
+
+  return buildFlowFromRow(flows[0]);
+}
+
+async function buildFlowFromRow(flowRow: Record<string, unknown> | undefined): Promise<Flow | null> {
   if (!flowRow) {
     return null;
   }
@@ -73,7 +89,7 @@ export async function loadFlow(entryValue?: string): Promise<Flow | null> {
 
   return {
     id: Number(flowRow.id),
-    name: flowRow.name,
+    name: String(flowRow.name || ''),
     versionId: Number(versionId),
     nodes: nodesRows.map((row: { node_key: string; type: string; label: string | null; config_json: Record<string, unknown> | null }) => ({
       nodeKey: row.node_key,

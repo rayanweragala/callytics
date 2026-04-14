@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AudioFileItem, AudioVoiceItem, FlowDetail, FlowSummary, RecordingItem } from '../types';
+import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowDetail, FlowSummary, InboundRouteItem, RecordingItem } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001',
@@ -55,6 +55,20 @@ export interface AudioVoicesResponse {
 
 export interface RecordingDetailResponse {
   data: RecordingItem;
+}
+
+export interface ListResponse<T> {
+  data: T[];
+  total: number;
+}
+
+export interface DetailResponse<T> {
+  data: T;
+}
+
+export interface HostConfigResponse {
+  hostIp: string;
+  sipPort: number;
 }
 
 export async function listFlows(page = 1, limit = 5): Promise<PaginatedResponse<FlowSummary>> {
@@ -127,5 +141,52 @@ export async function getRecording(id: number): Promise<RecordingDetailResponse>
 
 export async function deleteRecording(id: number): Promise<DeleteFlowResponse> {
   const response = await api.delete<DeleteFlowResponse>(`/recordings/${id}`);
+  return response.data;
+}
+
+export async function listExtensions(limit = 20, offset = 0): Promise<ListResponse<ExtensionItem>> {
+  const response = await api.get<ListResponse<ExtensionItem>>('/extensions', { params: { limit, offset } });
+  return response.data;
+}
+
+export async function createExtension(payload: { username: string; password: string; displayName?: string }): Promise<DetailResponse<ExtensionItem>> {
+  const response = await api.post<DetailResponse<ExtensionItem>>('/extensions', payload);
+  return response.data;
+}
+
+export async function updateExtension(id: number, payload: { username?: string; password?: string; displayName?: string }): Promise<DetailResponse<ExtensionItem>> {
+  const response = await api.put<DetailResponse<ExtensionItem>>(`/extensions/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteExtension(id: number): Promise<DeleteFlowResponse> {
+  const response = await api.delete<DeleteFlowResponse>(`/extensions/${id}`);
+  return response.data;
+}
+
+export async function listInboundRoutes(did?: string, limit = 20, offset = 0): Promise<ListResponse<InboundRouteItem>> {
+  const params: Record<string, string | number> = { limit, offset };
+  if (did) params.did = did;
+  const response = await api.get<ListResponse<InboundRouteItem>>('/inbound-routes', { params });
+  return response.data;
+}
+
+export async function createInboundRoute(payload: { did: string; flowId: number; label?: string }): Promise<DetailResponse<InboundRouteItem>> {
+  const response = await api.post<DetailResponse<InboundRouteItem>>('/inbound-routes', payload);
+  return response.data;
+}
+
+export async function updateInboundRoute(id: number, payload: { did?: string; flowId?: number; label?: string }): Promise<DetailResponse<InboundRouteItem>> {
+  const response = await api.put<DetailResponse<InboundRouteItem>>(`/inbound-routes/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteInboundRoute(id: number): Promise<DeleteFlowResponse> {
+  const response = await api.delete<DeleteFlowResponse>(`/inbound-routes/${id}`);
+  return response.data;
+}
+
+export async function getHostConfig(): Promise<HostConfigResponse> {
+  const response = await api.get<HostConfigResponse>('/config/host');
   return response.data;
 }

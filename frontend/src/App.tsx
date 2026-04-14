@@ -3,8 +3,10 @@ import { SidebarNav } from './components/SidebarNav';
 import styles from './App.module.css';
 import { DiagnosticsPage } from './pages/DiagnosticsPage';
 import { AudioPage } from './pages/AudioPage';
+import { ExtensionsPage } from './pages/ExtensionsPage';
 import { FlowEditorPage } from './pages/FlowEditorPage';
 import { FlowsPage } from './pages/FlowsPage';
+import { InboundRoutesPage } from './pages/InboundRoutesPage';
 import { RecordingsPage } from './pages/RecordingsPage';
 
 export default function App() {
@@ -15,8 +17,10 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DiagnosticsPage />} />
           <Route path="/audio" element={<AudioPage />} />
+          <Route path="/extensions" element={<ExtensionsPage />} />
           <Route path="/flows" element={<FlowsPage />} />
           <Route path="/flows/:id" element={<FlowEditorPage />} />
+          <Route path="/inbound" element={<InboundRoutesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
         </Routes>
       </main>
