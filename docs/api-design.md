@@ -122,11 +122,20 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
 ### `POST /audio/tts`
 
 - What it does:
-  Generates a new audio asset from text using offline Piper inside the backend container
+  Generates a new audio asset from text using offline Piper inside the backend container and saves it to the audio library
 - Input:
-  `name`, `text`, and `voice`
+  `name`, `text`, `voice`, and optional `speed`
 - Returns:
   `{ data: AudioDetail }`
+
+### `POST /audio/tts/preview`
+
+- What it does:
+  Renders a temporary Piper preview stream for inline browser playback without saving any DB row or file
+- Input:
+  `text`, `voice`, and optional `speed`
+- Returns:
+  `audio/wav`
 
 ### `GET /audio/voices`
 
@@ -262,6 +271,53 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
   Extension ID in the path
 - Returns:
   `{ data: { id: number, deleted: true } }`
+
+## Trunks
+
+### `GET /trunks`
+
+- What it does:
+  Returns all database-backed SIP trunks ordered by newest first
+- Input:
+  `limit` and `offset`
+- Returns:
+  `{ data, total }`
+
+### `POST /trunks`
+
+- What it does:
+  Creates one SIP trunk, regenerates `pjsip_callytics_trunks.conf`, normalizes both managed `pjsip.conf` includes at the file end, and reloads PJSIP through AMI
+- Input:
+  `name`, `host`, `providerPreset?`, `port?`, `username?`, `password?`, `fromDomain?`, `fromUser?`, `enabled?`
+- Returns:
+  `{ data: TrunkDetail }`
+
+### `PUT /trunks/:id`
+
+- What it does:
+  Updates one SIP trunk and rewrites the managed trunk config
+- Input:
+  Trunk ID in the path plus `name?`, `host?`, `providerPreset?`, `port?`, `username?`, `password?`, `fromDomain?`, `fromUser?`, `enabled?`
+- Returns:
+  `{ data: TrunkDetail }`
+
+### `DELETE /trunks/:id`
+
+- What it does:
+  Deletes one SIP trunk and rewrites the managed trunk config
+- Input:
+  Trunk ID in the path
+- Returns:
+  `204 No Content`
+
+### `POST /trunks/:id/test`
+
+- What it does:
+  Triggers AMI `PJSIPQualify` for the generated `trunk-{id}` endpoint, inspects the follow-up endpoint detail, and returns a UI-ready reachability result
+- Input:
+  Trunk ID in the path
+- Returns:
+  `{ status, rtt_ms, message }`
 
 ## Inbound routes
 

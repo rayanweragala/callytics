@@ -16,9 +16,10 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
 } from 'reactflow';
-import { getFlow, listAudio, updateFlow } from '../lib/api';
+import { createFlow, getFlow, listAudio, updateFlow } from '../lib/api';
 import type { AudioFileItem, BuilderNodeType, FlowDetail, FlowNodeData } from '../types';
 import { SearchableSelect } from '../components/common/SearchableSelect';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { FlowCanvasEdge } from '../components/builder/FlowCanvasEdge';
 import { FlowCanvasNode } from '../components/builder/FlowCanvasNode';
 import { HuntNode } from '../components/nodes/HuntNode';
@@ -55,6 +56,11 @@ type BuilderEdgeData = {
   onDelete?: (edgeId: string) => void;
 };
 
+type PendingLeaveAction =
+  | { kind: 'navigate'; to: string }
+  | { kind: 'external'; href: string }
+  | { kind: 'history-back' };
+
 function typeConfig(type: BuilderNodeType): Record<string, unknown> {
   if (type === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
   if (type === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
@@ -85,6 +91,52 @@ function buildCanvasNode(type: BuilderNodeType, index: number): Node<FlowNodeDat
       config: typeConfig(type),
     },
   };
+}
+
+function createDraftFlow(): FlowDetail {
+  const now = new Date().toISOString();
+  return {
+    id: 0,
+    name: 'Untitled Flow',
+    description: 'New flow',
+    slug: 'untitled-flow',
+    createdAt: now,
+    updatedAt: now,
+    versionId: 0,
+    versionNumber: 0,
+    nodes: [],
+    edges: [],
+  };
+}
+
+function createSavePayload(flow: FlowDetail, nodes: Array<Node<FlowNodeData>>, edges: Array<Edge<BuilderEdgeData>>) {
+  return {
+    name: flow.name,
+    description: flow.description || '',
+    slug: flow.slug,
+    nodes: nodes.map((node) => ({
+      nodeKey: node.id,
+      type: node.data.type,
+      label: node.data.label,
+      positionX: node.position.x,
+      positionY: node.position.y,
+      config: node.data.config,
+    })),
+    edges: edges.map((edge) => ({
+      sourceNodeKey: edge.source,
+      targetNodeKey: edge.target,
+      branchKey: String(edge.data?.branchKey || edge.data?.condition || 'default'),
+      condition: edge.data?.condition ?? null,
+    })),
+  };
+}
+
+function buildEditorSnapshot(flow: FlowDetail | null, nodes: Array<Node<FlowNodeData>>, edges: Array<Edge<BuilderEdgeData>>): string {
+  if (!flow) {
+    return '';
+  }
+
+  return JSON.stringify(createSavePayload(flow, nodes, edges));
 }
 
 function shouldAutoArrange(nodes: Array<Node<FlowNodeData>>): boolean {
@@ -223,10 +275,16 @@ const miniMapSizeProps = { width: 160, height: 120 } as unknown as Record<string
 export function FlowEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const isDraftRoute = id === 'new';
   const canvasPanelRef = useRef<HTMLDivElement | null>(null);
   const saveFeedbackTimer = useRef<number | null>(null);
   const fitDone = useRef(false);
+  const pendingLeaveActionRef = useRef<PendingLeaveAction | null>(null);
+  const allowNextPopStateRef = useRef(false);
   const [flow, setFlow] = useState<FlowDetail | null>(null);
+  const [isDraft, setIsDraft] = useState(isDraftRoute);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<BuilderEdgeData>([]);
   const [audioItems, setAudioItems] = useState<AudioFileItem[]>([]);
@@ -234,6 +292,7 @@ export function FlowEditorPage() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
 
   useEffect(() => {
     if (rfInstance && nodes.length > 0 && !fitDone.current) {
@@ -275,9 +334,39 @@ export function FlowEditorPage() {
 
   useEffect(() => {
     fitDone.current = false;
+    setIsInitialized(false);
+    setIsDraft(isDraftRoute);
     let active = true;
 
     const load = async () => {
+      if (isDraftRoute) {
+        const draftFlow = createDraftFlow();
+        const draftNodes = withNodeDeleteCallbacks([
+          {
+            id: 'start',
+            type: 'flowNode',
+            position: { x: 120, y: 140 },
+            data: {
+              label: 'Start',
+              type: 'start',
+              config: {},
+            },
+            draggable: false,
+          },
+        ], deleteNode);
+        if (!active) {
+          return;
+        }
+        setFlow(draftFlow);
+        setNodes(draftNodes);
+        setEdges([]);
+        setSavedSnapshot(null);
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        setIsInitialized(true);
+        return;
+      }
+
       const response = await getFlow(id);
       if (!active) {
         return;
@@ -287,10 +376,13 @@ export function FlowEditorPage() {
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
       const nextNodes = withNodeDeleteCallbacks(arrangedNodes, deleteNode);
+      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
       setNodes(nextNodes);
-      setEdges(attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge));
+      setEdges(nextEdges);
+      setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
+      setIsInitialized(true);
     };
 
     void load();
@@ -298,7 +390,7 @@ export function FlowEditorPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, isDraftRoute]);
 
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) || null,
@@ -314,6 +406,131 @@ export function FlowEditorPage() {
     () => (selectedEdge ? nodes.find((node) => node.id === selectedEdge.source) || null : null),
     [nodes, selectedEdge],
   );
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!isInitialized || !flow) {
+      return false;
+    }
+
+    if (isDraft) {
+      return true;
+    }
+
+    if (savedSnapshot === null) {
+      return false;
+    }
+
+    return buildEditorSnapshot(flow, nodes, edges) !== savedSnapshot;
+  }, [edges, flow, isDraft, isInitialized, nodes, savedSnapshot]);
+
+  const performLeaveAction = useCallback((action: PendingLeaveAction) => {
+    if (action.kind === 'navigate') {
+      navigate(action.to);
+      return;
+    }
+
+    if (action.kind === 'external') {
+      window.location.assign(action.href);
+      return;
+    }
+
+    allowNextPopStateRef.current = true;
+    window.history.back();
+  }, [navigate]);
+
+  const requestLeave = useCallback((action: PendingLeaveAction) => {
+    if (!hasUnsavedChanges) {
+      performLeaveAction(action);
+      return;
+    }
+
+    pendingLeaveActionRef.current = action;
+    setConfirmLeaveOpen(true);
+  }, [hasUnsavedChanges, performLeaveAction]);
+
+  const handleCancelLeave = useCallback(() => {
+    pendingLeaveActionRef.current = null;
+    setConfirmLeaveOpen(false);
+  }, []);
+
+  const handleConfirmLeave = useCallback(() => {
+    const action = pendingLeaveActionRef.current;
+    pendingLeaveActionRef.current = null;
+    setConfirmLeaveOpen(false);
+    if (action) {
+      performLeaveAction(action);
+    }
+  }, [performLeaveAction]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges && confirmLeaveOpen) {
+      pendingLeaveActionRef.current = null;
+      setConfirmLeaveOpen(false);
+    }
+  }, [confirmLeaveOpen, hasUnsavedChanges]);
+
+  useEffect(() => {
+    const message = 'You have unsaved changes. Leave anyway?';
+    if (!hasUnsavedChanges) {
+      return;
+    }
+
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = message;
+      return message;
+    };
+
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) {
+        return;
+      }
+
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#') || href === currentPath) {
+        return;
+      }
+
+      if (anchor.target === '_blank' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const nextUrl = new URL(anchor.href, window.location.href);
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (nextUrl.origin === window.location.origin) {
+        requestLeave({ kind: 'navigate', to: `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}` });
+        return;
+      }
+
+      requestLeave({ kind: 'external', href: nextUrl.toString() });
+    };
+
+    const handlePopState = () => {
+      if (allowNextPopStateRef.current) {
+        allowNextPopStateRef.current = false;
+        return;
+      }
+
+      window.history.pushState(null, '', currentPath);
+      requestLeave({ kind: 'history-back' });
+    };
+
+    window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('click', handleDocumentClick, true);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      document.removeEventListener('click', handleDocumentClick, true);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasUnsavedChanges, requestLeave]);
 
   useEffect(() => {
     return () => {
@@ -536,35 +753,23 @@ current,
     if (!flow) return;
     setSaveState('saving');
     try {
-      const payload = {
-        name: flow.name,
-        description: flow.description || '',
-        slug: flow.slug,
-        nodes: nodes.map((node) => ({
-          nodeKey: node.id,
-          type: node.data.type,
-          label: node.data.label,
-          positionX: node.position.x,
-          positionY: node.position.y,
-          config: node.data.config,
-        })),
-        edges: edges.map((edge) => ({
-          sourceNodeKey: edge.source,
-          targetNodeKey: edge.target,
-          branchKey: String(edge.data?.branchKey || edge.data?.condition || 'default'),
-          condition: edge.data?.condition ?? null,
-        })),
-      };
-      const response = await updateFlow(id, payload);
+      const payload = createSavePayload(flow, nodes, edges);
+      const response = isDraft ? await createFlow(payload) : await updateFlow(id, payload);
       setFlow(response.data);
+      setIsDraft(false);
       const panelWidth = canvasPanelRef.current?.clientWidth || 900;
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
       const nextNodes = withNodeDeleteCallbacks(arrangedNodes, deleteNode);
+      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
       setNodes(nextNodes);
-      setEdges(attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge));
+      setEdges(nextEdges);
+      setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
       setSelectedEdgeId(null);
       setSaveState('saved');
+      if (isDraft) {
+        navigate(`/flows/${response.data.id}`, { replace: true });
+      }
     } catch {
       setSaveState('failed');
     } finally {
@@ -592,12 +797,15 @@ current,
 
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : 'save';
   const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
+  const leaveFlowEditor = () => {
+    requestLeave({ kind: 'navigate', to: '/flows' });
+  };
 
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>
-          <button className={styles.secondaryButton} onClick={() => navigate('/flows')} type="button">back</button>
+          <button className={styles.secondaryButton} onClick={leaveFlowEditor} type="button">back</button>
           <button className={styles.secondaryButton} onClick={handleTidyLayout} type="button">tidy layout</button>
           <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => setFlowName(event.target.value)} />
         </div>
@@ -798,6 +1006,14 @@ current,
           )}
         </section>
       </div>
+      <ConfirmDialog
+        open={confirmLeaveOpen}
+        title="Unsaved changes"
+        message="You have unsaved changes. Leave anyway?"
+        confirmLabel="Leave"
+        onConfirm={handleConfirmLeave}
+        onCancel={handleCancelLeave}
+      />
     </div>
   );
 }

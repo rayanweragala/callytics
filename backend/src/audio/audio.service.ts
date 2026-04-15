@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { join, extname, basename } from 'path';
 import { spawn } from 'child_process';
+import type { Response } from 'express';
 import { DataSource, Repository } from 'typeorm';
 import { AudioFileEntity } from './entities/audio-file.entity';
 
@@ -17,6 +18,7 @@ export interface AudioResponse {
   conversionStatus: string;
   ttsText: string | null;
   ttsVoice: string | null;
+  speed: number;
   originalUrl: string | null;
   previewUrl: string | null;
   convertedUrl: string | null;
@@ -101,6 +103,7 @@ export class AudioService implements OnModuleInit {
       conversionStatus: 'processing',
       ttsText: null,
       ttsVoice: null,
+      speed: 1,
     });
 
     const saved = await this.audioRepository.save(asset);
@@ -108,18 +111,19 @@ export class AudioService implements OnModuleInit {
     return { data: this.toResponse(processed) };
   }
 
-  async createTts(name: string, text: string, voice: string): Promise<{ data: AudioResponse }> {
+  async createTts(name: string, text: string, voice: string, speed = 1): Promise<{ data: AudioResponse }> {
     const trimmedText = text.trim();
     if (!trimmedText) throw new BadRequestException('text is required');
 
     await this.ensureVoice(voice);
+    const normalizedSpeed = this.normalizeSpeed(speed);
 
     const idPrefix = randomUUID();
     const rawTtsPath = join(this.ttsDir, `${idPrefix}.wav`);
     const modelPath = join(this.voicesDir, `${voice}.onnx`);
     const configPath = join(this.voicesDir, `${voice}.onnx.json`);
 
-    await this.runCommand('piper', ['--model', modelPath, '--config', configPath, '--output_file', rawTtsPath], {
+    await this.runCommand('piper', this.buildPiperArgs(modelPath, configPath, normalizedSpeed.lengthScale, rawTtsPath), {
       stdin: trimmedText,
     });
 
@@ -135,11 +139,110 @@ export class AudioService implements OnModuleInit {
       conversionStatus: 'processing',
       ttsText: trimmedText,
       ttsVoice: voice,
+      speed: normalizedSpeed.speed,
     });
 
     const saved = await this.audioRepository.save(asset);
     const processed = await this.processAudio(saved.id, rawTtsPath);
     return { data: this.toResponse(processed) };
+  }
+
+  async previewTts(text: string, voice: string, speed = 1, res: Response): Promise<void> {
+    const trimmedText = text.trim();
+    if (!trimmedText) throw new BadRequestException('text is required');
+
+    await this.ensureVoice(voice);
+    const normalizedSpeed = this.normalizeSpeed(speed);
+    const modelPath = join(this.voicesDir, `${voice}.onnx`);
+    const configPath = join(this.voicesDir, `${voice}.onnx.json`);
+
+    await new Promise<void>((resolve, reject) => {
+      const piper = spawn('piper', [
+        '--model',
+        modelPath,
+        '--config',
+        configPath,
+        '--length_scale',
+        String(normalizedSpeed.lengthScale),
+        '--output_raw',
+      ]);
+      const ffmpeg = spawn('ffmpeg', [
+        '-f', 's16le',
+        '-ar', '22050',
+        '-ac', '1',
+        '-i', 'pipe:0',
+        '-f', 'wav',
+        'pipe:1',
+      ]);
+      let stderr = '';
+      let settled = false;
+
+      const finish = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        callback();
+      };
+
+      const stopChildren = () => {
+        if (!piper.killed) {
+          piper.kill('SIGTERM');
+        }
+        if (!ffmpeg.killed) {
+          ffmpeg.kill('SIGTERM');
+        }
+      };
+
+      const timeout = setTimeout(() => {
+        finish(() => {
+          stopChildren();
+          reject(new BadRequestException('preview timed out after 15 seconds'));
+        });
+      }, 15000);
+
+      piper.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+      ffmpeg.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+      piper.on('error', (error) => {
+        clearTimeout(timeout);
+        finish(() => {
+          stopChildren();
+          reject(error);
+        });
+      });
+      ffmpeg.on('error', (error) => {
+        clearTimeout(timeout);
+        finish(() => {
+          stopChildren();
+          reject(error);
+        });
+      });
+      ffmpeg.on('close', (code) => {
+        clearTimeout(timeout);
+        if (settled) {
+          return;
+        }
+        finish(() => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new BadRequestException(stderr || `ffmpeg failed with exit code ${code}`));
+          }
+        });
+      });
+
+      res.on('error', () => {
+        clearTimeout(timeout);
+        stopChildren();
+      });
+
+      piper.stdout.pipe(ffmpeg.stdin);
+      ffmpeg.stdout.pipe(res);
+      piper.stdin.write(trimmedText);
+      piper.stdin.end();
+    });
   }
 
   async remove(id: number): Promise<{ data: { id: number; deleted: true } }> {
@@ -211,6 +314,7 @@ export class AudioService implements OnModuleInit {
       conversionStatus: item.conversionStatus,
       ttsText: item.ttsText,
       ttsVoice: item.ttsVoice,
+      speed: item.speed ?? 1,
       originalUrl: this.toMediaUrl(item.storagePathOriginal),
       previewUrl: this.toMediaUrl(item.storagePathPreview),
       convertedUrl: this.toMediaUrl(item.storagePathConverted),
@@ -246,10 +350,32 @@ export class AudioService implements OnModuleInit {
         conversion_status VARCHAR(50) DEFAULT 'pending',
         tts_text TEXT,
         tts_voice VARCHAR(255),
+        speed FLOAT DEFAULT 1.0,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await this.dataSource.query(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS speed FLOAT DEFAULT 1.0`);
+  }
+
+  private normalizeSpeed(speed?: number): { speed: number; lengthScale: number } {
+    const numericSpeed = Number(speed ?? 1);
+    if (!Number.isFinite(numericSpeed) || numericSpeed < 0.5 || numericSpeed > 2) {
+      throw new BadRequestException('speed must be between 0.5 and 2.0');
+    }
+
+    return {
+      speed: Number(numericSpeed.toFixed(1)),
+      lengthScale: Number((1 / numericSpeed).toFixed(4)),
+    };
+  }
+
+  private buildPiperArgs(modelPath: string, configPath: string, lengthScale: number, outputFile?: string): string[] {
+    const args = ['--model', modelPath, '--config', configPath, '--length_scale', String(lengthScale)];
+    if (outputFile) {
+      args.push('--output_file', outputFile);
+    }
+    return args;
   }
 
   private async ensureVoice(voice: string): Promise<void> {

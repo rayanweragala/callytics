@@ -59,7 +59,7 @@
 
 .row:last-child { border-bottom: none; }
 
-.flowName, .createdAt {
+.flowName {
   font-family: 'Space Mono', monospace;
 }
 
@@ -76,7 +76,8 @@
 
 .createdAt {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
 }
 
 .actions {
@@ -123,7 +124,8 @@
 
 .confirmText,
 .deletedText,
-.failedText {
+.failedText
+.createdAt  {
   font-family: 'Space Mono', monospace;
   font-size: 11px;
 }

@@ -2,6 +2,7 @@ import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { Pagination } from '../components/common/Pagination';
 import { createInboundRoute, deleteInboundRoute, listFlows, listInboundRoutes, updateInboundRoute } from '../lib/api';
+import { formatDateTime } from '../lib/time';
 import type { FlowSummary, InboundRouteItem } from '../types';
 import styles from './InboundRoutesPage.module.css';
 
@@ -178,6 +179,7 @@ export function InboundRoutesPage() {
             <div>did</div>
             <div>label</div>
             <div>flow</div>
+            <div>created</div>
             <div className={styles.actionsHeader}>actions</div>
           </div>
           {sortedItems.length === 0 ? (
@@ -188,6 +190,7 @@ export function InboundRoutesPage() {
                 <div className={styles.dataMono}>{item.did}</div>
                 <div className={styles.labelText}>{item.label || '—'}</div>
                 <div className={styles.flowText}>{item.flowName || `flow ${item.flowId}`}</div>
+                <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
                 <div className={styles.actions}>
                   {confirmDeleteId === item.id ? (
                     <div className={styles.confirmBox}>

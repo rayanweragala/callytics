@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
 import { Pagination } from '../components/common/Pagination';
 import { deleteRecording, listRecordings } from '../lib/api';
-import { formatDate } from '../lib/time';
+import { formatDateTime } from '../lib/time';
 import type { RecordingItem } from '../types';
 import styles from './RecordingsPage.module.css';
 
@@ -90,7 +90,7 @@ export function RecordingsPage() {
             <div className={styles.previewCell} onClick={() => setActiveId(item.id)}>
               <AudioPreviewPlayer key={item.id} src={`${backendBase}${item.streamUrl}`} isActive={activeId === null || activeId === item.id} />
             </div>
-            <div className={styles.createdAt} title={item.createdAt}>{formatDate(item.createdAt)}</div>
+            <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
             <div className={styles.actions}>
               {deletedId === item.id ? (
                 <div className={styles.deletedText}>deleted</div>

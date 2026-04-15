@@ -18,6 +18,16 @@ Current completed implementation phases:
 - Phase 11: call recordings, bridge-based recording/playback fix, recordings page, recording download support, and diagnostics panel pagination
 - Phase 12: hunt group node execution with sequential, random, and group dialing strategies
 - Phase 13: SIP extension management, QR provisioning, and DID-based inbound routing
+- Phase 14: SIP Trunks + Audio Improvements + UI Polish
+  - SIP Trunks UI: inline add/edit form, provider presets, enabled/disabled status
+  - Trunk reachability test: real TCP socket check, structured backend logging
+  - Audio page: TTS speed control slider (0.5×–2.0×), preview-before-save
+    (streams Piper stdout directly, no DB write), generate renamed to save,
+    speed stored on audio_files
+  - Unified date-time format across all pages (DD Mon YYYY, HH:MM via formatDateTime)
+  - Themed ConfirmDialog component replacing browser window.confirm on unsaved-leave guard
+  - Trunks inline form Username field layout fix
+  - Created column white-space: nowrap fix across all table pages
 
 Current important infrastructure state:
 
@@ -45,6 +55,7 @@ Current backend audio endpoints:
 - `GET /audio/:id`
 - `POST /audio/upload`
 - `POST /audio/tts`
+- `POST /audio/tts/preview`
 - `GET /audio/voices`
 - `DELETE /audio/:id`
 - Static media at `/media/audio/...`
@@ -76,6 +87,11 @@ Current extension and inbound routing endpoints:
 - `POST /inbound-routes`
 - `PUT /inbound-routes/:id`
 - `DELETE /inbound-routes/:id`
+- `GET /trunks`
+- `POST /trunks`
+- `PUT /trunks/:id`
+- `DELETE /trunks/:id`
+- `POST /trunks/:id/test`
 - `GET /config/host`
 
 Current API pagination:
@@ -90,5 +106,6 @@ Current asset/runtime notes:
 - `backend/voices/` contains the bundled Piper voice model files used during backend image build
 - Host-exposed Redis now uses `127.0.0.1:6380` rather than `6379`
 - `asterisk_recordings` is mounted into Asterisk at both `/var/lib/asterisk/recording` and `/var/spool/asterisk/recording`; ARI writes under `/var/spool/asterisk/recording` while the backend reads the same named volume at `/var/lib/asterisk/recording`
-- Backend-managed `pjsip.conf` include placement is now normalized automatically so `#include pjsip_callytics_extensions.conf` stays at top level instead of inside the endpoint template stanza
+- Phase 14 adds database-backed `sip_trunks` management and generates `/etc/asterisk/pjsip_callytics_trunks.conf` from enabled rows on startup and CRUD changes
+- Backend-managed `pjsip.conf` include placement now removes any older managed include position and re-appends both `#include pjsip_callytics_extensions.conf` and `#include pjsip_callytics_trunks.conf` as the final top-level lines in the file. Older Phase 13 behavior moved the extensions include away from the broken in-template position and kept it near the file start; trunk support now standardizes both managed includes at file end so they remain top-level and ordered.
 - Generated extension objects now use the same object name for endpoint and AOR (for example `[2001]` endpoint + `[2001]` AOR with `aors=2001`), matching the known-good static `test-phone` pattern and fixing registrar lookups for softphone registration

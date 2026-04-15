@@ -2,10 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AudioModule } from './audio/audio.module';
+import { AsteriskModule } from './asterisk/asterisk.module';
 import { AudioFileEntity } from './audio/entities/audio-file.entity';
 import { DiagnosticsModule } from './diagnostics/diagnostics.module';
 import { ExtensionsModule } from './extensions/extensions.module';
 import { SipExtensionEntity } from './extensions/entities/sip-extension.entity';
+import { SipTrunkEntity } from './trunks/entities/sip-trunk.entity';
 import { CallFlowEntity } from './flows/entities/call-flow.entity';
 import { FlowEdgeEntity } from './flows/entities/flow-edge.entity';
 import { FlowNodeEntity } from './flows/entities/flow-node.entity';
@@ -17,6 +19,7 @@ import { InboundRouteEntity } from './inbound-routes/entities/inbound-route.enti
 import { CallRecordingEntity } from './recordings/entities/call-recording.entity';
 import { RecordingsModule } from './recordings/recordings.module';
 import { BackendConfigModule } from './config/config.module';
+import { TrunksModule } from './trunks/trunks.module';
 
 @Module({
   imports: [
@@ -41,6 +44,7 @@ import { BackendConfigModule } from './config/config.module';
           AudioFileEntity,
           CallRecordingEntity,
           SipExtensionEntity,
+          SipTrunkEntity,
           InboundRouteEntity,
         ],
         synchronize: false,
@@ -53,9 +57,11 @@ import { BackendConfigModule } from './config/config.module';
     FlowsModule,
     AudioModule,
     RecordingsModule,
+    AsteriskModule,
     ExtensionsModule,
     InboundRoutesModule,
     BackendConfigModule,
+    TrunksModule,
   ],
   controllers: [HealthController],
 })

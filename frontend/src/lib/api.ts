@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowDetail, FlowSummary, InboundRouteItem, RecordingItem } from '../types';
+import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowDetail, FlowSummary, InboundRouteItem, RecordingItem, SipTrunkItem, TrunkTestResult } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001',
@@ -119,9 +119,14 @@ export async function uploadAudio(file: File, name?: string): Promise<AudioDetai
   return response.data;
 }
 
-export async function createTts(payload: { name: string; text: string; voice: string }): Promise<AudioDetailResponse> {
+export async function createTts(payload: { name: string; text: string; voice: string; speed?: number }): Promise<AudioDetailResponse> {
   const response = await api.post<AudioDetailResponse>('/audio/tts', payload);
   return response.data;
+}
+
+export async function previewTts(payload: { text: string; voice: string; speed?: number }): Promise<Blob> {
+  const response = await api.post('/audio/tts/preview', payload, { responseType: 'blob' });
+  return response.data as Blob;
 }
 
 export async function deleteAudio(id: number): Promise<DeleteFlowResponse> {
@@ -188,5 +193,49 @@ export async function deleteInboundRoute(id: number): Promise<DeleteFlowResponse
 
 export async function getHostConfig(): Promise<HostConfigResponse> {
   const response = await api.get<HostConfigResponse>('/config/host');
+  return response.data;
+}
+
+export async function listTrunks(limit = 20, offset = 0): Promise<ListResponse<SipTrunkItem>> {
+  const response = await api.get<ListResponse<SipTrunkItem>>('/trunks', { params: { limit, offset } });
+  return response.data;
+}
+
+export async function createTrunk(payload: {
+  name: string;
+  providerPreset?: string;
+  host: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  fromDomain?: string;
+  fromUser?: string;
+  enabled?: boolean;
+}): Promise<DetailResponse<SipTrunkItem>> {
+  const response = await api.post<DetailResponse<SipTrunkItem>>('/trunks', payload);
+  return response.data;
+}
+
+export async function updateTrunk(id: number, payload: {
+  name?: string;
+  providerPreset?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  fromDomain?: string;
+  fromUser?: string;
+  enabled?: boolean;
+}): Promise<DetailResponse<SipTrunkItem>> {
+  const response = await api.put<DetailResponse<SipTrunkItem>>(`/trunks/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteTrunk(id: number): Promise<void> {
+  await api.delete(`/trunks/${id}`);
+}
+
+export async function testTrunk(id: number): Promise<TrunkTestResult> {
+  const response = await api.post<TrunkTestResult>(`/trunks/${id}/test`);
   return response.data;
 }

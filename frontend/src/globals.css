@@ -18,6 +18,10 @@
   --color-warning: #f5a623;
   --color-error: #ff4444;
   --color-info: #3b82f6;
+  --color-active-soft: #00dc8215;
+  --color-warning-soft: #f5a62315;
+  --color-error-soft: #ff444415;
+  --overlay-strong: #000000b8;
   --accent: #00dc82;
   --accent-dim: #00dc8220;
   color: var(--text-primary);

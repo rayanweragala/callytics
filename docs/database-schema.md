@@ -36,6 +36,12 @@ Phase 13 extension and routing note:
 - NestJS regenerates managed PJSIP and inbound dialplan include files in `/etc/asterisk` from those tables on startup and after CRUD changes
 - Managed extension generation now uses the same object name for the endpoint and AOR (`[2001]` endpoint plus `[2001]` AOR with `aors=2001`), matching the working static phone pattern and fixing PJSIP registrar lookups
 
+Phase 14 trunk note:
+
+- The `sip_trunks` table is now implemented and active in the backend
+- NestJS regenerates `/etc/asterisk/pjsip_callytics_trunks.conf` from enabled DB rows on startup and after trunk CRUD changes
+- Managed `pjsip.conf` include normalization now removes any older managed include placement and re-appends both generated extension and trunk includes as the final top-level lines in the file to avoid stanza-nesting regressions during Asterisk load
+
 ## `users`
 
 - `id`
@@ -94,6 +100,24 @@ Phase 13 extension and routing note:
 - `last_registration_at`
 - `created_at`
 - `updated_at`
+
+## `sip_trunks`
+
+This table is now implemented and active.
+
+- `id`
+- `name`
+- `provider_preset`
+- `host`
+- `port`
+- `username`
+  Nullable. Blank means generate endpoint + AOR only without registration/auth objects.
+- `password`
+  Nullable. Used only when `username` is present.
+- `from_domain`
+- `from_user`
+- `enabled`
+- `created_at`
 
 ## `call_flows`
 
@@ -170,6 +194,8 @@ This table is now implemented and active.
   Nullable, only for TTS assets
 - `tts_voice`
   Nullable, only for TTS assets
+- `speed`
+  Float. Defaults to `1.0` and records the requested browser speed setting used for TTS generation.
 - `created_by`
 - `created_at`
 - `updated_at`

@@ -1,6 +1,8 @@
-import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseIntPipe, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { CreateTtsDto } from './dto/create-tts.dto';
+import { PreviewTtsDto } from './dto/preview-tts.dto';
 import { AudioService } from './audio.service';
 
 @Controller('audio')
@@ -33,7 +35,15 @@ export class AudioController {
 
   @Post('tts')
   createTts(@Body() dto: CreateTtsDto) {
-    return this.audioService.createTts(dto.name, dto.text, dto.voice);
+    return this.audioService.createTts(dto.name, dto.text, dto.voice, dto.speed);
+  }
+
+  @Post('tts/preview')
+  @HttpCode(200)
+  async previewTts(@Body() dto: PreviewTtsDto, @Res() res: Response) {
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Disposition', 'inline');
+    await this.audioService.previewTts(dto.text, dto.voice, dto.speed, res);
   }
 
   @Delete(':id')

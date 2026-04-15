@@ -2,6 +2,7 @@ import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { Pagination } from '../components/common/Pagination';
 import { createExtension, deleteExtension, getHostConfig, listExtensions, updateExtension } from '../lib/api';
+import { formatDateTime } from '../lib/time';
 import type { ExtensionItem } from '../types';
 import styles from './ExtensionsPage.module.css';
 
@@ -198,6 +199,7 @@ export function ExtensionsPage() {
             <div>username</div>
             <div>display name</div>
             <div>sip uri</div>
+            <div>created</div>
             <div className={styles.actionsHeader}>actions</div>
           </div>
           {sortedItems.length === 0 ? (
@@ -208,6 +210,7 @@ export function ExtensionsPage() {
                 <div className={styles.dataMono}>{item.username}</div>
                 <div className={styles.displayName}>{item.displayName || '—'}</div>
                 <div className={styles.dataMono}>{buildSipUri(item.username)}</div>
+                <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
                 <div className={styles.actions}>
                   {confirmDeleteId === item.id ? (
                     <div className={styles.confirmBox}>

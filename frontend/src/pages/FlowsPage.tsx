@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../components/common/Pagination';
-import { createFlow, deleteFlow, listFlows } from '../lib/api';
-import { formatDate } from '../lib/time';
+import { deleteFlow, listFlows } from '../lib/api';
+import { formatDateTime } from '../lib/time';
 import type { FlowSummary } from '../types';
 import styles from './FlowsPage.module.css';
 
@@ -36,27 +36,7 @@ export function FlowsPage() {
   }, [page, limit]);
 
   const handleCreate = async () => {
-    setBusyId(-1);
-    try {
-      const response = await createFlow({
-        name: 'Untitled Flow',
-        description: 'New flow',
-        nodes: [
-          {
-            nodeKey: 'start',
-            type: 'start',
-            label: 'Start',
-            positionX: 80,
-            positionY: 140,
-            config: {},
-          },
-        ],
-        edges: [],
-      });
-      navigate(`/flows/${response.data.id}`);
-    } finally {
-      setBusyId(null);
-    }
+    navigate('/flows/new');
   };
 
   const confirmDelete = async (id: number) => {
@@ -88,7 +68,7 @@ export function FlowsPage() {
           <h1 className={styles.title}>flow builder</h1>
         </div>
         <button className={styles.primaryButton} onClick={() => void handleCreate()} type="button">
-          {busyId === -1 ? 'creating…' : 'new flow'}
+          new flow
         </button>
       </div>
 
@@ -109,7 +89,7 @@ export function FlowsPage() {
                 <div className={styles.flowName}>{flow.name}</div>
                 <div className={styles.flowDescription}>{flow.description || '—'}</div>
               </div>
-              <div className={styles.createdAt} title={flow.createdAt}>{formatDate(flow.createdAt)}</div>
+              <div className={styles.createdAt} title={flow.createdAt}>{formatDateTime(flow.createdAt)}</div>
               <div className={styles.actions}>
                 {deletedId === flow.id ? (
                   <div className={styles.deletedText}>deleted</div>

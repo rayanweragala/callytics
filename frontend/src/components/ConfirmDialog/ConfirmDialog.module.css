@@ -1,0 +1,69 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg-base) 80%, transparent);
+}
+
+.dialog {
+  width: min(100%, 400px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.message {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancelButton,
+.confirmButton {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+}
+
+.cancelButton {
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.confirmButton {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #000;
+}

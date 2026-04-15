@@ -1,32 +1,169 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { DataSource, Repository } from 'typeorm';
 import { InboundRouteEntity } from '../inbound-routes/entities/inbound-route.entity';
+import { runSqlMigrations } from '../db/run-sql-migrations';
 import { SipExtensionEntity } from '../extensions/entities/sip-extension.entity';
+import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
+
+export interface AmiQualifyResult {
+  status: 'reachable' | 'unreachable' | 'not_loaded';
+  rtt_ms: number | null;
+  message: string;
+}
 
 @Injectable()
-export class AsteriskConfigService {
+export class AsteriskConfigService implements OnModuleInit {
   private readonly logger = new Logger(AsteriskConfigService.name);
   private readonly configDir = process.env.ASTERISK_CONFIG_DIR || '/etc/asterisk';
   private readonly amiHost = process.env.AMI_HOST || '127.0.0.1';
   private readonly amiPort = Number(process.env.AMI_PORT || 5038);
   private readonly amiUser = process.env.AMI_USER || 'callytics';
   private readonly amiPassword = process.env.AMI_PASSWORD || process.env.AMI_PASS || 'callytics';
+  private readonly extensionsInclude = '#include pjsip_callytics_extensions.conf';
+  private readonly trunksInclude = '#include pjsip_callytics_trunks.conf';
+
+  constructor(
+    @InjectRepository(SipExtensionEntity)
+    private readonly extensionsRepository: Repository<SipExtensionEntity>,
+    @InjectRepository(SipTrunkEntity)
+    private readonly trunksRepository: Repository<SipTrunkEntity>,
+    @InjectDataSource() private readonly dataSource: DataSource,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    await runSqlMigrations(this.dataSource);
+    await this.writeExtensionsConfig();
+    await this.writeTrunksConfig();
+  }
 
   async syncExtensions(extensions: SipExtensionEntity[]): Promise<void> {
-    await fs.mkdir(this.configDir, { recursive: true });
-    await this.ensurePjsipTemplate();
-    await this.ensureIncludeAtFileStart(join(this.configDir, 'pjsip.conf'), '#include pjsip_callytics_extensions.conf');
-    await fs.writeFile(join(this.configDir, 'pjsip_callytics_extensions.conf'), this.buildExtensionsConfig(extensions), 'utf8');
-    await this.sendAmiCommand('module reload res_pjsip.so');
+    await this.writeExtensionsConfig(extensions);
+    await this.reloadResPjsip();
   }
 
   async syncInboundRoutes(routes: InboundRouteEntity[]): Promise<void> {
+    await this.writeInboundRoutesConfig(routes);
+    await this.reloadDialplan();
+  }
+
+  async writeInboundRoutesConfig(routes: InboundRouteEntity[]): Promise<void> {
     await fs.mkdir(this.configDir, { recursive: true });
     await this.ensureIncludeAtFileEnd(join(this.configDir, 'extensions.conf'), '#include extensions_callytics_inbound.conf');
     await fs.writeFile(join(this.configDir, 'extensions_callytics_inbound.conf'), this.buildInboundRoutesConfig(routes), 'utf8');
+  }
+
+  async writeExtensionsConfig(extensions?: SipExtensionEntity[]): Promise<void> {
+    const items = extensions ?? await this.extensionsRepository.find({ order: { username: 'ASC' } });
+    await fs.mkdir(this.configDir, { recursive: true });
+    await this.ensurePjsipTemplate();
+    await fs.writeFile(join(this.configDir, 'pjsip_callytics_extensions.conf'), this.buildExtensionsConfig(items), 'utf8');
+    await this.ensureManagedPjsipIncludes();
+  }
+
+  async writeTrunksConfig(trunks?: SipTrunkEntity[]): Promise<void> {
+    const items = trunks ?? await this.trunksRepository.find({
+      where: { enabled: true },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    await fs.mkdir(this.configDir, { recursive: true });
+    await this.ensurePjsipTemplate();
+    await fs.writeFile(join(this.configDir, 'pjsip_callytics_trunks.conf'), this.buildTrunksConfig(items), 'utf8');
+    await this.ensureManagedPjsipIncludes();
+  }
+
+  async reloadResPjsip(): Promise<void> {
+    await this.sendAmiCommand('module reload res_pjsip.so');
+  }
+
+  async reloadDialplan(): Promise<void> {
     await this.sendAmiCommand('dialplan reload');
+  }
+
+  async qualifyEndpoint(endpoint: string): Promise<AmiQualifyResult> {
+    const script = [
+      'import json, socket, sys, time',
+      'host, port, user, password, endpoint = sys.argv[1:6]',
+      'port = int(port)',
+      'sock = socket.create_connection((host, port), timeout=5)',
+      'sock.settimeout(0.5)',
+      'sock.recv(4096)',
+      "sock.sendall(f'Action: Login\\r\\nUsername: {user}\\r\\nSecret: {password}\\r\\n\\r\\n'.encode())",
+      'login = sock.recv(4096).decode(errors="replace")',
+      "if 'Authentication accepted' not in login:",
+      '    raise SystemExit(login)',
+      'buffer = ""',
+      'def parse_message(raw):',
+      '    fields = {}',
+      '    for line in raw.split("\\r\\n"):',
+      '        if not line or ":" not in line:',
+      '            continue',
+      '        key, value = line.split(":", 1)',
+      '        fields[key.strip()] = value.strip()',
+      '    return fields',
+      'def collect(deadline):',
+      '    global buffer',
+      '    messages = []',
+      '    while time.time() < deadline:',
+      '        try:',
+      '            chunk = sock.recv(8192).decode(errors="replace")',
+      '            if not chunk:',
+      '                break',
+      '            buffer += chunk',
+      '            while "\\r\\n\\r\\n" in buffer:',
+      '                raw, buffer = buffer.split("\\r\\n\\r\\n", 1)',
+      '                if raw.strip():',
+      '                    messages.append(parse_message(raw))',
+      '        except TimeoutError:',
+      '            continue',
+      '    return messages',
+      "sock.sendall(f'Action: PJSIPQualify\\r\\nActionID: qualify-1\\r\\nEndpoint: {endpoint}\\r\\n\\r\\n'.encode())",
+      'qualify_messages = collect(time.time() + 1.5)',
+      'qualify_ok = any(msg.get("Response") == "Success" and "Endpoint found" in msg.get("Message", "") for msg in qualify_messages)',
+      'if not qualify_ok:',
+      '    result = {"status": "not_loaded", "rtt_ms": None, "message": "Not loaded — try saving again"}',
+      'else:',
+      '    time.sleep(0.5)',
+      "    sock.sendall(f'Action: PJSIPShowEndpoint\\r\\nActionID: show-1\\r\\nEndpoint: {endpoint}\\r\\n\\r\\n'.encode())",
+      '    detail_messages = collect(time.time() + 3.5)',
+      '    detail_messages = [msg for msg in detail_messages if msg.get("ActionID") == "show-1"]',
+      '    matched = any(msg.get("ObjectName") == endpoint or msg.get("EndpointName") == endpoint for msg in detail_messages)',
+      '    rtt_ms = None',
+      '    unreachable = False',
+      '    for fields in detail_messages:',
+      '        status_text = " ".join([fields.get("Status", ""), fields.get("ContactStatus", ""), fields.get("Message", "")]).lower()',
+      '        if fields.get("EndpointName") == endpoint or fields.get("ObjectName") == endpoint or fields.get("AOR", "").startswith(f"{endpoint}-"):',
+      '            if "nonqual" in status_text or "unreach" in status_text or "unknown" in status_text:',
+      '                unreachable = True',
+      '            usec = fields.get("RoundtripUsec") or fields.get("RTT") or fields.get("Roundtrip")',
+      '            if usec and usec != "N/A":',
+      '                try:',
+      '                    rtt_ms = round(float(usec) / 1000.0, 1)',
+      '                except ValueError:',
+      '                    try:',
+      '                        rtt_ms = round(float(usec), 1)',
+      '                    except ValueError:',
+      '                        rtt_ms = None',
+      '    if rtt_ms is not None:',
+      '        result = {"status": "reachable", "rtt_ms": rtt_ms, "message": f"Reachable — {int(rtt_ms) if float(rtt_ms).is_integer() else rtt_ms}ms"}',
+      '    elif matched or unreachable:',
+      '        result = {"status": "unreachable", "rtt_ms": None, "message": "Unreachable"}',
+      '    else:',
+      '        result = {"status": "not_loaded", "rtt_ms": None, "message": "Not loaded — try saving again"}',
+      "sock.sendall(b'Action: Logoff\\r\\n\\r\\n')",
+      'try:',
+      '    sock.recv(4096)',
+      'except TimeoutError:',
+      '    pass',
+      'sock.close()',
+      'print(json.dumps(result))',
+    ].join('\n');
+
+    const output = await this.runPythonScript(script, [this.amiHost, String(this.amiPort), this.amiUser, this.amiPassword, endpoint]);
+    return JSON.parse(output) as AmiQualifyResult;
   }
 
   private buildExtensionsConfig(extensions: SipExtensionEntity[]): string {
@@ -59,6 +196,75 @@ export class AsteriskConfigService {
     return ['; auto-generated by callytics — do not edit manually', '', ...blocks].join('\n\n').trimEnd() + '\n';
   }
 
+  private buildTrunksConfig(trunks: SipTrunkEntity[]): string {
+    const blocks = trunks
+      .filter((trunk) => trunk.enabled)
+      .map((trunk) => {
+        const endpointLines = [
+          `; trunk: ${trunk.name}`,
+          `[trunk-${trunk.id}]`,
+          'type = endpoint',
+          'transport = transport-udp',
+          'context = callytics-inbound',
+          'disallow = all',
+          'allow = ulaw',
+          'allow = alaw',
+        ];
+
+        if (trunk.username) {
+          endpointLines.push(`outbound_auth = trunk-${trunk.id}-auth`);
+        }
+
+        endpointLines.push(`aors = trunk-${trunk.id}-aor`);
+
+        if (trunk.fromDomain) {
+          endpointLines.push(`from_domain = ${trunk.fromDomain}`);
+        }
+
+        if (trunk.fromUser) {
+          endpointLines.push(`from_user = ${trunk.fromUser}`);
+        }
+
+        const lines: string[] = [];
+        if (trunk.username) {
+          lines.push(
+            `; trunk: ${trunk.name}`,
+            `[trunk-${trunk.id}-reg]`,
+            'type = registration',
+            'transport = transport-udp',
+            `outbound_auth = trunk-${trunk.id}-auth`,
+            `server_uri = sip:${trunk.host}`,
+            `client_uri = sip:${trunk.username}@${trunk.host}`,
+            'retry_interval = 60',
+            '',
+            `[trunk-${trunk.id}-auth]`,
+            'type = auth',
+            'auth_type = userpass',
+            `username = ${trunk.username}`,
+            `password = ${trunk.password ?? ''}`,
+            '',
+            ...endpointLines,
+            '',
+            `[trunk-${trunk.id}-aor]`,
+            'type = aor',
+            `contact = sip:${trunk.host}:${trunk.port}`,
+          );
+          return lines.join('\n');
+        }
+
+        lines.push(
+          ...endpointLines,
+          '',
+          `[trunk-${trunk.id}-aor]`,
+          'type = aor',
+          `contact = sip:${trunk.host}:${trunk.port}`,
+        );
+        return lines.join('\n');
+      });
+
+    return ['; auto-generated by callytics — do not edit manually', '', ...blocks].join('\n\n').trimEnd() + '\n';
+  }
+
   private buildInboundRoutesConfig(routes: InboundRouteEntity[]): string {
     const lines: string[] = ['; auto-generated by callytics — do not edit manually', '', '[callytics-inbound]'];
     for (const route of routes) {
@@ -69,31 +275,11 @@ export class AsteriskConfigService {
     return lines.join('\n').trimEnd() + '\n';
   }
 
-  private async ensureIncludeAtFileStart(filePath: string, includeLine: string): Promise<void> {
-    let content = '';
-    try {
-      content = await fs.readFile(filePath, 'utf8');
-    } catch {
-      content = '';
-    }
-
-    const lines = content
-      .split(/\r?\n/)
-      .filter((line) => line.trim() !== includeLine.trim());
-
-    while (lines.length > 0 && lines[0].trim() === '') {
-      lines.shift();
-    }
-
-    const body = lines.join('\n');
-    const next = body
-      ? `${includeLine}\n\n${body.replace(/^\n+/, '')}`
-      : `${includeLine}\n`;
-
-    await fs.writeFile(filePath, next.endsWith('\n') ? next : `${next}\n`, 'utf8');
+  private async ensureManagedPjsipIncludes(): Promise<void> {
+    await this.ensureIncludesAtFileEnd(join(this.configDir, 'pjsip.conf'), [this.extensionsInclude, this.trunksInclude]);
   }
 
-  private async ensureIncludeAtFileEnd(filePath: string, includeLine: string): Promise<void> {
+  private async ensureIncludesAtFileEnd(filePath: string, includeLines: string[]): Promise<void> {
     let content = '';
     try {
       content = await fs.readFile(filePath, 'utf8');
@@ -101,20 +287,26 @@ export class AsteriskConfigService {
       content = '';
     }
 
+    const includeSet = new Set(includeLines.map((line) => line.trim()));
     const lines = content
       .split(/\r?\n/)
-      .filter((line) => line.trim() !== includeLine.trim());
+      .filter((line) => !includeSet.has(line.trim()));
 
     while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
       lines.pop();
     }
 
     const body = lines.join('\n');
+    const includeBlock = includeLines.join('\n');
     const next = body
-      ? `${body}\n\n${includeLine}\n`
-      : `${includeLine}\n`;
+      ? `${body}\n\n${includeBlock}\n`
+      : `${includeBlock}\n`;
 
     await fs.writeFile(filePath, next, 'utf8');
+  }
+
+  private async ensureIncludeAtFileEnd(filePath: string, includeLine: string): Promise<void> {
+    await this.ensureIncludesAtFileEnd(filePath, [includeLine]);
   }
 
   private async ensurePjsipTemplate(): Promise<void> {
@@ -183,8 +375,13 @@ export class AsteriskConfigService {
       'sock.close()',
     ].join('\n');
 
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn('python3', ['-c', script, this.amiHost, String(this.amiPort), this.amiUser, this.amiPassword, command]);
+    await this.runPythonScript(script, [this.amiHost, String(this.amiPort), this.amiUser, this.amiPassword, command]);
+    this.logger.log(`AMI command executed: ${command}`);
+  }
+
+  private async runPythonScript(script: string, args: string[]): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const child = spawn('python3', ['-c', script, ...args]);
       let stderr = '';
       let stdout = '';
 
@@ -197,13 +394,11 @@ export class AsteriskConfigService {
       child.on('error', reject);
       child.on('close', (code) => {
         if (code === 0) {
-          resolve();
+          resolve(stdout.trim());
           return;
         }
-        reject(new Error(`AMI command failed (${command}) stdout=${stdout} stderr=${stderr}`));
+        reject(new Error(`AMI script failed stdout=${stdout} stderr=${stderr}`));
       });
     });
-
-    this.logger.log(`AMI command executed: ${command}`);
   }
 }

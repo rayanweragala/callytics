@@ -26,6 +26,9 @@ export function SidebarNav() {
             <NavLink to="/extensions" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               extensions
             </NavLink>
+            <NavLink to="/trunks" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              trunks
+            </NavLink>
             <NavLink to="/inbound" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               inbound
             </NavLink>

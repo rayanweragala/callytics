@@ -1,0 +1,323 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.sectionLabel,
+.dataMono,
+.rowMuted,
+.testBadge,
+.failedText,
+.helper,
+.createdAt {
+  font-family: 'Space Mono', monospace;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.formPanel,
+.tablePanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 18px;
+}
+
+.panelTitle {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.formGrid,
+.editorRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.formGrid {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.editorRow {
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: -1px;
+}
+
+.field {
+  display: flex;
+  flex: 1 1 180px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.field :global(.container) {
+  flex: 1;
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.input:hover,
+.input:focus,
+.primaryButton:hover,
+.secondaryButton:hover,
+.deleteConfirmButton:hover,
+.toggleButton:hover {
+  border-color: var(--border-strong);
+}
+
+.helper {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteConfirmButton,
+.toggleButton {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteConfirmButton {
+  height: 36px;
+  padding: 0 14px;
+  text-transform: lowercase;
+}
+
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(200px, 1.3fr) 72px 72px 132px 108px minmax(220px, 1.1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.tableHead {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.row {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rowValue {
+  color: var(--text-primary);
+}
+
+.rowMuted {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.dataMono {
+  color: var(--text-primary);
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.createdAt {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.actions,
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.formActions {
+  align-self: flex-end;
+}
+
+.secondaryButton,
+.deleteConfirmButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.deleteConfirmButton,
+.failedText {
+  color: var(--color-error);
+}
+
+.toggleButton {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  text-transform: lowercase;
+}
+
+.toggleOn {
+  color: var(--color-active);
+}
+
+.toggleOff {
+  color: var(--text-secondary);
+}
+
+.toggleKnob {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--text-secondary);
+}
+
+.toggleOn .toggleKnob {
+  background: var(--color-active);
+}
+
+.signalIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: spin 800ms linear infinite;
+}
+
+.testBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.badgeReachable {
+  color: var(--color-active);
+  background: var(--color-active-soft);
+}
+
+.badgeUnreachable {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.badgeNotLoaded {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.empty,
+.failedText {
+  padding-top: 16px;
+  font-size: 12px;
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1280px) {
+  .tableHead,
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid,
+  .editorRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionsHeader,
+  .actionsCell,
+  .actions,
+  .formActions {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+}

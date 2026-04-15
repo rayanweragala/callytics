@@ -84,6 +84,7 @@ export interface AudioFileItem {
   conversionStatus: string;
   ttsText: string | null;
   ttsVoice: string | null;
+  speed: number;
   originalUrl: string | null;
   previewUrl: string | null;
   convertedUrl: string | null;
@@ -111,6 +112,26 @@ export interface InboundRouteItem {
   flowName: string | null;
   label: string | null;
   createdAt: string;
+}
+
+export interface SipTrunkItem {
+  id: number;
+  name: string;
+  providerPreset: string;
+  host: string;
+  port: number;
+  username: string | null;
+  password: string | null;
+  fromDomain: string | null;
+  fromUser: string | null;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface TrunkTestResult {
+  status: 'reachable' | 'unreachable' | 'not_loaded';
+  rtt_ms: number | null;
+  message: string;
 }
 
 export interface RecordingItem {

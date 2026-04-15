@@ -121,7 +121,7 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) minmax(180px, 1fr) minmax(180px, 1fr) minmax(220px, 260px);
+  grid-template-columns: minmax(160px, 220px) minmax(180px, 1fr) minmax(180px, 1fr) 108px minmax(220px, 260px);
   gap: 16px;
   align-items: center;
 }
@@ -177,7 +177,8 @@
 .confirmText,
 .successText,
 .failedText,
-.dataMono {
+.dataMono,
+.createdAt {
   font-family: 'Space Mono', monospace;
 }
 
@@ -190,6 +191,11 @@
 .dataMono {
   color: var(--text-primary);
   font-size: 12px;
+}
+
+.createdAt {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .labelText,

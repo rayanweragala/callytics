@@ -1,14 +1,11 @@
 import { IsNumber, IsString, Max, Min } from 'class-validator';
 
-export class CreateTtsDto {
+export class PreviewTtsDto {
   @IsString()
   text!: string;
 
   @IsString()
   voice!: string;
-
-  @IsString()
-  name!: string;
 
   @IsNumber()
   @Min(0.5)

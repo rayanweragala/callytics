@@ -4,6 +4,7 @@ import styles from './AudioPreviewPlayer.module.css';
 interface AudioPreviewPlayerProps {
   src: string;
   isActive?: boolean;
+  autoPlay?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -13,7 +14,7 @@ function formatTime(seconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-export function AudioPreviewPlayer({ src, isActive = true }: AudioPreviewPlayerProps) {
+export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: AudioPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -36,6 +37,14 @@ export function AudioPreviewPlayer({ src, isActive = true }: AudioPreviewPlayerP
     audio.addEventListener('loadedmetadata', syncDuration);
     audio.addEventListener('ended', syncEnded);
 
+    if (autoPlay) {
+      void audio.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        setIsPlaying(false);
+      });
+    }
+
     return () => {
       audio.pause();
       audio.removeEventListener('timeupdate', syncTime);
@@ -43,7 +52,7 @@ export function AudioPreviewPlayer({ src, isActive = true }: AudioPreviewPlayerP
       audio.removeEventListener('ended', syncEnded);
       audioRef.current = null;
     };
-  }, [src]);
+  }, [autoPlay, src]);
 
   useEffect(() => {
     const audio = audioRef.current;

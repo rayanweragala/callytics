@@ -123,7 +123,7 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(160px, 1fr) minmax(250px, 1.2fr) minmax(220px, 260px);
+  grid-template-columns: minmax(180px, 220px) minmax(160px, 1fr) minmax(250px, 1.2fr) 108px minmax(220px, 260px);
   gap: 16px;
   align-items: center;
 }
@@ -179,7 +179,8 @@
 .successText,
 .failedText,
 .uriText,
-.dataMono {
+.dataMono,
+.createdAt {
   font-family: 'Space Mono', monospace;
 }
 
@@ -192,6 +193,11 @@
 .dataMono {
   color: var(--text-primary);
   font-size: 12px;
+}
+
+.createdAt {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .displayName,

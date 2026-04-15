@@ -38,6 +38,9 @@ export class AudioFileEntity {
   @Column({ name: 'tts_voice', type: 'varchar', length: 255, nullable: true })
   ttsVoice!: string | null;
 
+  @Column({ name: 'speed', type: 'float', default: 1 })
+  speed!: number;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

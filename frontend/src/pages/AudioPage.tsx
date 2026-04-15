@@ -1,15 +1,16 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { createTts, deleteAudio, listAudio, listAudioVoices, uploadAudio } from '../lib/api';
+import { createTts, deleteAudio, listAudio, listAudioVoices, previewTts as requestTtsPreview, uploadAudio } from '../lib/api';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
 import { AudioUploadZone } from '../components/audio/AudioUploadZone';
 import { Pagination } from '../components/common/Pagination';
 import { SearchableSelect } from '../components/common/SearchableSelect';
-import { formatDate } from '../lib/time';
+import { formatDateTime } from '../lib/time';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
 import styles from './AudioPage.module.css';
 
 const backendBase = 'http://localhost:3001';
 type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
+type PreviewState = 'idle' | 'busy' | 'failed';
 
 function humanizeVoice(id: string): string {
   const match = id.match(/^([a-z]{2})_([A-Z]{2})-([^-]+)-(.+)$/i);
@@ -32,6 +33,7 @@ function humanizeVoice(id: string): string {
 export function AudioPage() {
   const uploadTimerRef = useRef<number | null>(null);
   const ttsTimerRef = useRef<number | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
   const [items, setItems] = useState<AudioFileItem[]>([]);
   const [voices, setVoices] = useState<AudioVoiceItem[]>([]);
   const [uploadName, setUploadName] = useState('');
@@ -39,16 +41,29 @@ export function AudioPage() {
   const [ttsName, setTtsName] = useState('');
   const [ttsText, setTtsText] = useState('');
   const [ttsVoice, setTtsVoice] = useState('en_US-lessac-medium');
+  const [ttsSpeed, setTtsSpeed] = useState(1);
   const [uploadState, setUploadState] = useState<ActionState>('idle');
   const [ttsState, setTtsState] = useState<ActionState>('idle');
+  const [previewState, setPreviewState] = useState<PreviewState>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [ttsError, setTtsError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [ttsFieldErrors, setTtsFieldErrors] = useState<{ name?: string; text?: string }>({});
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
+
+  const clearPreview = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+  };
 
   const resetLater = (kind: 'upload' | 'tts') => {
     const timerRef = kind === 'upload' ? uploadTimerRef : ttsTimerRef;
@@ -81,6 +96,7 @@ export function AudioPage() {
     return () => {
       if (uploadTimerRef.current) window.clearTimeout(uploadTimerRef.current);
       if (ttsTimerRef.current) window.clearTimeout(ttsTimerRef.current);
+      clearPreview();
     };
   }, [page, limit]);
 
@@ -103,19 +119,65 @@ export function AudioPage() {
     }
   };
 
+  const validateTts = (mode: 'preview' | 'save'): boolean => {
+    const nextErrors: { name?: string; text?: string } = {};
+    if (mode === 'save' && !ttsName.trim()) {
+      nextErrors.name = 'asset name is required';
+    }
+    if (!ttsText.trim()) {
+      nextErrors.text = 'prompt text is required';
+    }
+    setTtsFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handlePreview = async () => {
+    if (!validateTts('preview')) {
+      setPreviewError(null);
+      return;
+    }
+
+    setPreviewState('busy');
+    setPreviewError(null);
+
+    try {
+      const blob = await requestTtsPreview({ voice: ttsVoice, text: ttsText, speed: ttsSpeed });
+      if (!blob.size) {
+        throw new Error('preview returned empty audio');
+      }
+      clearPreview();
+      const nextUrl = URL.createObjectURL(blob);
+      previewUrlRef.current = nextUrl;
+      setPreviewUrl(nextUrl);
+      setPreviewState('idle');
+    } catch (error) {
+      clearPreview();
+      setPreviewState('failed');
+      setPreviewError(error instanceof Error ? error.message : 'preview failed');
+    }
+  };
+
   const handleTts = async (event: FormEvent) => {
     event.preventDefault();
+    if (!validateTts('save')) {
+      return;
+    }
+
     setTtsState('busy');
     setTtsError(null);
     try {
-      await createTts({ name: ttsName || 'Generated TTS', text: ttsText, voice: ttsVoice });
+      await createTts({ name: ttsName.trim(), text: ttsText, voice: ttsVoice, speed: ttsSpeed });
+      clearPreview();
       setTtsName('');
       setTtsText('');
+      setTtsSpeed(1);
+      setPreviewError(null);
+      setTtsFieldErrors({});
       await load(page, limit);
       setTtsState('saved');
     } catch (error) {
       setTtsState('failed');
-      setTtsError(error instanceof Error ? error.message : 'generation failed');
+      setTtsError(error instanceof Error ? error.message : 'save failed');
     } finally {
       resetLater('tts');
     }
@@ -143,9 +205,11 @@ export function AudioPage() {
   );
 
   const uploadLabel = uploadState === 'busy' ? 'uploading…' : uploadState === 'saved' ? 'uploaded ✓' : uploadState === 'failed' ? 'failed' : 'upload';
-  const ttsLabel = ttsState === 'busy' ? 'generating…' : ttsState === 'saved' ? 'generated ✓' : ttsState === 'failed' ? 'failed' : 'generate';
+  const saveLabel = ttsState === 'busy' ? 'saving…' : ttsState === 'saved' ? 'saved ✓' : ttsState === 'failed' ? 'failed' : 'save';
+  const previewLabel = previewState === 'busy' ? 'previewing…' : 'preview';
   const uploadButtonClass = uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
-  const ttsButtonClass = ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
+  const saveButtonClass = ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
+  const speedProgress = ((ttsSpeed - 0.5) / 1.5) * 100;
 
   return (
     <div className={styles.page}>
@@ -172,7 +236,19 @@ export function AudioPage() {
         <section className={styles.panel}>
           <div className={styles.panelTitle}>piper tts</div>
           <form className={styles.form} onSubmit={(event) => void handleTts(event)}>
-            <input className={styles.input} placeholder="asset name" value={ttsName} onChange={(event) => setTtsName(event.target.value)} />
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>asset name</span>
+              <input
+                className={styles.input}
+                placeholder="asset name"
+                value={ttsName}
+                onChange={(event) => {
+                  setTtsName(event.target.value);
+                  setTtsFieldErrors((current) => ({ ...current, name: undefined }));
+                }}
+              />
+              {ttsFieldErrors.name ? <div className={styles.fieldError}>{ttsFieldErrors.name}</div> : null}
+            </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>voice</span>
               <SearchableSelect
@@ -182,11 +258,51 @@ export function AudioPage() {
                 placeholder="select voice"
               />
             </label>
-            <textarea className={styles.textarea} placeholder="Enter prompt text" value={ttsText} onChange={(event) => setTtsText(event.target.value)} />
-            <div className={styles.actionRow}>
-              <button className={ttsButtonClass} type="submit">{ttsLabel}</button>
-              {ttsError ? <div className={styles.failedText}>{ttsError}</div> : null}
+            <label className={styles.field}>
+              <div className={styles.sliderHeader}>
+                <span className={styles.fieldLabel}>speed</span>
+                <span className={styles.sliderValue}><span className={styles.dataValue}>{ttsSpeed.toFixed(1)}</span>×</span>
+              </div>
+              <div className={styles.sliderShell}>
+                <div className={styles.sliderTrack}>
+                  <div className={styles.sliderFill} style={{ width: `${speedProgress}%` }} />
+                </div>
+                <input
+                  className={styles.slider}
+                  type="range"
+                  min={0.5}
+                  max={2}
+                  step={0.1}
+                  value={ttsSpeed}
+                  onChange={(event) => setTtsSpeed(Number(event.target.value))}
+                />
+              </div>
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>prompt</span>
+              <textarea
+                className={styles.textarea}
+                placeholder="Enter prompt text"
+                value={ttsText}
+                onChange={(event) => {
+                  setTtsText(event.target.value);
+                  setTtsFieldErrors((current) => ({ ...current, text: undefined }));
+                }}
+              />
+              {ttsFieldErrors.text ? <div className={styles.fieldError}>{ttsFieldErrors.text}</div> : null}
+            </label>
+            <div className={styles.ttsActions}>
+              <button className={styles.previewButton} disabled={previewState === 'busy'} onClick={() => void handlePreview()} type="button">{previewLabel}</button>
+              <button className={saveButtonClass} type="submit">{saveLabel}</button>
             </div>
+            {previewError ? <div className={styles.failedText}>{previewError}</div> : null}
+            {ttsError ? <div className={styles.failedText}>{ttsError}</div> : null}
+            {previewUrl ? (
+              <div className={styles.previewBlock}>
+                <div className={styles.previewLabel}>temporary preview</div>
+                <AudioPreviewPlayer autoPlay src={previewUrl} />
+              </div>
+            ) : null}
           </form>
         </section>
       </div>
@@ -214,7 +330,7 @@ export function AudioPage() {
             <div>
               {item.previewUrl ? <AudioPreviewPlayer src={`${backendBase}${item.previewUrl}`} /> : <span className={styles.meta}>—</span>}
             </div>
-            <div className={styles.createdAt} title={item.createdAt}>{formatDate(item.createdAt)}</div>
+            <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
             <div className={styles.actions}>
               {deletedId === item.id ? (
                 <div className={styles.deletedText}>deleted</div>
