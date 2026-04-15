@@ -120,7 +120,7 @@ export class FlowsService implements OnModuleInit {
 
   async create(dto: CreateFlowDto): Promise<{ data: FlowDetailResponse }> {
     return this.dataSource.transaction(async (manager) => {
-      const slug = dto.slug?.trim() || this.slugify(dto.name);
+      const slug = await this.ensureUniqueSlug(manager.getRepository(CallFlowEntity), dto.slug?.trim() || this.slugify(dto.name));
 
       const flow = manager.create(CallFlowEntity, {
         name: dto.name,
@@ -314,5 +314,15 @@ export class FlowsService implements OnModuleInit {
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || `flow-${Date.now()}`;
+  }
+
+  private async ensureUniqueSlug(repository: Repository<CallFlowEntity>, candidate: string): Promise<string> {
+    const base = candidate || 'untitled';
+    let slug = base;
+    const existing = await repository.findOne({ where: { slug } });
+    if (existing) {
+      slug = `${base}-${Date.now().toString(36)}`;
+    }
+    return slug;
   }
 }
