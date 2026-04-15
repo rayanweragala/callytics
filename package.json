@@ -13,6 +13,9 @@
     "start": "docker compose up -d",
     "stop": "docker compose down",
     "logs": "docker compose logs -f",
-    "status": "docker compose ps"
+    "status": "docker compose ps",
+    "test": "npm run test:unit && npm run test:int",
+    "test:unit": "npm run test --workspace stasis && npm run test:unit --workspace backend",
+    "test:int": "npm run test:int --workspace backend"
   }
 }

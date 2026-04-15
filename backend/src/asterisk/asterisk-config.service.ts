@@ -200,11 +200,14 @@ export class AsteriskConfigService implements OnModuleInit {
     const blocks = trunks
       .filter((trunk) => trunk.enabled)
       .map((trunk) => {
+        const transport = String((trunk as { protocol?: string }).protocol || 'udp').trim().toLowerCase() === 'tcp'
+          ? 'transport-tcp'
+          : 'transport-udp';
         const endpointLines = [
           `; trunk: ${trunk.name}`,
           `[trunk-${trunk.id}]`,
           'type = endpoint',
-          'transport = transport-udp',
+          `transport = ${transport}`,
           'context = callytics-inbound',
           'disallow = all',
           'allow = ulaw',

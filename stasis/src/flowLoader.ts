@@ -87,16 +87,22 @@ async function buildFlowFromRow(flowRow: Record<string, unknown> | undefined): P
     [versionId],
   );
 
+  const nodes = nodesRows.map((row: { node_key: string; type: string; label: string | null; config_json: Record<string, unknown> | null }) => ({
+    nodeKey: row.node_key,
+    type: row.type,
+    label: row.label || '',
+    config: row.config_json || {},
+  }));
+
+  if (!nodes.some((node) => node.type === 'start')) {
+    return null;
+  }
+
   return {
     id: Number(flowRow.id),
     name: String(flowRow.name || ''),
     versionId: Number(versionId),
-    nodes: nodesRows.map((row: { node_key: string; type: string; label: string | null; config_json: Record<string, unknown> | null }) => ({
-      nodeKey: row.node_key,
-      type: row.type,
-      label: row.label || '',
-      config: row.config_json || {},
-    })),
+    nodes,
     edges: edgesRows.map((row: { source_node_key: string; target_node_key: string; branch_key: string | null; condition: string | null }) => ({
       sourceNodeKey: row.source_node_key,
       targetNodeKey: row.target_node_key,

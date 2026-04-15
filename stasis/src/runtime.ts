@@ -1,49 +1,6 @@
 import { CallSession } from './callSession';
-import { FlowEdge } from './flowLoader';
 import { executeNode } from './nodes';
-
-function resolveGetDigitsEdge(edges: FlowEdge[], result: string): FlowEdge | null {
-  const exact = edges.find((edge) => edge.condition === result);
-  if (exact) {
-    return exact;
-  }
-
-  if (result !== 'timeout') {
-    const invalid = edges.find((edge) => edge.condition === 'invalid');
-    if (invalid) {
-      return invalid;
-    }
-  }
-
-  return edges.find((edge) => edge.condition === 'default' || edge.condition === null) || null;
-}
-
-function resolveNextEdge(currentNodeKey: string, nodeType: string, result: string, edges: FlowEdge[]): FlowEdge | null {
-  const outgoing = edges.filter((edge) => edge.sourceNodeKey === currentNodeKey);
-  if (outgoing.length === 0) {
-    return null;
-  }
-
-  if (nodeType === 'get_digits') {
-    return resolveGetDigitsEdge(outgoing, result);
-  }
-
-  const conditionalEdges = outgoing.filter((edge) => edge.condition !== null && edge.condition !== undefined);
-  if (conditionalEdges.length > 0) {
-    return (
-      conditionalEdges.find((edge) => edge.condition === result)
-      || conditionalEdges.find((edge) => edge.condition === 'default')
-      || null
-    );
-  }
-
-  return (
-    outgoing.find((edge) => edge.branchKey === result)
-    || outgoing.find((edge) => edge.branchKey === 'default')
-    || outgoing.find((edge) => edge.condition === null)
-    || null
-  );
-}
+import { resolveNextEdge } from './engine/edgeResolver';
 
 export async function runFlow(
   channel: { id: string },
