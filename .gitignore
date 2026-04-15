@@ -17,3 +17,4 @@ storage/audio/previews/*
 storage/audio/tts/*
 storage/audio/voices/*
 storage/voicemail/*
+*.tsbuildinfo
