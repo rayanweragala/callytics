@@ -43,6 +43,7 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
   - `name`
   - `description?`
   - `slug?`
+  - `versionMessage?`
   - `nodes[]`
   - `edges[]`
 - Returns:
@@ -56,10 +57,47 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
   - `name`
   - `description?`
   - `slug?`
+  - `versionMessage?`
   - `nodes[]`
   - `edges[]`
 - Returns:
   `{ data: FlowDetail }`
+
+### `GET /flows/:id/versions`
+
+- What it does:
+  Lists committed versions for one flow
+- Input:
+  Flow ID in the path
+- Returns:
+  `{ data: FlowVersionSummary[] }`
+
+### `GET /flows/:id/versions/:versionId`
+
+- What it does:
+  Returns one committed version including its snapshot
+- Input:
+  Flow ID and version ID in the path
+- Returns:
+  `{ data: FlowVersionDetail }`
+
+### `POST /flows/:id/versions`
+
+- What it does:
+  Creates an explicit committed version using the flow's current graph state
+- Input:
+  - `message`
+- Returns:
+  `{ data: FlowVersionSummary }`
+
+### `POST /flows/:id/versions/:versionId/restore`
+
+- What it does:
+  Restores a committed version snapshot into the current flow state and writes a new version entry
+- Input:
+  Flow ID and version ID in the path
+- Returns:
+  `{ data: { success: true } }`
 
 ### `DELETE /flows/:id`
 
@@ -82,13 +120,11 @@ This API is for the localhost web UI. It is REST-first. Realtime updates for the
 - The API uses the latest version per flow through `current_version_id`
 - Authentication, pagination, publish workflows, and rollback endpoints can be added later without changing the basic response contract
 
-### Planned later flow endpoints
+### Flow versioning notes
 
-- `GET /api/flows/:flowId/draft`
-- `PUT /api/flows/:flowId/draft`
-- `POST /api/flows/:flowId/validate`
-- `POST /api/flows/:flowId/publish`
-- `POST /api/flows/:flowId/rollback`
+- The API now supports commit/list/detail/restore for flow versions
+- `POST /flows` and `PUT /flows/:id` also create visible committed versions for editor saves
+- Version snapshots are stored in `flow_versions.snapshot` with message and node count metadata
 
 ## Audio
 

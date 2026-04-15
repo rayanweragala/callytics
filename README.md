@@ -33,6 +33,12 @@ Current completed implementation phases:
   - Shift+click multi-select working on canvas
   - Toolbar group/ungroup actions implemented
   - Group persistence added with `flow_nodes.group_id` and save/load mapping (`groupId` ↔ `parentId`)
+- Phase 16 Part B: flow versioning (commit/compare/restore)
+  - Backend migration adds `flow_versions.message`, `flow_versions.snapshot`, and `flow_versions.node_count`
+  - New flow version endpoints: list, detail, create commit, and restore
+  - Editor save path now creates visible committed versions for normal save operations
+  - Versions drawer in the flow editor supports commit message entry, compare view, and restore
+  - Restore action applies snapshot content to the current flow and records a new version entry (`Restored from vN`)
 
 Current important infrastructure state:
 

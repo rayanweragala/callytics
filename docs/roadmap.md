@@ -57,6 +57,17 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
   - Canvas mini-map with per-node-type accent colors
   - Canvas auto-layout via dagre (tidy layout button)
   - Diagnostics live execution expanded row layout fix
+- Phase 16 Part A: flow builder node groups + multi-select completed
+  - Added visual `group` nodes and group/ungroup toolbar actions
+  - Shift+click multi-select now drives grouping actions
+  - Persisted group membership via `flow_nodes.group_id`
+  - Flow load/save maps backend `groupId` to React Flow `parentId`
+- Phase 16 Part B: flow versioning completed
+  - Added `flow_versions` metadata fields: `message`, `snapshot`, `node_count`
+  - Added version endpoints: `GET /flows/:id/versions`, `GET /flows/:id/versions/:versionId`, `POST /flows/:id/versions`, `POST /flows/:id/versions/:versionId/restore`
+  - Editor save path now creates committed versions visible in the versions drawer
+  - Added compare and restore UX in the flow editor versions panel
+  - Restore applies snapshot content and writes a new version message (`Restored from vN`)
 
 Important infrastructure change made during Phase 4:
 

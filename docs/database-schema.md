@@ -42,6 +42,12 @@ Phase 14 trunk note:
 - NestJS regenerates `/etc/asterisk/pjsip_callytics_trunks.conf` from enabled DB rows on startup and after trunk CRUD changes
 - Managed `pjsip.conf` include normalization now removes any older managed include placement and re-appends both generated extension and trunk includes as the final top-level lines in the file to avoid stanza-nesting regressions during Asterisk load
 
+Phase 16 note:
+
+- `flow_nodes.group_id` is now implemented for flow builder group membership
+- `flow_versions` now stores `message`, `snapshot`, and `node_count` for commit history, compare, and restore
+- `flow_versions(flow_id, version_number)` now has a unique index to enforce deterministic version numbering
+
 ## `users`
 
 - `id`
@@ -144,6 +150,12 @@ This table is now implemented and active.
 - `version_number`
 - `is_published`
 - `published_at`
+- `message`
+  Commit message for this version (`Saved from editor`, custom commit text, or restore message)
+- `snapshot`
+  JSON snapshot of nodes and edges for compare and restore
+- `node_count`
+  Snapshot node count used by version list UI metadata
 - `created_by`
 - `created_at`
 
@@ -157,6 +169,8 @@ This table is now implemented and active.
 - `label`
 - `position_x`
 - `position_y`
+- `group_id`
+  Nullable parent group node key for visual grouping in the flow builder
 - `config_json`
   Node-specific settings such as prompt ID, queue name, timeout, mailbox
 - `created_at`

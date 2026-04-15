@@ -24,6 +24,9 @@ Dial multiple SIP destinations with configurable strategy.
 - Start node that marks the entry point for incoming calls
 - Play audio node for uploaded or TTS-generated prompts, including searchable database-backed audio asset selection
 - Menu node for DTMF keypress routing such as `1 for sales`, `2 for support`, with prompt asset selection from the audio library
+- Group node (`type: group`) for visual flow sections and swimlane-style organization
+- Shift+click multi-select, plus toolbar group/ungroup actions
+- Flow versioning drawer with commit message save, version list, compare view, and restore action
 - Condition node for time-based rules, caller ID matching, business hours, and simple variable checks
 - Transfer node for sending calls to an extension, ring group, queue, or external number
 - Queue node for holding callers and routing to available agents
