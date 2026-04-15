@@ -26,6 +26,9 @@ export class FlowNodeEntity {
   @Column({ name: 'config_json', type: 'jsonb', default: () => "'{}'::jsonb" })
   configJson!: Record<string, unknown>;
 
+  @Column({ name: 'group_id', type: 'text', nullable: true, default: null })
+  groupId!: string | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

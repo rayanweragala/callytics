@@ -1,6 +1,6 @@
 import { IsIn, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
-const allowedNodeTypes = ['start', 'play_audio', 'get_digits', 'hangup', 'transfer', 'hunt'];
+const allowedNodeTypes = ['start', 'play_audio', 'get_digits', 'hangup', 'transfer', 'hunt', 'group'];
 
 export class FlowNodeDto {
   @IsString()
@@ -25,4 +25,8 @@ export class FlowNodeDto {
   @IsOptional()
   @IsObject()
   config?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  groupId?: string | null;
 }

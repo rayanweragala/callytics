@@ -27,13 +27,17 @@ export interface DiagnosticsSnapshot {
   timeline: Record<string, CallTimelineEvent[]>;
 }
 
-export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup' | 'transfer' | 'hunt';
+export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup' | 'transfer' | 'hunt' | 'group';
 
 export interface FlowNodeData {
   label: string;
   type: BuilderNodeType;
   config: Record<string, unknown>;
   onDelete?: () => void;
+  onLabelChange?: (value: string) => void;
+  onLabelSubmit?: () => void;
+  onLabelDoubleClick?: () => void;
+  isEditing?: boolean;
 }
 
 export interface FlowApiNode {
@@ -44,6 +48,7 @@ export interface FlowApiNode {
   positionX: number;
   positionY: number;
   config: Record<string, unknown>;
+  groupId: string | null;
 }
 
 export interface FlowApiEdge {
@@ -72,6 +77,37 @@ export interface FlowDetail {
   versionNumber: number;
   nodes: FlowApiNode[];
   edges: FlowApiEdge[];
+}
+
+export interface FlowVersionSummary {
+  id: number;
+  flowId: number;
+  versionNum: number;
+  message: string;
+  nodeCount: number;
+  createdAt: string;
+}
+
+export interface FlowSnapshot {
+  nodes: Array<{
+    nodeKey: string;
+    type: BuilderNodeType;
+    label: string | null;
+    positionX: number;
+    positionY: number;
+    config: Record<string, unknown>;
+    groupId: string | null;
+  }>;
+  edges: Array<{
+    sourceNodeKey: string;
+    targetNodeKey: string;
+    branchKey: string;
+    condition: string | null;
+  }>;
+}
+
+export interface FlowVersionDetail extends FlowVersionSummary {
+  snapshot: FlowSnapshot;
 }
 
 export interface AudioFileItem {

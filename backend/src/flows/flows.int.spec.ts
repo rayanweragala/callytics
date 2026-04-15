@@ -14,6 +14,19 @@ function createFlowPayload(name = 'Test Flow') {
   };
 }
 
+function createGroupedFlowPayload(name = 'Grouped Flow') {
+  return {
+    name,
+    description: 'Integration test flow with node groups',
+    nodes: [
+      { nodeKey: 'group-1', type: 'group', label: 'Welcome', positionX: 20, positionY: 20, config: {}, groupId: null },
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 24, positionY: 44, config: {}, groupId: 'group-1' },
+      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 220, positionY: 44, config: {}, groupId: 'group-1' },
+    ],
+    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'hangup', branchKey: 'default', condition: null }],
+  };
+}
+
 describe('Flows API', () => {
   afterAll(async () => {
     await closeApp();
@@ -89,6 +102,27 @@ describe('Flows API', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual(expect.objectContaining({ name: 'Updated Flow' }));
+  });
+
+  it('persists and returns node group ids on create and fetch', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createGroupedFlowPayload());
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nodeKey: 'group-1', type: 'group', groupId: null }),
+      expect.objectContaining({ nodeKey: 'start', groupId: 'group-1' }),
+      expect.objectContaining({ nodeKey: 'hangup', groupId: 'group-1' }),
+    ]));
+
+    const fetched = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}`);
+
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.data.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nodeKey: 'group-1', type: 'group', groupId: null }),
+      expect.objectContaining({ nodeKey: 'start', groupId: 'group-1' }),
+      expect.objectContaining({ nodeKey: 'hangup', groupId: 'group-1' }),
+    ]));
   });
 
   it('DELETE /flows/:id returns 200 and subsequent GET returns 404', async () => {

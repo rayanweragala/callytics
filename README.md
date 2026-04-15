@@ -28,6 +28,11 @@ Current completed implementation phases:
   - Themed ConfirmDialog component replacing browser window.confirm on unsaved-leave guard
   - Trunks inline form Username field layout fix
   - Created column white-space: nowrap fix across all table pages
+- Phase 16 Part A: flow builder grouping + multi-select foundations
+  - Group nodes (`type: group`) added for visual swimlanes/containers
+  - Shift+click multi-select working on canvas
+  - Toolbar group/ungroup actions implemented
+  - Group persistence added with `flow_nodes.group_id` and save/load mapping (`groupId` ↔ `parentId`)
 
 Current important infrastructure state:
 

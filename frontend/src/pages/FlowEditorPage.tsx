@@ -9,27 +9,39 @@ import ReactFlow, {
   EdgeMouseHandler,
   MiniMap,
   Node,
-  NodeMouseHandler,
+  NodeDragHandler,
   OnSelectionChangeParams,
   ReactFlowInstance,
   reconnectEdge,
   useEdgesState,
   useNodesState,
 } from 'reactflow';
-import { createFlow, getFlow, listAudio, updateFlow } from '../lib/api';
-import type { AudioFileItem, BuilderNodeType, FlowDetail, FlowNodeData } from '../types';
+import {
+  createFlow,
+  createFlowVersion,
+  getFlow,
+  getFlowVersion,
+  listAudio,
+  listFlowVersions,
+  restoreFlowVersion,
+  updateFlow,
+} from '../lib/api';
+import type { AudioFileItem, BuilderNodeType, FlowDetail, FlowNodeData, FlowSnapshot, FlowVersionDetail, FlowVersionSummary } from '../types';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { FlowCanvasEdge } from '../components/builder/FlowCanvasEdge';
 import { FlowCanvasNode } from '../components/builder/FlowCanvasNode';
+import { FlowGroupNode } from '../components/builder/FlowGroupNode';
 import { HuntNode } from '../components/nodes/HuntNode';
 import { HuntConfigPanel } from '../components/panels/HuntConfigPanel';
 import { layoutFlow } from '../utils/layoutFlow';
+import { formatDateTime } from '../lib/time';
 import styles from './FlowEditorPage.module.css';
 
 const nodeTypes = {
   flowNode: FlowCanvasNode,
   huntNode: HuntNode,
+  group: FlowGroupNode,
 };
 
 const edgeTypes = {
@@ -50,7 +62,7 @@ const conditionValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', 
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
 type BuilderEdgeData = {
-  branchKey: string;
+  branchKey: string | null;
   condition: string | null;
   sourceNodeType: string;
   onDelete?: (edgeId: string) => void;
@@ -83,13 +95,47 @@ function buildCanvasNode(type: BuilderNodeType, index: number): Node<FlowNodeDat
   const key = `${type}-${Date.now()}-${index}`;
   return {
     id: key,
-    type: type === 'hunt' ? 'huntNode' : 'flowNode',
+    type: type === 'hunt' ? 'huntNode' : type === 'group' ? 'group' : 'flowNode',
     position: { x: 120 + index * 40, y: 120 + index * 30 },
     data: {
       label: palette.find((item) => item.type === type)?.label || type,
       type,
-      config: typeConfig(type),
+      config: type === 'group' ? { width: 200, height: 150 } : typeConfig(type),
     },
+    style: type === 'group' ? { width: 200, height: 150 } : undefined,
+  };
+}
+
+function isGroupNode(node: Node<FlowNodeData>): boolean {
+  return node.data.type === 'group';
+}
+
+function resolveNodeDimension(value: unknown, fallback: number): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return fallback;
+  }
+  return numeric;
+}
+
+function serializeNodeForSave(node: Node<FlowNodeData>) {
+  const isGroup = node.data.type === 'group';
+  const config = isGroup
+    ? {
+        ...node.data.config,
+        width: Math.max(200, resolveNodeDimension(node.width ?? node.style?.width ?? node.data.config.width, 200)),
+        height: Math.max(150, resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 150)),
+      }
+    : node.data.config;
+
+  return {
+    nodeKey: node.id,
+    type: node.data.type,
+    label: node.data.label,
+    positionX: node.position.x,
+    positionY: node.position.y,
+    config,
+    groupId: node.parentId ?? null,
   };
 }
 
@@ -109,19 +155,18 @@ function createDraftFlow(): FlowDetail {
   };
 }
 
-function createSavePayload(flow: FlowDetail, nodes: Array<Node<FlowNodeData>>, edges: Array<Edge<BuilderEdgeData>>) {
+function createSavePayload(
+  flow: FlowDetail,
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+  versionMessage?: string,
+) {
   return {
     name: flow.name,
     description: flow.description || '',
     slug: flow.slug,
-    nodes: nodes.map((node) => ({
-      nodeKey: node.id,
-      type: node.data.type,
-      label: node.data.label,
-      positionX: node.position.x,
-      positionY: node.position.y,
-      config: node.data.config,
-    })),
+    versionMessage,
+    nodes: nodes.map(serializeNodeForSave),
     edges: edges.map((edge) => ({
       sourceNodeKey: edge.source,
       targetNodeKey: edge.target,
@@ -163,17 +208,104 @@ function applyAutoLayout(nodes: Array<Node<FlowNodeData>>, panelWidth: number): 
   }));
 }
 
-function withNodeDeleteCallbacks(
+function decorateNodes(
   nodes: Array<Node<FlowNodeData>>,
-  onDelete: (nodeId: string) => void,
+  options: {
+    editingGroupId: string | null;
+    onDelete: (nodeId: string) => void;
+    onGroupLabelChange: (nodeId: string, value: string) => void;
+    onGroupLabelSubmit: (nodeId: string) => void;
+    onGroupLabelDoubleClick: (nodeId: string) => void;
+  },
 ): Array<Node<FlowNodeData>> {
   return nodes.map((node) => ({
     ...node,
     data: {
       ...node.data,
-      onDelete: () => onDelete(node.id),
+      onDelete: node.data.type === 'group' ? undefined : () => options.onDelete(node.id),
+      onLabelChange: node.data.type === 'group' ? (value: string) => options.onGroupLabelChange(node.id, value) : undefined,
+      onLabelSubmit: node.data.type === 'group' ? () => options.onGroupLabelSubmit(node.id) : undefined,
+      onLabelDoubleClick: node.data.type === 'group' ? () => options.onGroupLabelDoubleClick(node.id) : undefined,
+      isEditing: node.id === options.editingGroupId,
     },
   }));
+}
+
+function getAbsoluteNodePosition(node: Node<FlowNodeData>, nodeMap: Map<string, Node<FlowNodeData>>): { x: number; y: number } {
+  if (!node.parentId) {
+    return node.position;
+  }
+
+  const parent = nodeMap.get(node.parentId);
+  if (!parent) {
+    return node.position;
+  }
+
+  const parentPosition = getAbsoluteNodePosition(parent, nodeMap);
+  return {
+    x: parentPosition.x + node.position.x,
+    y: parentPosition.y + node.position.y,
+  };
+}
+
+function getNodeSize(node: Node<FlowNodeData>): { width: number; height: number } {
+  return {
+    width: resolveNodeDimension(node.width ?? node.style?.width ?? node.data.config.width, 170),
+    height: resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 72),
+  };
+}
+
+function getContainingGroupNode(node: Node<FlowNodeData>, allNodes: Array<Node<FlowNodeData>>): Node<FlowNodeData> | null {
+  const nodeMap = new Map(allNodes.map((item) => [item.id, item]));
+  const absolutePosition = getAbsoluteNodePosition(node, nodeMap);
+  const { width, height } = getNodeSize(node);
+  const centerX = absolutePosition.x + width / 2;
+  const centerY = absolutePosition.y + height / 2;
+
+  const groups = allNodes
+    .filter((candidate) => isGroupNode(candidate) && candidate.id !== node.id)
+    .filter((group) => {
+      const groupPosition = getAbsoluteNodePosition(group, nodeMap);
+      const groupWidth = Math.max(200, resolveNodeDimension(group.width ?? group.style?.width ?? group.data.config.width, 200));
+      const groupHeight = Math.max(150, resolveNodeDimension(group.height ?? group.style?.height ?? group.data.config.height, 150));
+      return centerX >= groupPosition.x
+        && centerX <= groupPosition.x + groupWidth
+        && centerY >= groupPosition.y
+        && centerY <= groupPosition.y + groupHeight;
+    });
+
+  return groups.length > 0 ? groups[groups.length - 1] : null;
+}
+
+function reparentNodeIntoGroup(
+  draggedNode: Node<FlowNodeData>,
+  targetGroup: Node<FlowNodeData>,
+  allNodes: Array<Node<FlowNodeData>>,
+): Node<FlowNodeData> {
+  const nodeMap = new Map(allNodes.map((item) => [item.id, item]));
+  const absolutePosition = getAbsoluteNodePosition(draggedNode, nodeMap);
+  const groupPosition = getAbsoluteNodePosition(targetGroup, nodeMap);
+
+  return {
+    ...draggedNode,
+    parentId: targetGroup.id,
+    extent: 'parent',
+    position: {
+      x: absolutePosition.x - groupPosition.x,
+      y: absolutePosition.y - groupPosition.y,
+    },
+  };
+}
+
+function removeNodeFromGroup(childNode: Node<FlowNodeData>, allNodes: Array<Node<FlowNodeData>>): Node<FlowNodeData> {
+  const nodeMap = new Map(allNodes.map((item) => [item.id, item]));
+  const absolutePosition = getAbsoluteNodePosition(childNode, nodeMap);
+  return {
+    ...childNode,
+    parentId: undefined,
+    extent: undefined,
+    position: absolutePosition,
+  };
 }
 
 function attachEdgeMetadata(
@@ -215,17 +347,43 @@ function attachEdgeMetadata(
 }
 
 function mapFlowToNodes(flow: FlowDetail): Array<Node<FlowNodeData>> {
-  return flow.nodes.map((node) => ({
-    id: node.nodeKey,
-    type: node.type === 'hunt' ? 'huntNode' : 'flowNode',
-    position: { x: node.positionX, y: node.positionY },
-    data: {
-      label: node.label || node.nodeKey,
-      type: node.type,
-      config: node.config,
-    },
-    draggable: true,
-  }));
+  const groups = flow.nodes
+    .filter((node) => node.type === 'group')
+    .map((node) => ({
+      id: node.nodeKey,
+      type: 'group',
+      position: { x: node.positionX, y: node.positionY },
+      data: {
+        label: node.label || node.nodeKey,
+        type: node.type,
+        config: node.config,
+      },
+      style: {
+        width: Math.max(200, resolveNodeDimension(node.config.width, 200)),
+        height: Math.max(150, resolveNodeDimension(node.config.height, 150)),
+      },
+      draggable: true,
+      selectable: true,
+    }));
+
+  const childNodes = flow.nodes
+    .filter((node) => node.type !== 'group')
+    .map((node) => ({
+      id: node.nodeKey,
+      type: node.type === 'hunt' ? 'huntNode' : 'flowNode',
+      position: { x: node.positionX, y: node.positionY },
+      data: {
+        label: node.label || node.nodeKey,
+        type: node.type,
+        config: node.config,
+      },
+      parentId: node.groupId || undefined,
+      extent: node.groupId ? 'parent' as const : undefined,
+      draggable: true,
+      selectable: true,
+    }));
+
+  return [...groups, ...childNodes];
 }
 
 function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
@@ -247,6 +405,98 @@ function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
   }));
 }
 
+function mapSnapshotToNodes(snapshot: FlowSnapshot): Array<Node<FlowNodeData>> {
+  const flowLike: FlowDetail = {
+    id: 0,
+    name: '',
+    description: null,
+    slug: '',
+    createdAt: '',
+    updatedAt: '',
+    versionId: 0,
+    versionNumber: 0,
+    nodes: snapshot.nodes.map((node, index) => ({
+      id: index + 1,
+      nodeKey: node.nodeKey,
+      type: node.type,
+      label: node.label,
+      positionX: node.positionX,
+      positionY: node.positionY,
+      config: node.config,
+      groupId: node.groupId,
+    })),
+    edges: [],
+  };
+  return mapFlowToNodes(flowLike);
+}
+
+function mapSnapshotToEdges(snapshot: FlowSnapshot): Edge<BuilderEdgeData>[] {
+  const flowLike: FlowDetail = {
+    id: 0,
+    name: '',
+    description: null,
+    slug: '',
+    createdAt: '',
+    updatedAt: '',
+    versionId: 0,
+    versionNumber: 0,
+    nodes: snapshot.nodes.map((node, index) => ({
+      id: index + 1,
+      nodeKey: node.nodeKey,
+      type: node.type,
+      label: node.label,
+      positionX: node.positionX,
+      positionY: node.positionY,
+      config: node.config,
+      groupId: node.groupId,
+    })),
+    edges: snapshot.edges.map((edge, index) => ({
+      id: index + 1,
+      sourceNodeKey: edge.sourceNodeKey,
+      targetNodeKey: edge.targetNodeKey,
+      branchKey: edge.branchKey,
+      condition: edge.condition,
+    })),
+  };
+  return mapFlowToEdges(flowLike);
+}
+
+function makeVersionEdgeKey(edge: { source: string; target: string; data?: { branchKey?: string | null; condition?: string | null } }): string {
+  return `${edge.source}|${edge.target}|${edge.data?.branchKey || ''}|${edge.data?.condition || ''}`;
+}
+
+function decorateDiffNodes(nodes: Array<Node<FlowNodeData>>, nodeIds: Set<string>, colorVar: string): Array<Node<FlowNodeData>> {
+  return nodes.map((node) => (
+    nodeIds.has(node.id)
+      ? {
+          ...node,
+          style: {
+            ...node.style,
+            borderLeft: `2px solid var(${colorVar})`,
+          },
+        }
+      : node
+  ));
+}
+
+function decorateDiffEdges(edges: Array<Edge<BuilderEdgeData>>, changedKeys: Set<string>): Array<Edge<BuilderEdgeData>> {
+  return edges.map((edge) => (
+    changedKeys.has(makeVersionEdgeKey(edge))
+      ? {
+          ...edge,
+          type: undefined,
+          style: { stroke: 'var(--color-warning)', strokeWidth: 2 },
+          markerEnd: undefined,
+        }
+      : {
+          ...edge,
+          type: undefined,
+          style: { stroke: 'var(--border-strong)', strokeWidth: 1.5 },
+          markerEnd: undefined,
+        }
+  ));
+}
+
 function makeEdgeKey(source: string | null, target: string | null, sourceHandle: string | null | undefined, condition: string | null): string {
   return `${source || ''}|${target || ''}|${sourceHandle || ''}|${condition || ''}`;
 }
@@ -254,19 +504,21 @@ function makeEdgeKey(source: string | null, target: string | null, sourceHandle:
 function minimapNodeColor(node: Node<FlowNodeData>): string {
   switch (node.data?.type) {
     case 'start':
-      return '#00dc82';
+      return 'var(--accent)';
     case 'play_audio':
-      return '#3b82f6';
+      return 'var(--color-info)';
     case 'get_digits':
-      return '#f5a623';
+      return 'var(--color-warning)';
     case 'transfer':
-      return '#3b82f6';
+      return 'var(--color-info)';
     case 'hunt':
-      return '#f5a623';
+      return 'var(--color-warning)';
     case 'hangup':
-      return '#ff4444';
+      return 'var(--color-error)';
+    case 'group':
+      return 'var(--accent)';
     default:
-      return '#555555';
+      return 'var(--text-muted)';
   }
 }
 
@@ -289,10 +541,21 @@ export function FlowEditorPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<BuilderEdgeData>([]);
   const [audioItems, setAudioItems] = useState<AudioFileItem[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [versions, setVersions] = useState<FlowVersionSummary[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionMessage, setVersionMessage] = useState('');
+  const [versionSaveState, setVersionSaveState] = useState<'idle' | 'saving'>('idle');
+  const [versionNotice, setVersionNotice] = useState<string | null>(null);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [pendingRestoreVersion, setPendingRestoreVersion] = useState<FlowVersionSummary | null>(null);
+  const [compareVersion, setCompareVersion] = useState<FlowVersionDetail | null>(null);
 
   useEffect(() => {
     if (rfInstance && nodes.length > 0 && !fitDone.current) {
@@ -313,16 +576,100 @@ export function FlowEditorPage() {
       if (!target || target.data.type === 'start') {
         return current;
       }
-      return withNodeDeleteCallbacks(current.filter((node) => node.id !== nodeId), deleteNode);
+
+      if (target.data.type === 'group') {
+        const nextNodes = current.flatMap((node) => {
+          if (node.id === nodeId) {
+            return [];
+          }
+
+          if (node.parentId !== nodeId) {
+            return [node];
+          }
+
+          return [removeNodeFromGroup(node, current)];
+        });
+
+        return decorateNodes(nextNodes, {
+          editingGroupId: editingGroupId === nodeId ? null : editingGroupId,
+          onDelete: deleteNode,
+          onGroupLabelChange: handleGroupLabelChange,
+          onGroupLabelSubmit: handleGroupLabelSubmit,
+          onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+        });
+      }
+
+      return decorateNodes(
+        current.filter((node) => node.id !== nodeId),
+        {
+          editingGroupId,
+          onDelete: deleteNode,
+          onGroupLabelChange: handleGroupLabelChange,
+          onGroupLabelSubmit: handleGroupLabelSubmit,
+          onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+        },
+      );
     });
     setEdges((current) => attachEdgeMetadata(current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId), nodes, deleteEdge));
     setSelectedNodeId((current) => (current === nodeId ? null : current));
-  }, [nodes, setNodes]);
+    setSelectedNodeIds((current) => current.filter((value) => value !== nodeId));
+  }, [editingGroupId, nodes]);
 
   const deleteEdge = useCallback((edgeId: string) => {
     setEdges((current) => current.filter((edge) => edge.id !== edgeId));
     setSelectedEdgeId((current) => (current === edgeId ? null : current));
   }, [setEdges]);
+
+  function handleGroupLabelChange(nodeId: string, value: string) {
+    setNodes((current) =>
+      decorateNodes(
+        current.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, label: value } } : node)),
+        {
+          editingGroupId: nodeId,
+          onDelete: deleteNode,
+          onGroupLabelChange: handleGroupLabelChange,
+          onGroupLabelSubmit: handleGroupLabelSubmit,
+          onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+        },
+      ),
+    );
+  }
+
+  function handleGroupLabelSubmit(nodeId: string) {
+    setEditingGroupId((current) => (current === nodeId ? null : current));
+    setNodes((current) =>
+      decorateNodes(current, {
+        editingGroupId: null,
+        onDelete: deleteNode,
+        onGroupLabelChange: handleGroupLabelChange,
+        onGroupLabelSubmit: handleGroupLabelSubmit,
+        onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+      }),
+    );
+  }
+
+  function handleGroupLabelDoubleClick(nodeId: string) {
+    setEditingGroupId(nodeId);
+    setNodes((current) =>
+      decorateNodes(current, {
+        editingGroupId: nodeId,
+        onDelete: deleteNode,
+        onGroupLabelChange: handleGroupLabelChange,
+        onGroupLabelSubmit: handleGroupLabelSubmit,
+        onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+      }),
+    );
+  }
+
+  const decorateEditorNodes = useCallback((nextNodes: Array<Node<FlowNodeData>>, nextEditingGroupId: string | null = editingGroupId) => (
+    decorateNodes(nextNodes, {
+      editingGroupId: nextEditingGroupId,
+      onDelete: deleteNode,
+      onGroupLabelChange: handleGroupLabelChange,
+      onGroupLabelSubmit: handleGroupLabelSubmit,
+      onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+    })
+  ), [deleteNode, editingGroupId]);
 
   useEffect(() => {
     const loadAudio = async () => {
@@ -341,7 +688,7 @@ export function FlowEditorPage() {
     const load = async () => {
       if (isDraftRoute) {
         const draftFlow = createDraftFlow();
-        const draftNodes = withNodeDeleteCallbacks([
+        const draftNodes = decorateEditorNodes([
           {
             id: 'start',
             type: 'flowNode',
@@ -353,7 +700,7 @@ export function FlowEditorPage() {
             },
             draggable: false,
           },
-        ], deleteNode);
+        ], null);
         if (!active) {
           return;
         }
@@ -362,7 +709,9 @@ export function FlowEditorPage() {
         setEdges([]);
         setSavedSnapshot(null);
         setSelectedNodeId(null);
+        setSelectedNodeIds([]);
         setSelectedEdgeId(null);
+        setEditingGroupId(null);
         setIsInitialized(true);
         return;
       }
@@ -375,13 +724,15 @@ export function FlowEditorPage() {
       const panelWidth = canvasPanelRef.current?.clientWidth || 900;
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
-      const nextNodes = withNodeDeleteCallbacks(arrangedNodes, deleteNode);
+      const nextNodes = decorateEditorNodes(arrangedNodes, null);
       const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
       setNodes(nextNodes);
       setEdges(nextEdges);
       setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
       setSelectedNodeId(null);
+      setSelectedNodeIds([]);
       setSelectedEdgeId(null);
+      setEditingGroupId(null);
       setIsInitialized(true);
     };
 
@@ -407,6 +758,30 @@ export function FlowEditorPage() {
     [nodes, selectedEdge],
   );
 
+  const selectedCanvasNodes = useMemo(
+    () => nodes.filter((node) => selectedNodeIds.includes(node.id)),
+    [nodes, selectedNodeIds],
+  );
+
+  const selectedGroupNode = useMemo(() => {
+    if (selectedCanvasNodes.length !== 1) {
+      return null;
+    }
+    return isGroupNode(selectedCanvasNodes[0]) ? selectedCanvasNodes[0] : null;
+  }, [selectedCanvasNodes]);
+
+  const groupableSelection = useMemo(
+    () => selectedCanvasNodes.filter((node) => !isGroupNode(node) && !node.parentId),
+    [selectedCanvasNodes],
+  );
+
+  const canGroupSelection = groupableSelection.length >= 2 && groupableSelection.length === selectedCanvasNodes.length;
+  const canUngroupSelection = Boolean(selectedGroupNode);
+  const selectedChildNode = selectedCanvasNodes.length === 1 && !isGroupNode(selectedCanvasNodes[0]) && selectedCanvasNodes[0].parentId
+    ? selectedCanvasNodes[0]
+    : null;
+  const canRemoveFromGroupSelection = Boolean(selectedChildNode);
+
   const hasUnsavedChanges = useMemo(() => {
     if (!isInitialized || !flow) {
       return false;
@@ -422,6 +797,31 @@ export function FlowEditorPage() {
 
     return buildEditorSnapshot(flow, nodes, edges) !== savedSnapshot;
   }, [edges, flow, isDraft, isInitialized, nodes, savedSnapshot]);
+
+
+  useEffect(() => {
+    if (!versionsOpen || !flow || isDraft || flow.id <= 0) {
+      return;
+    }
+
+    let active = true;
+    setVersionsLoading(true);
+    void listFlowVersions(flow.id)
+      .then((response) => {
+        if (active) {
+          setVersions(response.data);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setVersionsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [flow, isDraft, versionsOpen]);
 
   const performLeaveAction = useCallback((action: PendingLeaveAction) => {
     if (action.kind === 'navigate') {
@@ -562,7 +962,7 @@ export function FlowEditorPage() {
               type: 'flowEdge',
               reconnectable: true,
               style: { stroke: 'var(--border-strong)' },
-              data: { branchKey, condition, sourceNodeType },
+              data: { branchKey: null, condition: null, sourceNodeType },
             },
 current,
         );
@@ -577,6 +977,7 @@ current,
   const onEdgeClick = useCallback<EdgeMouseHandler>(
     (_event, clickedEdge) => {
       setSelectedNodeId(null);
+      setSelectedNodeIds([]);
       setSelectedEdgeId(clickedEdge.id);
       setEdges((current) =>
         attachEdgeMetadata(
@@ -623,26 +1024,50 @@ current,
 
   const onReconnectStart = useCallback(() => {}, []);
 
-  const handleNodeClick: NodeMouseHandler = (_event, node) => {
-    setSelectedNodeId(node.id);
-    setSelectedEdgeId(null);
-  };
-
-  const handleSelectionChange = ({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
-    const firstNode = selectedNodes[0] as Node<FlowNodeData> | undefined;
-    const firstEdge = selectedEdges[0] as Edge<BuilderEdgeData> | undefined;
-
-    if (firstNode) {
-      setSelectedNodeId(firstNode.id);
-      setSelectedEdgeId(null);
+  const handleNodeDragStop = useCallback<NodeDragHandler>((_event, draggedNode) => {
+    if (draggedNode.data.type === 'group') {
       return;
     }
 
-    if (firstEdge) {
+    setNodes((current) => {
+      const mergedNodes = current.map((node) => (node.id === draggedNode.id ? { ...node, ...draggedNode } : node));
+      const targetGroup = getContainingGroupNode({ ...draggedNode }, mergedNodes);
+
+      if (!targetGroup) {
+        return decorateEditorNodes(mergedNodes);
+      }
+
+      const nextNodes = mergedNodes.map((node) => (
+        node.id === draggedNode.id ? reparentNodeIntoGroup(node, targetGroup, mergedNodes) : node
+      ));
+      return decorateEditorNodes(nextNodes);
+    });
+  }, [decorateEditorNodes]);
+
+  const handleSelectionChange = useCallback(
+    ({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
+      const firstNode = selectedNodes[0] as Node<FlowNodeData> | undefined;
+      const firstEdge = selectedEdges[0] as Edge<BuilderEdgeData> | undefined;
+
+      setSelectedNodeIds(selectedNodes.map((node) => node.id));
+
+      if (firstNode) {
+        setSelectedNodeId(firstNode.id);
+        setSelectedEdgeId(null);
+        return;
+      }
+
+      if (firstEdge) {
+        setSelectedNodeId(null);
+        setSelectedEdgeId(firstEdge.id);
+        return;
+      }
+
       setSelectedNodeId(null);
-      setSelectedEdgeId(firstEdge.id);
-    }
-  };
+      setSelectedEdgeId(null);
+    },
+    [],
+  );
 
   const handleDragStart = (type: BuilderNodeType) => {
     window.sessionStorage.setItem('flow-builder-node-type', type);
@@ -655,25 +1080,166 @@ current,
       if (!type || !rfInstance) return;
       const bounds = event.currentTarget.getBoundingClientRect();
       const position = rfInstance.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
-      const newNode = buildCanvasNode(type, nodes.length);
+      let newNode = buildCanvasNode(type, nodes.length);
       newNode.position = position;
-      setNodes((current) => withNodeDeleteCallbacks([...current, newNode], deleteNode));
+      const containingGroup = getContainingGroupNode(newNode, nodes);
+      if (containingGroup) {
+        newNode = reparentNodeIntoGroup(newNode, containingGroup, [...nodes, containingGroup]);
+      }
+      setNodes((current) => decorateEditorNodes([...current, newNode]));
       setSelectedNodeId(newNode.id);
+      setSelectedNodeIds([newNode.id]);
       setSelectedEdgeId(null);
     },
     [rfInstance, deleteNode, nodes.length, setNodes],
   );
 
+  const handleGroupSelection = () => {
+    if (!canGroupSelection) {
+      return;
+    }
+
+    const paddingX = 24;
+    const paddingTop = 32;
+    const paddingBottom = 24;
+    const minX = Math.min(...groupableSelection.map((node) => node.position.x));
+    const minY = Math.min(...groupableSelection.map((node) => node.position.y));
+    const maxX = Math.max(...groupableSelection.map((node) => node.position.x + resolveNodeDimension(node.width ?? node.style?.width, 170)));
+    const maxY = Math.max(...groupableSelection.map((node) => node.position.y + resolveNodeDimension(node.height ?? node.style?.height, 72)));
+    const groupWidth = Math.max(200, maxX - minX + paddingX * 2);
+    const groupHeight = Math.max(150, maxY - minY + paddingTop + paddingBottom);
+    const groupId = `group-${Date.now()}`;
+    const groupPosition = { x: minX - paddingX, y: minY - paddingTop };
+    const groupNode: Node<FlowNodeData> = {
+      id: groupId,
+      type: 'group',
+      position: groupPosition,
+      data: {
+        label: 'New Group',
+        type: 'group',
+        config: {
+          width: groupWidth,
+          height: groupHeight,
+        },
+      },
+      style: {
+        width: groupWidth,
+        height: groupHeight,
+      },
+      draggable: true,
+      selectable: true,
+    };
+
+    const selectedIds = new Set(groupableSelection.map((node) => node.id));
+    const updatedNodes = nodes.map((node) => {
+      if (!selectedIds.has(node.id)) {
+        return node;
+      }
+
+      return {
+        ...node,
+        parentId: groupId,
+        extent: 'parent' as const,
+        position: {
+          x: node.position.x - groupPosition.x,
+          y: node.position.y - groupPosition.y,
+        },
+      };
+    });
+
+    setEditingGroupId(groupId);
+    setNodes(decorateEditorNodes([groupNode, ...updatedNodes], groupId));
+    setSelectedNodeId(groupId);
+    setSelectedNodeIds([groupId]);
+    setSelectedEdgeId(null);
+  };
+
+  const handleUngroupSelection = useCallback(() => {
+    if (!selectedGroupNode) {
+      return;
+    }
+
+    const groupId = selectedGroupNode.id;
+    const nextNodes = nodes.flatMap((node) => {
+      if (node.id === groupId) {
+        return [];
+      }
+
+      if (node.parentId !== groupId) {
+        return [node];
+      }
+
+      return [removeNodeFromGroup(node, nodes)];
+    });
+
+    setEditingGroupId(null);
+    setNodes(decorateEditorNodes(nextNodes, null));
+    setSelectedNodeId(null);
+    setSelectedNodeIds([]);
+    setSelectedEdgeId(null);
+  }, [decorateEditorNodes, nodes, selectedGroupNode]);
+
+  const handleRemoveFromGroup = useCallback(() => {
+    if (!selectedChildNode) {
+      return;
+    }
+
+    const nextNodes = nodes.map((node) => (node.id === selectedChildNode.id ? removeNodeFromGroup(node, nodes) : node));
+    setNodes(decorateEditorNodes(nextNodes));
+    setSelectedNodeId(selectedChildNode.id);
+    setSelectedNodeIds([selectedChildNode.id]);
+    setSelectedEdgeId(null);
+  }, [decorateEditorNodes, nodes, selectedChildNode]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      if (tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable) {
+        return;
+      }
+
+      if (event.key !== 'Backspace' && event.key !== 'Delete') {
+        return;
+      }
+
+      if (selectedEdgeId) {
+        event.preventDefault();
+        deleteEdge(selectedEdgeId);
+        return;
+      }
+
+      if (selectedNodeIds.length === 1 && selectedGroupNode) {
+        event.preventDefault();
+        handleUngroupSelection();
+        return;
+      }
+
+      if (selectedNodeIds.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      for (const nodeId of selectedNodeIds) {
+        deleteNode(nodeId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [deleteEdge, deleteNode, handleUngroupSelection, selectedEdgeId, selectedGroupNode, selectedNodeIds]);
+
   const handleLabelChange = (value: string) => {
     if (!selectedNodeId) return;
     setNodes((current) =>
-      withNodeDeleteCallbacks(
+      decorateEditorNodes(
         current.map((node) => (
           node.id === selectedNodeId
             ? { ...node, data: { ...node.data, label: value } }
             : node
         )),
-        deleteNode,
       ),
     );
   };
@@ -681,7 +1247,7 @@ current,
   const handleConfigValueChange = (field: string, value: unknown) => {
     if (!selectedNodeId) return;
     setNodes((current) =>
-      withNodeDeleteCallbacks(
+      decorateEditorNodes(
         current.map((node) => {
           if (node.id !== selectedNodeId) return node;
           return {
@@ -695,7 +1261,6 @@ current,
             },
           };
         }),
-        deleteNode,
       ),
     );
   };
@@ -708,13 +1273,12 @@ current,
   const handleConfigReplace = (nextConfig: Record<string, unknown>) => {
     if (!selectedNodeId) return;
     setNodes((current) =>
-      withNodeDeleteCallbacks(
+      decorateEditorNodes(
         current.map((node) => (
           node.id === selectedNodeId
             ? { ...node, data: { ...node.data, config: nextConfig } }
             : node
         )),
-        deleteNode,
       ),
     );
   };
@@ -749,29 +1313,38 @@ current,
   const nodeOptions = nodes.map((node) => ({ value: node.id, label: `${node.id} — ${node.data.label}` }));
   const conditionOptions = conditionValues.map((value) => ({ value, label: value }));
 
-  const saveFlow = async () => {
-    if (!flow) return;
+  const saveFlow = async (versionMessage?: string): Promise<FlowDetail | null> => {
+    if (!flow) return null;
     setSaveState('saving');
     try {
-      const payload = createSavePayload(flow, nodes, edges);
+      const payload = createSavePayload(flow, nodes, edges, versionMessage);
       const response = isDraft ? await createFlow(payload) : await updateFlow(id, payload);
       setFlow(response.data);
       setIsDraft(false);
       const panelWidth = canvasPanelRef.current?.clientWidth || 900;
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
-      const nextNodes = withNodeDeleteCallbacks(arrangedNodes, deleteNode);
+      const nextNodes = decorateEditorNodes(arrangedNodes, null);
       const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
       setNodes(nextNodes);
       setEdges(nextEdges);
       setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+      setSelectedNodeId(null);
+      setSelectedNodeIds([]);
       setSelectedEdgeId(null);
+      setEditingGroupId(null);
+      if (response.data.id > 0) {
+        const refreshedVersions = await listFlowVersions(response.data.id);
+        setVersions(refreshedVersions.data);
+      }
       setSaveState('saved');
       if (isDraft) {
         navigate(`/flows/${response.data.id}`, { replace: true });
       }
+      return response.data;
     } catch {
       setSaveState('failed');
+      return null;
     } finally {
       if (saveFeedbackTimer.current) {
         window.clearTimeout(saveFeedbackTimer.current);
@@ -788,11 +1361,103 @@ current,
   };
 
   const handleTidyLayout = () => {
-    const nextNodes = withNodeDeleteCallbacks(layoutFlow(nodes, edges), deleteNode);
+    const nextNodes = decorateEditorNodes(layoutFlow(nodes, edges));
     setNodes(nextNodes);
     window.setTimeout(() => {
       void rfInstance?.fitView({ padding: 0.2, duration: 400 });
     }, 50);
+  };
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setSelectedNodeIds([]);
+    setSelectedEdgeId(null);
+  }, []);
+
+  const handleVersionsToggle = () => {
+    setVersionsOpen((current) => !current);
+  };
+
+  const handleCreateVersion = async () => {
+    if (!flow) {
+      return;
+    }
+
+    const trimmed = versionMessage.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    setVersionSaveState('saving');
+    setVersionNotice(null);
+
+    let activeFlow = flow;
+    if (hasUnsavedChanges) {
+      const saved = await saveFlow(trimmed);
+      if (!saved) {
+        setVersionSaveState('idle');
+        return;
+      }
+      activeFlow = saved;
+      setVersionMessage('');
+      setVersionNotice('Flow saved and version committed.');
+      setVersionSaveState('idle');
+      return;
+    }
+
+    const response = await createFlowVersion(activeFlow.id, trimmed);
+    setVersionMessage('');
+    setVersionNotice(hasUnsavedChanges ? 'Flow saved and version committed.' : 'Version committed.');
+    const refreshed = await listFlowVersions(activeFlow.id);
+    setVersions(refreshed.data);
+    setVersionSaveState('idle');
+    if ('snapshot' in response.data) {
+      setCompareVersion(response.data);
+    }
+  };
+
+  const handleRequestRestore = (version: FlowVersionSummary) => {
+    setPendingRestoreVersion(version);
+    setRestoreConfirmOpen(true);
+  };
+
+  const handleCancelRestore = () => {
+    setPendingRestoreVersion(null);
+    setRestoreConfirmOpen(false);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!pendingRestoreVersion || !flow) {
+      return;
+    }
+
+    await restoreFlowVersion(flow.id, pendingRestoreVersion.id);
+    const response = await getFlow(String(flow.id));
+    setFlow(response.data);
+    setIsDraft(false);
+    const panelWidth = canvasPanelRef.current?.clientWidth || 900;
+    const mappedNodes = mapFlowToNodes(response.data);
+    const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
+    const nextNodes = decorateEditorNodes(arrangedNodes, null);
+    const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+    setSelectedNodeId(null);
+    setSelectedNodeIds([]);
+    setSelectedEdgeId(null);
+    setEditingGroupId(null);
+    setPendingRestoreVersion(null);
+    setRestoreConfirmOpen(false);
+  };
+
+  const handleCompareVersion = async (version: FlowVersionSummary) => {
+    if (!flow) {
+      return;
+    }
+
+    const response = await getFlowVersion(flow.id, version.id);
+    setCompareVersion(response.data);
   };
 
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : 'save';
@@ -801,15 +1466,50 @@ current,
     requestLeave({ kind: 'navigate', to: '/flows' });
   };
 
+  const compareSnapshotNodes = compareVersion ? mapSnapshotToNodes(compareVersion.snapshot) : [];
+  const compareSnapshotEdges = compareVersion ? mapSnapshotToEdges(compareVersion.snapshot) : [];
+  const currentNodeIds = new Set(nodes.map((node) => node.id));
+  const snapshotNodeIds = new Set(compareSnapshotNodes.map((node) => node.id));
+  const addedNodeIds = new Set(nodes.filter((node) => !snapshotNodeIds.has(node.id)).map((node) => node.id));
+  const removedNodeIds = new Set(compareSnapshotNodes.filter((node) => !currentNodeIds.has(node.id)).map((node) => node.id));
+  const currentEdgeKeys = new Set(edges.map((edge) => makeVersionEdgeKey(edge)));
+  const snapshotEdgeKeys = new Set(compareSnapshotEdges.map((edge) => makeVersionEdgeKey(edge)));
+  const changedEdgeKeys = new Set([
+    ...Array.from(currentEdgeKeys).filter((key) => !snapshotEdgeKeys.has(key)),
+    ...Array.from(snapshotEdgeKeys).filter((key) => !currentEdgeKeys.has(key)),
+  ]);
+  const currentDiffNodes = decorateDiffNodes(nodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--accent');
+  const versionDiffNodes = decorateDiffNodes(compareSnapshotNodes.map((node) => ({ ...node, selected: false })), removedNodeIds, '--color-error');
+  const currentDiffEdges = decorateDiffEdges(edges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
+  const versionDiffEdges = decorateDiffEdges(compareSnapshotEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
+  const addedNodeLabels = nodes.filter((node) => addedNodeIds.has(node.id)).map((node) => node.data.type);
+  const removedNodeLabels = compareSnapshotNodes.filter((node) => removedNodeIds.has(node.id)).map((node) => node.data.type);
+  const changedEdgeLabels = Array.from(changedEdgeKeys).map((key) => {
+    const [source, target] = key.split('|');
+    return `${source}→${target}`;
+  });
+
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>
           <button className={styles.secondaryButton} onClick={leaveFlowEditor} type="button">back</button>
           <button className={styles.secondaryButton} onClick={handleTidyLayout} type="button">tidy layout</button>
+          {canGroupSelection ? (
+            <button className={styles.secondaryButton} onClick={handleGroupSelection} type="button">group</button>
+          ) : null}
+          {canUngroupSelection ? (
+            <button className={styles.secondaryButton} onClick={handleUngroupSelection} type="button">ungroup</button>
+          ) : null}
+          {canRemoveFromGroupSelection ? (
+            <button className={styles.secondaryButton} onClick={() => void handleRemoveFromGroup()} type="button">remove from group</button>
+          ) : null}
           <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => setFlowName(event.target.value)} />
         </div>
-        <button className={saveButtonClass} onClick={() => void saveFlow()} type="button">{saveLabel}</button>
+        <div className={styles.topBarRight}>
+          <button className={styles.secondaryButton} onClick={handleVersionsToggle} type="button">versions</button>
+          <button className={saveButtonClass} onClick={() => void saveFlow()} type="button">{saveLabel}</button>
+        </div>
       </div>
 
       <div className={styles.editorShell}>
@@ -846,16 +1546,30 @@ current,
             onConnect={onConnect}
             onReconnect={onReconnect}
             onReconnectStart={onReconnectStart}
+            onNodeDragStop={handleNodeDragStop}
             onEdgeClick={onEdgeClick}
-            onNodeClick={handleNodeClick}
             onSelectionChange={handleSelectionChange}
-            onPaneClick={() => {
-              setSelectedNodeId(null);
-              setSelectedEdgeId(null);
-            }}
+            multiSelectionKeyCode="Shift"
+            onPaneClick={handlePaneClick}
             onNodesDelete={(deletedNodes) => {
               const deletedIds = new Set(deletedNodes.map((node) => node.id));
               setEdges((current) => attachEdgeMetadata(current.filter((edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target)), nodes, deleteEdge));
+              setNodes((current) => {
+                const groupIds = new Set(deletedNodes.filter((node) => node.data.type === 'group').map((node) => node.id));
+                if (groupIds.size === 0) {
+                  return current;
+                }
+
+                return decorateEditorNodes(current.flatMap((node) => {
+                  if (groupIds.has(node.id)) {
+                    return [];
+                  }
+                  if (node.parentId && groupIds.has(node.parentId)) {
+                    return [removeNodeFromGroup(node, current)];
+                  }
+                  return [node];
+                }));
+              });
             }}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
@@ -868,13 +1582,13 @@ current,
                 }, 100);
               }
             }}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={null}
           >
-            <Background color="#1f1f1f" gap={24} />
+            <Background color="var(--border-subtle)" gap={24} />
             <Controls position="bottom-left" />
             <MiniMap
               nodeColor={minimapNodeColor}
-              maskColor="rgba(0, 0, 0, 0.6)"
+              maskColor="var(--overlay-strong)"
               position="bottom-right"
               {...miniMapSizeProps}
               style={{
@@ -1006,6 +1720,87 @@ current,
           )}
         </section>
       </div>
+
+      <aside className={`${styles.versionsPanel} ${versionsOpen ? styles.versionsPanelOpen : ''}`}>
+        <div className={styles.versionsHeader}>
+          <div className={styles.versionsTitle}>versions</div>
+          <button className={styles.secondaryButton} onClick={handleVersionsToggle} type="button">×</button>
+        </div>
+        <div className={styles.versionsCommitRow}>
+          <input
+            className={styles.input}
+            placeholder="Describe this version..."
+            value={versionMessage}
+            onChange={(event) => setVersionMessage(event.target.value)}
+          />
+          <button
+            className={styles.primaryButton}
+            disabled={!versionMessage.trim() || versionSaveState === 'saving'}
+            onClick={() => void handleCreateVersion()}
+            type="button"
+          >
+            {versionSaveState === 'saving' ? 'saving…' : 'save'}
+          </button>
+        </div>
+        {versionNotice ? <div className={styles.versionNotice}>{versionNotice}</div> : null}
+        <div className={styles.versionsList}>
+          {versionsLoading ? <div className={styles.empty}>loading versions…</div> : null}
+          {!versionsLoading && versions.length === 0 ? <div className={styles.empty}>No committed versions yet.</div> : null}
+          {!versionsLoading ? versions.map((version) => (
+            <div className={styles.versionItem} key={version.id}>
+              <div className={styles.versionMetaRow}>
+                <div className={styles.versionNum}>v{version.versionNum}</div>
+                <div className={styles.meta}>{formatDateTime(version.createdAt)}</div>
+                <div className={styles.meta}>{version.nodeCount} nodes</div>
+              </div>
+              <div className={styles.versionMessage}>{version.message}</div>
+              <div className={styles.versionActions}>
+                <button className={styles.secondaryButton} onClick={() => handleRequestRestore(version)} type="button">restore</button>
+                <button className={styles.secondaryButton} onClick={() => void handleCompareVersion(version)} type="button">compare</button>
+              </div>
+            </div>
+          )) : null}
+        </div>
+      </aside>
+
+      {compareVersion ? (
+        <div className={styles.compareOverlay}>
+          <div className={styles.compareHeader}>
+            <button className={styles.secondaryButton} onClick={() => setCompareVersion(null)} type="button">← back</button>
+            <div className={styles.compareTitle}>Comparing v{flow?.versionNumber || 'current'} (current) vs v{compareVersion.versionNum}</div>
+          </div>
+          <div className={styles.compareSubhead}>v{compareVersion.versionNum} — "{compareVersion.message}"</div>
+          <div className={styles.compareGrid}>
+            <div className={styles.compareColumn}>
+              <div className={styles.compareCanvasTitle}>Current</div>
+              <div className={styles.compareCanvas}>
+                <ReactFlow nodes={currentDiffNodes} edges={currentDiffEdges} fitView fitViewOptions={{ padding: 0.2 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag zoomOnScroll>
+                  <Background color="var(--border-subtle)" gap={24} />
+                </ReactFlow>
+              </div>
+            </div>
+            <div className={styles.compareColumn}>
+              <div className={styles.compareCanvasTitle}>v{compareVersion.versionNum} — "{compareVersion.message}"</div>
+              <div className={styles.compareCanvas}>
+                <ReactFlow nodes={versionDiffNodes} edges={versionDiffEdges} fitView fitViewOptions={{ padding: 0.2 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag zoomOnScroll>
+                  <Background color="var(--border-subtle)" gap={24} />
+                </ReactFlow>
+              </div>
+            </div>
+          </div>
+          <div className={styles.compareLists}>
+            <div className={styles.compareListRow}><span className={styles.addedText}>Nodes added ({addedNodeLabels.length}):</span> {addedNodeLabels.length ? addedNodeLabels.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.removedText}>Nodes removed ({removedNodeLabels.length}):</span> {removedNodeLabels.length ? removedNodeLabels.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.changedText}>Edges changed ({changedEdgeLabels.length}):</span> {changedEdgeLabels.length ? changedEdgeLabels.join(', ') : '—'}</div>
+          </div>
+          <div className={styles.compareSummaryBar}>
+            <div className={styles.addedText}>Nodes added: {addedNodeLabels.length}</div>
+            <div className={styles.removedText}>Nodes removed: {removedNodeLabels.length}</div>
+            <div className={styles.changedText}>Edges changed: {changedEdgeLabels.length}</div>
+          </div>
+        </div>
+      ) : null}
+
       <ConfirmDialog
         open={confirmLeaveOpen}
         title="Unsaved changes"
@@ -1013,6 +1808,14 @@ current,
         confirmLabel="Leave"
         onConfirm={handleConfirmLeave}
         onCancel={handleCancelLeave}
+      />
+      <ConfirmDialog
+        open={restoreConfirmOpen}
+        title="Restore version"
+        message="Restore this version? Current unsaved changes will be lost."
+        confirmLabel="Restore"
+        onConfirm={() => void handleConfirmRestore()}
+        onCancel={handleCancelRestore}
       />
     </div>
   );

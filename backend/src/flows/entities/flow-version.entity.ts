@@ -17,6 +17,15 @@ export class FlowVersionEntity {
   @Column({ name: 'published_at', type: 'timestamp', nullable: true })
   publishedAt!: Date | null;
 
+  @Column({ type: 'text', nullable: true })
+  message!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  snapshot!: Record<string, unknown> | null;
+
+  @Column({ name: 'node_count', type: 'integer', nullable: true })
+  nodeCount!: number | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

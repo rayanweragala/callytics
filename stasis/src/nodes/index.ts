@@ -372,6 +372,11 @@ export async function executeNode(
   await publishNodeTelemetry(session, node, 'started');
 
   try {
+    if (node.type === 'group') {
+      // visual-only node — never executed at runtime
+      return 'default';
+    }
+
     const executor = executorMap[node.type];
     if (!executor) {
       console.warn(`Unknown node type: ${node.type}`);

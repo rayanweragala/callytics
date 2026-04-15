@@ -85,6 +85,27 @@ async function flushPromises(count = 8): Promise<void> {
   }
 }
 
+describe('group node handling', () => {
+  it('returns default for visual-only group nodes without attempting executor fallback', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn(),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+    const node: FlowNode = { nodeKey: 'group-1', type: 'group', label: 'Group', config: {} };
+
+    const result = await executeNode(channel, node, createSession(), createAriClient());
+
+    expect(result).toBe('default');
+    expect(channel.play).not.toHaveBeenCalled();
+    expect(channel.hangup).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+});
+
 describe('play_audio executor', () => {
   beforeEach(() => {
     jest.clearAllMocks();

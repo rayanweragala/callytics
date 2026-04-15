@@ -23,6 +23,7 @@
   --color-error-soft: #ff444415;
   --overlay-strong: #000000b8;
   --accent: #00dc82;
+  --accent-rgb: 0, 220, 130;
   --accent-dim: #00dc8220;
   color: var(--text-primary);
   background: var(--bg-base);

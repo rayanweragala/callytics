@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { runSqlMigrations } from '../db/run-sql-migrations';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { CallFlowEntity } from './entities/call-flow.entity';
@@ -23,6 +24,7 @@ interface FlowNodeResponse {
   positionX: number;
   positionY: number;
   config: Record<string, unknown>;
+  groupId: string | null;
 }
 
 interface FlowEdgeResponse {
@@ -46,10 +48,44 @@ interface FlowDetailResponse {
   edges: FlowEdgeResponse[];
 }
 
+interface FlowVersionSnapshot {
+  nodes: Array<{
+    nodeKey: string;
+    type: string;
+    label: string | null;
+    positionX: number;
+    positionY: number;
+    config: Record<string, unknown>;
+    groupId: string | null;
+  }>;
+  edges: Array<{
+    sourceNodeKey: string;
+    targetNodeKey: string;
+    branchKey: string;
+    condition: string | null;
+  }>;
+}
+
+interface FlowVersionSummaryResponse {
+  id: number;
+  flowId: number;
+  versionNum: number;
+  message: string;
+  nodeCount: number;
+  createdAt: string;
+}
+
+interface FlowVersionDetailResponse extends FlowVersionSummaryResponse {
+  snapshot: FlowVersionSnapshot;
+}
+
+const DEFAULT_EDITOR_VERSION_MESSAGE = 'Saved from editor';
+
 @Injectable()
 export class FlowsService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
+    await runSqlMigrations(this.dataSource);
     await this.dataSource.query(
       `ALTER TABLE flow_edges ADD COLUMN IF NOT EXISTS condition VARCHAR(100)`
     );
@@ -133,13 +169,13 @@ export class FlowsService implements OnModuleInit {
       });
       const savedFlow = await manager.save(CallFlowEntity, flow);
 
-      const version = manager.create(FlowVersionEntity, {
-        flowId: savedFlow.id,
-        versionNumber: 1,
-        isPublished: true,
-        publishedAt: new Date(),
-      });
-      const savedVersion = await manager.save(FlowVersionEntity, version);
+      const savedVersion = await this.createStoredVersion(
+        manager,
+        savedFlow.id,
+        1,
+        this.buildSnapshotFromPayload(dto.nodes, dto.edges),
+        dto.versionMessage,
+      );
 
       savedFlow.currentVersionId = savedVersion.id;
       savedFlow.updatedAt = new Date();
@@ -175,13 +211,13 @@ export class FlowsService implements OnModuleInit {
       flow.updatedAt = new Date();
       await manager.save(CallFlowEntity, flow);
 
-      const version = manager.create(FlowVersionEntity, {
-        flowId: flow.id,
-        versionNumber: nextVersionNumber,
-        isPublished: true,
-        publishedAt: new Date(),
-      });
-      const savedVersion = await manager.save(FlowVersionEntity, version);
+      const savedVersion = await this.createStoredVersion(
+        manager,
+        flow.id,
+        nextVersionNumber,
+        this.buildSnapshotFromPayload(dto.nodes, dto.edges),
+        dto.versionMessage,
+      );
 
       flow.currentVersionId = savedVersion.id;
       await manager.save(CallFlowEntity, flow);
@@ -194,6 +230,104 @@ export class FlowsService implements OnModuleInit {
       return {
         data: await this.buildFlowDetail(persistedFlow, persistedVersion, manager),
       };
+    });
+  }
+
+  async listVersions(id: number): Promise<{ data: FlowVersionSummaryResponse[] }> {
+    await this.ensureFlowExists(id);
+    const versions = await this.flowVersionsRepository.find({
+      where: { flowId: id },
+      order: { versionNumber: 'DESC' },
+    });
+
+    return {
+      data: versions
+        .filter((version) => Boolean(version.snapshot && version.nodeCount !== null))
+        .map((version) => this.mapFlowVersionSummary(version)),
+    };
+  }
+
+  async findVersion(id: number, versionId: number): Promise<{ data: FlowVersionDetailResponse }> {
+    await this.ensureFlowExists(id);
+    const version = await this.flowVersionsRepository.findOne({ where: { id: versionId, flowId: id } });
+    if (!version || !version.snapshot || version.nodeCount === null) {
+      throw new NotFoundException(`Flow ${id} version ${versionId} not found`);
+    }
+
+    return { data: this.mapFlowVersionDetail(version) };
+  }
+
+  async createVersion(id: number, message: string): Promise<{ data: FlowVersionSummaryResponse }> {
+    return this.dataSource.transaction(async (manager) => {
+      const flow = await manager.findOne(CallFlowEntity, { where: { id } });
+      if (!flow) {
+        throw new NotFoundException(`Flow ${id} not found`);
+      }
+
+      const snapshot = await this.buildFlowSnapshot(flow, manager);
+      const previousVersion = await manager.findOne(FlowVersionEntity, {
+        where: { flowId: id },
+        order: { versionNumber: 'DESC' },
+      });
+      const nextVersionNumber = (previousVersion?.versionNumber ?? 0) + 1;
+      const saved = await this.createStoredVersion(manager, id, nextVersionNumber, snapshot, message);
+      const persisted = await manager.findOneOrFail(FlowVersionEntity, { where: { id: saved.id } });
+      return { data: this.mapFlowVersionSummary(persisted) };
+    });
+  }
+
+  async restoreVersion(id: number, versionId: number): Promise<{ data: { success: true } }> {
+    return this.dataSource.transaction(async (manager) => {
+      const flow = await manager.findOne(CallFlowEntity, { where: { id } });
+      if (!flow) {
+        throw new NotFoundException(`Flow ${id} not found`);
+      }
+
+      const version = await manager.findOne(FlowVersionEntity, { where: { id: versionId, flowId: id } });
+      if (!version || !version.snapshot) {
+        throw new NotFoundException(`Flow ${id} version ${versionId} not found`);
+      }
+
+      const snapshot = version.snapshot as unknown as FlowVersionSnapshot;
+      const previousVersion = await manager.findOne(FlowVersionEntity, {
+        where: { flowId: id },
+        order: { versionNumber: 'DESC' },
+      });
+      const nextVersionNumber = (previousVersion?.versionNumber ?? 0) + 1;
+      const savedVersion = await this.createStoredVersion(
+        manager,
+        id,
+        nextVersionNumber,
+        snapshot,
+        `Restored from v${version.versionNumber}`,
+      );
+
+      flow.currentVersionId = savedVersion.id;
+      flow.name = flow.name.replace(/ Updated$/, '');
+      flow.updatedAt = new Date();
+      await manager.save(CallFlowEntity, flow);
+
+      await this.saveNodesAndEdges(
+        manager,
+        savedVersion.id,
+        snapshot.nodes.map((node) => ({
+          nodeKey: node.nodeKey,
+          type: node.type,
+          label: node.label ?? undefined,
+          positionX: node.positionX,
+          positionY: node.positionY,
+          config: node.config,
+          groupId: node.groupId,
+        })),
+        snapshot.edges.map((edge) => ({
+          sourceNodeKey: edge.sourceNodeKey,
+          targetNodeKey: edge.targetNodeKey,
+          branchKey: edge.branchKey,
+          condition: edge.condition,
+        })),
+      );
+
+      return { data: { success: true as const } };
     });
   }
 
@@ -233,6 +367,98 @@ export class FlowsService implements OnModuleInit {
     });
   }
 
+  private async ensureFlowExists(id: number): Promise<void> {
+    const flow = await this.callFlowsRepository.findOne({ where: { id } });
+    if (!flow) {
+      throw new NotFoundException(`Flow ${id} not found`);
+    }
+  }
+
+  private async buildFlowSnapshot(
+    flow: CallFlowEntity,
+    manager: DataSource['manager'] = this.dataSource.manager,
+  ): Promise<FlowVersionSnapshot> {
+    const detail = await this.findOne(flow.id);
+    return {
+      nodes: detail.data.nodes.map((node) => ({
+        nodeKey: node.nodeKey,
+        type: node.type,
+        label: node.label,
+        positionX: node.positionX,
+        positionY: node.positionY,
+        config: node.config,
+        groupId: node.groupId,
+      })),
+      edges: detail.data.edges.map((edge) => ({
+        sourceNodeKey: edge.sourceNodeKey,
+        targetNodeKey: edge.targetNodeKey,
+        branchKey: edge.branchKey,
+        condition: edge.condition,
+      })),
+    };
+  }
+
+  private buildSnapshotFromPayload(
+    nodes: CreateFlowDto['nodes'],
+    edges: CreateFlowDto['edges'],
+  ): FlowVersionSnapshot {
+    return {
+      nodes: nodes.map((node) => ({
+        nodeKey: node.nodeKey,
+        type: node.type,
+        label: node.label ?? null,
+        positionX: node.positionX ?? 0,
+        positionY: node.positionY ?? 0,
+        config: node.config ?? {},
+        groupId: node.groupId ?? null,
+      })),
+      edges: edges.map((edge) => ({
+        sourceNodeKey: edge.sourceNodeKey,
+        targetNodeKey: edge.targetNodeKey,
+        branchKey: edge.branchKey ?? 'default',
+        condition: edge.condition ?? null,
+      })),
+    };
+  }
+
+  private async createStoredVersion(
+    manager: DataSource['manager'],
+    flowId: number,
+    versionNumber: number,
+    snapshot: FlowVersionSnapshot,
+    message?: string | null,
+  ): Promise<FlowVersionEntity> {
+    const version = manager.create(FlowVersionEntity, {
+      flowId,
+      versionNumber,
+      isPublished: true,
+      publishedAt: new Date(),
+      message: message?.trim() || DEFAULT_EDITOR_VERSION_MESSAGE,
+      snapshot: snapshot as unknown as Record<string, unknown>,
+      nodeCount: snapshot.nodes.length,
+    });
+
+    return manager.save(FlowVersionEntity, version);
+  }
+
+  private mapFlowVersionSummary(version: FlowVersionEntity): FlowVersionSummaryResponse {
+    return {
+      id: version.id,
+      flowId: Number(version.flowId || 0),
+      versionNum: version.versionNumber,
+      message: String(version.message || ''),
+      nodeCount: Number(version.nodeCount || 0),
+      createdAt: version.createdAt.toISOString(),
+    };
+  }
+
+  private mapFlowVersionDetail(version: FlowVersionEntity): FlowVersionDetailResponse {
+    return {
+      ...this.mapFlowVersionSummary(version),
+      snapshot: version.snapshot as unknown as FlowVersionSnapshot,
+    };
+  }
+
   private async saveNodesAndEdges(
     manager: DataSource['manager'],
     versionId: number,
@@ -248,6 +474,7 @@ export class FlowsService implements OnModuleInit {
         positionX: node.positionX ?? 0,
         positionY: node.positionY ?? 0,
         configJson: node.config ?? {},
+        groupId: node.groupId ?? null,
       }),
     );
     await manager.save(FlowNodeEntity, nodeEntities);
@@ -297,6 +524,7 @@ export class FlowsService implements OnModuleInit {
         positionX: node.positionX,
         positionY: node.positionY,
         config: node.configJson,
+        groupId: node.groupId ?? null,
       })),
       edges: edges.map((edge) => ({
         id: edge.id,

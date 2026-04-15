@@ -18,6 +18,12 @@
   gap: 12px;
 }
 
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .flowNameInput,
 .input {
   background: var(--bg-surface);
@@ -78,6 +84,7 @@
 .canvasPanel {
   padding: 0;
   overflow: hidden;
+  user-select: none;
 }
 
 .canvasWrapper {
@@ -85,6 +92,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  user-select: none;
 }
 
 .panelTitle {
@@ -206,6 +214,183 @@
 
 :global(.react-flow__attribution) {
   display: none;
+}
+
+.versionsPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  transform: translateX(100%);
+  transition: transform 200ms ease;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+.versionsPanelOpen {
+  transform: translateX(0);
+}
+
+.versionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.versionsTitle,
+.compareTitle,
+.compareCanvasTitle {
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+}
+
+.versionsTitle,
+.compareCanvasTitle {
+  font-size: 15px;
+}
+
+.compareTitle {
+  font-size: 14px;
+}
+
+.compareSubhead,
+.versionNum,
+.compareSummaryBar,
+.compareListRow {
+  font-family: 'Space Mono', monospace;
+}
+
+.versionsCommitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.versionNotice {
+  padding: 0 16px 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.versionsList {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.versionItem {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.versionMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.versionNum {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.versionMessage {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.versionActions {
+  display: flex;
+  gap: 8px;
+}
+
+.compareOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-base);
+  z-index: 50;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compareHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compareSubhead {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.compareGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
+}
+
+.compareColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.compareCanvas {
+  min-height: 360px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.compareLists {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.compareSummaryBar {
+  display: flex;
+  gap: 24px;
+  border-top: 1px solid var(--border-default);
+  padding-top: 12px;
+  font-size: 12px;
+}
+
+.addedText {
+  color: var(--accent);
+}
+
+.removedText {
+  color: var(--color-error);
+}
+
+.changedText {
+  color: var(--color-warning);
 }
 
 @media (max-width: 1280px) {

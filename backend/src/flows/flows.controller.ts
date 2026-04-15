@@ -15,6 +15,35 @@ export class FlowsController {
     return this.flowsService.findAll(page, limit);
   }
 
+  @Get(':id/versions/:versionId')
+  findVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionId', ParseIntPipe) versionId: number,
+  ) {
+    return this.flowsService.findVersion(id, versionId);
+  }
+
+  @Get(':id/versions')
+  listVersions(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.listVersions(id);
+  }
+
+  @Post(':id/versions/:versionId/restore')
+  restoreVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionId', ParseIntPipe) versionId: number,
+  ) {
+    return this.flowsService.restoreVersion(id, versionId);
+  }
+
+  @Post(':id/versions')
+  createVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { message: string },
+  ) {
+    return this.flowsService.createVersion(id, body.message);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.flowsService.findOne(id);

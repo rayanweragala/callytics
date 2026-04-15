@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowDetail, FlowSummary, InboundRouteItem, RecordingItem, SipTrunkItem, TrunkTestResult } from '../types';
+import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowDetail, FlowSummary, FlowVersionDetail, FlowVersionSummary, InboundRouteItem, RecordingItem, SipTrunkItem, TrunkTestResult } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001',
@@ -17,6 +17,14 @@ export interface FlowDetailResponse {
   data: FlowDetail;
 }
 
+export interface FlowVersionsResponse {
+  data: FlowVersionSummary[];
+}
+
+export interface FlowVersionDetailResponse {
+  data: FlowVersionDetail;
+}
+
 export interface DeleteFlowResponse {
   data: {
     id: number;
@@ -28,6 +36,7 @@ export interface SaveFlowPayload {
   name: string;
   description?: string;
   slug?: string;
+  versionMessage?: string;
   nodes: Array<{
     nodeKey: string;
     type: string;
@@ -35,6 +44,7 @@ export interface SaveFlowPayload {
     positionX?: number;
     positionY?: number;
     config?: Record<string, unknown>;
+    groupId?: string | null;
   }>;
   edges: Array<{
     sourceNodeKey: string;
@@ -93,6 +103,26 @@ export async function updateFlow(id: string, payload: SaveFlowPayload): Promise<
 
 export async function deleteFlow(id: number): Promise<DeleteFlowResponse> {
   const response = await api.delete<DeleteFlowResponse>(`/flows/${id}`);
+  return response.data;
+}
+
+export async function listFlowVersions(id: number): Promise<FlowVersionsResponse> {
+  const response = await api.get<FlowVersionsResponse>(`/flows/${id}/versions`);
+  return response.data;
+}
+
+export async function getFlowVersion(id: number, versionId: number): Promise<FlowVersionDetailResponse> {
+  const response = await api.get<FlowVersionDetailResponse>(`/flows/${id}/versions/${versionId}`);
+  return response.data;
+}
+
+export async function createFlowVersion(id: number, message: string): Promise<FlowVersionDetailResponse | { data: FlowVersionSummary }> {
+  const response = await api.post<FlowVersionDetailResponse | { data: FlowVersionSummary }>(`/flows/${id}/versions`, { message });
+  return response.data;
+}
+
+export async function restoreFlowVersion(id: number, versionId: number): Promise<{ data: { success: true } }> {
+  const response = await api.post<{ data: { success: true } }>(`/flows/${id}/versions/${versionId}/restore`);
   return response.data;
 }
 

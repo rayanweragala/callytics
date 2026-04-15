@@ -15,6 +15,10 @@ export class UpdateFlowDto {
   @IsString()
   slug?: string;
 
+  @IsOptional()
+  @IsString()
+  versionMessage?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

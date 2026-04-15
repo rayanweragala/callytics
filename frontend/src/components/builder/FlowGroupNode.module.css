@@ -1,0 +1,73 @@
+.group {
+  width: 100%;
+  height: 100%;
+  min-width: 200px;
+  min-height: 150px;
+  border: 1px dashed rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.04);
+  border-radius: 8px;
+  position: relative;
+}
+
+.selected {
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+
+.labelShell {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 24px;
+}
+
+.label,
+.labelInput {
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  color: rgba(var(--accent-rgb), 0.7);
+}
+
+.label {
+  display: inline-flex;
+  min-height: 18px;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.labelInput {
+  width: 100%;
+  max-width: 220px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 6px;
+  padding: 4px 6px;
+  outline: none;
+}
+
+.labelInput::placeholder {
+  color: rgba(var(--accent-rgb), 0.5);
+}
+
+.resizerLine {
+  border-color: rgba(var(--accent-rgb), 0.4) !important;
+}
+
+.resizerHandle {
+  width: 10px !important;
+  height: 10px !important;
+  background: var(--accent) !important;
+  border: 1px solid var(--bg-base) !important;
+  border-radius: 4px !important;
+}
+
+:global(.react-flow__resize-control.handle) {
+  display: none;
+}
+
+:global(.react-flow__resize-control.handle.bottom.right) {
+  display: block;
+}
+
+:global(.react-flow__resize-control.line) {
+  display: none;
+}

@@ -15,6 +15,10 @@ export class CreateFlowDto {
   @IsString()
   slug?: string;
 
+  @IsOptional()
+  @IsString()
+  versionMessage?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
