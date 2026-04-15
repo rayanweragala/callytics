@@ -1,9 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { promises as fs } from 'fs';
-import { join } from 'path';
 import { DataSource, Repository } from 'typeorm';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
+import { runSqlMigrations } from '../db/run-sql-migrations';
 import { CreateExtensionDto } from './dto/create-extension.dto';
 import { UpdateExtensionDto } from './dto/update-extension.dto';
 import { SipExtensionEntity } from './entities/sip-extension.entity';
@@ -26,8 +25,8 @@ export class ExtensionsService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.ensureSchema();
-    await this.rebuildConfig();
+    await runSqlMigrations(this.dataSource);
+    await this.asteriskConfigService.writeExtensionsConfig();
   }
 
   async list(limit = 20, offset = 0): Promise<{ data: ExtensionResponse[]; total: number }> {
@@ -127,18 +126,5 @@ export class ExtensionsService implements OnModuleInit {
   private normalizeOptional(value?: string): string | null {
     const normalized = value?.trim();
     return normalized ? normalized : null;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    const migrationPath = join(process.cwd(), 'src', 'db', 'migrations', '013_phase13_extensions_and_inbound_routes.sql');
-    const sql = await fs.readFile(migrationPath, 'utf8');
-    const statements = sql
-      .split(/;\s*(?:\n|$)/)
-      .map((statement) => statement.trim())
-      .filter(Boolean);
-
-    for (const statement of statements) {
-      await this.dataSource.query(statement);
-    }
   }
 }

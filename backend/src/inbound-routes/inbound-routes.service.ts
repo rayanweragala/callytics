@@ -1,9 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { promises as fs } from 'fs';
-import { join } from 'path';
 import { DataSource, In, Repository } from 'typeorm';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
+import { runSqlMigrations } from '../db/run-sql-migrations';
 import { CallFlowEntity } from '../flows/entities/call-flow.entity';
 import { CreateInboundRouteDto } from './dto/create-inbound-route.dto';
 import { UpdateInboundRouteDto } from './dto/update-inbound-route.dto';
@@ -30,8 +29,9 @@ export class InboundRoutesService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.ensureSchema();
-    await this.rebuildConfig();
+    await runSqlMigrations(this.dataSource);
+    const routes = await this.inboundRoutesRepository.find({ order: { did: 'ASC' } });
+    await this.asteriskConfigService.writeInboundRoutesConfig(routes);
   }
 
   async list(did?: string, limit = 20, offset = 0): Promise<{ data: InboundRouteResponse[]; total: number }> {
@@ -154,18 +154,5 @@ export class InboundRoutesService implements OnModuleInit {
   private normalizeOptional(value?: string): string | null {
     const normalized = value?.trim();
     return normalized ? normalized : null;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    const migrationPath = join(process.cwd(), 'src', 'db', 'migrations', '013_phase13_extensions_and_inbound_routes.sql');
-    const sql = await fs.readFile(migrationPath, 'utf8');
-    const statements = sql
-      .split(/;\s*(?:\n|$)/)
-      .map((statement) => statement.trim())
-      .filter(Boolean);
-
-    for (const statement of statements) {
-      await this.dataSource.query(statement);
-    }
   }
 }
