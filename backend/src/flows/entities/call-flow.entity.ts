@@ -26,6 +26,12 @@ export class CallFlowEntity {
   @Column({ name: 'current_version_id', type: 'integer', nullable: true })
   currentVersionId!: number | null;
 
+  @Column({ name: 'parent_flow_id', type: 'integer', nullable: true })
+  parentFlowId!: number | null;
+
+  @Column({ name: 'parent_node_key', type: 'varchar', length: 64, nullable: true })
+  parentNodeKey!: string | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

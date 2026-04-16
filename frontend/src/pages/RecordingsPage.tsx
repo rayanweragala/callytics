@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
 import { Pagination } from '../components/common/Pagination';
 import { deleteRecording, listRecordings } from '../lib/api';
+import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { RecordingItem } from '../types';
 import styles from './RecordingsPage.module.css';
@@ -16,12 +17,35 @@ function formatDuration(seconds: number | null): string {
 }
 
 export function RecordingsPage() {
+  const [errorText, setErrorText] = useState<string | null>(null);
   const [items, setItems] = useState<RecordingItem[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showError = (msg: string | null) => {
+    setErrorText(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSuccess = (id: number | null) => {
+    setDeletedId(id);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -44,17 +68,15 @@ export function RecordingsPage() {
   const confirmDelete = async (id: number) => {
     try {
       await deleteRecording(id);
-      setDeletedId(id);
+      showSuccess(id);
       setConfirmId(null);
       setActiveId((current) => (current === id ? null : current));
-      window.setTimeout(() => {
-        void load(page, limit);
-        setDeletedId((current) => (current === id ? null : current));
-      }, 1200);
-    } catch {
+      void load(page, limit);
+    } catch (error) {
+      showError(getApiError(error, 'failed to delete recording'));
       setFailedDeleteId(id);
       setConfirmId(null);
-      window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 2000);
+      window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 6000);
     }
   };
 
@@ -117,6 +139,7 @@ export function RecordingsPage() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+        {errorText ? <div className={styles.failedText}>{errorText}</div> : null}
       </section>
     </div>
   );

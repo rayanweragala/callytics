@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { EndpointStatusRow } from '../components/EndpointStatusRow';
-import { LiveDot } from '../components/LiveDot';
+import { useEffect, useState } from 'react';
 import { StatBar } from '../components/StatBar';
+import { SipEndpointsPanel } from '../components/panels/SipEndpointsPanel';
+import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
 import { diagnosticsSocket } from '../lib/socket';
-import { formatRelativeTime } from '../lib/time';
-import type { CallTimelineEvent, DiagnosticsSnapshot, SipEndpointStatus } from '../types';
+import type { DiagnosticsSnapshot, SipEndpointStatus, CallTimelineEvent } from '../types';
 import styles from './DiagnosticsPage.module.css';
 
 const PAGE_SIZE = 10;
@@ -19,13 +18,12 @@ interface LiveExecutionItem {
   events: CallTimelineEvent[];
 }
 
-function nodeTone(event: CallTimelineEvent): string {
-  if (event.status === 'error') return styles.toneError;
-  if (event.nodeType === 'start') return styles.toneActive;
-  if (event.nodeType === 'play_audio') return styles.toneInfo;
-  if (event.nodeType === 'get_digits') return styles.toneWarning;
-  if (event.status === 'completed') return styles.toneCompleted;
-  return styles.toneDefault;
+function requestDiagnosticsList<T>(eventName: string, offset: number): Promise<PaginatedDiagnosticsResult<T>> {
+  return new Promise((resolve) => {
+    diagnosticsSocket.emit(eventName, { limit: PAGE_SIZE, offset }, (response: PaginatedDiagnosticsResult<T>) => {
+      resolve(response);
+    });
+  });
 }
 
 function hasEnded(events: CallTimelineEvent[]): boolean {
@@ -47,21 +45,6 @@ function isLiveCall(events: CallTimelineEvent[]): boolean {
   }
 
   return !hasEnded(events);
-}
-
-function finalStatus(events: CallTimelineEvent[]): string {
-  if (events.length === 0) return 'unknown';
-  const lastEvent = events[events.length - 1];
-  if (lastEvent.status === 'error') return 'failed';
-  return hasEnded(events) ? 'completed' : 'live';
-}
-
-function requestDiagnosticsList<T>(eventName: string, offset: number): Promise<PaginatedDiagnosticsResult<T>> {
-  return new Promise((resolve) => {
-    diagnosticsSocket.emit(eventName, { limit: PAGE_SIZE, offset }, (response: PaginatedDiagnosticsResult<T>) => {
-      resolve(response);
-    });
-  });
 }
 
 export function DiagnosticsPage() {
@@ -215,11 +198,6 @@ export function DiagnosticsPage() {
     });
   }, [interactedCalls, liveCalls]);
 
-  const endpointRows = useMemo(
-    () => sipStatuses.map((endpoint) => <EndpointStatusRow endpoint={endpoint} key={endpoint.endpoint} />),
-    [sipStatuses],
-  );
-
   const liveTotalPages = Math.max(1, Math.ceil(liveTotal / PAGE_SIZE));
   const sipTotalPages = Math.max(1, Math.ceil(sipTotal / PAGE_SIZE));
 
@@ -238,93 +216,20 @@ export function DiagnosticsPage() {
     <div className={styles.page}>
       <StatBar metrics={snapshot.metrics} />
       <div className={styles.grid}>
-        <section className={styles.panel}>
-          <div className={styles.header}>
-            <div className={styles.title}>sip endpoints</div>
-          </div>
-          <div className={styles.panelBody}>
-            <div className={styles.endpointTable}>
-              {endpointRows.length === 0 ? <div className={styles.empty}>Waiting for endpoint data...</div> : endpointRows}
-            </div>
-          </div>
-          <div className={styles.paginationFooter}>
-            <button className={styles.paginationButton} disabled={sipPage <= 0} onClick={() => setSipPage((current) => Math.max(0, current - 1))} type="button">
-              ← Newer
-            </button>
-            <div className={styles.pageIndicator}>{sipPage + 1} / {sipTotalPages}</div>
-            <button className={styles.paginationButton} disabled={sipPage >= sipTotalPages - 1} onClick={() => setSipPage((current) => Math.min(sipTotalPages - 1, current + 1))} type="button">
-              Older →
-            </button>
-          </div>
-        </section>
-        <section className={styles.panel}>
-          <div className={styles.header}>
-            <div className={styles.title}>live execution</div>
-            <div className={styles.live}><LiveDot active />LIVE</div>
-          </div>
-          <div className={styles.panelBody}>
-            {liveCalls.length === 0 ? (
-              <div className={styles.empty}>Waiting for calls...</div>
-            ) : (
-              <div className={styles.groups}>
-                {liveCalls.map(({ callId, events }) => {
-                  const expanded = Boolean(expandedCalls[callId]);
-                  const live = isLiveCall(events);
-                  const status = finalStatus(events);
-                  const lastEvent = events[events.length - 1];
-                  const caller = String(lastEvent?.meta.callerNumber || 'unknown');
-
-                  return (
-                    <div className={styles.callCard} key={callId}>
-                      <button className={styles.callHeader} onClick={() => toggleCall(callId)} type="button">
-                        <div className={styles.summaryLeft}>
-                          <div className={styles.callId}>{callId}</div>
-                          <div className={styles.caller}>from {caller}</div>
-                          {live ? (
-                            <div className={styles.liveCall}><LiveDot active />LIVE</div>
-                          ) : null}
-                        </div>
-                        <div className={styles.summaryRight}>
-                          <div className={styles.finalStatus}>{status}</div>
-                          <div className={styles.time} title={new Date(lastEvent?.ts || Date.now()).toISOString()}>
-                            {lastEvent ? formatRelativeTime(lastEvent.ts) : '—'}
-                          </div>
-                          <div className={styles.expandIndicator}>{expanded ? '−' : '+'}</div>
-                        </div>
-                      </button>
-
-                      {expanded ? (
-                        <div className={styles.rail}>
-                          {events.map((event) => (
-                            <div className={styles.entry} key={`${event.callId}-${event.nodeId}-${event.status}-${event.ts}`}>
-                              <div className={`${styles.marker} ${nodeTone(event)}`} />
-                              <div className={styles.content}>
-                                <div className={styles.node}>{event.nodeType}</div>
-                                <div className={styles.status}>{event.status}</div>
-                              </div>
-                              <div className={styles.time} title={new Date(event.ts).toISOString()}>
-                                {formatRelativeTime(event.ts)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className={styles.paginationFooter}>
-            <button className={styles.paginationButton} disabled={page <= 0} onClick={() => setPage((current) => Math.max(0, current - 1))} type="button">
-              ← Newer
-            </button>
-            <div className={styles.pageIndicator}>{page + 1} / {liveTotalPages}</div>
-            <button className={styles.paginationButton} disabled={page >= liveTotalPages - 1} onClick={() => setPage((current) => Math.min(liveTotalPages - 1, current + 1))} type="button">
-              Older →
-            </button>
-          </div>
-        </section>
+        <SipEndpointsPanel
+          sipStatuses={sipStatuses}
+          page={sipPage}
+          totalPages={sipTotalPages}
+          onPageChange={setSipPage}
+        />
+        <LiveExecutionPanel
+          liveCalls={liveCalls}
+          liveTotal={liveTotal}
+          page={page}
+          setPage={setPage}
+          expandedCalls={expandedCalls}
+          toggleCall={toggleCall}
+        />
       </div>
     </div>
   );

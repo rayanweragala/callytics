@@ -170,7 +170,13 @@ describe('play_audio executor', () => {
   });
 });
 
-describe('get_digits executor', () => {
+describe.each([
+  {
+    suite: 'get_digits',
+    type: 'get_digits',
+    config: { prompt_audio_file_id: 1, timeout_ms: 5000 },
+  },
+])('$suite executor', ({ type, config }) => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
@@ -193,7 +199,7 @@ describe('get_digits executor', () => {
       play: jest.fn().mockResolvedValue(undefined),
       hangup: jest.fn().mockResolvedValue(undefined),
     };
-    const node: FlowNode = { nodeKey: 'node-1', type: 'get_digits', label: 'Digits', config: { prompt_audio_file_id: 1, timeout_ms: 5000 } };
+    const node: FlowNode = { nodeKey: 'node-1', type, label: 'Digits', config };
 
     const promise = executeNode(channel, node, session, ariClient);
     await Promise.resolve();
@@ -202,7 +208,7 @@ describe('get_digits executor', () => {
     await Promise.resolve();
     await jest.advanceTimersByTimeAsync(250);
 
-    await expect(promise).resolves.toBe('3');
+    await expect(promise).resolves.toBe(type === 'menu' ? 'invalid' : '3');
     expect(channel.play).toHaveBeenCalledWith({ media: 'sound:callytics/prompt' }, playback);
     expect(ariClient.on).toHaveBeenCalledWith('ChannelDtmfReceived', expect.any(Function));
     expect(playback.stop).toHaveBeenCalled();
@@ -219,11 +225,178 @@ describe('get_digits executor', () => {
       play: jest.fn().mockResolvedValue(undefined),
       hangup: jest.fn().mockResolvedValue(undefined),
     };
-    const node: FlowNode = { nodeKey: 'node-1', type: 'get_digits', label: 'Digits', config: { prompt_audio_file_id: 1, timeout_ms: 5000 } };
+    const node: FlowNode = { nodeKey: 'node-1', type, label: 'Digits', config };
 
     const promise = executeNode(channel, node, session, ariClient);
     await jest.advanceTimersByTimeAsync(5250);
     await expect(promise).resolves.toBe('timeout');
+  });
+
+  it('returns hangup and stops playback when the caller hangs up mid-prompt',async() => {
+  const session = createSession();
+  session.inboundBridge = null;
+
+  const ariClient = createAriClient();
+  const playback = { id: 'playback-1',stop: jest.fn().mockResolvedValue(undefined)};
+    (ariClient.Playback as jest.Mock).mockReturnValue(playback);
+
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockResolvedValue(undefined),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    }
+
+    const node: FlowNode = {
+      nodeKey: 'node-1',
+      type: 'get_digits',
+      label: 'Digits',
+      config: {prompt_audio_file_id: 1, timeout_ms: 5000},
+    };
+
+    const promise = executeNode(channel,node,session,ariClient);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    ariClient.emit('StasisEnd',{channel: {id:'channel-1'}});
+    await flushPromises();
+
+    await expect(promise).resolves.toBe('hangup');
+
+    expect(playback.stop).toHaveBeenCalled();
+  });
+});
+
+describe('menu retry behavior', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    resolveAudioMediaPathMock.mockImplementation(async (_config, idField) => `callytics/${idField}`);
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it('plays invalid prompt and retries the same menu until a valid digit is pressed', async () => {
+    const session = createSession();
+    session.inboundBridge = null;
+    const ariClient = createAriClient();
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockResolvedValue(undefined),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+    const node: FlowNode = {
+      nodeKey: 'menu-1',
+      type: 'menu',
+      label: 'Main Menu',
+      config: {
+        prompt_audio_file_id: 1,
+        timeout_prompt_audio_id: 11,
+        invalid_prompt_audio_id: 12,
+        final_failure_audio_id: 13,
+        timeout_ms: 5000,
+        max_timeout_attempts: 3,
+        max_invalid_attempts: 3,
+        branches: ['1', '2'],
+      },
+    };
+
+    const promise = executeNode(channel, node, session, ariClient);
+    await flushPromises(20);
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '9' });
+    await flushPromises(20);
+    await jest.advanceTimersByTimeAsync(0);
+    await flushPromises(20);
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '1' });
+    await flushPromises(20);
+    await expect(promise).resolves.toBe('1');
+
+    expect(channel.play).toHaveBeenCalledWith({ media: 'sound:callytics/invalid_prompt_audio_id' }, expect.anything());
+    expect(channel.play).toHaveBeenCalledWith({ media: 'sound:callytics/prompt_audio_file_id' }, expect.anything());
+    expect(session.variables['menu:1:menu-1:invalid_count']).toBeUndefined();
+  });
+
+  it('hangs up after the third timeout and plays the final failure prompt', async () => {
+    const session = createSession();
+    session.inboundBridge = null;
+    const ariClient = createAriClient();
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockResolvedValue(undefined),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+    const node: FlowNode = {
+      nodeKey: 'menu-1',
+      type: 'menu',
+      label: 'Main Menu',
+      config: {
+        prompt_audio_file_id: 1,
+        timeout_prompt_audio_id: 11,
+        invalid_prompt_audio_id: 12,
+        final_failure_audio_id: 13,
+        timeout_ms: 5000,
+        max_timeout_attempts: 3,
+        max_invalid_attempts: 3,
+        branches: ['1', '2'],
+      },
+    };
+
+    const promise = executeNode(channel, node, session, ariClient);
+    await jest.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+    await jest.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+    await jest.advanceTimersByTimeAsync(5000);
+    await flushPromises();
+
+    await expect(promise).resolves.toBe('hangup');
+    expect(channel.play).toHaveBeenCalledWith({ media: 'sound:callytics/final_failure_audio_id' }, expect.anything());
+    expect(session.variables['menu:1:menu-1:timeout_count']).toBeUndefined();
+  });
+
+  it('hangs up after the third invalid digit and plays the final failure prompt', async () => {
+    const session = createSession();
+    session.inboundBridge = null;
+    const ariClient = createAriClient();
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockResolvedValue(undefined),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+    const node: FlowNode = {
+      nodeKey: 'menu-1',
+      type: 'menu',
+      label: 'Main Menu',
+      config: {
+        prompt_audio_file_id: 1,
+        timeout_prompt_audio_id: 11,
+        invalid_prompt_audio_id: 12,
+        final_failure_audio_id: 13,
+        timeout_ms: 5000,
+        max_timeout_attempts: 3,
+        max_invalid_attempts: 3,
+        branches: ['1', '2'],
+      },
+    };
+
+    const promise = executeNode(channel, node, session, ariClient);
+    await flushPromises(20);
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '9' });
+    await flushPromises(20);
+    await jest.advanceTimersByTimeAsync(0);
+    await flushPromises(20);
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '8' });
+    await flushPromises(20);
+    await jest.advanceTimersByTimeAsync(0);
+    await flushPromises(20);
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '7' });
+    await flushPromises(20);
+
+    await expect(promise).resolves.toBe('hangup');
+    expect(channel.play).toHaveBeenCalledWith({ media: 'sound:callytics/final_failure_audio_id' }, expect.anything());
+    expect(session.variables['menu:1:menu-1:invalid_count']).toBeUndefined();
   });
 });
 
@@ -448,3 +621,4 @@ describe('hangup executor', () => {
     expect(result).toBe('done');
   });
 });
+

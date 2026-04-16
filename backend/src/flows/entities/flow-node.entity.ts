@@ -29,6 +29,9 @@ export class FlowNodeEntity {
   @Column({ name: 'group_id', type: 'text', nullable: true, default: null })
   groupId!: string | null;
 
+  @Column({ name: 'subflow_id', type: 'integer', nullable: true, default: null })
+  subflowId!: number | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

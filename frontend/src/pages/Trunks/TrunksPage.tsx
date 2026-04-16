@@ -2,6 +2,7 @@ import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react
 import { SearchableSelect, type SearchableSelectOption } from '../../components/common/SearchableSelect';
 import { Pagination } from '../../components/common/Pagination';
 import { createTrunk, deleteTrunk, listTrunks, testTrunk, updateTrunk } from '../../lib/api';
+import { getApiError } from '../../lib/apiError';
 import { formatDateTime } from '../../lib/time';
 import type { SipTrunkItem, TrunkTestResult } from '../../types';
 import styles from './TrunksPage.module.css';
@@ -102,6 +103,7 @@ export function TrunksPage() {
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const badgeTimersRef = useRef<Record<number, number>>({});
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -122,22 +124,29 @@ export function TrunksPage() {
 
   useEffect(() => () => {
     Object.values(badgeTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
   }, []);
 
+  const showError = (msg: string | null) => {
+    setErrorText(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
   const resetMessages = () => {
-    setErrorText(null);
+    showError(null);
   };
 
   const hideCreate = () => {
     setCreateOpen(false);
     setCreateForm(emptyForm);
-    setErrorText(null);
+    showError(null);
   };
 
   const hideEdit = () => {
     setEditingId(null);
     setEditForm(emptyForm);
-    setErrorText(null);
+    showError(null);
   };
 
   const openCreate = () => {
@@ -162,6 +171,7 @@ export function TrunksPage() {
     value: string | null,
     mode: 'create' | 'edit',
   ) => {
+    resetMessages();
     const nextPreset = value || 'generic';
     const preset = PROVIDER_PRESETS[nextPreset as keyof typeof PROVIDER_PRESETS] || PROVIDER_PRESETS.generic;
     const update = (current: TrunkFormState): TrunkFormState => ({
@@ -208,7 +218,7 @@ export function TrunksPage() {
       setOffset(0);
       await load(limit, 0);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to create trunk');
+      showError(getApiError(error, 'failed to create trunk'));
     } finally {
       setBusyKey(null);
     }
@@ -233,7 +243,7 @@ export function TrunksPage() {
       hideEdit();
       await load(limit, offset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to update trunk');
+      showError(getApiError(error, 'failed to update trunk'));
     } finally {
       setBusyKey(null);
     }
@@ -252,7 +262,7 @@ export function TrunksPage() {
       setOffset(nextOffset);
       await load(limit, nextOffset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to delete trunk');
+      showError(getApiError(error, 'failed to delete trunk'));
     } finally {
       setBusyKey(null);
     }
@@ -265,7 +275,7 @@ export function TrunksPage() {
       await updateTrunk(item.id, { enabled: !item.enabled });
       await load(limit, offset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to update trunk status');
+      showError(getApiError(error, 'failed to update trunk status'));
     } finally {
       setBusyKey(null);
     }
@@ -288,7 +298,7 @@ export function TrunksPage() {
         });
       }, 8000);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to test trunk');
+      showError(getApiError(error, 'failed to test trunk'));
     } finally {
       setBusyKey(null);
     }
@@ -328,7 +338,10 @@ export function TrunksPage() {
           <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>trunk name</span>
-              <input className={styles.input} required value={createForm.name} onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))} />
+              <input className={styles.input} required value={createForm.name} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, name: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>provider preset</span>
@@ -336,30 +349,48 @@ export function TrunksPage() {
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>host</span>
-              <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(createForm.providerPreset)} required value={createForm.host} onChange={(event) => setCreateForm((current) => ({ ...current, host: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(createForm.providerPreset)} required value={createForm.host} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, host: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>port</span>
-              <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={createForm.port} onChange={(event) => setCreateForm((current) => ({ ...current, port: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={createForm.port} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, port: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>username</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => setCreateForm((current) => ({ ...current, username: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, username: event.target.value }));
+              }} />
               <span className={styles.helper}>Leave blank for providers that don't require SIP registration (some local carriers).</span>
             </label>
             {createForm.username.trim() ? (
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>password</span>
-                <input className={`${styles.input} ${styles.dataMono}`} type="password" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} />
+                <input className={`${styles.input} ${styles.dataMono}`} type="password" value={createForm.password} onChange={(event) => {
+                  resetMessages();
+                  setCreateForm((current) => ({ ...current, password: event.target.value }));
+                }} />
               </label>
             ) : null}
             <label className={styles.field}>
               <span className={styles.fieldLabel}>from domain</span>
-              <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={createForm.fromDomain} onChange={(event) => setCreateForm((current) => ({ ...current, fromDomain: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={createForm.fromDomain} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, fromDomain: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>from user</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.fromUser} onChange={(event) => setCreateForm((current) => ({ ...current, fromUser: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.fromUser} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, fromUser: event.target.value }));
+              }} />
             </label>
             <div className={styles.formActions}>
               <button className={styles.secondaryButton} onClick={hideCreate} type="button">cancel</button>
@@ -425,7 +456,10 @@ export function TrunksPage() {
                 <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>trunk name</span>
-                    <input className={styles.input} required value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
+                    <input className={styles.input} required value={editForm.name} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, name: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>provider preset</span>
@@ -433,30 +467,48 @@ export function TrunksPage() {
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>host</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(editForm.providerPreset)} required value={editForm.host} onChange={(event) => setEditForm((current) => ({ ...current, host: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(editForm.providerPreset)} required value={editForm.host} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, host: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>port</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={editForm.port} onChange={(event) => setEditForm((current) => ({ ...current, port: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={editForm.port} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, port: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>username</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => setEditForm((current) => ({ ...current, username: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, username: event.target.value }));
+                    }} />
                     <span className={styles.helper}>Leave blank for providers that don't require SIP registration (some local carriers).</span>
                   </label>
                   {editForm.username.trim() ? (
                     <label className={styles.field}>
                       <span className={styles.fieldLabel}>password</span>
-                      <input className={`${styles.input} ${styles.dataMono}`} type="password" value={editForm.password} onChange={(event) => setEditForm((current) => ({ ...current, password: event.target.value }))} />
+                      <input className={`${styles.input} ${styles.dataMono}`} type="password" value={editForm.password} onChange={(event) => {
+                        resetMessages();
+                        setEditForm((current) => ({ ...current, password: event.target.value }));
+                      }} />
                     </label>
                   ) : null}
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>from domain</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={editForm.fromDomain} onChange={(event) => setEditForm((current) => ({ ...current, fromDomain: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={editForm.fromDomain} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, fromDomain: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>from user</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.fromUser} onChange={(event) => setEditForm((current) => ({ ...current, fromUser: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.fromUser} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, fromUser: event.target.value }));
+                    }} />
                   </label>
                   <div className={styles.formActions}>
                     <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>

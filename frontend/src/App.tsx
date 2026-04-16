@@ -9,6 +9,9 @@ import { FlowsPage } from './pages/FlowsPage';
 import { InboundRoutesPage } from './pages/InboundRoutesPage';
 import { RecordingsPage } from './pages/RecordingsPage';
 import { TrunksPage } from './pages/Trunks/TrunksPage';
+import { CallLogsPage } from './pages/CallLogsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
   return (
@@ -24,6 +27,9 @@ export default function App() {
           <Route path="/flows/:id" element={<FlowEditorPage />} />
           <Route path="/inbound" element={<InboundRoutesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
+          <Route path="/call-logs" element={<CallLogsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
     </div>

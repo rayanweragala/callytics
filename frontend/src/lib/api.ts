@@ -1,8 +1,8 @@
 import axios from 'axios';
-import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowDetail, FlowSummary, FlowVersionDetail, FlowVersionSummary, InboundRouteItem, RecordingItem, SipTrunkItem, TrunkTestResult } from '../types';
+import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowBreadcrumbItem, FlowDetail, FlowSummary, FlowTree, FlowVersionDetail, FlowVersionSummary, InboundRouteItem, RecordingItem, SipTrunkItem, TrunkTestResult } from '../types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
 });
 
 export interface PaginatedResponse<T> {
@@ -19,6 +19,14 @@ export interface FlowDetailResponse {
 
 export interface FlowVersionsResponse {
   data: FlowVersionSummary[];
+}
+
+export interface FlowBreadcrumbResponse {
+  data: FlowBreadcrumbItem[];
+}
+
+export interface FlowTreeResponse {
+  data: FlowTree;
 }
 
 export interface FlowVersionDetailResponse {
@@ -45,6 +53,7 @@ export interface SaveFlowPayload {
     positionY?: number;
     config?: Record<string, unknown>;
     groupId?: string | null;
+    subflowId?: number | null;
   }>;
   edges: Array<{
     sourceNodeKey: string;
@@ -88,6 +97,16 @@ export async function listFlows(page = 1, limit = 5): Promise<PaginatedResponse<
 
 export async function getFlow(id: string): Promise<FlowDetailResponse> {
   const response = await api.get<FlowDetailResponse>(`/flows/${id}`);
+  return response.data;
+}
+
+export async function getFlowBreadcrumb(id: number): Promise<FlowBreadcrumbResponse> {
+  const response = await api.get<FlowBreadcrumbResponse>(`/flows/${id}/breadcrumb`);
+  return response.data;
+}
+
+export async function getFlowTree(id: number): Promise<FlowTreeResponse> {
+  const response = await api.get<FlowTreeResponse>(`/flows/${id}/tree`);
   return response.data;
 }
 

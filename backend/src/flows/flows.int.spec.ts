@@ -27,6 +27,29 @@ function createGroupedFlowPayload(name = 'Grouped Flow') {
   };
 }
 
+function createMenuFlowPayload(name = 'Menu Flow') {
+  return {
+    name,
+    description: 'Integration test flow with menu group',
+    nodes: [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      {
+        nodeKey: 'menu-1',
+        type: 'menu',
+        label: 'Main Menu',
+        positionX: 120,
+        positionY: 0,
+        config: {
+          timeout_ms: 5000,
+          branches: ['1', 'timeout', 'invalid'],
+          prompt_audio_file_id: '',
+        },
+      },
+    ],
+    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null }],
+  };
+}
+
 describe('Flows API', () => {
   afterAll(async () => {
     await closeApp();
@@ -123,6 +146,105 @@ describe('Flows API', () => {
       expect.objectContaining({ nodeKey: 'start', groupId: 'group-1' }),
       expect.objectContaining({ nodeKey: 'hangup', groupId: 'group-1' }),
     ]));
+  });
+
+  it('auto-creates a menu subflow on save and exposes breadcrumb ancestry', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createMenuFlowPayload());
+
+    expect(created.status).toBe(201);
+    const menuNode = created.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-1');
+    expect(menuNode).toEqual(expect.objectContaining({
+      nodeKey: 'menu-1',
+      type: 'menu',
+      subflowId: expect.any(Number),
+    }));
+
+    const subflowId = Number(menuNode.subflowId);
+    const subflow = await request(app.getHttpServer()).get(`/flows/${subflowId}`);
+
+    expect(subflow.status).toBe(200);
+    expect(subflow.body.data).toEqual(expect.objectContaining({
+      id: subflowId,
+      parentFlowId: created.body.data.id,
+      parentNodeKey: 'menu-1',
+      nodes: expect.arrayContaining([
+        expect.objectContaining({ nodeKey: 'start', type: 'start' }),
+      ]),
+    }));
+
+    const breadcrumb = await request(app.getHttpServer()).get(`/flows/${subflowId}/breadcrumb`);
+
+    expect(breadcrumb.status).toBe(200);
+    expect(breadcrumb.body.data).toEqual([
+      { flowId: created.body.data.id, flowName: created.body.data.name },
+      { flowId: subflowId, flowName: subflow.body.data.name },
+    ]);
+  });
+
+  it('GET /flows/:id/tree returns the nested menu subflow hierarchy from the root flow', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createMenuFlowPayload('Tree Root'));
+
+    expect(created.status).toBe(201);
+    const firstMenuNode = created.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-1');
+    const firstSubflowId = Number(firstMenuNode?.subflowId || 0);
+    expect(firstSubflowId).toBeGreaterThan(0);
+
+    const childFlowResponse = await request(app.getHttpServer()).get(`/flows/${firstSubflowId}`);
+    expect(childFlowResponse.status).toBe(200);
+
+    const childUpdate = await request(app.getHttpServer())
+      .put(`/flows/${firstSubflowId}`)
+      .send({
+        name: 'Main Menu Subflow',
+        description: 'Nested menu child',
+        slug: childFlowResponse.body.data.slug,
+        parentFlowId: childFlowResponse.body.data.parentFlowId,
+        parentNodeKey: childFlowResponse.body.data.parentNodeKey,
+        nodes: [
+          { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+          {
+            nodeKey: 'menu-2',
+            type: 'menu',
+            label: 'HR Menu',
+            positionX: 160,
+            positionY: 0,
+            config: { timeout_ms: 5000, branches: ['1', 'timeout', 'invalid'] },
+          },
+        ],
+        edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-2', branchKey: 'default', condition: null }],
+      });
+
+    expect(childUpdate.status).toBe(200);
+    const nestedMenuNode = childUpdate.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-2');
+    const nestedSubflowId = Number(nestedMenuNode?.subflowId || 0);
+    expect(nestedSubflowId).toBeGreaterThan(0);
+
+    const treeResponse = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}/tree`);
+
+    expect(treeResponse.status).toBe(200);
+    expect(treeResponse.body.data).toEqual({
+      id: created.body.data.id,
+      name: 'Tree Root',
+      children: [
+        {
+          nodeKey: 'menu-1',
+          nodeLabel: 'Main Menu',
+          subflowId: firstSubflowId,
+          name: childUpdate.body.data.name,
+          children: [
+            {
+              nodeKey: 'menu-2',
+              nodeLabel: 'HR Menu',
+              subflowId: nestedSubflowId,
+              name: expect.any(String),
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it('DELETE /flows/:id returns 200 and subsequent GET returns 404', async () => {

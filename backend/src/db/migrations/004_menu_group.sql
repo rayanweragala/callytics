@@ -1,0 +1,8 @@
+ALTER TABLE flow_nodes
+  ADD COLUMN IF NOT EXISTS subflow_id INTEGER REFERENCES call_flows(id) ON DELETE SET NULL;
+
+ALTER TABLE call_flows
+  ADD COLUMN IF NOT EXISTS parent_flow_id INTEGER REFERENCES call_flows(id) ON DELETE SET NULL;
+
+ALTER TABLE call_flows
+  ADD COLUMN IF NOT EXISTS parent_node_key VARCHAR(64);

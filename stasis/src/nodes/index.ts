@@ -4,6 +4,7 @@ import { resolveAudioMediaPath } from '../audioResolver';
 import { publishNodeTelemetry } from '../telemetry';
 import { registerTransferWaiter } from '../transferManager';
 import { executeHunt } from './hunt.executor';
+import { executeMenu } from '../executors/menu.executor';
 
 type PlaybackTarget =
   | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void> }
@@ -355,6 +356,7 @@ const executorMap: Record<string, NodeExecutor> = {
   start: async () => executeStart(),
   play_audio: executePlayAudio,
   get_digits: executeGetDigits,
+  menu: executeMenu,
   branch: async () => executeBranch(),
   transfer: executeTransfer,
   hunt: executeHunt,

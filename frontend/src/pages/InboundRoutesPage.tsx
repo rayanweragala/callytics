@@ -1,7 +1,8 @@
-import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
+import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { Pagination } from '../components/common/Pagination';
 import { createInboundRoute, deleteInboundRoute, listFlows, listInboundRoutes, updateInboundRoute } from '../lib/api';
+import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { FlowSummary, InboundRouteItem } from '../types';
 import styles from './InboundRoutesPage.module.css';
@@ -32,6 +33,20 @@ export function InboundRoutesPage() {
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showError = (msg: string | null) => {
+    setErrorText(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
+  const showSuccess = (id: number | null) => {
+    setDeletedId(id);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+  };
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -52,9 +67,14 @@ export function InboundRoutesPage() {
     void load(limit, offset);
   }, [limit, offset]);
 
+  useEffect(() => () => {
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+  }, []);
+
   const resetMessages = () => {
-    setErrorText(null);
-    setDeletedId(null);
+    showError(null);
+    showSuccess(null);
   };
 
   const handleCreate = async (event: FormEvent) => {
@@ -72,7 +92,7 @@ export function InboundRoutesPage() {
       setOffset(0);
       await load(limit, 0);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to create route');
+      showError(getApiError(error, 'failed to create route'));
     } finally {
       setBusyKey(null);
     }
@@ -105,7 +125,7 @@ export function InboundRoutesPage() {
       setEditForm(emptyForm);
       await load(limit, offset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to update route');
+      showError(getApiError(error, 'failed to update route'));
     } finally {
       setBusyKey(null);
     }
@@ -117,7 +137,7 @@ export function InboundRoutesPage() {
     try {
       await deleteInboundRoute(id);
       setConfirmDeleteId(null);
-      setDeletedId(id);
+      showSuccess(id);
       if (editingId === id) {
         setEditingId(null);
       }
@@ -125,7 +145,7 @@ export function InboundRoutesPage() {
       setOffset(nextOffset);
       await load(limit, nextOffset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to delete route');
+      showError(getApiError(error, 'failed to delete route'));
     } finally {
       setBusyKey(null);
     }
@@ -157,15 +177,24 @@ export function InboundRoutesPage() {
           <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>did</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.did} onChange={(event) => setCreateForm((current) => ({ ...current, did: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.did} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, did: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>label</span>
-              <input className={styles.input} value={createForm.label} onChange={(event) => setCreateForm((current) => ({ ...current, label: event.target.value }))} />
+              <input className={styles.input} value={createForm.label} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, label: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>flow</span>
-              <SearchableSelect options={flowOptions} placeholder="select flow" value={createForm.flowId || null} onChange={(value) => setCreateForm((current) => ({ ...current, flowId: value || '' }))} />
+              <SearchableSelect options={flowOptions} placeholder="select flow" value={createForm.flowId || null} onChange={(value) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, flowId: value || '' }));
+              }} />
             </label>
             <div className={styles.formActions}>
               <button className={styles.primaryButton} disabled={!createForm.flowId} type="submit">{busyKey === 'create' ? 'saving…' : 'save route'}</button>
@@ -214,15 +243,24 @@ export function InboundRoutesPage() {
                 <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>did</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.did} onChange={(event) => setEditForm((current) => ({ ...current, did: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.did} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, did: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>label</span>
-                    <input className={styles.input} value={editForm.label} onChange={(event) => setEditForm((current) => ({ ...current, label: event.target.value }))} />
+                    <input className={styles.input} value={editForm.label} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, label: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>flow</span>
-                    <SearchableSelect options={flowOptions} placeholder="select flow" value={editForm.flowId || null} onChange={(value) => setEditForm((current) => ({ ...current, flowId: value || '' }))} />
+                    <SearchableSelect options={flowOptions} placeholder="select flow" value={editForm.flowId || null} onChange={(value) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, flowId: value || '' }));
+                    }} />
                   </label>
                   <div className={styles.formActions}>
                     <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>

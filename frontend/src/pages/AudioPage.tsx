@@ -1,14 +1,16 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createTts, deleteAudio, listAudio, listAudioVoices, previewTts as requestTtsPreview, uploadAudio } from '../lib/api';
+import { getApiError } from '../lib/apiError';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
 import { AudioUploadZone } from '../components/audio/AudioUploadZone';
 import { Pagination } from '../components/common/Pagination';
+import { PageLayout } from '../components/common/PageLayout';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { formatDateTime } from '../lib/time';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
 import styles from './AudioPage.module.css';
 
-const backendBase = 'http://localhost:3001';
+const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
 type PreviewState = 'idle' | 'busy' | 'failed';
 
@@ -33,6 +35,9 @@ function humanizeVoice(id: string): string {
 export function AudioPage() {
   const uploadTimerRef = useRef<number | null>(null);
   const ttsTimerRef = useRef<number | null>(null);
+  const previewErrorTimerRef = useRef<number | null>(null);
+  const deletedTimerRef = useRef<number | null>(null);
+  const failedDeleteTimerRef = useRef<number | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const [items, setItems] = useState<AudioFileItem[]>([]);
   const [voices, setVoices] = useState<AudioVoiceItem[]>([]);
@@ -65,6 +70,14 @@ export function AudioPage() {
     setPreviewUrl(null);
   };
 
+  const showPreviewError = (msg: string | null) => {
+    setPreviewError(msg);
+    if (previewErrorTimerRef.current) window.clearTimeout(previewErrorTimerRef.current);
+    if (msg) {
+      previewErrorTimerRef.current = window.setTimeout(() => setPreviewError(null), 6000);
+    }
+  };
+
   const resetLater = (kind: 'upload' | 'tts') => {
     const timerRef = kind === 'upload' ? uploadTimerRef : ttsTimerRef;
     if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -76,7 +89,20 @@ export function AudioPage() {
         setTtsState('idle');
         setTtsError(null);
       }
-    }, 3000);
+    }, 6000);
+  };
+
+  const clearUploadFeedback = () => {
+    if (uploadTimerRef.current) window.clearTimeout(uploadTimerRef.current);
+    setUploadError(null);
+    setUploadState('idle');
+  };
+
+  const clearTtsFeedback = () => {
+    if (ttsTimerRef.current) window.clearTimeout(ttsTimerRef.current);
+    setTtsError(null);
+    setTtsState('idle');
+    showPreviewError(null);
   };
 
   const load = async (nextPage = page, nextLimit = limit) => {
@@ -96,6 +122,9 @@ export function AudioPage() {
     return () => {
       if (uploadTimerRef.current) window.clearTimeout(uploadTimerRef.current);
       if (ttsTimerRef.current) window.clearTimeout(ttsTimerRef.current);
+      if (previewErrorTimerRef.current) window.clearTimeout(previewErrorTimerRef.current);
+      if (deletedTimerRef.current) window.clearTimeout(deletedTimerRef.current);
+      if (failedDeleteTimerRef.current) window.clearTimeout(failedDeleteTimerRef.current);
       clearPreview();
     };
   }, [page, limit]);
@@ -113,7 +142,7 @@ export function AudioPage() {
       setUploadState('saved');
     } catch (error) {
       setUploadState('failed');
-      setUploadError(error instanceof Error ? error.message : 'upload failed');
+      setUploadError(getApiError(error, 'upload failed'));
     } finally {
       resetLater('upload');
     }
@@ -133,12 +162,12 @@ export function AudioPage() {
 
   const handlePreview = async () => {
     if (!validateTts('preview')) {
-      setPreviewError(null);
+      showPreviewError(null);
       return;
     }
 
     setPreviewState('busy');
-    setPreviewError(null);
+    showPreviewError(null);
 
     try {
       const blob = await requestTtsPreview({ voice: ttsVoice, text: ttsText, speed: ttsSpeed });
@@ -153,7 +182,7 @@ export function AudioPage() {
     } catch (error) {
       clearPreview();
       setPreviewState('failed');
-      setPreviewError(error instanceof Error ? error.message : 'preview failed');
+      showPreviewError(getApiError(error, 'preview failed'));
     }
   };
 
@@ -171,13 +200,13 @@ export function AudioPage() {
       setTtsName('');
       setTtsText('');
       setTtsSpeed(1);
-      setPreviewError(null);
+      showPreviewError(null);
       setTtsFieldErrors({});
       await load(page, limit);
       setTtsState('saved');
     } catch (error) {
       setTtsState('failed');
-      setTtsError(error instanceof Error ? error.message : 'save failed');
+      setTtsError(getApiError(error, 'save failed'));
     } finally {
       resetLater('tts');
     }
@@ -187,15 +216,15 @@ export function AudioPage() {
     try {
       await deleteAudio(id);
       setDeletedId(id);
+      if (deletedTimerRef.current) window.clearTimeout(deletedTimerRef.current);
+      deletedTimerRef.current = window.setTimeout(() => setDeletedId((current) => (current === id ? null : current)), 6000);
       setConfirmId(null);
-      window.setTimeout(() => {
-        void load(page, limit);
-        setDeletedId((current) => (current === id ? null : current));
-      }, 1200);
+      void load(page, limit);
     } catch {
       setFailedDeleteId(id);
+      if (failedDeleteTimerRef.current) window.clearTimeout(failedDeleteTimerRef.current);
+      failedDeleteTimerRef.current = window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 6000);
       setConfirmId(null);
-      window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 2000);
     }
   };
 
@@ -212,22 +241,21 @@ export function AudioPage() {
   const speedProgress = ((ttsSpeed - 0.5) / 1.5) * 100;
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <div className={styles.sectionLabel}>configure</div>
-          <h1 className={styles.title}>audio</h1>
-        </div>
-      </div>
-
+    <PageLayout title="audio" subtitle="configure">
       <div className={styles.grid}>
         <section className={styles.panel}>
           <div className={styles.panelTitle}>upload audio</div>
           <form className={styles.form} onSubmit={(event) => void handleUpload(event)}>
-            <input className={styles.input} placeholder="display name" value={uploadName} onChange={(event) => setUploadName(event.target.value)} />
-            <AudioUploadZone file={uploadFile} onFileSelect={setUploadFile} />
+            <input className={styles.input} placeholder="display name" value={uploadName} onChange={(event) => {
+              clearUploadFeedback();
+              setUploadName(event.target.value);
+            }} aria-label="Audio file display name" />
+            <AudioUploadZone file={uploadFile} onFileSelect={(file) => {
+              clearUploadFeedback();
+              setUploadFile(file);
+            }} />
             <div className={styles.actionRow}>
-              <button className={uploadButtonClass} type="submit">{uploadLabel}</button>
+              <button className={uploadButtonClass} type="submit" aria-label="Upload audio file">{uploadLabel}</button>
               {uploadError ? <div className={styles.failedText}>{uploadError}</div> : null}
             </div>
           </form>
@@ -244,8 +272,10 @@ export function AudioPage() {
                 value={ttsName}
                 onChange={(event) => {
                   setTtsName(event.target.value);
+                  clearTtsFeedback();
                   setTtsFieldErrors((current) => ({ ...current, name: undefined }));
                 }}
+                aria-label="TTS asset name"
               />
               {ttsFieldErrors.name ? <div className={styles.fieldError}>{ttsFieldErrors.name}</div> : null}
             </label>
@@ -254,7 +284,10 @@ export function AudioPage() {
               <SearchableSelect
                 options={voiceOptions}
                 value={ttsVoice}
-                onChange={(value) => setTtsVoice(value || '')}
+                onChange={(value) => {
+                  clearTtsFeedback();
+                  setTtsVoice(value || '');
+                }}
                 placeholder="select voice"
               />
             </label>
@@ -274,7 +307,10 @@ export function AudioPage() {
                   max={2}
                   step={0.1}
                   value={ttsSpeed}
-                  onChange={(event) => setTtsSpeed(Number(event.target.value))}
+                  onChange={(event) => {
+                    clearTtsFeedback();
+                    setTtsSpeed(Number(event.target.value));
+                  }}
                 />
               </div>
             </label>
@@ -286,14 +322,16 @@ export function AudioPage() {
                 value={ttsText}
                 onChange={(event) => {
                   setTtsText(event.target.value);
+                  clearTtsFeedback();
                   setTtsFieldErrors((current) => ({ ...current, text: undefined }));
                 }}
+                aria-label="TTS prompt text"
               />
               {ttsFieldErrors.text ? <div className={styles.fieldError}>{ttsFieldErrors.text}</div> : null}
             </label>
             <div className={styles.ttsActions}>
-              <button className={styles.previewButton} disabled={previewState === 'busy'} onClick={() => void handlePreview()} type="button">{previewLabel}</button>
-              <button className={saveButtonClass} type="submit">{saveLabel}</button>
+              <button className={styles.previewButton} disabled={previewState === 'busy'} onClick={() => void handlePreview()} type="button" aria-label="Preview TTS audio">{previewLabel}</button>
+              <button className={saveButtonClass} type="submit" aria-label="Generate and save TTS audio">{saveLabel}</button>
             </div>
             {previewError ? <div className={styles.failedText}>{previewError}</div> : null}
             {ttsError ? <div className={styles.failedText}>{ttsError}</div> : null}
@@ -357,6 +395,6 @@ export function AudioPage() {
           onPageChange={setPage}
         />
       </section>
-    </div>
+    </PageLayout>
   );
 }

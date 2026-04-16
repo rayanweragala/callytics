@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
@@ -25,6 +25,7 @@ interface FlowNodeResponse {
   positionY: number;
   config: Record<string, unknown>;
   groupId: string | null;
+  subflowId: number | null;
 }
 
 interface FlowEdgeResponse {
@@ -40,12 +41,33 @@ interface FlowDetailResponse {
   name: string;
   description: string | null;
   slug: string;
+  parentFlowId: number | null;
+  parentNodeKey: string | null;
   createdAt: string;
   updatedAt: string;
   versionId: number;
   versionNumber: number;
   nodes: FlowNodeResponse[];
   edges: FlowEdgeResponse[];
+}
+
+interface FlowBreadcrumbItemResponse {
+  flowId: number;
+  flowName: string;
+}
+
+interface FlowTreeChildResponse {
+  nodeKey: string;
+  nodeLabel: string;
+  subflowId: number;
+  name: string;
+  children: FlowTreeChildResponse[];
+}
+
+interface FlowTreeResponse {
+  id: number;
+  name: string;
+  children: FlowTreeChildResponse[];
 }
 
 interface FlowVersionSnapshot {
@@ -57,6 +79,7 @@ interface FlowVersionSnapshot {
     positionY: number;
     config: Record<string, unknown>;
     groupId: string | null;
+    subflowId: number | null;
   }>;
   edges: Array<{
     sourceNodeKey: string;
@@ -107,6 +130,7 @@ export class FlowsService implements OnModuleInit {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const [flows, total] = await this.callFlowsRepository.findAndCount({
+      where: { parentFlowId: IsNull() },
       order: { createdAt: 'ASC' },
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
@@ -163,17 +187,20 @@ export class FlowsService implements OnModuleInit {
         description: dto.description ?? null,
         slug,
         status: 'published',
-        entryType: 'default',
+        entryType: dto.parentFlowId ? 'subflow' : 'default',
         entryValue: null,
         currentVersionId: null,
+        parentFlowId: dto.parentFlowId ?? null,
+        parentNodeKey: dto.parentNodeKey ?? null,
       });
       const savedFlow = await manager.save(CallFlowEntity, flow);
+      const normalizedNodes = await this.normalizeNodesForSave(manager, savedFlow, dto.nodes);
 
       const savedVersion = await this.createStoredVersion(
         manager,
         savedFlow.id,
         1,
-        this.buildSnapshotFromPayload(dto.nodes, dto.edges),
+        this.buildSnapshotFromPayload(normalizedNodes, dto.edges),
         dto.versionMessage,
       );
 
@@ -181,7 +208,7 @@ export class FlowsService implements OnModuleInit {
       savedFlow.updatedAt = new Date();
       await manager.save(CallFlowEntity, savedFlow);
 
-      await this.saveNodesAndEdges(manager, savedVersion.id, dto.nodes, dto.edges);
+      await this.saveNodesAndEdges(manager, savedVersion.id, normalizedNodes, dto.edges);
 
       const persistedFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: savedFlow.id } });
       const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: savedVersion.id } });
@@ -208,21 +235,24 @@ export class FlowsService implements OnModuleInit {
       flow.name = dto.name;
       flow.description = dto.description ?? null;
       flow.slug = dto.slug?.trim() || flow.slug || this.slugify(dto.name);
+      flow.parentFlowId = dto.parentFlowId ?? flow.parentFlowId ?? null;
+      flow.parentNodeKey = dto.parentNodeKey ?? flow.parentNodeKey ?? null;
       flow.updatedAt = new Date();
       await manager.save(CallFlowEntity, flow);
+      const normalizedNodes = await this.normalizeNodesForSave(manager, flow, dto.nodes);
 
       const savedVersion = await this.createStoredVersion(
         manager,
         flow.id,
         nextVersionNumber,
-        this.buildSnapshotFromPayload(dto.nodes, dto.edges),
+        this.buildSnapshotFromPayload(normalizedNodes, dto.edges),
         dto.versionMessage,
       );
 
       flow.currentVersionId = savedVersion.id;
       await manager.save(CallFlowEntity, flow);
 
-      await this.saveNodesAndEdges(manager, savedVersion.id, dto.nodes, dto.edges);
+      await this.saveNodesAndEdges(manager, savedVersion.id, normalizedNodes, dto.edges);
 
       const persistedFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: flow.id } });
       const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: savedVersion.id } });
@@ -318,6 +348,7 @@ export class FlowsService implements OnModuleInit {
           positionY: node.positionY,
           config: node.config,
           groupId: node.groupId,
+          subflowId: node.subflowId,
         })),
         snapshot.edges.map((edge) => ({
           sourceNodeKey: edge.sourceNodeKey,
@@ -329,6 +360,103 @@ export class FlowsService implements OnModuleInit {
 
       return { data: { success: true as const } };
     });
+  }
+
+  async getSubflow(
+    parentFlowId: number,
+    parentNodeKey: string,
+    manager: DataSource['manager'] = this.dataSource.manager,
+  ): Promise<CallFlowEntity | null> {
+    return manager.findOne(CallFlowEntity, {
+      where: { parentFlowId, parentNodeKey },
+      order: { id: 'ASC' },
+    });
+  }
+
+  async createSubflow(
+    parentFlowId: number,
+    parentNodeKey: string,
+    name: string,
+    manager: DataSource['manager'] = this.dataSource.manager,
+  ): Promise<number> {
+    const existing = await this.getSubflow(parentFlowId, parentNodeKey, manager);
+    if (existing) {
+      return existing.id;
+    }
+
+    const flowName = name.trim() || `Menu ${parentNodeKey}`;
+    const slug = await this.ensureUniqueSlug(
+      manager.getRepository(CallFlowEntity),
+      this.slugify(flowName),
+    );
+
+    const subflow = manager.create(CallFlowEntity, {
+      name: flowName,
+      description: null,
+      slug,
+      status: 'published',
+      entryType: 'subflow',
+      entryValue: null,
+      currentVersionId: null,
+      parentFlowId,
+      parentNodeKey,
+    });
+    const savedSubflow = await manager.save(CallFlowEntity, subflow);
+
+    const startNode: CreateFlowDto['nodes'][number] = {
+      nodeKey: 'start',
+      type: 'start',
+      label: 'Start',
+      positionX: 120,
+      positionY: 140,
+      config: {},
+      groupId: null,
+      subflowId: null,
+    };
+    const version = await this.createStoredVersion(
+      manager,
+      savedSubflow.id,
+      1,
+      this.buildSnapshotFromPayload([startNode], []),
+      'Initialized submenu',
+    );
+    savedSubflow.currentVersionId = version.id;
+    savedSubflow.updatedAt = new Date();
+    await manager.save(CallFlowEntity, savedSubflow);
+    await this.saveNodesAndEdges(manager, version.id, [startNode], []);
+
+    return savedSubflow.id;
+  }
+
+  async getBreadcrumb(id: number): Promise<{ data: FlowBreadcrumbItemResponse[] }> {
+    const breadcrumb: FlowBreadcrumbItemResponse[] = [];
+    let currentId: number | null = id;
+
+    while (currentId) {
+      const flow = await this.callFlowsRepository.findOne({ where: { id: currentId } });
+      if (!flow) {
+        break;
+      }
+      breadcrumb.push({ flowId: flow.id, flowName: flow.name });
+      currentId = flow.parentFlowId ?? null;
+    }
+
+    if (breadcrumb.length === 0) {
+      throw new NotFoundException(`Flow ${id} not found`);
+    }
+
+    return { data: breadcrumb.reverse() };
+  }
+
+  async getFlowTree(rootFlowId: number): Promise<{ data: FlowTreeResponse }> {
+    const rootFlow = await this.callFlowsRepository.findOne({ where: { id: rootFlowId } });
+    if (!rootFlow) {
+      throw new NotFoundException(`Flow ${rootFlowId} not found`);
+    }
+
+    return {
+      data: await this.buildFlowTree(rootFlow, 0, new Set<number>()),
+    };
   }
 
   async remove(id: number): Promise<{ data: { id: number; deleted: true } }> {
@@ -374,6 +502,92 @@ export class FlowsService implements OnModuleInit {
     }
   }
 
+  private async buildFlowTree(
+    flow: CallFlowEntity,
+    depth: number,
+    visited: Set<number>,
+  ): Promise<FlowTreeResponse> {
+    if (depth >= 10 || visited.has(flow.id)) {
+      return {
+        id: flow.id,
+        name: flow.name,
+        children: [],
+      };
+    }
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(flow.id);
+    const versionId = await this.resolveFlowVersionId(flow.id);
+
+    if (!versionId) {
+      return {
+        id: flow.id,
+        name: flow.name,
+        children: [],
+      };
+    }
+
+    const menuNodes = await this.flowNodesRepository.find({
+      where: { flowVersionId: versionId, type: 'menu' },
+      order: { id: 'ASC' },
+    });
+
+    const children = await Promise.all(
+      menuNodes
+        .filter((node) => Number(node.subflowId || 0) > 0 && this.hasExplicitSubmenuMapping(node.configJson))
+        .map(async (node) => {
+          const subflowId = Number(node.subflowId || 0);
+          const childFlow = await this.callFlowsRepository.findOne({ where: { id: subflowId } });
+          if (!childFlow) {
+            return null;
+          }
+
+          const subtree = await this.buildFlowTree(childFlow, depth + 1, nextVisited);
+          return {
+            nodeKey: node.nodeKey,
+            nodeLabel: node.label || node.nodeKey,
+            subflowId,
+            name: childFlow.name,
+            children: subtree.children,
+          };
+        }),
+    );
+
+    return {
+      id: flow.id,
+      name: flow.name,
+      children: children.filter((child): child is FlowTreeChildResponse => child !== null),
+    };
+  }
+
+  private hasExplicitSubmenuMapping(config: Record<string, unknown> | null): boolean {
+    if (!config) {
+      return false;
+    }
+    const rawTargets = config.submenu_branch_targets;
+    if (!rawTargets || typeof rawTargets !== 'object' || Array.isArray(rawTargets)) {
+      return false;
+    }
+    return Object.values(rawTargets).some((value) => String(value || '').trim().length > 0);
+  }
+
+  private async resolveFlowVersionId(flowId: number): Promise<number | null> {
+    const flow = await this.callFlowsRepository.findOne({ where: { id: flowId } });
+    if (!flow) {
+      return null;
+    }
+
+    if (flow.currentVersionId) {
+      return flow.currentVersionId;
+    }
+
+    const latestVersion = await this.flowVersionsRepository.findOne({
+      where: { flowId },
+      order: { versionNumber: 'DESC' },
+    });
+    return latestVersion?.id ?? null;
+  }
+
   private async buildFlowSnapshot(
     flow: CallFlowEntity,
     manager: DataSource['manager'] = this.dataSource.manager,
@@ -388,6 +602,7 @@ export class FlowsService implements OnModuleInit {
         positionY: node.positionY,
         config: node.config,
         groupId: node.groupId,
+        subflowId: node.subflowId,
       })),
       edges: detail.data.edges.map((edge) => ({
         sourceNodeKey: edge.sourceNodeKey,
@@ -411,6 +626,7 @@ export class FlowsService implements OnModuleInit {
         positionY: node.positionY ?? 0,
         config: node.config ?? {},
         groupId: node.groupId ?? null,
+        subflowId: node.subflowId ?? null,
       })),
       edges: edges.map((edge) => ({
         sourceNodeKey: edge.sourceNodeKey,
@@ -419,6 +635,41 @@ export class FlowsService implements OnModuleInit {
         condition: edge.condition ?? null,
       })),
     };
+  }
+
+  private async normalizeNodesForSave(
+    manager: DataSource['manager'],
+    flow: CallFlowEntity,
+    nodes: CreateFlowDto['nodes'],
+  ): Promise<CreateFlowDto['nodes']> {
+    return Promise.all(nodes.map(async (node) => {
+      if (node.type !== 'menu') {
+        return {
+          ...node,
+          subflowId: node.subflowId ?? null,
+        };
+      }
+
+      const existingSubflowId = node.subflowId
+        ?? (await this.getSubflow(flow.id, node.nodeKey, manager))?.id
+        ?? null;
+      const subflowId = existingSubflowId ?? await this.createSubflow(
+        flow.id,
+        node.nodeKey,
+        this.buildSubflowName(flow.name, node.label, node.nodeKey),
+        manager,
+      );
+
+      return {
+        ...node,
+        subflowId,
+      };
+    }));
+  }
+
+  private buildSubflowName(flowName: string, label: string | undefined, nodeKey: string): string {
+    const menuLabel = label?.trim() || 'Menu';
+    return `${flowName} — ${menuLabel} submenu (${nodeKey})`;
   }
 
   private async createStoredVersion(
@@ -475,6 +726,7 @@ export class FlowsService implements OnModuleInit {
         positionY: node.positionY ?? 0,
         configJson: node.config ?? {},
         groupId: node.groupId ?? null,
+        subflowId: node.subflowId ?? null,
       }),
     );
     await manager.save(FlowNodeEntity, nodeEntities);
@@ -512,6 +764,8 @@ export class FlowsService implements OnModuleInit {
       name: flow.name,
       description: flow.description,
       slug: flow.slug,
+      parentFlowId: flow.parentFlowId ?? null,
+      parentNodeKey: flow.parentNodeKey ?? null,
       createdAt: flow.createdAt.toISOString(),
       updatedAt: flow.updatedAt.toISOString(),
       versionId: version.id,
@@ -525,6 +779,7 @@ export class FlowsService implements OnModuleInit {
         positionY: node.positionY,
         config: node.configJson,
         groupId: node.groupId ?? null,
+        subflowId: node.subflowId ?? null,
       })),
       edges: edges.map((edge) => ({
         id: edge.id,

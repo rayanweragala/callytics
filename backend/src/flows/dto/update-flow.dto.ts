@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { FlowEdgeDto } from './flow-edge.dto';
 import { FlowNodeDto } from './flow-node.dto';
 
@@ -18,6 +18,14 @@ export class UpdateFlowDto {
   @IsOptional()
   @IsString()
   versionMessage?: string;
+
+  @IsOptional()
+  @IsNumber()
+  parentFlowId?: number;
+
+  @IsOptional()
+  @IsString()
+  parentNodeKey?: string;
 
   @IsArray()
   @ArrayMinSize(1)

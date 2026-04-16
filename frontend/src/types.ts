@@ -27,7 +27,7 @@ export interface DiagnosticsSnapshot {
   timeline: Record<string, CallTimelineEvent[]>;
 }
 
-export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'hangup' | 'transfer' | 'hunt' | 'group';
+export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'menu' | 'hangup' | 'transfer' | 'hunt' | 'group';
 
 export interface FlowNodeData {
   label: string;
@@ -37,7 +37,9 @@ export interface FlowNodeData {
   onLabelChange?: (value: string) => void;
   onLabelSubmit?: () => void;
   onLabelDoubleClick?: () => void;
+  onOpenSubmenu?: () => void;
   isEditing?: boolean;
+  subflowId?: number | null;
 }
 
 export interface FlowApiNode {
@@ -49,6 +51,7 @@ export interface FlowApiNode {
   positionY: number;
   config: Record<string, unknown>;
   groupId: string | null;
+  subflowId: number | null;
 }
 
 export interface FlowApiEdge {
@@ -71,12 +74,33 @@ export interface FlowDetail {
   name: string;
   description: string | null;
   slug: string;
+  parentFlowId: number | null;
+  parentNodeKey: string | null;
   createdAt: string;
   updatedAt: string;
   versionId: number;
   versionNumber: number;
   nodes: FlowApiNode[];
   edges: FlowApiEdge[];
+}
+
+export interface FlowBreadcrumbItem {
+  flowId: number;
+  flowName: string;
+}
+
+export interface FlowTreeChild {
+  nodeKey: string;
+  nodeLabel: string;
+  subflowId: number;
+  name: string;
+  children: FlowTreeChild[];
+}
+
+export interface FlowTree {
+  id: number;
+  name: string;
+  children: FlowTreeChild[];
 }
 
 export interface FlowVersionSummary {
@@ -97,6 +121,7 @@ export interface FlowSnapshot {
     positionY: number;
     config: Record<string, unknown>;
     groupId: string | null;
+    subflowId: number | null;
   }>;
   edges: Array<{
     sourceNodeKey: string;

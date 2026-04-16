@@ -30,3 +30,8 @@
   border-radius: 6px;
   pointer-events: none;
 }
+
+.subflowJumpLabel {
+  color: var(--color-info);
+  border: 1px dashed var(--color-info);
+}

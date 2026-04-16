@@ -5,6 +5,14 @@
   min-height: calc(100vh - 48px);
 }
 
+.editorNotice {
+  padding: 12px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--color-error);
+}
+
 .topBar {
   display: flex;
   align-items: center;
@@ -22,6 +30,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.saveStatus {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
 }
 
 .flowNameInput,
@@ -129,9 +143,27 @@
 .barstart { background: var(--color-active); }
 .barplayaudio { background: var(--color-info); }
 .bargetdigits { background: var(--color-warning); }
+.barmenu { background: var(--color-warning); }
 .bartransfer { background: var(--color-info); }
 .barhunt { background: var(--color-warning); }
 .barhangup { background: var(--text-muted); }
+
+.paletteIcon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.paletteIcon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
 
 .paletteType, .meta {
   font-family: 'Space Mono', monospace;
@@ -176,6 +208,33 @@
 
 .empty {
   color: var(--text-muted);
+}
+
+.menuBranchList,
+.menuBranchGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.menuBranchList {
+  gap: 0;
+}
+
+.menuBranchOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.menuBranchLabel {
+  font-family: 'Space Mono', monospace;
+  color: var(--text-primary);
+}
+
+.menuBranchSeparator {
+  border-top: 1px solid var(--border-subtle);
+  margin: 6px 0;
 }
 
 :global(.react-flow) {

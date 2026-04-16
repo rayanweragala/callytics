@@ -18,27 +18,41 @@ Current completed implementation phases:
 - Phase 11: call recordings, bridge-based recording/playback fix, recordings page, recording download support, and diagnostics panel pagination
 - Phase 12: hunt group node execution with sequential, random, and group dialing strategies
 - Phase 13: SIP extension management, QR provisioning, and DID-based inbound routing
-- Phase 14: SIP Trunks + Audio Improvements + UI Polish
+- Phase 14 — SIP Trunks + Audio Improvements + UI Polish
   - SIP Trunks UI: inline add/edit form, provider presets, enabled/disabled status
   - Trunk reachability test: real TCP socket check, structured backend logging
-  - Audio page: TTS speed control slider (0.5×–2.0×), preview-before-save
-    (streams Piper stdout directly, no DB write), generate renamed to save,
-    speed stored on audio_files
-  - Unified date-time format across all pages (DD Mon YYYY, HH:MM via formatDateTime)
-  - Themed ConfirmDialog component replacing browser window.confirm on unsaved-leave guard
-  - Trunks inline form Username field layout fix
-  - Created column white-space: nowrap fix across all table pages
-- Phase 16 Part A: flow builder grouping + multi-select foundations
-  - Group nodes (`type: group`) added for visual swimlanes/containers
-  - Shift+click multi-select working on canvas
-  - Toolbar group/ungroup actions implemented
-  - Group persistence added with `flow_nodes.group_id` and save/load mapping (`groupId` ↔ `parentId`)
-- Phase 16 Part B: flow versioning (commit/compare/restore)
-  - Backend migration adds `flow_versions.message`, `flow_versions.snapshot`, and `flow_versions.node_count`
-  - New flow version endpoints: list, detail, create commit, and restore
-  - Editor save path now creates visible committed versions for normal save operations
-  - Versions drawer in the flow editor supports commit message entry, compare view, and restore
-  - Restore action applies snapshot content to the current flow and records a new version entry (`Restored from vN`)
+  - Audio TTS speed control slider (0.5×–2.0×), stored on audio_files
+  - Audio preview-before-save: streams Piper stdout directly, no DB write
+  - Generate button renamed to save
+  - Unified date-time format across all pages (DD Mon YYYY, HH:MM)
+  - Themed ConfirmDialog component replacing browser window.confirm
+  - Trunks inline form layout fix, Created column white-space nowrap on all tables
+  - API error messages now surface backend reason via getApiError utility
+  - Error and success banners auto-dismiss after 6 seconds
+
+Phase 15 — Test Suite
+- Unit tests: edgeResolver, flowLoader, runtime logic, executors
+- Integration tests: flows API
+- edgeResolver extracted to stasis/src/engine/edgeResolver.ts
+- flowLoader extracted to stasis/src/flowLoader.ts
+- Jest configured for stasis and backend
+- menu executor extracted to stasis/src/executors/menu.executor.ts
+- Documentation updated to reflect modularised execution engine
+
+Phase 16 — Flow Builder: Node Groups + Menu Node + Versioning
+- Menu node: new node type with branching options, executor in stasis
+- Node groups: multi-select nodes and group/ungroup via toolbar
+- group_id FK added to flow_nodes (migration: 004_menu_group.sql)
+- Flow versioning: save a named version with commit message
+- flow_versions table: message, snapshot JSON, node_count, version_number
+- Version list in flow editor: timestamp, message, node count
+- One-click restore to any prior version
+- New shared components: FlowBreadcrumb, FlowTreePanel, MenuGroupNode,
+  ErrorBoundary, ErrorMessage, Loading, PageLayout,
+  SipEndpointsPanel, LiveExecutionPanel
+- New pages: CallLogsPage, SettingsPage, NotFoundPage (placeholders)
+- FlowCanvasEdge updated for new edge styles
+- apiError utility for consistent API error message extraction
 
 Current important infrastructure state:
 

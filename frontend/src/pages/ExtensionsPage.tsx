@@ -1,7 +1,8 @@
-import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
+import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Pagination } from '../components/common/Pagination';
 import { createExtension, deleteExtension, getHostConfig, listExtensions, updateExtension } from '../lib/api';
+import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { ExtensionItem } from '../types';
 import styles from './ExtensionsPage.module.css';
@@ -34,6 +35,20 @@ export function ExtensionsPage() {
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showError = (msg: string | null) => {
+    setErrorText(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
+  const showSuccess = (id: number | null) => {
+    setDeletedId(id);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+  };
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -58,9 +73,14 @@ export function ExtensionsPage() {
     void load(limit, offset);
   }, [limit, offset]);
 
+  useEffect(() => () => {
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+  }, []);
+
   const resetMessages = () => {
-    setErrorText(null);
-    setDeletedId(null);
+    showError(null);
+    showSuccess(null);
   };
 
   const handleCreate = async (event: FormEvent) => {
@@ -78,7 +98,7 @@ export function ExtensionsPage() {
       setOffset(0);
       await load(limit, 0);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to create extension');
+      showError(getApiError(error, 'failed to create extension'));
     } finally {
       setBusyKey(null);
     }
@@ -111,7 +131,7 @@ export function ExtensionsPage() {
       setEditForm(emptyForm);
       await load(limit, offset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to update extension');
+      showError(getApiError(error, 'failed to update extension'));
     } finally {
       setBusyKey(null);
     }
@@ -123,7 +143,7 @@ export function ExtensionsPage() {
     try {
       await deleteExtension(id);
       setConfirmDeleteId(null);
-      setDeletedId(id);
+      showSuccess(id);
       if (editingId === id) {
         setEditingId(null);
       }
@@ -131,7 +151,7 @@ export function ExtensionsPage() {
       setOffset(nextOffset);
       await load(limit, nextOffset);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to delete extension');
+      showError(getApiError(error, 'failed to delete extension'));
     } finally {
       setBusyKey(null);
     }
@@ -145,7 +165,7 @@ export function ExtensionsPage() {
       const dataUrl = await QRCode.toDataURL(uri, { width: 220, margin: 1 });
       setQrModal({ username: item.username, uri, dataUrl });
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'failed to generate qr code');
+      showError(getApiError(error, 'failed to generate qr code'));
     } finally {
       setBusyKey(null);
     }
@@ -177,15 +197,24 @@ export function ExtensionsPage() {
           <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>username</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => setCreateForm((current) => ({ ...current, username: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, username: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>password</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} />
+              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.password} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, password: event.target.value }));
+              }} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>display name</span>
-              <input className={styles.input} value={createForm.displayName} onChange={(event) => setCreateForm((current) => ({ ...current, displayName: event.target.value }))} />
+              <input className={styles.input} value={createForm.displayName} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, displayName: event.target.value }));
+              }} />
             </label>
             <div className={styles.formActions}>
               <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
@@ -235,15 +264,24 @@ export function ExtensionsPage() {
                 <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>username</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => setEditForm((current) => ({ ...current, username: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, username: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>password</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.password} onChange={(event) => setEditForm((current) => ({ ...current, password: event.target.value }))} />
+                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.password} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, password: event.target.value }));
+                    }} />
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>display name</span>
-                    <input className={styles.input} value={editForm.displayName} onChange={(event) => setEditForm((current) => ({ ...current, displayName: event.target.value }))} />
+                    <input className={styles.input} value={editForm.displayName} onChange={(event) => {
+                      resetMessages();
+                      setEditForm((current) => ({ ...current, displayName: event.target.value }));
+                    }} />
                   </label>
                   <div className={styles.formActions}>
                     <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>

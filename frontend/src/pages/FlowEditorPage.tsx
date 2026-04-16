@@ -1,3 +1,4 @@
+import { getApiError } from '../lib/apiError';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactFlow, {
@@ -20,19 +21,24 @@ import {
   createFlow,
   createFlowVersion,
   getFlow,
+  getFlowBreadcrumb,
+  getFlowTree,
   getFlowVersion,
   listAudio,
   listFlowVersions,
   restoreFlowVersion,
   updateFlow,
 } from '../lib/api';
-import type { AudioFileItem, BuilderNodeType, FlowDetail, FlowNodeData, FlowSnapshot, FlowVersionDetail, FlowVersionSummary } from '../types';
+import type { AudioFileItem, BuilderNodeType, FlowBreadcrumbItem, FlowDetail, FlowNodeData, FlowSnapshot, FlowTree, FlowVersionDetail, FlowVersionSummary } from '../types';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { FlowBreadcrumb } from '../components/FlowBreadcrumb';
+import { FlowTreePanel } from '../components/FlowTreePanel';
 import { FlowCanvasEdge } from '../components/builder/FlowCanvasEdge';
 import { FlowCanvasNode } from '../components/builder/FlowCanvasNode';
 import { FlowGroupNode } from '../components/builder/FlowGroupNode';
 import { HuntNode } from '../components/nodes/HuntNode';
+import { MenuGroupNode } from '../components/nodes/MenuGroupNode';
 import { HuntConfigPanel } from '../components/panels/HuntConfigPanel';
 import { layoutFlow } from '../utils/layoutFlow';
 import { formatDateTime } from '../lib/time';
@@ -41,6 +47,7 @@ import styles from './FlowEditorPage.module.css';
 const nodeTypes = {
   flowNode: FlowCanvasNode,
   huntNode: HuntNode,
+  menuNode: MenuGroupNode,
   group: FlowGroupNode,
 };
 
@@ -52,12 +59,52 @@ const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'start', label: 'start' },
   { type: 'play_audio', label: 'play audio' },
   { type: 'get_digits', label: 'get digits' },
+  { type: 'menu', label: 'Menu Group' },
   { type: 'transfer', label: 'transfer' },
   { type: 'hunt', label: 'Hunt Group' },
   { type: 'hangup', label: 'hangup' },
 ];
 
 const conditionValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'timeout', 'invalid', 'default'];
+const menuBranchOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
+const menuRoutableBranchSet = new Set(menuBranchOptions);
+const AUTO_SAVE_DEBOUNCE_MS = 1200;
+const SUBFLOW_JUMP_NODE_ID_PREFIX = '__submenu_jump_anchor__';
+const GHOST_BRANCH_HEADER_OFFSET = 90;  // px from menu node top to the centre of the first branch row
+const GHOST_BRANCH_ROW_STRIDE    = 28;  // px per branch row (22px min-height + 6px gap)
+const GHOST_NODE_HALF_HEIGHT     = 18;  // half the ghost node rendered height (for vertical centering)
+
+function sanitizeMenuBranches(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return ['1', '2'];
+  }
+
+  const branches = value
+    .map((item) => String(item || '').trim())
+    .filter((item) => menuRoutableBranchSet.has(item));
+
+  return branches.length > 0 ? Array.from(new Set(branches)) : ['1', '2'];
+}
+
+function sanitizeMenuSubmenuTargets(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([branch, target]) => [String(branch || '').trim(), String(target || '').trim()] as const)
+    .filter(([branch, target]) => menuRoutableBranchSet.has(branch) && Boolean(target));
+
+  return Object.fromEntries(entries);
+}
+
+function resolveMenuBranchValue(
+  branchKey: string | null | undefined,
+  condition: string | null | undefined,
+): string | null {
+  const resolved = String(condition || branchKey || '').trim();
+  return menuRoutableBranchSet.has(resolved) ? resolved : null;
+}
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -65,6 +112,8 @@ type BuilderEdgeData = {
   branchKey: string | null;
   condition: string | null;
   sourceNodeType: string;
+  isSubflowJump?: boolean;
+  subflowJumpLabel?: string;
   onDelete?: (edgeId: string) => void;
 };
 
@@ -76,6 +125,20 @@ type PendingLeaveAction =
 function typeConfig(type: BuilderNodeType): Record<string, unknown> {
   if (type === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
   if (type === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
+  if (type === 'menu') {
+    return {
+      timeout_ms: 5000,
+      prompt_path: '',
+      prompt_audio_file_id: '',
+      timeout_prompt_audio_id: '',
+      invalid_prompt_audio_id: '',
+      final_failure_audio_id: '',
+      max_timeout_attempts: 3,
+      max_invalid_attempts: 3,
+      branches: ['1', '2'],
+      submenu_branch_targets: {},
+    };
+  }
   if (type === 'transfer') return { destination: '', timeout_ms: 30000, on_no_answer: '' };
   if (type === 'hunt') {
     return {
@@ -95,12 +158,13 @@ function buildCanvasNode(type: BuilderNodeType, index: number): Node<FlowNodeDat
   const key = `${type}-${Date.now()}-${index}`;
   return {
     id: key,
-    type: type === 'hunt' ? 'huntNode' : type === 'group' ? 'group' : 'flowNode',
+    type: type === 'hunt' ? 'huntNode' : type === 'menu' ? 'menuNode' : type === 'group' ? 'group' : 'flowNode',
     position: { x: 120 + index * 40, y: 120 + index * 30 },
     data: {
       label: palette.find((item) => item.type === type)?.label || type,
       type,
       config: type === 'group' ? { width: 200, height: 150 } : typeConfig(type),
+      subflowId: null,
     },
     style: type === 'group' ? { width: 200, height: 150 } : undefined,
   };
@@ -126,7 +190,13 @@ function serializeNodeForSave(node: Node<FlowNodeData>) {
         width: Math.max(200, resolveNodeDimension(node.width ?? node.style?.width ?? node.data.config.width, 200)),
         height: Math.max(150, resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 150)),
       }
-    : node.data.config;
+    : node.data.type === 'menu'
+      ? {
+          ...node.data.config,
+          branches: sanitizeMenuBranches(node.data.config.branches),
+          submenu_branch_targets: sanitizeMenuSubmenuTargets(node.data.config.submenu_branch_targets),
+        }
+      : node.data.config;
 
   return {
     nodeKey: node.id,
@@ -136,6 +206,7 @@ function serializeNodeForSave(node: Node<FlowNodeData>) {
     positionY: node.position.y,
     config,
     groupId: node.parentId ?? null,
+    subflowId: node.data.subflowId ?? null,
   };
 }
 
@@ -146,6 +217,8 @@ function createDraftFlow(): FlowDetail {
     name: 'Untitled Flow',
     description: 'New flow',
     slug: 'untitled-flow',
+    parentFlowId: null,
+    parentNodeKey: null,
     createdAt: now,
     updatedAt: now,
     versionId: 0,
@@ -161,19 +234,142 @@ function createSavePayload(
   edges: Array<Edge<BuilderEdgeData>>,
   versionMessage?: string,
 ) {
+  const nodeTypeMap = new Map(nodes.map((node) => [node.id, node.data.type]));
+  const persistedEdges = edges
+    .filter((edge) => {
+      const sourceNodeType = nodeTypeMap.get(edge.source);
+      const branchKey = String(edge.data?.branchKey || edge.data?.condition || 'default');
+      if (sourceNodeType !== 'menu') {
+        return true;
+      }
+
+      return branchKey === 'complete' || menuRoutableBranchSet.has(branchKey);
+    })
+    .map((edge) => ({
+      sourceNodeKey: edge.source,
+      targetNodeKey: edge.target,
+      branchKey: String(edge.data?.branchKey || edge.data?.condition || 'default'),
+      condition: edge.data?.condition ?? null,
+    }));
+
   return {
     name: flow.name,
     description: flow.description || '',
     slug: flow.slug,
     versionMessage,
     nodes: nodes.map(serializeNodeForSave),
-    edges: edges.map((edge) => ({
+    edges: persistedEdges,
+  };
+}
+
+async function validateFlowBeforeSave(
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+): Promise<string | null> {
+  const nodeTypeMap = new Map(nodes.map((node) => [node.id, node.data.type]));
+  const persistedEdges = edges
+    .filter((edge) => {
+      const sourceNodeType = nodeTypeMap.get(edge.source);
+      const branchKey = String(edge.data?.branchKey || edge.data?.condition || 'default');
+      if (sourceNodeType !== 'menu') {
+        return true;
+      }
+
+      return branchKey === 'complete' || menuRoutableBranchSet.has(branchKey);
+    })
+    .map((edge) => ({
       sourceNodeKey: edge.source,
       targetNodeKey: edge.target,
       branchKey: String(edge.data?.branchKey || edge.data?.condition || 'default'),
       condition: edge.data?.condition ?? null,
-    })),
-  };
+    }));
+
+  const sourceOutgoing = new Map<string, Array<{ branchKey: string; condition: string | null }>>();
+  for (const edge of persistedEdges) {
+    const current = sourceOutgoing.get(edge.sourceNodeKey) || [];
+    current.push({ branchKey: edge.branchKey, condition: edge.condition });
+    sourceOutgoing.set(edge.sourceNodeKey, current);
+  }
+
+  const subflowNodeKeysById = new Map<number, Set<string>>();
+  async function loadSubflowNodeKeys(subflowId: number): Promise<Set<string> | null> {
+    if (subflowNodeKeysById.has(subflowId)) {
+      return subflowNodeKeysById.get(subflowId) || null;
+    }
+    try {
+      const response = await getFlow(String(subflowId));
+      const nodeKeys = new Set(response.data.nodes.map((item) => item.nodeKey));
+      subflowNodeKeysById.set(subflowId, nodeKeys);
+      return nodeKeys;
+    } catch {
+      return null;
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.data.type !== 'menu') {
+      continue;
+    }
+
+    const configuredBranches = sanitizeMenuBranches(node.data.config.branches);
+    const submenuTargets = sanitizeMenuSubmenuTargets(node.data.config.submenu_branch_targets);
+    const subflowId = Number(node.data.subflowId || 0);
+
+    // First-save allowance: menu subflows are created only after initial save.
+    // Without this, users are blocked from creating menus at all.
+    if (subflowId <= 0) {
+      continue;
+    }
+
+    const outgoing = sourceOutgoing.get(node.id) || [];
+    const routedBranches = new Set(
+      outgoing
+        .map((item) => String(item.condition || item.branchKey || '').trim())
+        .filter((item) => menuRoutableBranchSet.has(item)),
+    );
+    const missing: string[] = [];
+
+    for (const branch of configuredBranches) {
+      if (routedBranches.has(branch)) {
+        continue;
+      }
+
+      const submenuTarget = String(submenuTargets[branch] || '').trim();
+      if (!submenuTarget) {
+        missing.push(branch);
+        continue;
+      }
+
+      const nodeKeys = await loadSubflowNodeKeys(subflowId);
+      if (!nodeKeys) {
+        return `Menu "${node.data.label || node.id}" points to submenu #${subflowId}, but it could not be loaded.`;
+      }
+      if (!nodeKeys.has(submenuTarget)) {
+        return `Menu "${node.data.label || node.id}" maps branch "${branch}" to missing submenu node "${submenuTarget}".`;
+      }
+    }
+
+    if (missing.length > 0) {
+      return `Menu "${node.data.label || node.id}" is missing route(s) for: ${missing.join(', ')}.`;
+    }
+  }
+
+  for (const node of nodes) {
+    if (
+      node.data.type === 'hangup'
+      || node.data.type === 'group'
+      || node.data.type === 'menu'
+      || node.data.type === 'play_audio'
+    ) {
+      continue;
+    }
+    const outgoingCount = (sourceOutgoing.get(node.id) || []).length;
+    if (outgoingCount === 0) {
+      return `Node "${node.data.label || node.id}" (${node.data.type}) has no outgoing path.`;
+    }
+  }
+
+  return null;
 }
 
 function buildEditorSnapshot(flow: FlowDetail | null, nodes: Array<Node<FlowNodeData>>, edges: Array<Edge<BuilderEdgeData>>): string {
@@ -193,19 +389,43 @@ function shouldAutoArrange(nodes: Array<Node<FlowNodeData>>): boolean {
   return width < 300 && height < 300;
 }
 
+const AUTO_LAYOUT_DEFAULT_NODE_HEIGHT = 72;
+const AUTO_LAYOUT_MENU_BASE_HEIGHT = 160;
+const AUTO_LAYOUT_MENU_BRANCH_ROW_HEIGHT = 28;
+const AUTO_LAYOUT_VERTICAL_GAP = 80;
+
+function resolveAutoLayoutNodeHeight(node: Node<FlowNodeData>): number {
+  if (node.data.type !== 'menu') {
+    return AUTO_LAYOUT_DEFAULT_NODE_HEIGHT;
+  }
+
+  const branchCount = Array.isArray(node.data.config.branches)
+    ? node.data.config.branches.map((value) => String(value || '').trim()).filter(Boolean).length
+    : 2;
+
+  const activeBranchCount = Math.max(2, branchCount);
+  return AUTO_LAYOUT_MENU_BASE_HEIGHT + activeBranchCount * AUTO_LAYOUT_MENU_BRANCH_ROW_HEIGHT;
+}
+
 function applyAutoLayout(nodes: Array<Node<FlowNodeData>>, panelWidth: number): Array<Node<FlowNodeData>> {
   if (!shouldAutoArrange(nodes)) {
     return nodes;
   }
 
   const centerX = Math.max(80, Math.round(panelWidth / 2) - 85);
-  return nodes.map((node, index) => ({
-    ...node,
-    position: {
-      x: centerX,
-      y: 80 + index * 150,
-    },
-  }));
+  let currentY = 80;
+
+  return nodes.map((node) => {
+    const nextNode = {
+      ...node,
+      position: {
+        x: centerX,
+        y: currentY,
+      },
+    };
+    currentY += resolveAutoLayoutNodeHeight(node) + AUTO_LAYOUT_VERTICAL_GAP;
+    return nextNode;
+  });
 }
 
 function decorateNodes(
@@ -216,6 +436,7 @@ function decorateNodes(
     onGroupLabelChange: (nodeId: string, value: string) => void;
     onGroupLabelSubmit: (nodeId: string) => void;
     onGroupLabelDoubleClick: (nodeId: string) => void;
+    onOpenSubmenu: (nodeId: string) => void;
   },
 ): Array<Node<FlowNodeData>> {
   return nodes.map((node) => ({
@@ -223,9 +444,16 @@ function decorateNodes(
     data: {
       ...node.data,
       onDelete: node.data.type === 'group' ? undefined : () => options.onDelete(node.id),
-      onLabelChange: node.data.type === 'group' ? (value: string) => options.onGroupLabelChange(node.id, value) : undefined,
-      onLabelSubmit: node.data.type === 'group' ? () => options.onGroupLabelSubmit(node.id) : undefined,
-      onLabelDoubleClick: node.data.type === 'group' ? () => options.onGroupLabelDoubleClick(node.id) : undefined,
+      onLabelChange: node.data.type === 'group' || node.data.type === 'menu'
+        ? (value: string) => options.onGroupLabelChange(node.id, value)
+        : undefined,
+      onLabelSubmit: node.data.type === 'group' || node.data.type === 'menu'
+        ? () => options.onGroupLabelSubmit(node.id)
+        : undefined,
+      onLabelDoubleClick: node.data.type === 'group'
+        ? () => options.onGroupLabelDoubleClick(node.id)
+        : undefined,
+      onOpenSubmenu: node.data.type === 'menu' ? () => options.onOpenSubmenu(node.id) : undefined,
       isEditing: node.id === options.editingGroupId,
     },
   }));
@@ -275,6 +503,99 @@ function getContainingGroupNode(node: Node<FlowNodeData>, allNodes: Array<Node<F
     });
 
   return groups.length > 0 ? groups[groups.length - 1] : null;
+}
+
+function buildSubflowJumpVisuals(
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+): { nodes: Array<Node<FlowNodeData>>; edges: Array<Edge<BuilderEdgeData>> } {
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const localMenuEdgeBranches = new Map<string, Set<string>>();
+
+  for (const edge of edges) {
+    const sourceNode = nodeMap.get(edge.source);
+    if (!sourceNode || sourceNode.data.type !== 'menu') {
+      continue;
+    }
+    const branch = resolveMenuBranchValue(edge.data?.branchKey, edge.data?.condition);
+    if (!branch) {
+      continue;
+    }
+    const set = localMenuEdgeBranches.get(edge.source) || new Set<string>();
+    set.add(branch);
+    localMenuEdgeBranches.set(edge.source, set);
+  }
+
+  const visualNodes: Array<Node<FlowNodeData>> = [];
+  const visualEdges: Array<Edge<BuilderEdgeData>> = [];
+
+  for (const menuNode of nodes) {
+    if (menuNode.data.type !== 'menu') {
+      continue;
+    }
+
+    const configuredBranches = sanitizeMenuBranches(menuNode.data.config.branches);
+    const submenuTargets = sanitizeMenuSubmenuTargets(menuNode.data.config.submenu_branch_targets);
+    const locallyConnectedBranches = localMenuEdgeBranches.get(menuNode.id) || new Set<string>();
+    const absolutePosition = getAbsoluteNodePosition(menuNode, nodeMap);
+    const subflowId = Number(menuNode.data.subflowId || 0);
+
+    for (let branchIndex = 0; branchIndex < configuredBranches.length; branchIndex++) {
+      const branch = configuredBranches[branchIndex];
+      if (locallyConnectedBranches.has(branch)) {
+        continue;
+      }
+      const targetNodeKey = String(submenuTargets[branch] || '').trim();
+      if (!targetNodeKey) {
+        continue;
+      }
+
+      const anchorId = `${SUBFLOW_JUMP_NODE_ID_PREFIX}${menuNode.id}__${branch}`;
+      const anchorX = absolutePosition.x + 480;
+      const anchorY = absolutePosition.y + GHOST_BRANCH_HEADER_OFFSET + branchIndex * GHOST_BRANCH_ROW_STRIDE - GHOST_NODE_HALF_HEIGHT;
+      const jumpTargetLabel = subflowId > 0 ? `subflow #${subflowId}:${targetNodeKey}` : `submenu:${targetNodeKey}`;
+
+      visualNodes.push({
+        id: anchorId,
+        position: { x: anchorX, y: anchorY },
+        draggable: false,
+        selectable: false,
+        connectable: false,
+        data: {
+          label: jumpTargetLabel,
+          type: 'hangup',
+          config: {},
+        },
+        style: {
+          width: 176,
+          padding: '10px 12px',
+          border: '1px dashed var(--color-info)',
+          borderRadius: '8px',
+          background: 'var(--bg-surface)',
+          color: 'var(--text-secondary)',
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '11px',
+        },
+      });
+
+      visualEdges.push({
+        id: `submenu-jump-edge::${menuNode.id}::${branch}`,
+        source: menuNode.id,
+        target: anchorId,
+        sourceHandle: branch,
+        reconnectable: false,
+        type: 'flowEdge',
+        data: {
+          branchKey: branch,
+          condition: branch,
+          sourceNodeType: 'menu',
+          isSubflowJump: true,
+        },
+      });
+    }
+  }
+
+  return { nodes: visualNodes, edges: visualEdges };
 }
 
 function reparentNodeIntoGroup(
@@ -370,12 +691,18 @@ function mapFlowToNodes(flow: FlowDetail): Array<Node<FlowNodeData>> {
     .filter((node) => node.type !== 'group')
     .map((node) => ({
       id: node.nodeKey,
-      type: node.type === 'hunt' ? 'huntNode' : 'flowNode',
+      type: node.type === 'hunt' ? 'huntNode' : node.type === 'menu' ? 'menuNode' : 'flowNode',
       position: { x: node.positionX, y: node.positionY },
       data: {
         label: node.label || node.nodeKey,
         type: node.type,
-        config: node.config,
+        config: node.type === 'menu'
+          ? {
+              ...node.config,
+              branches: sanitizeMenuBranches(node.config.branches),
+            }
+          : node.config,
+        subflowId: node.subflowId,
       },
       parentId: node.groupId || undefined,
       extent: node.groupId ? 'parent' as const : undefined,
@@ -388,21 +715,41 @@ function mapFlowToNodes(flow: FlowDetail): Array<Node<FlowNodeData>> {
 
 function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
   const nodeTypeMap = new Map(flow.nodes.map((node) => [node.nodeKey, node.type]));
-  return flow.edges.map((edge) => ({
-    id: String(edge.id),
-    source: edge.sourceNodeKey,
-    target: edge.targetNodeKey,
-    label: undefined,
-    type: 'flowEdge',
-    selectable: true,
-    reconnectable: true,
-    data: {
-      branchKey: edge.branchKey,
-      condition: edge.condition,
-      sourceNodeType: nodeTypeMap.get(edge.sourceNodeKey) || 'hangup',
-    },
-    style: { stroke: 'var(--border-strong)' },
-  }));
+  return flow.edges
+    .filter((edge) => {
+      const sourceNodeType = nodeTypeMap.get(edge.sourceNodeKey) || 'hangup';
+      if (sourceNodeType !== 'menu') {
+        return true;
+      }
+
+      const branchKey = edge.condition || edge.branchKey || '';
+      return branchKey === 'complete' || menuRoutableBranchSet.has(branchKey);
+    })
+    .map((edge) => {
+      const sourceNodeType = nodeTypeMap.get(edge.sourceNodeKey) || 'hangup';
+      const sourceHandle = sourceNodeType === 'menu'
+        ? (edge.condition || edge.branchKey || undefined)
+        : sourceNodeType === 'get_digits'
+          ? (edge.condition || undefined)
+          : undefined;
+
+      return {
+        id: String(edge.id),
+        source: edge.sourceNodeKey,
+        target: edge.targetNodeKey,
+        sourceHandle,
+        label: undefined,
+        type: 'flowEdge',
+        selectable: true,
+        reconnectable: true,
+        data: {
+          branchKey: edge.branchKey,
+          condition: edge.condition,
+          sourceNodeType,
+        },
+        style: { stroke: 'var(--border-strong)' },
+      };
+    });
 }
 
 function mapSnapshotToNodes(snapshot: FlowSnapshot): Array<Node<FlowNodeData>> {
@@ -411,6 +758,8 @@ function mapSnapshotToNodes(snapshot: FlowSnapshot): Array<Node<FlowNodeData>> {
     name: '',
     description: null,
     slug: '',
+    parentFlowId: null,
+    parentNodeKey: null,
     createdAt: '',
     updatedAt: '',
     versionId: 0,
@@ -424,6 +773,7 @@ function mapSnapshotToNodes(snapshot: FlowSnapshot): Array<Node<FlowNodeData>> {
       positionY: node.positionY,
       config: node.config,
       groupId: node.groupId,
+      subflowId: node.subflowId,
     })),
     edges: [],
   };
@@ -436,6 +786,8 @@ function mapSnapshotToEdges(snapshot: FlowSnapshot): Edge<BuilderEdgeData>[] {
     name: '',
     description: null,
     slug: '',
+    parentFlowId: null,
+    parentNodeKey: null,
     createdAt: '',
     updatedAt: '',
     versionId: 0,
@@ -449,6 +801,7 @@ function mapSnapshotToEdges(snapshot: FlowSnapshot): Edge<BuilderEdgeData>[] {
       positionY: node.positionY,
       config: node.config,
       groupId: node.groupId,
+      subflowId: node.subflowId,
     })),
     edges: snapshot.edges.map((edge, index) => ({
       id: index + 1,
@@ -509,6 +862,8 @@ function minimapNodeColor(node: Node<FlowNodeData>): string {
       return 'var(--color-info)';
     case 'get_digits':
       return 'var(--color-warning)';
+    case 'menu':
+      return 'var(--color-warning)';
     case 'transfer':
       return 'var(--color-info)';
     case 'hunt':
@@ -524,15 +879,73 @@ function minimapNodeColor(node: Node<FlowNodeData>): string {
 
 const miniMapSizeProps = { width: 160, height: 120 } as unknown as Record<string, number>;
 
+function renderPaletteIcon(type: BuilderNodeType) {
+  if (type !== 'menu') {
+    return null;
+  }
+
+  return (
+    <span className={styles.paletteIcon} aria-hidden="true">
+      <svg viewBox="0 0 16 16" focusable="false">
+        <rect x="2" y="2" width="4" height="4" rx="1" />
+        <rect x="10" y="2" width="4" height="4" rx="1" />
+        <rect x="2" y="10" width="4" height="4" rx="1" />
+        <rect x="10" y="10" width="4" height="4" rx="1" />
+      </svg>
+    </span>
+  );
+}
+
 export function FlowEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const isDraftRoute = id === 'new';
+  const initialRouteFlowId = Number(id || 0);
   const canvasPanelRef = useRef<HTMLDivElement | null>(null);
   const saveFeedbackTimer = useRef<number | null>(null);
+  const autoSaveTimer = useRef<number | null>(null);
+  const saveInFlightRef = useRef(false);
   const fitDone = useRef(false);
   const pendingLeaveActionRef = useRef<PendingLeaveAction | null>(null);
   const allowNextPopStateRef = useRef(false);
+  const [deletedId, setDeletedId] = useState<number | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [currentFlowId, setCurrentFlowId] = useState<number>(initialRouteFlowId > 0 ? initialRouteFlowId : 0);
+  const [rootFlowId, setRootFlowId] = useState<number>(initialRouteFlowId > 0 ? initialRouteFlowId : 0);
+  const [breadcrumb, setBreadcrumb] = useState<FlowBreadcrumbItem[]>([]);
+  const [flowTree, setFlowTree] = useState<FlowTree | null>(null);
+  const [treeRefreshKey, setTreeRefreshKey] = useState(0);
+  const [editorNotice, setEditorNotice] = useState<string | null>(null);
+
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showError = (msg: string | null) => {
+    setErrorText(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSuccess = (id: number | null) => {
+    setDeletedId(id);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+  };
+
+  const editorNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showEditorNotice = (msg: string | null) => {
+    setEditorNotice(msg);
+    if (editorNoticeTimerRef.current) clearTimeout(editorNoticeTimerRef.current);
+    if (msg) editorNoticeTimerRef.current = setTimeout(() => setEditorNotice(null), 6000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      if (editorNoticeTimerRef.current) clearTimeout(editorNoticeTimerRef.current);
+    };
+  }, []);
+
   const [flow, setFlow] = useState<FlowDetail | null>(null);
   const [isDraft, setIsDraft] = useState(isDraftRoute);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -556,6 +969,166 @@ export function FlowEditorPage() {
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [pendingRestoreVersion, setPendingRestoreVersion] = useState<FlowVersionSummary | null>(null);
   const [compareVersion, setCompareVersion] = useState<FlowVersionDetail | null>(null);
+  const [submenuNodeOptionsLoading, setSubmenuNodeOptionsLoading] = useState(false);
+  const [submenuStartNodeKey, setSubmenuStartNodeKey] = useState<string | null>(null);
+  const { canvasNodes, canvasEdges } = useMemo(() => {
+    const visuals = buildSubflowJumpVisuals(nodes, edges);
+    return {
+      canvasNodes: [...nodes, ...visuals.nodes],
+      canvasEdges: [...edges, ...visuals.edges],
+    };
+  }, [edges, nodes]);
+
+  useEffect(() => {
+    if (!isDraftRoute && initialRouteFlowId > 0) {
+      setCurrentFlowId(initialRouteFlowId);
+      setRootFlowId(initialRouteFlowId);
+    }
+    if (isDraftRoute) {
+      setBreadcrumb([]);
+      setFlowTree(null);
+      setRootFlowId(0);
+    }
+  }, [initialRouteFlowId, isDraftRoute]);
+
+  useEffect(() => {
+    if (isDraftRoute || rootFlowId <= 0) {
+      setFlowTree(null);
+      return;
+    }
+
+    let active = true;
+    const loadTree = async () => {
+      const response = await getFlowTree(rootFlowId);
+      if (!active) {
+        return;
+      }
+      setFlowTree(response.data);
+    };
+
+    void loadTree();
+
+    return () => {
+      active = false;
+    };
+  }, [isDraftRoute, rootFlowId, treeRefreshKey]);
+
+  useEffect(() => {
+    const selectedMenuNode = nodes.find((node) => node.id === selectedNodeId && node.data.type === 'menu') || null;
+    if (!selectedMenuNode) {
+      setSubmenuNodeOptionsLoading(false);
+      setSubmenuStartNodeKey(null);
+      return;
+    }
+
+    const subflowId = Number(selectedMenuNode.data.subflowId || 0);
+    if (subflowId <= 0) {
+      setSubmenuNodeOptionsLoading(false);
+      setSubmenuStartNodeKey(null);
+      return;
+    }
+
+    let active = true;
+    setSubmenuNodeOptionsLoading(true);
+    const loadSubmenuNodes = async () => {
+      try {
+        const response = await getFlow(String(subflowId));
+        if (!active) {
+          return;
+        }
+        const defaultSubmenuStart = response.data.nodes.find((item) => item.type === 'start')?.nodeKey
+          || response.data.nodes.find((item) => item.type !== 'group')?.nodeKey
+          || null;
+        setSubmenuStartNodeKey(defaultSubmenuStart);
+      } catch {
+        if (!active) {
+          return;
+        }
+        setSubmenuStartNodeKey(null);
+      } finally {
+        if (active) {
+          setSubmenuNodeOptionsLoading(false);
+        }
+      }
+    };
+
+    void loadSubmenuNodes();
+
+    return () => {
+      active = false;
+    };
+  }, [nodes, selectedNodeId]);
+
+  useEffect(() => {
+    if (!selectedNodeId) {
+      return;
+    }
+
+    const selectedMenuNode = nodes.find((node) => node.id === selectedNodeId && node.data.type === 'menu') || null;
+    if (!selectedMenuNode) {
+      return;
+    }
+
+    const localEdgeBranches = new Set(
+      edges
+        .filter((edge) => edge.source === selectedMenuNode.id)
+        .map((edge) => resolveMenuBranchValue(edge.data?.branchKey, edge.data?.condition))
+        .filter((value): value is string => Boolean(value)),
+    );
+
+    setNodes((current) => {
+      const currentNode = current.find((node) => node.id === selectedMenuNode.id && node.data.type === 'menu');
+      if (!currentNode) {
+        return current;
+      }
+
+      const configuredBranches = sanitizeMenuBranches(currentNode.data.config.branches);
+      const currentTargets = sanitizeMenuSubmenuTargets(currentNode.data.config.submenu_branch_targets);
+      const nextTargets = { ...currentTargets };
+      let changed = false;
+
+      for (const branch of Object.keys(nextTargets)) {
+        if (localEdgeBranches.has(branch)) {
+          delete nextTargets[branch];
+          changed = true;
+        }
+      }
+
+      if (submenuStartNodeKey) {
+        for (const branch of configuredBranches) {
+          if (localEdgeBranches.has(branch)) {
+            continue;
+          }
+          if (nextTargets[branch]) {
+            continue;
+          }
+          nextTargets[branch] = submenuStartNodeKey;
+          changed = true;
+        }
+      }
+
+      if (!changed) {
+        return current;
+      }
+
+      return decorateEditorNodes(
+        current.map((node) => (
+          node.id === currentNode.id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  config: {
+                    ...node.data.config,
+                    submenu_branch_targets: nextTargets,
+                  },
+                },
+              }
+            : node
+        )),
+      );
+    });
+  }, [edges, nodes, selectedNodeId, submenuStartNodeKey]);
 
   useEffect(() => {
     if (rfInstance && nodes.length > 0 && !fitDone.current) {
@@ -569,6 +1142,35 @@ export function FlowEditorPage() {
       };
     }
   }, [rfInstance, nodes.length]);
+
+  const handleOpenSubmenu = useCallback(async (nodeId: string) => {
+    if (isDraftRoute || currentFlowId <= 0) {
+      showEditorNotice('Save this flow before opening a submenu.');
+      return;
+    }
+
+    try {
+      const response = await getFlow(String(currentFlowId));
+      const menuNode = response.data.nodes.find((node) => node.nodeKey === nodeId);
+      const subflowId = Number(menuNode?.subflowId || 0);
+
+      if (!subflowId) {
+        showEditorNotice('Menu subflow is missing. Save the flow and try again.');
+        return;
+      }
+
+      showEditorNotice(null);
+      setBreadcrumb((current) => {
+        const currentLabel = flow?.name || response.data.name;
+        const existingIndex = current.findIndex((item) => item.flowId === currentFlowId);
+        const base = existingIndex >= 0 ? current.slice(0, existingIndex + 1) : [...current, { flowId: currentFlowId, flowName: currentLabel }];
+        return [...base, { flowId: subflowId, flowName: menuNode?.label || 'Menu' }];
+      });
+      setCurrentFlowId(subflowId);
+    } catch {
+      showEditorNotice('Failed to open submenu.');
+    }
+  }, [currentFlowId, flow?.name, isDraftRoute]);
 
   const deleteNode = useCallback((nodeId: string) => {
     setNodes((current) => {
@@ -596,6 +1198,7 @@ export function FlowEditorPage() {
           onGroupLabelChange: handleGroupLabelChange,
           onGroupLabelSubmit: handleGroupLabelSubmit,
           onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+          onOpenSubmenu: handleOpenSubmenu,
         });
       }
 
@@ -607,6 +1210,7 @@ export function FlowEditorPage() {
           onGroupLabelChange: handleGroupLabelChange,
           onGroupLabelSubmit: handleGroupLabelSubmit,
           onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+          onOpenSubmenu: handleOpenSubmenu,
         },
       );
     });
@@ -630,6 +1234,7 @@ export function FlowEditorPage() {
           onGroupLabelChange: handleGroupLabelChange,
           onGroupLabelSubmit: handleGroupLabelSubmit,
           onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+          onOpenSubmenu: handleOpenSubmenu,
         },
       ),
     );
@@ -644,6 +1249,7 @@ export function FlowEditorPage() {
         onGroupLabelChange: handleGroupLabelChange,
         onGroupLabelSubmit: handleGroupLabelSubmit,
         onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+        onOpenSubmenu: handleOpenSubmenu,
       }),
     );
   }
@@ -657,6 +1263,7 @@ export function FlowEditorPage() {
         onGroupLabelChange: handleGroupLabelChange,
         onGroupLabelSubmit: handleGroupLabelSubmit,
         onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+        onOpenSubmenu: handleOpenSubmenu,
       }),
     );
   }
@@ -668,6 +1275,7 @@ export function FlowEditorPage() {
       onGroupLabelChange: handleGroupLabelChange,
       onGroupLabelSubmit: handleGroupLabelSubmit,
       onGroupLabelDoubleClick: handleGroupLabelDoubleClick,
+      onOpenSubmenu: handleOpenSubmenu,
     })
   ), [deleteNode, editingGroupId]);
 
@@ -697,6 +1305,7 @@ export function FlowEditorPage() {
               label: 'Start',
               type: 'start',
               config: {},
+              subflowId: null,
             },
             draggable: false,
           },
@@ -705,6 +1314,7 @@ export function FlowEditorPage() {
           return;
         }
         setFlow(draftFlow);
+        setBreadcrumb([]);
         setNodes(draftNodes);
         setEdges([]);
         setSavedSnapshot(null);
@@ -716,11 +1326,19 @@ export function FlowEditorPage() {
         return;
       }
 
-      const response = await getFlow(id);
+      if (currentFlowId <= 0) {
+        return;
+      }
+
+      const [response, breadcrumbResponse] = await Promise.all([
+        getFlow(String(currentFlowId)),
+        getFlowBreadcrumb(currentFlowId),
+      ]);
       if (!active) {
         return;
       }
       setFlow(response.data);
+      setBreadcrumb(breadcrumbResponse.data);
       const panelWidth = canvasPanelRef.current?.clientWidth || 900;
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
@@ -741,7 +1359,7 @@ export function FlowEditorPage() {
     return () => {
       active = false;
     };
-  }, [id, isDraftRoute]);
+  }, [currentFlowId, isDraftRoute]);
 
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) || null,
@@ -937,14 +1555,26 @@ export function FlowEditorPage() {
       if (saveFeedbackTimer.current) {
         window.clearTimeout(saveFeedbackTimer.current);
       }
+      if (autoSaveTimer.current) {
+        window.clearTimeout(autoSaveTimer.current);
+      }
     };
   }, []);
 
   const onConnect = useCallback(
     (connection: Connection) => {
       const sourceNodeType = nodes.find((node) => node.id === connection.source)?.data.type || 'hangup';
-      const condition = sourceNodeType === 'get_digits' ? 'default' : null;
-      const branchKey = sourceNodeType === 'hunt' ? 'no answer' : condition || 'default';
+      const menuBranch = sourceNodeType === 'menu' ? String(connection.sourceHandle || 'complete') : null;
+      const condition = sourceNodeType === 'get_digits'
+        ? 'default'
+        : sourceNodeType === 'menu'
+          ? menuBranch
+          : null;
+      const branchKey = sourceNodeType === 'hunt'
+        ? 'no answer'
+        : sourceNodeType === 'menu'
+          ? (menuBranch || 'complete')
+          : condition || 'default';
       const newKey = makeEdgeKey(connection.source, connection.target, connection.sourceHandle, condition);
 
       setEdges((current) => {
@@ -962,7 +1592,7 @@ export function FlowEditorPage() {
               type: 'flowEdge',
               reconnectable: true,
               style: { stroke: 'var(--border-strong)' },
-              data: { branchKey: null, condition: null, sourceNodeType },
+              data: { branchKey, condition, sourceNodeType },
             },
 current,
         );
@@ -976,6 +1606,9 @@ current,
 
   const onEdgeClick = useCallback<EdgeMouseHandler>(
     (_event, clickedEdge) => {
+      if (clickedEdge.data?.isSubflowJump) {
+        return;
+      }
       setSelectedNodeId(null);
       setSelectedNodeIds([]);
       setSelectedEdgeId(clickedEdge.id);
@@ -1046,10 +1679,12 @@ current,
 
   const handleSelectionChange = useCallback(
     ({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
-      const firstNode = selectedNodes[0] as Node<FlowNodeData> | undefined;
-      const firstEdge = selectedEdges[0] as Edge<BuilderEdgeData> | undefined;
+      const selectableNodes = selectedNodes.filter((node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX));
+      const selectableEdges = selectedEdges.filter((edge) => !edge.data?.isSubflowJump);
+      const firstNode = selectableNodes[0] as Node<FlowNodeData> | undefined;
+      const firstEdge = selectableEdges[0] as Edge<BuilderEdgeData> | undefined;
 
-      setSelectedNodeIds(selectedNodes.map((node) => node.id));
+      setSelectedNodeIds(selectableNodes.map((node) => node.id));
 
       if (firstNode) {
         setSelectedNodeId(firstNode.id);
@@ -1266,8 +1901,33 @@ current,
   };
 
   const handleConfigChange = (field: string, value: string) => {
-    const numericFields = new Set(['timeout_ms', 'attempt_timeout_ms', 'total_timeout_ms']);
+    const numericFields = new Set(['timeout_ms', 'attempt_timeout_ms', 'total_timeout_ms', 'max_timeout_attempts', 'max_invalid_attempts']);
     handleConfigValueChange(field, numericFields.has(field) ? Number(value) || 0 : value);
+  };
+
+  const handleMenuBranchToggle = (branch: string, checked: boolean) => {
+    const currentBranches = sanitizeMenuBranches(selectedConfig.branches);
+    const nextBranches = checked
+      ? Array.from(new Set([...currentBranches, branch]))
+      : currentBranches.filter((value) => value !== branch);
+    handleConfigValueChange('branches', nextBranches);
+    if (!checked) {
+      const currentTargets = sanitizeMenuSubmenuTargets(selectedConfig.submenu_branch_targets);
+      if (currentTargets[branch]) {
+        delete currentTargets[branch];
+        handleConfigValueChange('submenu_branch_targets', currentTargets);
+      }
+    }
+  };
+
+  const handleMenuSubflowTargetChange = (branch: string, targetNodeKey: string | null) => {
+    const currentTargets = sanitizeMenuSubmenuTargets(selectedConfig.submenu_branch_targets);
+    if (targetNodeKey) {
+      currentTargets[branch] = targetNodeKey;
+    } else {
+      delete currentTargets[branch];
+    }
+    handleConfigValueChange('submenu_branch_targets', currentTargets);
   };
 
   const handleConfigReplace = (nextConfig: Record<string, unknown>) => {
@@ -1309,17 +1969,63 @@ current,
   const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;
   const audioFileSelected = Number(selectedConfig.audio_file_id || 0) > 0;
   const promptAudioSelected = Number(selectedConfig.prompt_audio_file_id || 0) > 0;
+  const selectedMenuBranches = sanitizeMenuBranches(selectedConfig.branches);
+  const selectedMenuSubmenuTargets = sanitizeMenuSubmenuTargets(selectedConfig.submenu_branch_targets);
+  const selectedMenuLocalEdgeBranches = useMemo(
+    () => new Set(
+      edges
+        .filter((edge) => edge.source === selectedNodeId)
+        .map((edge) => resolveMenuBranchValue(edge.data?.branchKey, edge.data?.condition))
+        .filter((value): value is string => Boolean(value)),
+    ),
+    [edges, selectedNodeId],
+  );
   const audioOptions = audioItems.map((item) => ({ value: String(item.id), label: item.name }));
   const nodeOptions = nodes.map((node) => ({ value: node.id, label: `${node.id} — ${node.data.label}` }));
   const conditionOptions = conditionValues.map((value) => ({ value, label: value }));
+  const edgeConditionOptions = useMemo(() => {
+    if (!selectedEdge || !selectedEdgeSourceNode) {
+      return [] as Array<{ value: string; label: string }>;
+    }
 
-  const saveFlow = async (versionMessage?: string): Promise<FlowDetail | null> => {
+    if (selectedEdgeSourceNode.data.type === 'menu') {
+      const menuBranches = sanitizeMenuBranches(selectedEdgeSourceNode.data.config.branches);
+      return [...menuBranches, 'complete'].map((value) => ({ value, label: value }));
+    }
+
+    if (selectedEdgeSourceNode.data.type === 'get_digits') {
+      return conditionOptions;
+    }
+
+    return [] as Array<{ value: string; label: string }>;
+  }, [conditionOptions, selectedEdge, selectedEdgeSourceNode]);
+
+  const saveFlow = async (
+    versionMessage?: string,
+    options?: { auto?: boolean },
+  ): Promise<FlowDetail | null> => {
     if (!flow) return null;
+    if (saveInFlightRef.current) {
+      return null;
+    }
+    const validationError = await validateFlowBeforeSave(nodes, edges);
+    if (validationError) {
+      if (!options?.auto) {
+        setSaveState('failed');
+        showEditorNotice(validationError);
+      }
+      return null;
+    }
+    saveInFlightRef.current = true;
     setSaveState('saving');
     try {
       const payload = createSavePayload(flow, nodes, edges, versionMessage);
-      const response = isDraft ? await createFlow(payload) : await updateFlow(id, payload);
+      const response = isDraft ? await createFlow(payload) : await updateFlow(String(currentFlowId), payload);
       setFlow(response.data);
+      if (isDraft) {
+        setRootFlowId(response.data.id);
+      }
+      setCurrentFlowId(response.data.id);
       setIsDraft(false);
       const panelWidth = canvasPanelRef.current?.clientWidth || 900;
       const mappedNodes = mapFlowToNodes(response.data);
@@ -1329,23 +2035,36 @@ current,
       setNodes(nextNodes);
       setEdges(nextEdges);
       setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+      window.setTimeout(() => {
+        void rfInstance?.fitView({ padding: 0.2, duration: 300 });
+      }, 150);
       setSelectedNodeId(null);
       setSelectedNodeIds([]);
       setSelectedEdgeId(null);
       setEditingGroupId(null);
+      showEditorNotice(null);
       if (response.data.id > 0) {
-        const refreshedVersions = await listFlowVersions(response.data.id);
+        const [refreshedVersions, breadcrumbResponse] = await Promise.all([
+          listFlowVersions(response.data.id),
+          getFlowBreadcrumb(response.data.id),
+        ]);
         setVersions(refreshedVersions.data);
+        setBreadcrumb(breadcrumbResponse.data);
+        setTreeRefreshKey((current) => current + 1);
       }
       setSaveState('saved');
       if (isDraft) {
         navigate(`/flows/${response.data.id}`, { replace: true });
       }
       return response.data;
-    } catch {
-      setSaveState('failed');
+    } catch (error) {
+      if (!options?.auto) {
+        setSaveState('failed');
+        showEditorNotice(getApiError(error, 'failed to save flow'));
+      }
       return null;
     } finally {
+      saveInFlightRef.current = false;
       if (saveFeedbackTimer.current) {
         window.clearTimeout(saveFeedbackTimer.current);
       }
@@ -1354,6 +2073,33 @@ current,
       }, 2000);
     }
   };
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || !isInitialized || !flow) {
+      if (autoSaveTimer.current) {
+        window.clearTimeout(autoSaveTimer.current);
+      }
+      return;
+    }
+
+    if (versionSaveState === 'saving' || saveState === 'saving' || confirmLeaveOpen || compareVersion) {
+      return;
+    }
+
+    if (autoSaveTimer.current) {
+      window.clearTimeout(autoSaveTimer.current);
+    }
+
+    autoSaveTimer.current = window.setTimeout(() => {
+      void saveFlow(undefined, { auto: true });
+    }, AUTO_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (autoSaveTimer.current) {
+        window.clearTimeout(autoSaveTimer.current);
+      }
+    };
+  }, [compareVersion, confirmLeaveOpen, flow, hasUnsavedChanges, isInitialized, saveState, versionSaveState, saveFlow]);
 
   const setFlowName = (value: string) => {
     if (!flow) return;
@@ -1368,7 +2114,11 @@ current,
     }, 50);
   };
 
-  const handlePaneClick = useCallback(() => {
+  const handlePaneClick = useCallback((event: { target: EventTarget | null }) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.react-flow__edge') || target?.closest('.react-flow__node')) {
+      return;
+    }
     setSelectedNodeId(null);
     setSelectedNodeIds([]);
     setSelectedEdgeId(null);
@@ -1432,8 +2182,13 @@ current,
     }
 
     await restoreFlowVersion(flow.id, pendingRestoreVersion.id);
-    const response = await getFlow(String(flow.id));
+    const [response, breadcrumbResponse] = await Promise.all([
+      getFlow(String(flow.id)),
+      getFlowBreadcrumb(flow.id),
+    ]);
     setFlow(response.data);
+    setBreadcrumb(breadcrumbResponse.data);
+    setTreeRefreshKey((current) => current + 1);
     setIsDraft(false);
     const panelWidth = canvasPanelRef.current?.clientWidth || 900;
     const mappedNodes = mapFlowToNodes(response.data);
@@ -1460,9 +2215,51 @@ current,
     setCompareVersion(response.data);
   };
 
+  const ensureSavedBeforeNavigation = async (): Promise<boolean> => {
+    if (!hasUnsavedChanges) {
+      return true;
+    }
+    const saved = await saveFlow();
+    return Boolean(saved);
+  };
+
+  const handleBreadcrumbNavigate = async (flowId: number) => {
+    const canNavigate = await ensureSavedBeforeNavigation();
+    if (!canNavigate) {
+      return;
+    }
+    setBreadcrumb((current) => {
+      const index = current.findIndex((item) => item.flowId === flowId);
+      return index >= 0 ? current.slice(0, index + 1) : current;
+    });
+    setCurrentFlowId(flowId);
+    showEditorNotice(null);
+  };
+
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : 'save';
+  const saveStatusLabel = saveState === 'saving'
+    ? 'saving…'
+    : saveState === 'saved'
+      ? 'saved ✓'
+      : saveState === 'failed'
+        ? 'save failed'
+        : hasUnsavedChanges
+          ? 'unsaved changes'
+          : 'up to date';
+  const isSubflow = breadcrumb.length > 1;
+  useEffect(() => {
+    if (isSubflow && versionsOpen) {
+      setVersionsOpen(false);
+    }
+  }, [isSubflow, versionsOpen]);
+
   const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
-  const leaveFlowEditor = () => {
+  const leaveFlowEditor = async () => {
+    const canLeave = await ensureSavedBeforeNavigation();
+    if (canLeave) {
+      navigate('/flows');
+      return;
+    }
     requestLeave({ kind: 'navigate', to: '/flows' });
   };
 
@@ -1491,9 +2288,20 @@ current,
 
   return (
     <div className={styles.page}>
+      {editorNotice ? <div className={styles.editorNotice}>{editorNotice}</div> : null}
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>
-          <button className={styles.secondaryButton} onClick={leaveFlowEditor} type="button">back</button>
+          <button
+            className={styles.secondaryButton}
+            onClick={
+              isSubflow
+                ? () => void handleBreadcrumbNavigate(breadcrumb[breadcrumb.length - 2].flowId)
+                : () => void leaveFlowEditor()
+            }
+            type="button"
+          >
+            {isSubflow ? '← back to parent' : 'back'}
+          </button>
           <button className={styles.secondaryButton} onClick={handleTidyLayout} type="button">tidy layout</button>
           {canGroupSelection ? (
             <button className={styles.secondaryButton} onClick={handleGroupSelection} type="button">group</button>
@@ -1504,11 +2312,17 @@ current,
           {canRemoveFromGroupSelection ? (
             <button className={styles.secondaryButton} onClick={() => void handleRemoveFromGroup()} type="button">remove from group</button>
           ) : null}
-          <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => setFlowName(event.target.value)} />
+          <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => { setFlowName(event.target.value); showError(null); }} />
         </div>
         <div className={styles.topBarRight}>
-          <button className={styles.secondaryButton} onClick={handleVersionsToggle} type="button">versions</button>
-          <button className={saveButtonClass} onClick={() => void saveFlow()} type="button">{saveLabel}</button>
+          {!isSubflow ? (
+            <button className={styles.secondaryButton} onClick={handleVersionsToggle} type="button">versions</button>
+          ) : null}
+          {!isSubflow ? (
+            <button className={saveButtonClass} onClick={() => void saveFlow()} type="button">{saveLabel}</button>
+          ) : (
+            <span className={styles.saveStatus}>{saveStatusLabel}</span>
+          )}
         </div>
       </div>
 
@@ -1525,6 +2339,7 @@ current,
                 title={item.type === 'start' ? 'Seed flows already contain the required start node' : 'Drag onto canvas'}
               >
                 <span className={`${styles.paletteBar} ${styles[`bar${item.type.replace('_', '')}`]}`} />
+                {renderPaletteIcon(item.type)}
                 <div>
                   <div className={styles.paletteType}>{item.type}</div>
                   <div className={styles.paletteLabel}>{item.label}</div>
@@ -1532,30 +2347,52 @@ current,
               </div>
             ))}
           </div>
+          <FlowTreePanel tree={flowTree} currentFlowId={currentFlowId} onNavigate={handleBreadcrumbNavigate} />
         </section>
 
         <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+          <FlowBreadcrumb items={breadcrumb} onNavigate={handleBreadcrumbNavigate} />
           <div className={styles.canvasWrapper}>
             <ReactFlow
             fitView
             fitViewOptions={{ padding: 0.2 }}
-            nodes={nodes}
-            edges={edges}
+            nodes={canvasNodes}
+            edges={canvasEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onReconnect={onReconnect}
             onReconnectStart={onReconnectStart}
+            onNodeDoubleClick={(_event, node) => {
+              if (String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX)) {
+                return;
+              }
+              if (node.data.type === 'menu') {
+                void handleOpenSubmenu(node.id);
+              }
+            }}
             onNodeDragStop={handleNodeDragStop}
             onEdgeClick={onEdgeClick}
             onSelectionChange={handleSelectionChange}
             multiSelectionKeyCode="Shift"
             onPaneClick={handlePaneClick}
             onNodesDelete={(deletedNodes) => {
-              const deletedIds = new Set(deletedNodes.map((node) => node.id));
+              const deletedIds = new Set(
+                deletedNodes
+                  .filter((node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX))
+                  .map((node) => node.id),
+              );
+              if (deletedIds.size === 0) {
+                return;
+              }
               setEdges((current) => attachEdgeMetadata(current.filter((edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target)), nodes, deleteEdge));
               setNodes((current) => {
-                const groupIds = new Set(deletedNodes.filter((node) => node.data.type === 'group').map((node) => node.id));
+                const groupIds = new Set(
+                  deletedNodes
+                    .filter((node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX))
+                    .filter((node) => node.data.type === 'group')
+                    .map((node) => node.id),
+                );
                 if (groupIds.size === 0) {
                   return current;
                 }
@@ -1607,17 +2444,19 @@ current,
 
         <section className={styles.rightPanel}>
           <div className={styles.panelTitle}>{selectedEdge ? 'edge config' : 'node config'}</div>
-          {selectedEdge && selectedEdgeSourceNode?.data.type === 'get_digits' ? (
+          {selectedEdge ? (
             <div className={styles.form}>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>condition</span>
-                <SearchableSelect
-                  options={conditionOptions}
-                  value={selectedEdge.data?.condition || null}
-                  onChange={handleEdgeConditionChange}
-                  placeholder="select condition"
-                />
-              </label>
+              {selectedEdgeSourceNode && (selectedEdgeSourceNode.data.type === 'get_digits' || selectedEdgeSourceNode.data.type === 'menu') ? (
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>condition</span>
+                  <SearchableSelect
+                    options={edgeConditionOptions}
+                    value={selectedEdge.data?.condition || selectedEdge.data?.branchKey || null}
+                    onChange={handleEdgeConditionChange}
+                    placeholder="select condition"
+                  />
+                </label>
+              ) : null}
               <div className={styles.meta}>source: {selectedEdge.source}</div>
               <div className={styles.meta}>target: {selectedEdge.target}</div>
             </div>
@@ -1680,6 +2519,111 @@ current,
                 </>
               ) : null}
 
+              {selectedNode.data.type === 'menu' ? (
+                <>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>prompt audio</span>
+                    <SearchableSelect
+                      options={audioOptions}
+                      value={selectedConfig.prompt_audio_file_id ? String(selectedConfig.prompt_audio_file_id) : null}
+                      onChange={(value) => handleConfigChange('prompt_audio_file_id', value || '')}
+                      placeholder="built-in path / manual"
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>prompt_path</span>
+                    <input
+                      className={styles.input}
+                      disabled={promptAudioSelected}
+                      placeholder={promptAudioSelected ? 'disabled — using audio file above' : 'built-in sound path'}
+                      value={promptAudioSelected ? 'disabled — using audio file above' : String(selectedConfig.prompt_path || '')}
+                      onChange={(event) => handleConfigChange('prompt_path', event.target.value)}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>timeout prompt audio</span>
+                    <SearchableSelect
+                      options={audioOptions}
+                      value={selectedConfig.timeout_prompt_audio_id ? String(selectedConfig.timeout_prompt_audio_id) : null}
+                      onChange={(value) => handleConfigChange('timeout_prompt_audio_id', value || '')}
+                      placeholder="select timeout prompt"
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>invalid prompt audio</span>
+                    <SearchableSelect
+                      options={audioOptions}
+                      value={selectedConfig.invalid_prompt_audio_id ? String(selectedConfig.invalid_prompt_audio_id) : null}
+                      onChange={(value) => handleConfigChange('invalid_prompt_audio_id', value || '')}
+                      placeholder="select invalid prompt"
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>final failure audio</span>
+                    <SearchableSelect
+                      options={audioOptions}
+                      value={selectedConfig.final_failure_audio_id ? String(selectedConfig.final_failure_audio_id) : null}
+                      onChange={(value) => handleConfigChange('final_failure_audio_id', value || '')}
+                      placeholder="select goodbye prompt"
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>timeout_ms</span>
+                    <input className={styles.input} type="number" value={String(selectedConfig.timeout_ms || 5000)} onChange={(event) => handleConfigChange('timeout_ms', event.target.value)} />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>max timeout attempts</span>
+                    <input className={styles.input} type="number" value={String(selectedConfig.max_timeout_attempts || 3)} onChange={(event) => handleConfigChange('max_timeout_attempts', event.target.value)} />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>max invalid attempts</span>
+                    <input className={styles.input} type="number" value={String(selectedConfig.max_invalid_attempts || 3)} onChange={(event) => handleConfigChange('max_invalid_attempts', event.target.value)} />
+                  </label>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>branches</span>
+                    <div className={styles.menuBranchList}>
+                      {menuBranchOptions.map((branch) => {
+                        const checked = selectedMenuBranches.includes(branch);
+                        return (
+                          <div className={styles.menuBranchGroup} key={branch}>
+                            <label className={styles.menuBranchOption}>
+                              <input
+                                checked={checked}
+                                onChange={(event) => handleMenuBranchToggle(branch, event.target.checked)}
+                                type="checkbox"
+                              />
+                              <span className={styles.menuBranchLabel}>{branch}</span>
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>submenu branch targets</span>
+                    {selectedNode.data.subflowId ? (
+                      <div className={styles.menuBranchList}>
+                        {selectedMenuBranches.map((branch) => (
+                          <div className={styles.menuBranchGroup} key={`submenu-target-${branch}`}>
+                            <span className={styles.menuBranchLabel}>{branch}</span>
+                            <div className={styles.meta}>
+                              {selectedMenuLocalEdgeBranches.has(branch)
+                                ? 'disabled — routed by local edge'
+                                : submenuNodeOptionsLoading
+                                  ? 'loading submenu start...'
+                                  : `auto: ${selectedMenuSubmenuTargets[branch] || submenuStartNodeKey || 'start'}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={styles.meta}>Save flow once to create submenu, then map branches here.</div>
+                    )}
+                  </div>
+                  <div className={styles.meta}>subflow: {selectedNode.data.subflowId ? `#${selectedNode.data.subflowId}` : 'created on save'}</div>
+                </>
+              ) : null}
+
               {selectedNode.data.type === 'hunt' ? (
                 <HuntConfigPanel
                   nodeId={selectedNode.id}
@@ -1731,7 +2675,7 @@ current,
             className={styles.input}
             placeholder="Describe this version..."
             value={versionMessage}
-            onChange={(event) => setVersionMessage(event.target.value)}
+            onChange={(event) => { setVersionMessage(event.target.value); showError(null); }}
           />
           <button
             className={styles.primaryButton}

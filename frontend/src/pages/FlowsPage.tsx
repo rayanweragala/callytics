@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../components/common/Pagination';
+import { ErrorMessage } from '../components/common/ErrorMessage';
+import { PageLayout } from '../components/common/PageLayout';
 import { deleteFlow, listFlows } from '../lib/api';
+import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { FlowSummary } from '../types';
 import styles from './FlowsPage.module.css';
 
 export function FlowsPage() {
+  const [errorText, setErrorText] = useState<string | null>(null);
   const [flows, setFlows] = useState<FlowSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -14,7 +18,29 @@ export function FlowsPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(5);
+
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showError = (msg: string | null) => {
+    setErrorText(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSuccess = (id: number | null) => {
+    setDeletedId(id);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
@@ -43,35 +69,31 @@ export function FlowsPage() {
     setBusyId(id);
     try {
       await deleteFlow(id);
-      setDeletedId(id);
+      showSuccess(id);
       setConfirmId(null);
-      window.setTimeout(() => {
-        void loadFlows(page, limit);
-        setDeletedId((current) => (current === id ? null : current));
-      }, 1200);
-    } catch {
+      void loadFlows(page, limit);
+    } catch (error) {
+      showError(getApiError(error, 'failed to delete flow'));
       setFailedDeleteId(id);
       setConfirmId(null);
       window.setTimeout(() => {
         setFailedDeleteId((current) => (current === id ? null : current));
-      }, 2000);
+      }, 6000);
     } finally {
       setBusyId(null);
     }
   };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <div className={styles.sectionLabel}>configure</div>
-          <h1 className={styles.title}>flow builder</h1>
-        </div>
+    <PageLayout
+      title="flow builder"
+      subtitle="configure"
+      actions={
         <button className={styles.primaryButton} onClick={() => void handleCreate()} type="button">
           new flow
         </button>
-      </div>
-
+      }
+    >
       <div className={styles.tableCard}>
         <div className={styles.tableHead}>
           <div>name</div>
@@ -119,7 +141,8 @@ export function FlowsPage() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+        <ErrorMessage message={errorText} />
       </div>
-    </div>
+    </PageLayout>
   );
 }

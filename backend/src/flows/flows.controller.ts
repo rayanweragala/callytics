@@ -44,6 +44,16 @@ export class FlowsController {
     return this.flowsService.createVersion(id, body.message);
   }
 
+  @Get(':id/breadcrumb')
+  findBreadcrumb(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.getBreadcrumb(id);
+  }
+
+  @Get(':id/tree')
+  findTree(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.getFlowTree(id);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.flowsService.findOne(id);

@@ -13,7 +13,9 @@ export function SidebarNav() {
             <NavLink to="/" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item} end>
               diagnostics
             </NavLink>
-            <button className={styles.item} type="button">call logs</button>
+            <NavLink to="/call-logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              call logs
+            </NavLink>
             <NavLink to="/recordings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               recordings
             </NavLink>
@@ -38,7 +40,9 @@ export function SidebarNav() {
           </div>
           <div className={styles.group}>
             <div className={styles.groupLabel}>SYSTEM</div>
-            <button className={styles.item} type="button">settings</button>
+            <NavLink to="/settings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              settings
+            </NavLink>
           </div>
         </nav>
       </div>
