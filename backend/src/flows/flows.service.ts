@@ -534,7 +534,7 @@ export class FlowsService implements OnModuleInit {
 
     const children = await Promise.all(
       menuNodes
-        .filter((node) => Number(node.subflowId || 0) > 0 && this.hasExplicitSubmenuMapping(node.configJson))
+        .filter((node) => Number(node.subflowId || 0 ) > 0)
         .map(async (node) => {
           const subflowId = Number(node.subflowId || 0);
           const childFlow = await this.callFlowsRepository.findOne({ where: { id: subflowId } });
@@ -560,16 +560,6 @@ export class FlowsService implements OnModuleInit {
     };
   }
 
-  private hasExplicitSubmenuMapping(config: Record<string, unknown> | null): boolean {
-    if (!config) {
-      return false;
-    }
-    const rawTargets = config.submenu_branch_targets;
-    if (!rawTargets || typeof rawTargets !== 'object' || Array.isArray(rawTargets)) {
-      return false;
-    }
-    return Object.values(rawTargets).some((value) => String(value || '').trim().length > 0);
-  }
 
   private async resolveFlowVersionId(flowId: number): Promise<number | null> {
     const flow = await this.callFlowsRepository.findOne({ where: { id: flowId } });
