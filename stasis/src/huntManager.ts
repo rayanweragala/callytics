@@ -1,6 +1,7 @@
 export interface HuntOutboundChannel {
   id: string;
   hangup: () => Promise<void>;
+  state?: string;
 }
 
 interface HuntWaiter {

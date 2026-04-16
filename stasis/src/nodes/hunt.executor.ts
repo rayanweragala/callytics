@@ -6,6 +6,7 @@ import { registerHuntWaiter } from '../huntManager';
 interface HuntExecutorChannel {
   id: string;
   hangup: () => Promise<void>;
+  state?: string;
 }
 
 interface AriLike {
@@ -26,7 +27,7 @@ interface HoldLoopController {
 }
 
 interface GroupWaitResult {
-  status: 'answered' | 'failed' | 'timeout';
+  status: 'answered' | 'failed' | 'timeout' | 'hangup';
   channelId: string | null;
 }
 
@@ -164,6 +165,7 @@ async function captureOriginatedChannel(
 function waitForFirstAnswerOrAllDone(
   ariClient: AriLike,
   channelIds: string[],
+  inboundChannelId: string,
   timeoutMs: number,
 ): Promise<GroupWaitResult> {
   return new Promise((resolve) => {
@@ -192,6 +194,10 @@ function waitForFirstAnswerOrAllDone(
 
     const onTerminal = (event: { channel?: { id?: string } }) => {
       const channelId = event.channel?.id || '';
+      if (channelId === inboundChannelId) {
+        settle({ status: 'hangup', channelId });
+        return;
+      }
       if (!remaining.has(channelId)) {
         return;
       }
@@ -220,7 +226,7 @@ function waitForFirstAnswerOrAllDone(
 function waitForChannelEnd(
   ariClient: AriLike,
   channelIds: string[],
-): Promise<void> {
+): Promise<string> {
   return new Promise((resolve) => {
     const onEnd = (event: { channel?: { id?: string } }) => {
       const channelId = event.channel?.id || '';
@@ -228,7 +234,7 @@ function waitForChannelEnd(
         return;
       }
       cleanup();
-      resolve();
+      resolve(channelId);
     };
 
     const cleanup = () => {
@@ -298,11 +304,22 @@ export async function executeHunt(
   let lastDestination: string | null = null;
   let holdLoop: HoldLoopController | null = null;
   let pendingChannels: HuntExecutorChannel[] = [];
+  let inboundEnded = false;
+
+  const onInboundTerminal = (event: { channel?: { id?: string } }) => {
+    if (event.channel?.id !== channel.id) {
+      return;
+    }
+    inboundEnded = true;
+  };
 
   if (!bridgeId || destinations.length === 0) {
     console.log(`[hunt] missing bridge or destinations channel=${channel.id} bridge=${bridgeId || 'none'} destinations=${destinations.length}`);
     return noAnswerResult(node.config);
   }
+
+  client.on('StasisEnd', onInboundTerminal);
+  client.on('ChannelDestroyed', onInboundTerminal);
 
   const holdMedia = await resolveOptionalBridgeMedia(node.config, 'hold_audio_file_id', 'hold_audio_file_path');
   const busyMedia = await resolveOptionalBridgeMedia(node.config, 'busy_audio_file_id', 'busy_audio_file_path');
@@ -330,7 +347,12 @@ export async function executeHunt(
     pendingChannels = [answeredChannel];
     console.log(`[hunt] adding answered channel to bridge inbound=${channel.id} outbound=${answeredChannel.id} bridge=${bridgeId}`);
     await client.bridges.addChannel({ bridgeId, channel: answeredChannel.id });
-    await waitForChannelEnd(client, [channel.id, answeredChannel.id]);
+    const endedChannelId = await waitForChannelEnd(client, [channel.id, answeredChannel.id]);
+    if (endedChannelId === channel.id) {
+      await hangupChannels([answeredChannel]);
+    } else {
+      await channel.hangup().catch(() => undefined);
+    }
     return 'done';
   };
 
@@ -352,7 +374,24 @@ export async function executeHunt(
         return noAnswerResult(node.config);
       }
 
-      const outcome = await waitForFirstAnswerOrAllDone(client, pendingChannels.map((item) => item.id), totalTimeoutMs);
+      const alreadyAnswered = pendingChannels.find((item) => String(item.state || '').toLowerCase() === 'up');
+      if (alreadyAnswered) {
+        console.log(`[hunt] group leg already up channel=${alreadyAnswered.id}`);
+        return await finalizeAnswer(alreadyAnswered);
+      }
+
+      const outcome = await waitForFirstAnswerOrAllDone(
+        client,
+        pendingChannels.map((item) => item.id),
+        channel.id,
+        totalTimeoutMs,
+      );
+      if (outcome.status === 'hangup' || inboundEnded) {
+        await stopHold();
+        await hangupChannels(pendingChannels);
+        pendingChannels = [];
+        return 'hangup';
+      }
       if (outcome.status === 'answered' && outcome.channelId) {
         const answered = pendingChannels.find((item) => item.id === outcome.channelId);
         if (answered) {
@@ -373,6 +412,9 @@ export async function executeHunt(
       const remainingMs = totalTimeoutMs - (Date.now() - startTime);
       if (remainingMs <= 0) {
         break;
+      }
+      if (inboundEnded) {
+        return 'hangup';
       }
 
       const destination = strategy === 'random'
@@ -398,20 +440,21 @@ export async function executeHunt(
         console.log(`[hunt] originate failed destination=${destination}`);
       } else {
         pendingChannels = [outboundChannel];
-        const outcome = await waitForFirstAnswerOrAllDone(client, [outboundChannel.id], dialTimeoutMs);
-        if (outcome.status === 'answered') {
-          console.log(`[hunt] answered destination=${destination} channel=${outboundChannel.id}`);
-          return await finalizeAnswer(outboundChannel);
-        }
-
-        console.log(`[hunt] failed destination=${destination} status=${outcome.status}`);
-        await hangupChannels([outboundChannel]);
-        pendingChannels = [];
+        console.log(
+          `[hunt] outbound leg entered stasis destination=${destination} channel=${outboundChannel.id} state=${String(outboundChannel.state || 'unknown')}`,
+        );
+        // In this call flow, outbound legs only enter the hunt-outbound Stasis app once the
+        // destination has effectively answered. Bridge immediately to avoid missing late/absent
+        // ChannelStateChange events and trapping caller on hold.
+        return await finalizeAnswer(outboundChannel);
       }
 
       const remainingAfterAttempt = totalTimeoutMs - (Date.now() - startTime);
       if (remainingAfterAttempt <= 0) {
         break;
+      }
+      if (inboundEnded) {
+        return 'hangup';
       }
 
       if (busyMedia) {
@@ -430,7 +473,13 @@ export async function executeHunt(
     await hangupChannels(pendingChannels);
     pendingChannels = [];
     const message = error instanceof Error ? error.message : String(error);
+    if (inboundEnded || message === 'hangup') {
+      return 'hangup';
+    }
     console.error(`[hunt] fatal error, routing to on_no_answer: ${message}`);
     return noAnswerResult(node.config);
+  } finally {
+    client.removeListener('StasisEnd', onInboundTerminal);
+    client.removeListener('ChannelDestroyed', onInboundTerminal);
   }
 }

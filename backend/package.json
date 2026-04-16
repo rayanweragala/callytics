@@ -10,7 +10,8 @@
     "test": "jest",
     "test:unit": "jest --selectProjects unit --passWithNoTests",
     "test:int": "jest --selectProjects integration --runInBand",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "test:ci": "jest --ci --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.2",

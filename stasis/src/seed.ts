@@ -5,15 +5,18 @@
 import pool, { query } from './db';
 
 export default async function seed(): Promise<void> {
+  const seedSlug = 'test-flow';
+
   const existingFlowRows = await query(
     `
       SELECT cf.id, cf.current_version_id, COUNT(fn.id)::int AS node_count
       FROM call_flows cf
       LEFT JOIN flow_nodes fn ON fn.flow_version_id = cf.current_version_id
-      WHERE cf.id = 1
+      WHERE cf.slug = $1
       GROUP BY cf.id, cf.current_version_id
       LIMIT 1
     `,
+    [seedSlug],
   );
 
   const existingFlow = existingFlowRows[0] as {
@@ -23,7 +26,7 @@ export default async function seed(): Promise<void> {
   } | undefined;
 
   if (existingFlow && existingFlow.node_count > 0) {
-    console.log(`Flow 1 already exists with ${existingFlow.node_count} nodes, skipping seed`);
+    console.log(`Flow ${seedSlug} already exists with ${existingFlow.node_count} nodes, skipping seed`);
     return;
   }
 
@@ -37,11 +40,18 @@ export default async function seed(): Promise<void> {
         INSERT INTO call_flows (
           name, slug, description, status, entry_type
         ) VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (slug) DO UPDATE
+        SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          status = EXCLUDED.status,
+          entry_type = EXCLUDED.entry_type,
+          updated_at = NOW()
         RETURNING id
       `,
       [
         'Test Flow',
-        'test-flow',
+        seedSlug,
         'Auto-generated seed flow for testing',
         'published',
         'default',
@@ -50,22 +60,40 @@ export default async function seed(): Promise<void> {
 
     const flowId = flowResult.rows[0].id;
 
-    const versionResult = await client.query(
-      `
-        INSERT INTO flow_versions (
-          flow_id, version_number, is_published, published_at
-        ) VALUES ($1, $2, $3, NOW())
-        RETURNING id
-      `,
-      [flowId, 1, true],
-    );
+    let versionId: number;
 
-    const versionId = versionResult.rows[0].id;
+    if (existingFlow?.current_version_id) {
+      versionId = existingFlow.current_version_id;
+    } else {
+      const versionResult = await client.query(
+        `
+          INSERT INTO flow_versions (
+            flow_id, version_number, is_published, published_at
+          ) VALUES ($1, $2, $3, NOW())
+          RETURNING id
+        `,
+        [flowId, 1, true],
+      );
 
-    await client.query(
-      `UPDATE call_flows SET current_version_id = $1 WHERE id = $2`,
-      [versionId, flowId],
+      versionId = versionResult.rows[0].id;
+
+      await client.query(
+        `UPDATE call_flows SET current_version_id = $1 WHERE id = $2`,
+        [versionId, flowId],
+      );
+    }
+
+    const versionNodeCountResult = await client.query(
+      `SELECT COUNT(*)::int AS count FROM flow_nodes WHERE flow_version_id = $1`,
+      [versionId],
     );
+    const versionNodeCount = Number(versionNodeCountResult.rows[0]?.count || 0);
+
+    if (versionNodeCount > 0) {
+      await client.query('COMMIT');
+      console.log(`Seed flow ${seedSlug} already has ${versionNodeCount} nodes, skipping insert`);
+      return;
+    }
 
     const nodes = [
       { node_key: 'start', type: 'start', label: 'Start', config_json: {} },
@@ -116,7 +144,7 @@ export default async function seed(): Promise<void> {
     }
 
     await client.query('COMMIT');
-    console.log('Seed flow inserted successfully');
+    console.log(`Seed flow ${seedSlug} inserted successfully`);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

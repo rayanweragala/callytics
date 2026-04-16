@@ -109,4 +109,33 @@ describe('flow loader', () => {
 
     await expect(loadFlowById(5)).resolves.toBeNull();
   });
+
+  it('returns null when flow has zero nodes (no start node present)', async () => {
+    queryMock
+      .mockResolvedValueOnce([{ id: 5, name: 'IVR', current_version_id: 9 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await expect(loadFlowById(5)).resolves.toBeNull();
+  });
+
+  it('does not crash when edges reference node keys not present in the node list', async () => {
+    queryMock
+      .mockResolvedValueOnce([{ id: 5, name: 'IVR', current_version_id: 9 }])
+      .mockResolvedValueOnce([
+        { node_key: 'start', type: 'start', label: 'Start', config_json: {} },
+      ])
+      .mockResolvedValueOnce([
+        { source_node_key: 'start', target_node_key: 'ghost-node', branch_key: 'default', condition: null },
+        { source_node_key: 'ghost-node', target_node_key: 'another-ghost', branch_key: 'default', condition: null },
+      ]);
+
+    const flow = await loadFlowById(5);
+
+    // Should return a valid flow without throwing
+    expect(flow).not.toBeNull();
+    expect(flow?.nodes).toHaveLength(1);
+    // Dangling edges are preserved as-is (flowLoader does not filter them)
+    expect(flow?.edges).toHaveLength(2);
+  });
 });

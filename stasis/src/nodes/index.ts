@@ -168,24 +168,24 @@ async function executeGetDigits(
       ]);
     };
 
-    const settle = async (value: string) => {
+    const settle = (value: string) => {
       if (finished) return;
       finished = true;
       cleanup();
-      await stopPlaybackSafely();
       console.log(`[get_digits] returning channel=${channel.id} result=${value}`);
       resolve(value);
+      void stopPlaybackSafely();
     };
 
     const onDtmf = async (event: { channel?: { id?: string }; digit?: string }) => {
       if (event.channel?.id && event.channel.id !== channel.id) return;
       console.log(`[get_digits] ChannelDtmfReceived channel=${channel.id} digit=${String(event.digit || '')}`);
-      await settle(String(event.digit || 'default'));
+      settle(String(event.digit || 'default'));
     };
 
     const onHangup = async (event: { channel?: { id?: string } }) => {
       if (event.channel?.id !== channel.id) return;
-      await settle('hangup');
+      settle('hangup');
     };
 
     console.log(`[get_digits] listening for DTMF on channel=${channel.id}`);
@@ -196,7 +196,7 @@ async function executeGetDigits(
 
     timer = setTimeout(() => {
       console.log('[get_digits] timeout fired');
-      void settle('timeout');
+      settle('timeout');
     }, timeoutMs);
 
     try {

@@ -302,12 +302,24 @@ async function start(): Promise<void> {
       }
     });
 
-    client.on('StasisEnd', async (_event: unknown, channel: { id: string }) => {
+    client.on('StasisEnd', async (
+      event: {
+        channel?: {
+          id?: string;
+          name?: string;
+          state?: string;
+        };
+      },
+      channel: { id: string },
+    ) => {
       const session = getSession(channel.id);
       if (!session) {
         return;
       }
 
+      console.log(
+        `[channel] StasisEnd call_id=${channel.id} state=${String(event.channel?.state || 'unknown')} name=${String(event.channel?.name || 'unknown')}`,
+      );
       removeSession(channel.id);
       try {
         await persistRecording(session);
@@ -319,6 +331,26 @@ async function start(): Promise<void> {
       }
       await publishCallEndTelemetry(channel.id, session.flow.id, session.callerNumber);
       console.log(`StasisEnd: ${channel.id}`);
+    });
+
+    client.on('ChannelDestroyed', (
+      event: {
+        channel?: {
+          id?: string;
+          name?: string;
+          state?: string;
+        };
+        cause?: number;
+        cause_txt?: string;
+      },
+      channel: { id: string },
+    ) => {
+      if (!getSession(channel.id)) {
+        return;
+      }
+      console.log(
+        `[channel] destroyed call_id=${channel.id} cause=${String(event.cause ?? 'unknown')} cause_txt=${String(event.cause_txt || 'unknown')} state=${String(event.channel?.state || 'unknown')} name=${String(event.channel?.name || 'unknown')}`,
+      );
     });
 
     client.start(ARI_APP);

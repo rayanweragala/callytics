@@ -135,25 +135,25 @@ async function collectMenuAttempt(
       ]);
     };
 
-    const settle = async (value: MenuAttemptResult) => {
+    const settle = (value: MenuAttemptResult) => {
       if (finished) return;
       finished = true;
       cleanup();
-      await stopPlaybackSafely();
       console.log(`[menu] returning channel=${channel.id} result=${value}`);
       resolve(value);
+      void stopPlaybackSafely();
     };
 
     const onDtmf = async (event: { channel?: { id?: string }; digit?: string }) => {
       if (event.channel?.id && event.channel.id !== channel.id) return;
       const rawDigit = String(event.digit || '');
       console.log(`[menu] ChannelDtmfReceived channel=${channel.id} digit=${rawDigit}`);
-      await settle(resolveMenuDigit(node, rawDigit));
+      settle(resolveMenuDigit(node, rawDigit));
     };
 
     const onHangup = async (event: { channel?: { id?: string } }) => {
       if (event.channel?.id !== channel.id) return;
-      await settle('hangup');
+      settle('hangup');
     };
 
     console.log(`[menu] listening for DTMF on channel=${channel.id}`);
@@ -164,7 +164,7 @@ async function collectMenuAttempt(
 
     timer = setTimeout(() => {
       console.log('[menu] timeout fired');
-      void settle('timeout');
+      settle('timeout');
     }, timeoutMs);
 
     try {

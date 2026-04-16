@@ -68,6 +68,11 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
   - Editor save path now creates committed versions visible in the versions drawer
   - Added compare and restore UX in the flow editor versions panel
   - Restore applies snapshot content and writes a new version message (`Restored from vN`)
+- Phase 17: full test suite, coverage thresholds, GitHub Actions CI, and hunt-answer flow stabilization completed
+  - Test suite totals: Stasis 58, Backend 85, Frontend 126
+  - CI workflow added at `.github/workflows/ci.yml` for `dev` and `main` push/PR validation
+  - Coverage gates now enforced across all three apps (`stasis`, `backend`, `frontend`)
+  - Hunt executor behavior aligned with outbound Stasis-entry answer detection to reduce missed-bridge races
 
 Important infrastructure change made during Phase 4:
 

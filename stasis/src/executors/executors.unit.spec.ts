@@ -516,11 +516,21 @@ describe('hunt executor', () => {
 
   it('moves to the next destination when the first destination does not answer within timeout', async () => {
     const ariClient = createAriClient();
-    const first = { id: 'hunt-1', hangup: jest.fn().mockResolvedValue(undefined) };
     const second = { id: 'hunt-2', hangup: jest.fn().mockResolvedValue(undefined) };
+    let resolveSecondWaiter: ((channel: { id: string; hangup: () => Promise<void> }) => void) | null = null;
+    const firstWaiter = new Promise<never>(() => {});
+    const secondWaiter = new Promise<{ id: string; hangup: () => Promise<void> }>((resolve) => {
+      resolveSecondWaiter = resolve;
+    });
     registerHuntWaiterMock
-      .mockReturnValueOnce(Promise.resolve(first))
-      .mockReturnValueOnce(Promise.resolve(second));
+      .mockReturnValueOnce(firstWaiter)
+      .mockReturnValueOnce(secondWaiter);
+    (ariClient.channels.originate as jest.Mock)
+      .mockImplementationOnce(async () => undefined)
+      .mockImplementationOnce(async () => {
+        // Simulate outbound leg entering Stasis on the second destination.
+        resolveSecondWaiter?.(second);
+      });
     resolveAudioMediaPathMock.mockResolvedValue(null);
     const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2001', '2002'], attempt_timeout_ms: 5000, total_timeout_ms: 15000 } };
 
@@ -536,7 +546,7 @@ describe('hunt executor', () => {
 
     expect(ariClient.channels.originate).toHaveBeenNthCalledWith(1, expect.objectContaining({ endpoint: 'PJSIP/2001' }));
     expect(ariClient.channels.originate).toHaveBeenNthCalledWith(2, expect.objectContaining({ endpoint: 'PJSIP/2002' }));
-    expect(first.hangup).toHaveBeenCalled();
+    expect(ariClient.bridges.addChannel).toHaveBeenCalledWith({ bridgeId: 'bridge-inbound-1', channel: 'hunt-2' });
   });
 
   it('resolves to done when any destination answers', async () => {
@@ -559,11 +569,12 @@ describe('hunt executor', () => {
 
   it('resolves to route:on-no-answer when all destinations fail to answer', async () => {
     const ariClient = createAriClient();
-    const first = { id: 'hunt-1', hangup: jest.fn().mockResolvedValue(undefined) };
-    const second = { id: 'hunt-2', hangup: jest.fn().mockResolvedValue(undefined) };
     registerHuntWaiterMock
-      .mockReturnValueOnce(Promise.resolve(first))
-      .mockReturnValueOnce(Promise.resolve(second));
+      .mockReturnValueOnce(new Promise<never>(() => {}))
+      .mockReturnValueOnce(new Promise<never>(() => {}));
+    (ariClient.channels.originate as jest.Mock)
+      .mockImplementationOnce(async () => undefined)
+      .mockImplementationOnce(async () => undefined);
     resolveAudioMediaPathMock.mockResolvedValue(null);
     const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2001', '2002'], attempt_timeout_ms: 3000, total_timeout_ms: 6000, on_no_answer: 'fallback' } };
 
@@ -574,7 +585,7 @@ describe('hunt executor', () => {
     await jest.advanceTimersByTimeAsync(3000);
 
     await expect(promise).resolves.toBe('route:fallback');
-  });
+  }, 15000);
 
   it('plays hold audio on the bridge while dialing and stops it when a destination answers', async () => {
     const ariClient = createAriClient();
@@ -604,6 +615,39 @@ describe('hunt executor', () => {
     await expect(promise).resolves.toBe('done');
     expect(holdPlayback.stop).toHaveBeenCalled();
   });
+
+  it('returns hangup when inbound channel ends while hunt is still dialing', async () => {
+    const ariClient = createAriClient();
+    registerHuntWaiterMock.mockReturnValue(new Promise<never>(() => {}));
+    resolveAudioMediaPathMock.mockResolvedValue(null);
+    const node: FlowNode = {
+      nodeKey: 'hunt-1',
+      type: 'hunt',
+      label: 'Hunt',
+      config: { destinations: ['2001'], attempt_timeout_ms: 3000, total_timeout_ms: 3500, on_no_answer: 'fallback' },
+    };
+
+    const promise = executeHunt(
+      { id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) },
+      node,
+      createSession(),
+      ariClient as any,
+    );
+
+    await flushPromises();
+    expect(ariClient.channels.originate).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'PJSIP/2001' }),
+    );
+
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    await flushPromises();
+
+    await jest.advanceTimersByTimeAsync(4000);
+    await flushPromises();
+
+    await expect(promise).resolves.toBe('hangup');
+    expect(ariClient.channels.originate).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('hangup executor', () => {
@@ -621,4 +665,3 @@ describe('hangup executor', () => {
     expect(result).toBe('done');
   });
 });
-

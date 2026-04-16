@@ -19,3 +19,4 @@ storage/audio/voices/*
 storage/voicemail/*
 *.tsbuildinfo
 .gstack/
+coverage/

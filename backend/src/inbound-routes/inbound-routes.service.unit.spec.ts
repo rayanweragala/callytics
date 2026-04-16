@@ -1,0 +1,130 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { InboundRoutesService } from './inbound-routes.service';
+import { InboundRouteEntity } from './entities/inbound-route.entity';
+import { CallFlowEntity } from '../flows/entities/call-flow.entity';
+import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
+
+describe('InboundRoutesService', () => {
+  let service: InboundRoutesService;
+  let inboundRoutesRepo: any;
+  let flowsRepo: any;
+  let asteriskConfigService: any;
+
+  const mockInboundRoutesRepo = {
+    findAndCount: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
+    find: jest.fn(),
+  };
+
+  const mockFlowsRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+  };
+
+  const mockAsteriskConfigService = {
+    syncInboundRoutes: jest.fn().mockResolvedValue(undefined),
+    writeInboundRoutesConfig: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockDataSource = {
+    query: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        InboundRoutesService,
+        { provide: getRepositoryToken(InboundRouteEntity), useValue: mockInboundRoutesRepo },
+        { provide: getRepositoryToken(CallFlowEntity), useValue: mockFlowsRepo },
+        { provide: getDataSourceToken(), useValue: mockDataSource },
+        { provide: AsteriskConfigService, useValue: mockAsteriskConfigService },
+      ],
+    }).compile();
+
+    service = module.get<InboundRoutesService>(InboundRoutesService);
+    inboundRoutesRepo = module.get(getRepositoryToken(InboundRouteEntity));
+    flowsRepo = module.get(getRepositoryToken(CallFlowEntity));
+    asteriskConfigService = module.get(AsteriskConfigService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('list', () => {
+    it('should return paginated inbound routes', async () => {
+      const items = [{ id: 1, did: '123456', flowId: 1, createdAt: new Date() }];
+      inboundRoutesRepo.findAndCount.mockResolvedValue([items, 1]);
+      mockFlowsRepo.find.mockResolvedValue([{ id: 1, name: 'Flow 1' }]);
+
+      const result = await service.list();
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].flowName).toBe('Flow 1');
+    });
+  });
+
+  describe('create', () => {
+    it('should create a new inbound route', async () => {
+      const dto = { did: '123456', flowId: 1, label: 'Route 1' };
+      const entity = { ...dto, id: 1, createdAt: new Date() };
+      mockFlowsRepo.findOne.mockResolvedValue({ id: 1 });
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
+      inboundRoutesRepo.create.mockReturnValue(entity);
+      inboundRoutesRepo.save.mockResolvedValue(entity);
+      inboundRoutesRepo.find.mockResolvedValue([entity]);
+
+      const result = await service.create(dto);
+
+      expect(result.data.id).toBe(1);
+      expect(asteriskConfigService.syncInboundRoutes).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if flow does not exist', async () => {
+      mockFlowsRepo.findOne.mockResolvedValue(null);
+      await expect(service.create({ did: '1', flowId: 99 })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('update', () => {
+    it('should update an existing inbound route', async () => {
+      const entity = { id: 1, did: '123456', flowId: 1, createdAt: new Date() };
+      const dto = { did: '654321' };
+      inboundRoutesRepo.findOne.mockResolvedValue(entity);
+      inboundRoutesRepo.save.mockResolvedValue({ ...entity, did: '654321' });
+      inboundRoutesRepo.find.mockResolvedValue([{ ...entity, did: '654321' }]);
+      mockFlowsRepo.find.mockResolvedValue([{ id: 1, name: 'Flow 1' }]);
+
+      const result = await service.update(1, dto);
+
+      expect(result.data.did).toBe('654321');
+    });
+
+    it('should throw NotFoundException if not found', async () => {
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
+      await expect(service.update(1, {})).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove an inbound route', async () => {
+      const entity = { id: 1 };
+      inboundRoutesRepo.findOne.mockResolvedValue(entity);
+      inboundRoutesRepo.find.mockResolvedValue([]);
+
+      const result = await service.remove(1);
+
+      expect(result.data.deleted).toBe(true);
+      expect(inboundRoutesRepo.delete).toHaveBeenCalledWith({ id: 1 });
+    });
+  });
+});

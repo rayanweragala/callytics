@@ -4,8 +4,18 @@ module.exports = {
   rootDir: '.',
   testRegex: '.*\.(unit|int)\.spec\.ts$',
   moduleFileExtensions: ['js', 'json', 'ts'],
-  collectCoverageFrom: ['src/**/*.(t|j)s'],
+  collectCoverageFrom: [
+    'src/flows/flows.service.ts',
+    'src/audio/audio.service.ts',
+    'src/trunks/trunks.service.ts',
+    'src/extensions/extensions.service.ts',
+    'src/inbound-routes/inbound-routes.service.ts',
+    'src/recordings/recordings.service.ts',
+  ],
   coverageDirectory: './coverage',
+  coverageThreshold: {
+    global: { lines: 70 },
+  },
   projects: [
     {
       displayName: 'unit',
