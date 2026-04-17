@@ -1,19 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { layoutFlow } from './layoutFlow';
 import type { Node, Edge } from 'reactflow';
-import type { FlowNodeData } from '../types';
+import type { BuilderNodeType, FlowNodeData } from '../types';
 
 describe('layoutFlow', () => {
-  const createNode = (id: string, type: string = 'start'): Node<FlowNodeData> => ({
+  const createNode = (id: string, type: BuilderNodeType = 'start'): Node<FlowNodeData> => ({
     id,
     type: 'custom',
     data: {
-      nodeKey: id,
       type,
       label: id,
       config: {},
-      groupId: null,
-      subflowId: null,
     },
     position: { x: 0, y: 0 },
   });

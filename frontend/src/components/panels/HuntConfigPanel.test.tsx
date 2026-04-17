@@ -3,10 +3,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { HuntConfigPanel } from './HuntConfigPanel';
 
+type HuntConfig = {
+  strategy: string;
+  destinations: string[];
+  timeout: number;
+  on_failure: string;
+};
+
 describe('HuntConfigPanel coverage boost', () => {
   const audioOptions = [{ value: 'a1', label: 'Audio 1' }];
   const nodeOptions = [{ value: 'n1', label: 'Node 1' }];
-  const config = {
+  const config: HuntConfig = {
     strategy: 'sequential',
     destinations: ['101', '102'],
     timeout: 30,
@@ -36,13 +43,17 @@ describe('HuntConfigPanel coverage boost', () => {
   it('handles adding destination', () => {
     function Wrapper() {
       const [nextConfig, setNextConfig] = useState(config);
+      const handleConfigReplace = (replacement: Record<string, unknown>) => {
+        setNextConfig(replacement as HuntConfig);
+      };
+
       return (
         <HuntConfigPanel
           nodeId="1"
           config={nextConfig}
           audioOptions={audioOptions}
           nodeOptions={nodeOptions}
-          onConfigReplace={setNextConfig}
+          onConfigReplace={handleConfigReplace}
         />
       );
     }

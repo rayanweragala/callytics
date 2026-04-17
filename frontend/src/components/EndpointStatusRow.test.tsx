@@ -6,6 +6,7 @@ import type { SipEndpointStatus } from '../types';
 describe('EndpointStatusRow', () => {
   const endpoint: SipEndpointStatus = {
     endpoint: '101',
+    aor: 'sip:101@127.0.0.1',
     state: 'registered',
     contacts: ['sip:101@127.0.0.1'],
     updatedAt: Date.now(),

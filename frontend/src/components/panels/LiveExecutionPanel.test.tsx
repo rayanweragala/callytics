@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LiveExecutionPanel } from './LiveExecutionPanel';
+import type { CallTimelineEvent } from '../../types';
+
+type LiveCallFixture = {
+  callId: string;
+  events: CallTimelineEvent[];
+};
 
 describe('LiveExecutionPanel', () => {
   it('renders without crashing and shows empty message', () => {
@@ -18,10 +24,11 @@ describe('LiveExecutionPanel', () => {
   });
 
   it('renders call list and handles expansion', () => {
-    const liveCalls = [{
+    const liveCalls: LiveCallFixture[] = [{
       callId: 'call-1',
       events: [{
         callId: 'call-1',
+        flowId: 1,
         nodeId: 'start',
         nodeType: 'start',
         status: 'started',
@@ -49,10 +56,11 @@ describe('LiveExecutionPanel', () => {
   });
 
   it('shows live status for active calls', () => {
-    const liveCalls = [{
+    const liveCalls: LiveCallFixture[] = [{
       callId: 'call-1',
       events: [{
         callId: 'call-1',
+        flowId: 1,
         nodeId: 'start',
         nodeType: 'start',
         status: 'started',
@@ -76,10 +84,11 @@ describe('LiveExecutionPanel', () => {
   });
 
   it('shows completed status for ended calls', () => {
-    const liveCalls = [{
+    const liveCalls: LiveCallFixture[] = [{
       callId: 'call-1',
       events: [{
         callId: 'call-1',
+        flowId: 1,
         nodeId: 'h1',
         nodeType: 'hangup',
         status: 'completed',
@@ -101,10 +110,11 @@ describe('LiveExecutionPanel', () => {
   });
 
   it('shows failed status for error calls', () => {
-    const liveCalls = [{
+    const liveCalls: LiveCallFixture[] = [{
       callId: 'call-1',
       events: [{
         callId: 'call-1',
+        flowId: 1,
         nodeId: 'p1',
         nodeType: 'play_audio',
         status: 'error',
