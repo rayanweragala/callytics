@@ -102,15 +102,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install frontend deps
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install workspace dependencies
         run: npm ci
-        working-directory: frontend
-      - name: Install backend deps
-        run: npm ci
-        working-directory: backend
-      - name: Install stasis deps
-        run: npm ci
-        working-directory: stasis
       - name: TypeScript check frontend
         run: npx tsc -b --noEmit
         working-directory: frontend
