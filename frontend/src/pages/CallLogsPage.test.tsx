@@ -1,17 +1,38 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { CallLogsPage } from './CallLogsPage';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
+import { CallLogsPage } from './CallLogsPage';
 
-describe('CallLogsPage coverage boost', () => {
-  it('renders placeholder content', () => {
+vi.mock('../lib/socket', () => ({
+  diagnosticsSocket: {
+    connected: false,
+    emit: vi.fn((eventName, _payload, callback) => {
+      if (typeof callback !== 'function') {
+        return;
+      }
+
+      if (eventName === 'diagnostics:live-execution:list') {
+        callback({ data: [], total: 0 });
+        return;
+      }
+
+      if (eventName === 'diagnostics:sip-status:list') {
+        callback({ data: [], total: 0 });
+      }
+    }),
+    on: vi.fn(),
+    off: vi.fn(),
+  },
+}));
+
+describe('CallLogsPage', () => {
+  it('renders without crashing', async () => {
     render(
       <MemoryRouter>
         <CallLogsPage />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Call Logs' })).toBeInTheDocument();
-    expect(screen.getByText('This feature is coming soon.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Call Logs' })).toBeInTheDocument());
   });
 });

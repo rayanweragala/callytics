@@ -9,6 +9,7 @@ module.exports = {
     'flowLoader.ts',
     'executors/menu.executor.ts',
     'nodes/hunt.executor.ts',
+    'src/sipTrafficMonitor.ts',
   ],
   coverageThreshold: {
     global: {

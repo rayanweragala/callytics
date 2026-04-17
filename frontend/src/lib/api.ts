@@ -1,5 +1,23 @@
 import axios from 'axios';
-import type { AudioFileItem, AudioVoiceItem, ExtensionItem, FlowBreadcrumbItem, FlowDetail, FlowSummary, FlowTree, FlowVersionDetail, FlowVersionSummary, InboundRouteItem, RecordingItem, SipTrunkItem, TrunkTestResult } from '../types';
+import type {
+  AudioFileItem,
+  AudioVoiceItem,
+  DiagnosticsFailureItem,
+  DiagnosticsSystemHealth,
+  ExtensionItem,
+  FlowBreadcrumbItem,
+  FlowDetail,
+  FlowSummary,
+  FlowTree,
+  FlowVersionDetail,
+  FlowVersionSummary,
+  InboundRouteItem,
+  RecordingItem,
+  SipRegistrationItem,
+  SipTrunkItem,
+  TrunkDiagnosticsResult,
+  TrunkTestResult,
+} from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
@@ -286,5 +304,32 @@ export async function deleteTrunk(id: number): Promise<void> {
 
 export async function testTrunk(id: number): Promise<TrunkTestResult> {
   const response = await api.post<TrunkTestResult>(`/trunks/${id}/test`);
+  return response.data;
+}
+
+export async function getDiagnosticsHealth(): Promise<DiagnosticsSystemHealth> {
+  const response = await api.get<DiagnosticsSystemHealth>('/diagnostics/health');
+  return response.data;
+}
+
+export async function testDiagnosticsTrunk(id: number): Promise<TrunkDiagnosticsResult> {
+  const response = await api.post<TrunkDiagnosticsResult>(`/diagnostics/trunks/${id}/test`);
+  return response.data;
+}
+
+export async function testAllDiagnosticsTrunks(): Promise<ListResponse<TrunkDiagnosticsResult>> {
+  const response = await api.post<ListResponse<TrunkDiagnosticsResult>>('/diagnostics/trunks/test-all');
+  return response.data;
+}
+
+export async function getDiagnosticsRegistrations(): Promise<ListResponse<SipRegistrationItem>> {
+  const response = await api.get<ListResponse<SipRegistrationItem>>('/diagnostics/registrations');
+  return response.data;
+}
+
+export async function getDiagnosticsFailures(limit = 20, offset = 0): Promise<ListResponse<DiagnosticsFailureItem>> {
+  const response = await api.get<ListResponse<DiagnosticsFailureItem>>('/diagnostics/failures', {
+    params: { limit, offset },
+  });
   return response.data;
 }

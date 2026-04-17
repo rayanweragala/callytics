@@ -1,236 +1,348 @@
-import { useEffect, useState } from 'react';
-import { StatBar } from '../components/StatBar';
-import { SipEndpointsPanel } from '../components/panels/SipEndpointsPanel';
-import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CallFailuresPanel } from '../components/diagnostics/CallFailuresPanel';
+import { SipRegistrationPanel } from '../components/diagnostics/SipRegistrationPanel';
+import { SipTrafficInspector } from '../components/diagnostics/SipTrafficInspector';
+import { SystemHealthPanel } from '../components/diagnostics/SystemHealthPanel';
+import { TrunkHealthPanel } from '../components/diagnostics/TrunkHealthPanel';
+import { ErrorMessage } from '../components/common/ErrorMessage';
+import { PageLayout } from '../components/common/PageLayout';
+import { SkeletonTable, SkeletonCard, SkeletonRow } from '../components/common/skeleton';
+import {
+  getDiagnosticsFailures,
+  getDiagnosticsHealth,
+  getDiagnosticsRegistrations,
+  listTrunks,
+  testDiagnosticsTrunk,
+} from '../lib/api';
+import { getApiError } from '../lib/apiError';
 import { diagnosticsSocket } from '../lib/socket';
-import type { DiagnosticsSnapshot, SipEndpointStatus, CallTimelineEvent } from '../types';
+import type {
+  DiagnosticsFailureItem,
+  DiagnosticsSystemHealth,
+  SipRegistrationItem,
+  SipTrafficItem,
+  SipTrunkItem,
+  TrunkDiagnosticsResult,
+} from '../types';
 import styles from './DiagnosticsPage.module.css';
 
-const PAGE_SIZE = 10;
-
-interface PaginatedDiagnosticsResult<T> {
-  data: T[];
-  total: number;
-}
-
-interface LiveExecutionItem {
-  callId: string;
-  events: CallTimelineEvent[];
-}
-
-function requestDiagnosticsList<T>(eventName: string, offset: number): Promise<PaginatedDiagnosticsResult<T>> {
-  return new Promise((resolve) => {
-    diagnosticsSocket.emit(eventName, { limit: PAGE_SIZE, offset }, (response: PaginatedDiagnosticsResult<T>) => {
-      resolve(response);
-    });
-  });
-}
-
-function hasEnded(events: CallTimelineEvent[]): boolean {
-  return events.some((event) => {
-    const result = String(event.meta.result || '');
-    return (
-      event.status === 'error'
-      || (event.nodeType === 'hangup' && (event.status === 'completed' || event.status === 'started'))
-      || result === 'hangup'
-      || result === 'done'
-      || String(event.meta.eventType || '') === 'StasisEnd'
-    );
-  });
-}
-
-function isLiveCall(events: CallTimelineEvent[]): boolean {
-  if (events.length === 0) {
-    return false;
-  }
-
-  return !hasEnded(events);
-}
+const FAILURES_PAGE_SIZE = 20;
 
 export function DiagnosticsPage() {
-  const [snapshot, setSnapshot] = useState<DiagnosticsSnapshot>({
-    metrics: { activeCalls: 0, registeredEndpoints: 0, flows: 0, uptimeSeconds: 0 },
-    sipStatuses: [],
-    timeline: {},
-  });
-  const [, setTick] = useState(0);
-  const [page, setPage] = useState(0);
-  const [sipPage, setSipPage] = useState(0);
-  const [liveCalls, setLiveCalls] = useState<LiveExecutionItem[]>([]);
-  const [liveTotal, setLiveTotal] = useState(0);
-  const [sipStatuses, setSipStatuses] = useState<SipEndpointStatus[]>([]);
-  const [sipTotal, setSipTotal] = useState(0);
-  const [expandedCalls, setExpandedCalls] = useState<Record<string, boolean>>({});
-  const [interactedCalls, setInteractedCalls] = useState<Record<string, boolean>>({});
+  const [health, setHealth] = useState<DiagnosticsSystemHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [isHealthInitial, setIsHealthInitial] = useState(true);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [registrations, setRegistrations] = useState<SipRegistrationItem[]>([]);
+  const [registrationsLoading, setRegistrationsLoading] = useState(true);
+  const [isRegistrationsInitial, setIsRegistrationsInitial] = useState(true);
+  const [registrationsError, setRegistrationsError] = useState<string | null>(null);
+  const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
+  const [isTrunksInitial, setIsTrunksInitial] = useState(true);
+  const [trunksError, setTrunksError] = useState<string | null>(null);
+  const [trunkResults, setTrunkResults] = useState<Record<number, TrunkDiagnosticsResult>>({});
+  const [busyIds, setBusyIds] = useState<number[]>([]);
+  const [testingAll, setTestingAll] = useState(false);
+  const [traffic, setTraffic] = useState<SipTrafficItem[]>([]);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const [failures, setFailures] = useState<DiagnosticsFailureItem[]>([]);
+  const [isFailuresInitial, setIsFailuresInitial] = useState(true);
+  const [failuresError, setFailuresError] = useState<string | null>(null);
+  const [failuresPage, setFailuresPage] = useState(1);
+  const [failuresTotal, setFailuresTotal] = useState(0);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
+  const successTimerRef = useRef<number | null>(null);
+
+  const failureTotalPages = Math.max(1, Math.ceil(failuresTotal / FAILURES_PAGE_SIZE));
+
+  const refreshHealth = async () => {
+    setHealthError(null);
+    try {
+      const response = await getDiagnosticsHealth();
+      setHealth(response);
+    } catch (error) {
+      setHealthError(getApiError(error, 'failed to load health'));
+    } finally {
+      setHealthLoading(false);
+      setIsHealthInitial(false);
+    }
+  };
+
+  const refreshRegistrations = async () => {
+    setRegistrationsError(null);
+    try {
+      const response = await getDiagnosticsRegistrations();
+      setRegistrations(response.data);
+    } catch (error) {
+      setRegistrationsError(getApiError(error, 'failed to load registrations'));
+    } finally {
+      setRegistrationsLoading(false);
+      setIsRegistrationsInitial(false);
+    }
+  };
+
+  const refreshTrunks = async () => {
+    setTrunksError(null);
+    try {
+      const response = await listTrunks(100, 0);
+      setTrunks(response.data);
+    } catch (error) {
+      setTrunksError(getApiError(error, 'failed to load trunks'));
+    } finally {
+      setIsTrunksInitial(false);
+    }
+  };
+
+  const refreshFailures = async (page: number) => {
+    setFailuresError(null);
+    try {
+      const offset = (page - 1) * FAILURES_PAGE_SIZE;
+      const response = await getDiagnosticsFailures(FAILURES_PAGE_SIZE, offset);
+      setFailures(response.data.map((item: any, index: number) => ({
+        id: item.id ?? index + 1,
+        callId: item.callId,
+        time: item.startedAt ?? item.time,
+        callerId: item.callerNumber ?? item.callerId ?? null,
+        flowName: item.flowName ?? null,
+        failedNodeType: item.failedNodeType ?? null,
+        errorMessage: item.errorMessage ?? null,
+        durationSeconds: item.durationSeconds ?? null,
+      })));
+      setFailuresTotal(response.total);
+    } catch (error) {
+      setFailuresError(getApiError(error, 'failed to load failures'));
+    } finally {
+      setIsFailuresInitial(false);
+    }
+  };
 
   useEffect(() => {
-    const timer = window.setInterval(() => setTick((value) => value + 1), 1000);
-    return () => window.clearInterval(timer);
+    void refreshHealth();
+    void refreshRegistrations();
+    void refreshTrunks();
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadLiveExecutionPage = async () => {
-      const response = await requestDiagnosticsList<LiveExecutionItem>('diagnostics:live-execution:list', page * PAGE_SIZE);
-      if (cancelled) {
-        return;
-      }
-
-      const maxPage = Math.max(0, Math.ceil(response.total / PAGE_SIZE) - 1);
-      if (page > maxPage) {
-        setPage(maxPage);
-        return;
-      }
-
-      setLiveCalls(response.data);
-      setLiveTotal(response.total);
-    };
-
-    void loadLiveExecutionPage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [page]);
+    void refreshFailures(failuresPage);
+  }, [failuresPage]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadSipPage = async () => {
-      const response = await requestDiagnosticsList<SipEndpointStatus>('diagnostics:sip-status:list', sipPage * PAGE_SIZE);
-      if (cancelled) {
-        return;
-      }
-
-      const maxPage = Math.max(0, Math.ceil(response.total / PAGE_SIZE) - 1);
-      if (sipPage > maxPage) {
-        setSipPage(maxPage);
-        return;
-      }
-
-      setSipStatuses(response.data);
-      setSipTotal(response.total);
-    };
-
-    void loadSipPage();
+    const healthTimer = window.setInterval(() => {
+      void refreshHealth();
+    }, 10000);
+    const registrationsTimer = window.setInterval(() => {
+      void refreshRegistrations();
+      void refreshFailures(failuresPage);
+    }, 30000);
 
     return () => {
-      cancelled = true;
+      window.clearInterval(healthTimer);
+      window.clearInterval(registrationsTimer);
     };
-  }, [sipPage]);
+  }, [failuresPage]);
 
   useEffect(() => {
-    const handleBootstrap = (next: DiagnosticsSnapshot) => {
-      setSnapshot((current) => ({ ...current, metrics: next.metrics }));
-    };
-    const handleSipStatus = () => {
-      void requestDiagnosticsList<SipEndpointStatus>('diagnostics:sip-status:list', sipPage * PAGE_SIZE).then((response) => {
-        const maxPage = Math.max(0, Math.ceil(response.total / PAGE_SIZE) - 1);
-        if (sipPage > maxPage) {
-          setSipPage(maxPage);
-          return;
-        }
-        setSipStatuses(response.data);
-        setSipTotal(response.total);
-      });
-    };
-    const handleMetrics = (metrics: DiagnosticsSnapshot['metrics']) => {
-      setSnapshot((current) => ({ ...current, metrics }));
-    };
-    const handleTimeline = () => {
-      void requestDiagnosticsList<LiveExecutionItem>('diagnostics:live-execution:list', page * PAGE_SIZE).then((response) => {
-        const maxPage = Math.max(0, Math.ceil(response.total / PAGE_SIZE) - 1);
-        if (page > maxPage) {
-          setPage(maxPage);
-          return;
-        }
-        setLiveCalls(response.data);
-        setLiveTotal(response.total);
-      });
+    const handleTraffic = (item: SipTrafficItem) => {
+      setTraffic((current) => [...current, item].slice(-200));
     };
     const handleConnect = () => {
-      handleTimeline();
-      handleSipStatus();
+      diagnosticsSocket.emit('sip:traffic:subscribe');
     };
+
+    if (diagnosticsSocket.connected) {
+      diagnosticsSocket.emit('sip:traffic:subscribe');
+    }
 
     diagnosticsSocket.on('connect', handleConnect);
-    diagnosticsSocket.on('diagnostics:bootstrap', handleBootstrap);
-    diagnosticsSocket.on('diagnostics:sip-status', handleSipStatus);
-    diagnosticsSocket.on('diagnostics:metrics', handleMetrics);
-    diagnosticsSocket.on('diagnostics:timeline', handleTimeline);
-
+    diagnosticsSocket.on('sip:traffic', handleTraffic);
     return () => {
+      diagnosticsSocket.emit('sip:traffic:unsubscribe');
       diagnosticsSocket.off('connect', handleConnect);
-      diagnosticsSocket.off('diagnostics:bootstrap', handleBootstrap);
-      diagnosticsSocket.off('diagnostics:sip-status', handleSipStatus);
-      diagnosticsSocket.off('diagnostics:metrics', handleMetrics);
-      diagnosticsSocket.off('diagnostics:timeline', handleTimeline);
+      diagnosticsSocket.off('sip:traffic', handleTraffic);
     };
-  }, [page, sipPage]);
+  }, []);
 
   useEffect(() => {
-    setExpandedCalls((current) => {
-      const next = { ...current };
-      const validIds = new Set(liveCalls.map((call) => call.callId));
+    if (!pageError) {
+      return;
+    }
 
-      for (const callId of Object.keys(next)) {
-        if (!validIds.has(callId)) {
-          delete next[callId];
-        }
+    const timer = window.setTimeout(() => setPageError(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [pageError]);
+
+  useEffect(() => {
+    if (!successText) {
+      return;
+    }
+
+    if (successTimerRef.current) {
+      window.clearTimeout(successTimerRef.current);
+    }
+
+    successTimerRef.current = window.setTimeout(() => setSuccessText(null), 6000);
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current);
       }
+    };
+  }, [successText]);
 
-      const newestCallId = liveCalls[0]?.callId;
-
-      for (const call of liveCalls) {
-        if (interactedCalls[call.callId]) {
-          continue;
-        }
-
-        if ((newestCallId && call.callId === newestCallId) || isLiveCall(call.events)) {
-          next[call.callId] = true;
-        } else if (next[call.callId] === undefined) {
-          next[call.callId] = false;
-        }
+  const handleTestTrunk = async (id: number) => {
+    setBusyIds((current) => [...current, id]);
+    try {
+      const result = await testDiagnosticsTrunk(id);
+      setTrunkResults((current) => ({ ...current, [id]: result }));
+      const trunkName = trunks.find((item) => item.id === id)?.name || `trunk ${id}`;
+      if (result.status === 'reachable') {
+        setSuccessText(`Trunk "${trunkName}" is reachable — TCP and SIP both responding.`);
+      } else if (result.status === 'sip_unreachable') {
+        setSuccessText(`Trunk "${trunkName}" TCP reachable but SIP OPTIONS failed. Check remote SIP stack.`);
+      } else if (result.status === 'unreachable') {
+        setPageError(result.message || `Trunk "${trunkName}" is unreachable.`);
       }
-
-      return next;
-    });
-  }, [interactedCalls, liveCalls]);
-
-  const liveTotalPages = Math.max(1, Math.ceil(liveTotal / PAGE_SIZE));
-  const sipTotalPages = Math.max(1, Math.ceil(sipTotal / PAGE_SIZE));
-
-  const toggleCall = (callId: string) => {
-    setInteractedCalls((current) => ({
-      ...current,
-      [callId]: true,
-    }));
-    setExpandedCalls((current) => ({
-      ...current,
-      [callId]: !current[callId],
-    }));
+    } catch (error) {
+      setPageError(getApiError(error, 'failed to test trunk'));
+    } finally {
+      setBusyIds((current) => current.filter((value) => value !== id));
+    }
   };
 
+  const handleTestAll = async () => {
+    setTestingAll(true);
+    try {
+      for (let index = 0; index < trunks.length; index += 1) {
+        const trunk = trunks[index];
+        setBusyIds((current) => current.includes(trunk.id) ? current : [...current, trunk.id]);
+        try {
+          const result = await testDiagnosticsTrunk(trunk.id);
+          setTrunkResults((current) => ({ ...current, [trunk.id]: result }));
+        } finally {
+          setBusyIds((current) => current.filter((value) => value !== trunk.id));
+        }
+
+        if (index < trunks.length - 1) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 500);
+          });
+        }
+      }
+      setSuccessText('All trunk tests complete.');
+    } catch (error) {
+      setPageError(getApiError(error, 'failed to test all trunks'));
+    } finally {
+      setTestingAll(false);
+    }
+  };
+
+  const actions = useMemo(() => (
+    <button className={styles.refreshButton} onClick={() => {
+      void refreshHealth();
+      void refreshRegistrations();
+      void refreshTrunks();
+      void refreshFailures(failuresPage);
+    }} type="button">
+      Refresh
+    </button>
+  ), [failuresPage]);
+
+  if (healthLoading && registrationsLoading && trunks.length === 0) {
+    // No early return — skeletons render inline in each panel below
+  }
+
   return (
-    <div className={styles.page}>
-      <StatBar metrics={snapshot.metrics} />
-      <div className={styles.grid}>
-        <SipEndpointsPanel
-          sipStatuses={sipStatuses}
-          page={sipPage}
-          totalPages={sipTotalPages}
-          onPageChange={setSipPage}
-        />
-        <LiveExecutionPanel
-          liveCalls={liveCalls}
-          liveTotal={liveTotal}
-          page={page}
-          setPage={setPage}
-          expandedCalls={expandedCalls}
-          toggleCall={toggleCall}
-        />
+    <PageLayout actions={actions} subtitle="network diagnostics" title="Diagnostics">
+      <div className={styles.page}>
+        <ErrorMessage message={pageError} />
+        {successText ? <div className={styles.successText}>{successText}</div> : null}
+
+        {isHealthInitial ? (
+          <section>
+            <div style={{ display: 'flex', gap: 12, padding: '12px 0' }}>
+              {[...Array(6)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          </section>
+        ) : healthError ? (
+          <ErrorMessage message={healthError} />
+        ) : (
+          <SystemHealthPanel health={health} loading={healthLoading} />
+        )}
+
+        {isTrunksInitial ? (
+          <>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} columns={[
+                { width: '20%' },
+                { width: '20%' },
+                { width: '10%' },
+                { width: '10%' },
+                { width: '10%' },
+                { width: '15%' },
+                { width: '15%' },
+              ]} />
+            ))}
+          </>
+        ) : trunksError ? (
+          <ErrorMessage message={trunksError} />
+        ) : (
+          <TrunkHealthPanel
+            busyIds={busyIds}
+            onTest={handleTestTrunk}
+            onTestAll={handleTestAll}
+            results={trunkResults}
+            testingAll={testingAll}
+            trunks={trunks}
+          />
+        )}
+
+        {isRegistrationsInitial ? (
+          <>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} columns={[
+                { width: '15%' },
+                { width: '10%' },
+                { width: '15%' },
+                { width: '25%' },
+                { width: '10%' },
+                { width: '25%' },
+              ]} />
+            ))}
+          </>
+        ) : registrationsError ? (
+          <ErrorMessage message={registrationsError} />
+        ) : (
+          <SipRegistrationPanel items={registrations} loading={registrationsLoading} />
+        )}
+
+        <SipTrafficInspector items={traffic} onClear={() => setTraffic([])} loading={trafficLoading} />
+
+        {isFailuresInitial ? (
+          <>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} columns={[
+                { width: '15%' },
+                { width: '15%' },
+                { width: '20%' },
+                { width: '15%' },
+                { width: '20%' },
+                { width: '15%' },
+              ]} />
+            ))}
+          </>
+        ) : failuresError ? (
+          <ErrorMessage message={failuresError} />
+        ) : (
+          <CallFailuresPanel
+            items={failures}
+            onPageChange={setFailuresPage}
+            page={failuresPage}
+            totalPages={failureTotalPages}
+          />
+        )}
       </div>
-    </div>
+    </PageLayout>
   );
 }

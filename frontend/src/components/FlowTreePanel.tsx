@@ -50,7 +50,7 @@ function TreeItem({
         </span>
       </button>
       {child.children.length > 0 ? (
-        <div className={styles.children}>
+        <div className={styles.children} data-testid="tree-child-entry">
           {child.children.map((grandchild) => (
             <TreeItem
               child={grandchild}

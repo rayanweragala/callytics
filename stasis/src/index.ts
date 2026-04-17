@@ -8,7 +8,8 @@ import migrate from './migrate';
 import { runFlow } from './runtime';
 import seed from './seed';
 import { startAmiMonitor } from './amiMonitor';
-import { publishCallEndTelemetry } from './telemetry';
+import { startSipTrafficMonitor } from './sipTrafficMonitor';
+import { publishCallEndTelemetry, publishSipTraffic, publishCallEvent } from './telemetry';
 import { resolveTransferWaiter } from './transferManager';
 import { resolveHuntWaiter } from './huntManager';
 
@@ -202,6 +203,7 @@ async function start(): Promise<void> {
   await seed();
 
   startAmiMonitor();
+  startSipTrafficMonitor();
 
   console.log(`Connecting to ARI at ${ARI_URL}...`);
 
@@ -242,6 +244,29 @@ async function start(): Promise<void> {
       const callerNumber = event.channel?.caller?.number || 'unknown';
       const inboundDid = String(event.channel?.dnid || channelExten || '').trim();
       console.log(`Incoming call: ${channel.id} from ${callerNumber}`);
+      try {
+        await publishSipTraffic({
+          timestamp: new Date().toISOString(),
+          method: 'INVITE',
+          from: callerNumber,
+          to: inboundDid || channelExten,
+          direction: 'inbound',
+          responseCode: null,
+          rawMessage: `INVITE sip:${inboundDid || channelExten} SIP/2.0`,
+        });
+      } catch (err) {
+        console.error('[telemetry] sip traffic publish failed (StasisStart):', err);
+      }
+      try {
+        await publishCallEvent({
+          callId: channel.id,
+          timestamp: new Date().toISOString(),
+          type: 'started',
+          caller: callerNumber,
+        });
+      } catch (err) {
+        console.error('[telemetry] call event publish failed (StasisStart):', err);
+      }
 
       let flow = null;
       if (inboundDid) {
@@ -291,6 +316,20 @@ async function start(): Promise<void> {
         await runFlow(channel, session, client);
       } catch (error) {
         console.error('Error running flow:', error);
+        const failureReason = error instanceof Error ? error.message : 'Unknown flow error';
+        try {
+          await publishCallEvent({
+            callId: channel.id,
+            timestamp: new Date().toISOString(),
+            type: 'failed',
+            caller: session.callerNumber,
+            flowId: session.flow.id,
+            failedNode: 'runtime',
+            failureReason,
+          });
+        } catch (err) {
+          console.error('[telemetry] call event publish failed (flow error):', err);
+        }
         if (session.inboundBridge) {
           await destroyInboundBridge(client, session.inboundBridge.id);
           session.inboundBridge = null;
@@ -302,7 +341,7 @@ async function start(): Promise<void> {
       }
     });
 
-    client.on('StasisEnd', async (
+    client.on('StasisEnd', (
       event: {
         channel?: {
           id?: string;
@@ -320,16 +359,39 @@ async function start(): Promise<void> {
       console.log(
         `[channel] StasisEnd call_id=${channel.id} state=${String(event.channel?.state || 'unknown')} name=${String(event.channel?.name || 'unknown')}`,
       );
-      removeSession(channel.id);
-      try {
-        await persistRecording(session);
-      } catch (error) {
-        console.error(`[recording] persist failed call_id=${session.callUuid}:`, error);
-      }
+
+      // 1. Destroy bridge immediately (non-blocking — destroyInboundBridge catches its own errors)
       if (session.inboundBridge) {
-        await destroyInboundBridge(client, session.inboundBridge.id);
+        void destroyInboundBridge(client, session.inboundBridge.id);
       }
-      await publishCallEndTelemetry(channel.id, session.flow.id, session.callerNumber);
+
+      // 2. Publish telemetry (non-blocking)
+      void publishCallEndTelemetry(channel.id, session.flow.id, session.callerNumber);
+      void publishSipTraffic({
+        timestamp: new Date().toISOString(),
+        method: 'BYE',
+        from: session.callerNumber,
+        to: '',
+        direction: 'inbound',
+        responseCode: null,
+        rawMessage: `BYE sip:${channel.id} SIP/2.0`,
+      }).catch((err) => console.error('[telemetry] sip traffic publish failed (StasisEnd):', err));
+      void publishCallEvent({
+        callId: channel.id,
+        timestamp: new Date().toISOString(),
+        type: 'ended',
+        caller: session.callerNumber,
+        durationSeconds: Math.round((Date.now() - session.startedAt.getTime()) / 1000),
+      }).catch((err) => console.error('[telemetry] call event publish failed (StasisEnd):', err));
+
+      // 3. Remove session from in-memory registry
+      removeSession(channel.id);
+
+      // 4. Fire-and-forget recording persistence — must not block the event handler
+      void persistRecording(session).catch((err) =>
+        console.error('[stasis] persistRecording failed:', err),
+      );
+
       console.log(`StasisEnd: ${channel.id}`);
     });
 

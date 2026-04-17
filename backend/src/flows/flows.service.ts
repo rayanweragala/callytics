@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
@@ -104,6 +104,46 @@ interface FlowVersionDetailResponse extends FlowVersionSummaryResponse {
 
 const DEFAULT_EDITOR_VERSION_MESSAGE = 'Saved from editor';
 
+interface FlowNodeInput {
+  nodeKey: string;
+  type: string;
+  config?: Record<string, unknown>;
+}
+
+export function validateNodeConfig(node: FlowNodeInput): void {
+  if (node.type === 'transfer') {
+    const destination = node.config?.destination;
+    if (typeof destination !== 'string' || destination.trim() === '') {
+      throw new BadRequestException(`Node ${node.nodeKey}: destination is required`);
+    }
+    const timeoutMs = node.config?.timeout_ms;
+    if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+      throw new BadRequestException(`Node ${node.nodeKey}: timeout_ms must be a positive integer`);
+    }
+  }
+  if (node.type === 'menu') {
+    const promptAudioFileId = node.config?.prompt_audio_file_id;
+    const audioId = typeof promptAudioFileId === 'number' ? promptAudioFileId : Number(promptAudioFileId);
+    if (!Number.isInteger(audioId) || audioId <= 0) {
+      throw new BadRequestException(`Node ${node.nodeKey}: prompt_audio_file_id is required`);
+    }
+    const timeoutMs = node.config?.timeout_ms;
+    if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+      throw new BadRequestException(`Node ${node.nodeKey}: timeout_ms must be a positive integer`);
+    }
+    const branches = node.config?.branches;
+    if (!Array.isArray(branches) || branches.length === 0) {
+      throw new BadRequestException(`Node ${node.nodeKey}: branches must have at least one entry`);
+    }
+  }
+}
+
+export function validateNodesConfig(nodes: FlowNodeInput[]): void {
+  for (const node of nodes) {
+    validateNodeConfig(node);
+  }
+}
+
 @Injectable()
 export class FlowsService implements OnModuleInit {
 
@@ -195,6 +235,7 @@ export class FlowsService implements OnModuleInit {
       });
       const savedFlow = await manager.save(CallFlowEntity, flow);
       const normalizedNodes = await this.normalizeNodesForSave(manager, savedFlow, dto.nodes);
+      validateNodesConfig(normalizedNodes);
 
       const savedVersion = await this.createStoredVersion(
         manager,
@@ -226,11 +267,14 @@ export class FlowsService implements OnModuleInit {
         throw new NotFoundException(`Flow ${id} not found`);
       }
 
-      const previousVersion = await manager.findOne(FlowVersionEntity, {
+      const latestVersion = await manager.findOne(FlowVersionEntity, {
         where: { flowId: flow.id },
         order: { versionNumber: 'DESC' },
       });
-      const nextVersionNumber = (previousVersion?.versionNumber ?? 0) + 1;
+      if (!latestVersion) {
+        throw new NotFoundException(`Flow ${id} has no version to update`);
+      }
+      const versionIdToUpdate = latestVersion.id;
 
       flow.name = dto.name;
       flow.description = dto.description ?? null;
@@ -239,23 +283,16 @@ export class FlowsService implements OnModuleInit {
       flow.parentNodeKey = dto.parentNodeKey ?? flow.parentNodeKey ?? null;
       flow.updatedAt = new Date();
       await manager.save(CallFlowEntity, flow);
+
       const normalizedNodes = await this.normalizeNodesForSave(manager, flow, dto.nodes);
+      validateNodesConfig(normalizedNodes);
 
-      const savedVersion = await this.createStoredVersion(
-        manager,
-        flow.id,
-        nextVersionNumber,
-        this.buildSnapshotFromPayload(normalizedNodes, dto.edges),
-        dto.versionMessage,
-      );
-
-      flow.currentVersionId = savedVersion.id;
-      await manager.save(CallFlowEntity, flow);
-
-      await this.saveNodesAndEdges(manager, savedVersion.id, normalizedNodes, dto.edges);
+      await manager.delete(FlowNodeEntity, { flowVersionId: versionIdToUpdate });
+      await manager.delete(FlowEdgeEntity, { flowVersionId: versionIdToUpdate });
+      await this.saveNodesAndEdges(manager, versionIdToUpdate, normalizedNodes, dto.edges);
 
       const persistedFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: flow.id } });
-      const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: savedVersion.id } });
+      const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: versionIdToUpdate } });
 
       return {
         data: await this.buildFlowDetail(persistedFlow, persistedVersion, manager),

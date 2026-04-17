@@ -1,0 +1,67 @@
+.panel {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  padding: 16px;
+}
+
+.header {
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.table {
+  display: grid;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: 1fr 0.9fr 1fr 0.9fr 1.3fr 0.7fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.head {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.row {
+  border: 0;
+  border-top: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.row:hover {
+  background: var(--bg-elevated);
+}
+
+.mono {
+  font-family: 'Space Mono', monospace;
+}
+
+.pagination {
+  margin-top: 16px;
+}

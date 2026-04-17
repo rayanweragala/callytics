@@ -1,0 +1,75 @@
+/* NodeConfigPanel.module.css
+ * Styles for the right-side node and edge configuration panel.
+ * Moved from FlowEditorPage.module.css (form, field, fieldLabel, input,
+ * empty, menu branch rows).
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+.inlineError {
+  color: var(--color-error);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.input:disabled {
+  color: var(--text-muted);
+  background: var(--bg-overlay);
+}
+
+.menuBranchList,
+.menuBranchGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.menuBranchList {
+  gap: 0;
+}
+
+.menuBranchOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.menuBranchLabel {
+  font-family: 'Space Mono', monospace;
+  color: var(--text-primary);
+}

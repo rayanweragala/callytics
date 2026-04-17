@@ -1,6 +1,9 @@
 import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { SearchableSelect } from '../components/common/SearchableSelect';
+import { PageLayout } from '../components/common/PageLayout';
+import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
+import { SkeletonRow } from '../components/common/skeleton';
 import { createInboundRoute, deleteInboundRoute, listFlows, listInboundRoutes, updateInboundRoute } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
@@ -30,11 +33,14 @@ export function InboundRoutesPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const showError = (msg: string | null) => {
     setErrorText(msg);
@@ -54,13 +60,22 @@ export function InboundRoutesPage() {
   const flowOptions = useMemo(() => flows.map((flow) => ({ value: String(flow.id), label: flow.name })), [flows]);
 
   const load = async (nextLimit = limit, nextOffset = offset) => {
-    const [routesResponse, flowsResponse] = await Promise.all([
-      listInboundRoutes(undefined, nextLimit, nextOffset),
-      listFlows(1, 100),
-    ]);
-    setItems(routesResponse.data);
-    setTotal(routesResponse.total);
-    setFlows(flowsResponse.data);
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [routesResponse, flowsResponse] = await Promise.all([
+        listInboundRoutes(undefined, nextLimit, nextOffset),
+        listFlows(1, 100),
+      ]);
+      setItems(routesResponse.data);
+      setTotal(routesResponse.total);
+      setFlows(flowsResponse.data);
+    } catch {
+      setLoadError('Failed to load routes');
+    } finally {
+      setIsLoading(false);
+      setIsInitialLoad(false);
+    }
   };
 
   useEffect(() => {
@@ -152,7 +167,8 @@ export function InboundRoutesPage() {
   };
 
   return (
-    <div className={styles.page}>
+    <PageLayout title="Inbound routes" subtitle="Map DIDs to call flows">
+      <div className={styles.page}>
       <div className={styles.header}>
         <div>
           <div className={styles.sectionLabel}>configure</div>
@@ -200,7 +216,7 @@ export function InboundRoutesPage() {
               <button className={styles.primaryButton} disabled={!createForm.flowId} type="submit">{busyKey === 'create' ? 'saving…' : 'save route'}</button>
             </div>
           </form>
-          {errorText ? <div className={styles.failedText}>{errorText}</div> : null}
+          {errorText ? <ErrorMessage message={errorText} /> : null}
         </section>
       ) : (
         <section className={styles.tablePanel}>
@@ -211,11 +227,27 @@ export function InboundRoutesPage() {
             <div>created</div>
             <div className={styles.actionsHeader}>actions</div>
           </div>
-          {sortedItems.length === 0 ? (
+          {isLoading ? (
+            <>
+              {Array.from({ length: 3 }, (_, i) => (
+                <SkeletonRow key={i} columns={[
+                  { width: '160px' },
+                  { width: '180px' },
+                  { width: '180px' },
+                  { width: '108px' },
+                  { width: '220px' },
+                ]} />
+              ))}
+            </>
+          ) : loadError ? (
+            <ErrorMessage message={loadError} />
+          ) : sortedItems.length === 0 ? (
             <div className={styles.empty}>No inbound routes yet.</div>
-          ) : sortedItems.map((item) => (
-            <Fragment key={item.id}>
-              <div className={styles.row}>
+          ) : (
+            <div className="fadeIn">
+              {sortedItems.map((item) => (
+                <Fragment key={item.id}>
+                  <div className={styles.row}>
                 <div className={styles.dataMono}>{item.did}</div>
                 <div className={styles.labelText}>{item.label || '—'}</div>
                 <div className={styles.flowText}>{item.flowName || `flow ${item.flowId}`}</div>
@@ -270,15 +302,18 @@ export function InboundRoutesPage() {
               ) : null}
             </Fragment>
           ))}
+          </div>
+          )}
           <Pagination
             page={page}
             totalPages={totalPages}
             onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)}
           />
           {deletedId !== null ? <div className={styles.successText}>route deleted</div> : null}
-          {errorText ? <div className={styles.failedText}>{errorText}</div> : null}
+          {errorText ? <ErrorMessage message={errorText} /> : null}
         </section>
       )}
-    </div>
+      </div>
+    </PageLayout>
   );
 }

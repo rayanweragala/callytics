@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
+import { PageLayout } from '../components/common/PageLayout';
+import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
+import { SkeletonRow } from '../components/common/skeleton';
 import { deleteRecording, listRecordings } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
@@ -24,6 +27,9 @@ export function RecordingsPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showError = (msg: string | null) => {
@@ -50,15 +56,24 @@ export function RecordingsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   const load = async (nextPage = page, nextLimit = limit) => {
-    const response = await listRecordings(nextPage, nextLimit);
-    if (response.totalPages > 0 && nextPage > response.totalPages) {
-      await load(response.totalPages, nextLimit);
-      return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const response = await listRecordings(nextPage, nextLimit);
+      if (response.totalPages > 0 && nextPage > response.totalPages) {
+        await load(response.totalPages, nextLimit);
+        return;
+      }
+      setItems(response.data);
+      setPage(response.page);
+      setLimit(response.limit);
+      setTotalPages(response.totalPages);
+    } catch {
+      setLoadError('Failed to load recordings');
+    } finally {
+      setIsLoading(false);
+      setIsInitialLoad(false);
     }
-    setItems(response.data);
-    setPage(response.page);
-    setLimit(response.limit);
-    setTotalPages(response.totalPages);
   };
 
   useEffect(() => {
@@ -81,7 +96,8 @@ export function RecordingsPage() {
   };
 
   return (
-    <div className={styles.page}>
+    <PageLayout title="Recordings" subtitle="Browse and download call recordings">
+      <div className={styles.page}>
       <div className={styles.header}>
         <div>
           <div className={styles.sectionLabel}>monitor</div>
@@ -99,10 +115,27 @@ export function RecordingsPage() {
           <div>created</div>
           <div className={styles.actionsHeader}>actions</div>
         </div>
-        {items.length === 0 ? (
+        {isLoading ? (
+          <>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} columns={[
+                { width: '20%' },
+                { width: '15%' },
+                { width: '15%' },
+                { width: '15%' },
+                { width: '20%' },
+                { width: '15%' },
+              ]} />
+            ))}
+          </>
+        ) : loadError ? (
+          <ErrorMessage message={loadError} />
+        ) : items.length === 0 ? (
           <div className={styles.empty}>No recordings yet. Recordings appear here automatically after calls.</div>
-        ) : items.map((item) => (
-          <div className={styles.row} key={item.id}>
+        ) : (
+          <div className="fadeIn">
+            {items.map((item) => (
+              <div className={styles.row} key={item.id}>
             <div>
               <div className={styles.name}>{item.callId.slice(0, 16)}</div>
               <div className={styles.meta}>{item.flowName || 'unknown flow'}</div>
@@ -134,13 +167,16 @@ export function RecordingsPage() {
             </div>
           </div>
         ))}
+          </div>
+        )}
         <Pagination
           page={page}
           totalPages={totalPages}
           onPageChange={setPage}
         />
-        {errorText ? <div className={styles.failedText}>{errorText}</div> : null}
+        {errorText ? <ErrorMessage message={errorText} /> : null}
       </section>
-    </div>
+      </div>
+    </PageLayout>
   );
 }

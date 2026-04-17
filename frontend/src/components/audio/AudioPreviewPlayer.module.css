@@ -37,8 +37,9 @@
   width: 100%;
   appearance: none;
   height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(var(--accent), var(--accent)) no-repeat, var(--border-default);
+  border-radius: 2px;
+  accent-color: var(--accent);
+  background: var(--border-default);
 }
 
 .range::-webkit-slider-thumb {

@@ -1,8 +1,8 @@
 .error {
-  color: red;
-  background: #fee;
-  padding: 0.5rem;
-  border: 1px solid red;
-  border-radius: 4px;
+  color: var(--color-error);
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
   margin: 0.5rem 0;
 }

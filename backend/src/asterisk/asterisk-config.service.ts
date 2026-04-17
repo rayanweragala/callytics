@@ -15,6 +15,25 @@ export interface AmiQualifyResult {
   message: string;
 }
 
+export interface AmiConnectionStatus {
+  connected: boolean;
+}
+
+export interface AmiPjsipEndpoint {
+  endpoint: string;
+  aor: string;
+  contacts: string[];
+}
+
+export interface AmiPjsipAor {
+  endpoint: string;
+  aor: string;
+  contacts: string[];
+  contactStatus: string | null;
+  roundtripUsec: string | null;
+  lastQualifiedAt: string | null;
+}
+
 @Injectable()
 export class AsteriskConfigService implements OnModuleInit {
   private readonly logger = new Logger(AsteriskConfigService.name);
@@ -42,12 +61,20 @@ export class AsteriskConfigService implements OnModuleInit {
 
   async syncExtensions(extensions: SipExtensionEntity[]): Promise<void> {
     await this.writeExtensionsConfig(extensions);
-    await this.reloadResPjsip();
+    try {
+      await this.reloadResPjsip();
+    } catch (error) {
+      this.logger.error('failed to reload pjsip', error);
+    }
   }
 
   async syncInboundRoutes(routes: InboundRouteEntity[]): Promise<void> {
     await this.writeInboundRoutesConfig(routes);
-    await this.reloadDialplan();
+    try {
+      await this.reloadDialplan();
+    } catch (error) {
+      this.logger.error('failed to reload dialplan', error);
+    }
   }
 
   async writeInboundRoutesConfig(routes: InboundRouteEntity[]): Promise<void> {
@@ -164,6 +191,174 @@ export class AsteriskConfigService implements OnModuleInit {
 
     const output = await this.runPythonScript(script, [this.amiHost, String(this.amiPort), this.amiUser, this.amiPassword, endpoint]);
     return JSON.parse(output) as AmiQualifyResult;
+  }
+
+  async checkAmiConnection(): Promise<AmiConnectionStatus> {
+    const script = [
+      'import json, socket, sys',
+      'host, port, user, password = sys.argv[1:5]',
+      'port = int(port)',
+      'sock = socket.create_connection((host, port), timeout=5)',
+      'sock.settimeout(2)',
+      'sock.recv(4096)',
+      "sock.sendall(f'Action: Login\\r\\nUsername: {user}\\r\\nSecret: {password}\\r\\n\\r\\n'.encode())",
+      'response = sock.recv(4096).decode(errors="replace")',
+      'connected = "Authentication accepted" in response',
+      "sock.sendall(b'Action: Logoff\\r\\n\\r\\n')",
+      'sock.close()',
+      'print(json.dumps({"connected": connected}))',
+    ].join('\n');
+
+    try {
+      const output = await this.runPythonScript(script, [
+        this.amiHost,
+        String(this.amiPort),
+        this.amiUser,
+        this.amiPassword,
+      ]);
+      return JSON.parse(output) as AmiConnectionStatus;
+    } catch {
+      return { connected: false };
+    }
+  }
+
+  async getPjsipEndpoints(): Promise<AmiPjsipEndpoint[]> {
+    const script = [
+      'import json, socket, sys, time',
+      'host, port, user, password = sys.argv[1:5]',
+      'port = int(port)',
+      'sock = socket.create_connection((host, port), timeout=5)',
+      'sock.settimeout(0.5)',
+      'sock.recv(4096)',
+      "sock.sendall(f'Action: Login\\r\\nUsername: {user}\\r\\nSecret: {password}\\r\\n\\r\\n'.encode())",
+      'login = sock.recv(4096).decode(errors="replace")',
+      "if 'Authentication accepted' not in login:",
+      '    raise SystemExit(login)',
+      'buffer = ""',
+      'action_id = "endpoints-1"',
+      'def parse_message(raw):',
+      '    fields = {}',
+      '    for line in raw.split("\\r\\n"):',
+      '        if not line or ":" not in line:',
+      '            continue',
+      '        key, value = line.split(":", 1)',
+      '        fields[key.strip()] = value.strip()',
+      '    return fields',
+      'def collect(deadline):',
+      '    global buffer',
+      '    messages = []',
+      '    while time.time() < deadline:',
+      '        try:',
+      '            chunk = sock.recv(8192).decode(errors="replace")',
+      '            if not chunk:',
+      '                break',
+      '            buffer += chunk',
+      '            while "\\r\\n\\r\\n" in buffer:',
+      '                raw, buffer = buffer.split("\\r\\n\\r\\n", 1)',
+      '                raw = raw.strip()',
+      '                if raw:',
+      '                    messages.append(parse_message(raw))',
+      '        except TimeoutError:',
+      '            continue',
+      '    return messages',
+      "sock.sendall(f'Action: PJSIPShowEndpoints\\r\\nActionID: {action_id}\\r\\n\\r\\n'.encode())",
+      'messages = collect(time.time() + 3)',
+      'rows = []',
+      'for message in messages:',
+      '    if message.get("ActionID") != action_id:',
+      '        continue',
+      '    if message.get("Event") != "EndpointList":',
+      '        continue',
+      '    contacts = [value.strip() for value in message.get("Contacts", "").split(",") if value.strip()]',
+      '    rows.append({',
+      '        "endpoint": message.get("ObjectName", "unknown"),',
+      '        "aor": message.get("Aor", "unknown"),',
+      '        "contacts": contacts,',
+      '    })',
+      "sock.sendall(b'Action: Logoff\\r\\n\\r\\n')",
+      'sock.close()',
+      'print(json.dumps(rows))',
+    ].join('\n');
+
+    const output = await this.runPythonScript(script, [
+      this.amiHost,
+      String(this.amiPort),
+      this.amiUser,
+      this.amiPassword,
+    ]);
+    return JSON.parse(output) as AmiPjsipEndpoint[];
+  }
+
+  async getPjsipAors(): Promise<AmiPjsipAor[]> {
+    const script = [
+      'import json, socket, sys, time',
+      'host, port, user, password = sys.argv[1:5]',
+      'port = int(port)',
+      'sock = socket.create_connection((host, port), timeout=5)',
+      'sock.settimeout(0.5)',
+      'sock.recv(4096)',
+      "sock.sendall(f'Action: Login\\r\\nUsername: {user}\\r\\nSecret: {password}\\r\\n\\r\\n'.encode())",
+      'login = sock.recv(4096).decode(errors="replace")',
+      "if 'Authentication accepted' not in login:",
+      '    raise SystemExit(login)',
+      'buffer = ""',
+      'action_id = "aors-1"',
+      'def parse_message(raw):',
+      '    fields = {}',
+      '    for line in raw.split("\\r\\n"):',
+      '        if not line or ":" not in line:',
+      '            continue',
+      '        key, value = line.split(":", 1)',
+      '        fields[key.strip()] = value.strip()',
+      '    return fields',
+      'def collect(deadline):',
+      '    global buffer',
+      '    messages = []',
+      '    while time.time() < deadline:',
+      '        try:',
+      '            chunk = sock.recv(8192).decode(errors="replace")',
+      '            if not chunk:',
+      '                break',
+      '            buffer += chunk',
+      '            while "\\r\\n\\r\\n" in buffer:',
+      '                raw, buffer = buffer.split("\\r\\n\\r\\n", 1)',
+      '                raw = raw.strip()',
+      '                if raw:',
+      '                    messages.append(parse_message(raw))',
+      '        except TimeoutError:',
+      '            continue',
+      '    return messages',
+      "sock.sendall(f'Action: PJSIPShowAors\\r\\nActionID: {action_id}\\r\\n\\r\\n'.encode())",
+      'messages = collect(time.time() + 3)',
+      'rows = []',
+      'for message in messages:',
+      '    if message.get("ActionID") != action_id:',
+      '        continue',
+      '    if message.get("Event") != "AorList":',
+      '        continue',
+      '    contacts = [value.strip() for value in message.get("Contacts", "").split(",") if value.strip()]',
+      '    aor = message.get("ObjectName", "unknown")',
+      '    endpoint = aor[:-4] if aor.endswith("-aor") else aor',
+      '    rows.append({',
+      '        "endpoint": endpoint,',
+      '        "aor": aor,',
+      '        "contacts": contacts,',
+      '        "contactStatus": message.get("ContactStatus"),',
+      '        "roundtripUsec": message.get("RoundtripUsec"),',
+      '        "lastQualifiedAt": message.get("LastQualifiedAt"),',
+      '    })',
+      "sock.sendall(b'Action: Logoff\\r\\n\\r\\n')",
+      'sock.close()',
+      'print(json.dumps(rows))',
+    ].join('\n');
+
+    const output = await this.runPythonScript(script, [
+      this.amiHost,
+      String(this.amiPort),
+      this.amiUser,
+      this.amiPassword,
+    ]);
+    return JSON.parse(output) as AmiPjsipAor[];
   }
 
   private buildExtensionsConfig(extensions: SipExtensionEntity[]): string {

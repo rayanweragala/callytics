@@ -6,6 +6,87 @@ export interface SipEndpointStatus {
   updatedAt: number;
 }
 
+export interface DiagnosticsHealthItem {
+  label: string;
+  state: 'healthy' | 'down' | 'degraded';
+  detail: string;
+}
+
+export interface DiagnosticsSystemHealth {
+  ari: {
+    connected: boolean;
+    latencyMs: number | null;
+  };
+  ami: {
+    connected: boolean;
+  };
+  asterisk: {
+    version: string | null;
+    uptimeSeconds: number | null;
+  };
+  activeChannels: number;
+  postgres: {
+    reachable: boolean;
+  };
+  redis: {
+    reachable: boolean;
+  };
+  items: DiagnosticsHealthItem[];
+  checkedAt: string;
+}
+
+export interface TrunkDiagnosticsResult {
+  trunkId: number;
+  tcpStatus: 'reachable' | 'unreachable';
+  tcpLatencyMs: number | null;
+  sipStatus: 'reachable' | 'unreachable' | 'unknown';
+  sipLatencyMs: number | null;
+  status: 'reachable' | 'sip_unreachable' | 'unreachable' | 'unknown';
+  message: string;
+  testedAt: string;
+}
+
+export interface SipRegistrationItem {
+  name: string;
+  type: 'extension' | 'trunk';
+  status: 'registered' | 'unregistered' | 'unknown';
+  contactUri: string | null;
+  rttMs: number | null;
+  lastSeen: string | null;
+}
+
+export interface SipTrafficItem {
+  timestamp: string;
+  method: string;
+  from: string;
+  to: string;
+  direction: 'inbound' | 'outbound';
+  responseCode: number | null;
+  rawMessage: string;
+}
+
+export interface DiagnosticsFailureItem {
+  id: number;
+  callId: string;
+  time: string;
+  callerId: string | null;
+  flowName: string | null;
+  failedNodeType: string | null;
+  errorMessage: string | null;
+  durationSeconds: number | null;
+}
+
+export interface CallEvent {
+  callId: string;
+  timestamp: string;
+  type: 'started' | 'failed' | 'ended';
+  caller: string;
+  flowId?: number;
+  failedNode?: string;
+  failureReason?: string;
+  durationSeconds?: number;
+}
+
 export interface CallTimelineEvent {
   callId: string;
   flowId: number;
@@ -181,6 +262,7 @@ export interface SipTrunkItem {
   providerPreset: string;
   host: string;
   port: number;
+  protocol?: string;
   username: string | null;
   password: string | null;
   fromDomain: string | null;

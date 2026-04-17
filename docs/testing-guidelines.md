@@ -47,3 +47,8 @@ Adjust the mocked method name if the AudioService implementation changes.
 ## Adding new tests
 - When adding a new node executor: add it to `stasis/src/executors/executors.unit.spec.ts` with at minimum a happy path and a hangup-mid-execution case
 - When adding a new API endpoint: add it to the relevant `.int.spec.ts` file with at minimum a success case and a not-found or validation failure case
+- When adding a new stasis source file (monitor, executor, engine): add a `foo.unit.spec.ts` next to it, add the file path to `collectCoverageFrom` in `stasis/jest.config.js`
+
+## Stasis-specific notes
+- Stasis has no integration tests — unit only
+- When adding a new stasis source file (monitor, executor, engine): add a `foo.unit.spec.ts` next to it and add the file path to `collectCoverageFrom` in `stasis/jest.config.js`

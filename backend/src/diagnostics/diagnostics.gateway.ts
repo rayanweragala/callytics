@@ -7,6 +7,10 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { DiagnosticsService } from './diagnostics.service';
+import type { SipTrafficEvent, CallEvent } from './diagnostics.types';
+
+const SIP_TRAFFIC_ROOM = 'sip-traffic';
+const CALL_EVENTS_ROOM = 'call-events';
 
 @WebSocketGateway({
   cors: {
@@ -22,42 +26,39 @@ export class DiagnosticsGateway implements OnGatewayConnection {
   }
 
   handleConnection(client: Socket): void {
-    client.emit('diagnostics:bootstrap', this.diagnosticsService.getSnapshot());
+    client.emit('diagnostics:ready', { connected: true });
   }
 
-  @SubscribeMessage('diagnostics:live-execution:list')
-  handleLiveExecutionList(
-    @MessageBody() payload: { limit?: number; offset?: number } = {},
-  ) {
-    return this.diagnosticsService.listTimelineCalls(payload.limit ?? 10, payload.offset ?? 0);
+  @SubscribeMessage('sip:traffic:subscribe')
+  handleSubscribe(client: Socket): void {
+    client.join(SIP_TRAFFIC_ROOM);
   }
 
-  @SubscribeMessage('diagnostics:sip-status:list')
-  handleSipStatusList(
-    @MessageBody() payload: { limit?: number; offset?: number } = {},
-  ) {
-    return this.diagnosticsService.listSipStatuses(payload.limit ?? 10, payload.offset ?? 0);
+  @SubscribeMessage('sip:traffic:unsubscribe')
+  handleUnsubscribe(client: Socket): void {
+    client.leave(SIP_TRAFFIC_ROOM);
   }
 
-  broadcastSnapshot(): void {
-    this.server.emit('diagnostics:bootstrap', this.diagnosticsService.getSnapshot());
+  @SubscribeMessage('sip:traffic:clear')
+  handleClear(@MessageBody() _payload: unknown, client: Socket): void {
+    client.emit('sip:traffic:cleared', { ok: true });
   }
 
-  broadcastSipStatuses(): void {
-    this.server.emit('diagnostics:sip-status', this.diagnosticsService.getSipStatuses());
-    this.server.emit('diagnostics:metrics', this.diagnosticsService.getMetrics());
+  @SubscribeMessage('call:subscribe')
+  handleCallSubscribe(client: Socket): void {
+    client.join(CALL_EVENTS_ROOM);
   }
 
-  broadcastTimeline(callId: string): void {
-    const timeline = this.diagnosticsService.getTimelineForCall(callId);
-    if (!timeline) {
-      return;
-    }
+  @SubscribeMessage('call:unsubscribe')
+  handleCallUnsubscribe(client: Socket): void {
+    client.leave(CALL_EVENTS_ROOM);
+  }
 
-    this.server.emit('diagnostics:timeline', {
-      callId,
-      events: timeline,
-    });
-    this.server.emit('diagnostics:metrics', this.diagnosticsService.getMetrics());
+  broadcastSipTraffic(event: SipTrafficEvent): void {
+    this.server.to(SIP_TRAFFIC_ROOM).emit('sip:traffic', event);
+  }
+
+  broadcastCallEvent(event: CallEvent): void {
+    this.server.to(CALL_EVENTS_ROOM).emit('call:event', event);
   }
 }

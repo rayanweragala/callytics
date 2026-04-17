@@ -88,4 +88,7 @@ vi.mock('reactflow', () => ({
   Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
   NodeResizer: () => React.createElement('div', null),
   ReactFlowProvider: ({ children }: { children: React.ReactNode }) => React.createElement('div', null, children),
+  getBezierPath: () => ['M0,0 C0,0 100,100 100,100', 50, 50],
+  BaseEdge: ({ 'data-testid': _t, ...rest }: any) => React.createElement('path', { 'data-testid': 'rf__base-edge', ...rest }),
+  EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'rf__edge-label-renderer' }, children),
 }));

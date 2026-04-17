@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { FlowsService } from './flows.service';
+import { FlowsService, validateNodeConfig, validateNodesConfig } from './flows.service';
 import { CallFlowEntity } from './entities/call-flow.entity';
 import { FlowVersionEntity } from './entities/flow-version.entity';
 import { FlowNodeEntity } from './entities/flow-node.entity';
@@ -177,15 +177,14 @@ describe('FlowsService', () => {
   });
 
   describe('update', () => {
-    it('should update an existing flow', async () => {
+    it('should update an existing flow in-place on the latest version', async () => {
       const flow = { id: 1, name: 'Old Flow', slug: 'old-flow', createdAt: new Date(), updatedAt: new Date() };
       const dto = { name: 'Updated Flow', slug: 'new-slug', nodes: [], edges: [] };
-      const savedVersion = { id: 11, versionNumber: 2, createdAt: new Date() };
+      const latestVersion = { id: 11, versionNumber: 1, createdAt: new Date() };
 
-      mockManager.findOne.mockResolvedValueOnce(flow).mockResolvedValueOnce(null); // flow then previousVersion
-      mockManager.save.mockResolvedValueOnce(flow).mockResolvedValueOnce(savedVersion).mockResolvedValueOnce(flow);
-      mockManager.create.mockReturnValueOnce(savedVersion);
-      mockManager.findOneOrFail.mockResolvedValueOnce(flow).mockResolvedValueOnce(savedVersion);
+      mockManager.findOne.mockResolvedValueOnce(flow).mockResolvedValueOnce(latestVersion); // flow then latestVersion
+      mockManager.save.mockResolvedValue(flow);
+      mockManager.findOneOrFail.mockResolvedValueOnce(flow).mockResolvedValueOnce(latestVersion);
       mockManager.find.mockResolvedValue([]);
       mockManager.getRepository.mockReturnValue({ findOne: jest.fn().mockResolvedValue(null) });
 
@@ -386,6 +385,70 @@ describe('FlowsService', () => {
       mockManager.findOne.mockResolvedValue({ id: 2 });
       const result = await service.createSubflow(1, 'n1', 'Name', mockManager);
       expect(result).toBe(2);
+    });
+  });
+
+  describe('validateNodeConfig', () => {
+    it('should throw 400 for transfer node with empty destination', () => {
+      const node = { nodeKey: 't1', type: 'transfer', config: { destination: '', timeout_ms: 30000 } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should throw 400 for transfer node with whitespace-only destination', () => {
+      const node = { nodeKey: 't1', type: 'transfer', config: { destination: '   ', timeout_ms: 30000 } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should pass for transfer node with valid destination', () => {
+      const node = { nodeKey: 't1', type: 'transfer', config: { destination: 'SIP/trunk/+123', timeout_ms: 30000 } };
+      expect(() => validateNodeConfig(node)).not.toThrow();
+    });
+
+    it('should throw 400 for transfer node missing timeout_ms', () => {
+      const node = { nodeKey: 't1', type: 'transfer', config: { destination: 'SIP/trunk' } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should throw 400 for transfer node with invalid timeout_ms', () => {
+      const node = { nodeKey: 't1', type: 'transfer', config: { destination: 'SIP/trunk', timeout_ms: -100 } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should throw 400 for menu node with missing prompt_audio_file_id', () => {
+      const node = { nodeKey: 'm1', type: 'menu', config: { prompt_audio_file_id: '', timeout_ms: 5000, branches: ['1', '2'] } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should throw 400 for menu node with invalid prompt_audio_file_id', () => {
+      const node = { nodeKey: 'm1', type: 'menu', config: { prompt_audio_file_id: 'abc', timeout_ms: 5000, branches: ['1', '2'] } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should throw 400 for menu node with empty branches array', () => {
+      const node = { nodeKey: 'm1', type: 'menu', config: { prompt_audio_file_id: 1, timeout_ms: 5000, branches: [] } };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it('should pass for menu node with valid config', () => {
+      const node = { nodeKey: 'm1', type: 'menu', config: { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1', '2'] } };
+      expect(() => validateNodeConfig(node)).not.toThrow();
+    });
+  });
+
+  describe('validateNodesConfig', () => {
+    it('should throw on first invalid node', () => {
+      const nodes = [
+        { nodeKey: 'm1', type: 'menu', config: { prompt_audio_file_id: 1, timeout_ms: 5000, branches: [] } },
+      ];
+      expect(() => validateNodesConfig(nodes)).toThrow(BadRequestException);
+    });
+
+    it('should pass for all valid nodes', () => {
+      const nodes = [
+        { nodeKey: 't1', type: 'transfer', config: { destination: 'SIP/123', timeout_ms: 30000 } },
+        { nodeKey: 'm1', type: 'menu', config: { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] } },
+      ];
+      expect(() => validateNodesConfig(nodes)).not.toThrow();
     });
   });
 });

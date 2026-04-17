@@ -40,6 +40,23 @@ cd backend
 npm test
 ```
 
+## Stasis tests
+```bash
+cd stasis
+npm run test:ci
+```
+- Runs all stasis tests with coverage
+
+```bash
+cd stasis
+npm test
+```
+- Runs stasis tests without coverage
+
+- Stasis tests are unit-only: no DB, no Docker, no integration tests
+- File naming: `foo.ts` -> `foo.unit.spec.ts`, next to the file it tests
+- When adding a new stasis source file, add it to `collectCoverageFrom` in `stasis/jest.config.js` or coverage will not be measured for it
+
 ## E2E call tests (manual)
 
 Requires full Docker stack running and softphones/extensions configured (`test-phone` caller and extension `2001` callee).
@@ -70,3 +87,9 @@ Recommended repeat checks:
 - Invalid DTMF + timeout loops still recover correctly
 - Hunt retry behavior when destination is unavailable
 - Final no-answer route when all hunt attempts fail
+
+## Phase 18 added tests
+
+- **Backend**: `diagnostics.service.unit.spec.ts`, `diagnostics.int.spec.ts`, `flows.service.unit.spec.ts` (config validation)
+- **Frontend**: `NodeConfigPanel.test.tsx`, `AudioPage.test.tsx`, `DiagnosticsPage.test.tsx`, `CallLogsPage.test.tsx`
+- **Stasis**: `sipTrafficMonitor.unit.spec.ts`

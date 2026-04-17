@@ -24,4 +24,7 @@ vi.mock('reactflow', () => ({
   Panel: ({ children }: { children: React.ReactNode }) => React.createElement('div', null, children),
   Handle: () => React.createElement('div', null),
   MarkerType: { ArrowClosed: 'arrowclosed' },
+  getBezierPath: vi.fn(() => ['M0,0 C0,0 100,100 100,100', 50, 50]),
+  BaseEdge: () => React.createElement('path', { 'data-testid': 'rf__base-edge' }),
+  EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'rf__edge-label-renderer' }, children),
 }));

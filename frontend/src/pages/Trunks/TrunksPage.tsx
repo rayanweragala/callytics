@@ -1,6 +1,9 @@
 import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { SearchableSelect, type SearchableSelectOption } from '../../components/common/SearchableSelect';
+import { PageLayout } from '../../components/common/PageLayout';
+import { ErrorMessage } from '../../components/common/ErrorMessage';
 import { Pagination } from '../../components/common/Pagination';
+import { SkeletonRow } from '../../components/common/skeleton';
 import { createTrunk, deleteTrunk, listTrunks, testTrunk, updateTrunk } from '../../lib/api';
 import { getApiError } from '../../lib/apiError';
 import { formatDateTime } from '../../lib/time';
@@ -98,12 +101,15 @@ export function TrunksPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [testResults, setTestResults] = useState<Record<number, TrunkTestResult>>({});
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const badgeTimersRef = useRef<Record<number, number>>({});
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -113,9 +119,18 @@ export function TrunksPage() {
   ), []);
 
   const load = async (nextLimit = limit, nextOffset = offset) => {
-    const response = await listTrunks(nextLimit, nextOffset);
-    setItems(response.data);
-    setTotal(response.total);
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const response = await listTrunks(nextLimit, nextOffset);
+      setItems(response.data);
+      setTotal(response.total);
+    } catch {
+      setLoadError('Failed to load trunks');
+    } finally {
+      setIsLoading(false);
+      setIsInitialLoad(false);
+    }
   };
 
   useEffect(() => {
@@ -321,7 +336,8 @@ export function TrunksPage() {
   };
 
   return (
-    <div className={styles.page}>
+    <PageLayout title="SIP trunks" subtitle="Configure outbound and inbound SIP trunks">
+      <div className={styles.page}>
       <div className={styles.header}>
         <div>
           <div className={styles.sectionLabel}>configure</div>
@@ -397,7 +413,7 @@ export function TrunksPage() {
               <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save trunk'}</button>
             </div>
           </form>
-          {errorText ? <div className={styles.failedText}>{errorText}</div> : null}
+          {errorText ? <ErrorMessage message={errorText} /> : null}
         </section>
       ) : null}
 
@@ -413,13 +429,32 @@ export function TrunksPage() {
           <div className={styles.actionsHeader}>Actions</div>
         </div>
 
-        {sortedItems.length === 0 ? (
+        {isLoading ? (
+          <>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} columns={[
+                { width: '150px' },
+                { width: '140px' },
+                { width: '200px' },
+                { width: '72px' },
+                { width: '72px' },
+                { width: '132px' },
+                { width: '108px' },
+                { width: '220px' },
+              ]} />
+            ))}
+          </>
+        ) : loadError ? (
+          <ErrorMessage message={loadError} />
+        ) : sortedItems.length === 0 ? (
           <div className={styles.empty}>No trunks configured. Add your first SIP trunk.</div>
-        ) : sortedItems.map((item) => {
-          const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
-          return (
-            <Fragment key={item.id}>
-              <div className={styles.row}>
+        ) : (
+          <div className="fadeIn">
+            {sortedItems.map((item) => {
+              const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
+              return (
+                <Fragment key={item.id}>
+                  <div className={styles.row}>
                 <div className={styles.rowValue}>{item.name}</div>
                 <div className={styles.rowMuted}>{presetLabel}</div>
                 <div className={styles.dataMono}>{item.host}</div>
@@ -519,10 +554,13 @@ export function TrunksPage() {
             </Fragment>
           );
         })}
+          </div>
+        )}
 
         <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
-        {errorText ? <div className={styles.failedText}>{errorText}</div> : null}
+        {errorText ? <ErrorMessage message={errorText} /> : null}
       </section>
-    </div>
+      </div>
+    </PageLayout>
   );
 }

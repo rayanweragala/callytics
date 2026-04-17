@@ -1,49 +1,48 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { AudioPage } from './AudioPage';
+// @vitest-environment jsdom
+import { vi, describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
-import * as api from '../lib/api';
 
-vi.mock('../lib/api', () => ({
-  listAudio: vi.fn(),
-  listAudioVoices: vi.fn(),
-  uploadAudio: vi.fn(),
-  createTts: vi.fn(),
-  deleteAudio: vi.fn(),
-}));
+vi.mock('../lib/api', () => {
+  return {
+    listAudio: vi.fn(() => Promise.resolve({
+      data: [
+        { id: 1, name: 'Welcome', sourceType: 'upload', conversionStatus: 'completed', createdAt: new Date().toISOString() },
+        { id: 2, name: 'Intro', sourceType: 'tts', conversionStatus: 'completed', createdAt: new Date().toISOString() },
+      ],
+      total: 2,
+      page: 1,
+      limit: 5,
+      totalPages: 1,
+    })),
+    listAudioVoices: vi.fn(() => Promise.resolve({
+      data: [{ id: 'v1', name: 'Voice 1', language: 'en-US' }],
+      total: 1,
+    })),
+    uploadAudio: vi.fn(),
+    createTts: vi.fn(),
+    deleteAudio: vi.fn(),
+    previewTts: vi.fn(),
+  };
+});
+
+import { AudioPage } from './AudioPage';
 
 describe('AudioPage coverage boost', () => {
-  const mockAudioList = {
-    data: [
-      { id: 1, name: 'Welcome', sourceType: 'upload', conversionStatus: 'completed', createdAt: new Date().toISOString() },
-      { id: 2, name: 'Intro', sourceType: 'tts', conversionStatus: 'completed', createdAt: new Date().toISOString() },
-    ],
-    total: 2,
-    page: 1,
-    limit: 10,
-    totalPages: 1,
-  };
-
-  const mockVoices = {
-    data: [{ id: 'v1', name: 'Voice 1', language: 'en-US' }],
-    total: 1,
-  };
-
   it('renders audio items and handles delete click', async () => {
-    (api.listAudio as any).mockResolvedValue(mockAudioList);
-    (api.listAudioVoices as any).mockResolvedValue(mockVoices);
-
     render(
       <MemoryRouter>
         <AudioPage />
       </MemoryRouter>
     );
 
-    await waitFor(() => expect(screen.getByText('Welcome')).toBeInTheDocument());
-    expect(screen.getByText('Intro')).toBeInTheDocument();
+    expect(await screen.findByText('Welcome')).toBeInTheDocument();
+    expect(await screen.findByText('Intro')).toBeInTheDocument();
 
     const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
     fireEvent.click(deleteButtons[0]);
-    expect(screen.getByText('Delete this audio? This cannot be undone.')).toBeInTheDocument();
+    
+    expect(await screen.findByText(/Delete this audio\?/i)).toBeInTheDocument();
   });
 });

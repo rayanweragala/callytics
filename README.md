@@ -39,10 +39,20 @@ Phase 15 — Test Suite
 - menu executor extracted to stasis/src/executors/menu.executor.ts
 - Documentation updated to reflect modularised execution engine
 
-Phase 16 — Flow Builder: Node Groups + Menu Node + Versioning
+- Phase 16 — Flow Builder: Node Groups + Menu Node + Versioning
+- Phase 17 — Unit + Integration Tests + Coverage
+- Phase 18 — Network Diagnostics Page + SIP Traffic Inspector + Trunk Health + Global Skeleton Loading
+  - Dedicated /diagnostics page for system and network observability
+  - Real-time SIP traffic inspector with auto-scroll and pause control
+  - Automated trunk reachability and AMI-based PJSIP qualify testing
+  - Live SIP endpoint registration status monitoring
+  - Recent call failure analysis with flow and destination resolution
+  - Unified skeleton loading across all core management pages
+  - Comprehensive node config validation for Transfer and Menu nodes
+
 - Menu node: new node type with branching options, executor in stasis
 - Node groups: multi-select nodes and group/ungroup via toolbar
-- group_id FK added to flow_nodes (migration: 004_menu_group.sql)
+- group_id FK added to flow_nodes (migration: 005_menu_group.sql)
 - Flow versioning: save a named version with commit message
 - flow_versions table: message, snapshot JSON, node_count, version_number
 - Version list in flow editor: timestamp, message, node count
@@ -118,6 +128,11 @@ Current extension and inbound routing endpoints:
 - `DELETE /trunks/:id`
 - `POST /trunks/:id/test`
 - `GET /config/host`
+- `GET /diagnostics/health`
+- `POST /diagnostics/trunks/:id/test`
+- `POST /diagnostics/trunks/test-all`
+- `GET /diagnostics/registrations`
+- `GET /diagnostics/failures`
 
 Current API pagination:
 

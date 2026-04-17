@@ -123,3 +123,25 @@ Dial multiple SIP destinations with configurable strategy.
 
 - `SearchableSelect` is now a reusable picker used for voices and audio assets
 - `Pagination` is now a reusable backend-driven list footer used across pages
+
+## Network diagnostics
+
+- Dedicated `/diagnostics` page for system and network observability
+- System health panel for ARI, AMI, Asterisk, Channels, PostgreSQL, and Redis
+- Trunk health panel with live reachability testing and PJSIP qualify actions
+- SIP registration panel for active endpoint contacts
+- SIP traffic inspector with real-time scrolling transport events
+- Recent call failures panel with flow and destination resolution
+
+## Node config validation
+
+- Transfer node: destination required, timeout_ms required > 0
+- Menu node: prompt audio required, timeout_ms required > 0, branches required
+- Backend returns HTTP 400 with message pattern: "Node <nodeKey>: <field> is required"
+- Frontend shows inline field errors and suppresses top-level banner for validation failures
+
+## Skeleton loading
+
+- Globally consistent skeleton loading using `SkeletonRow` and `SkeletonCard` components
+- Applied to all core pages: Trunks, Extensions, Inbound, Audio, Recordings, CallLogs, and Diagnostics
+- Independent resolving per panel/section for responsive data loading

@@ -1,193 +1,622 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { createClient, RedisClientType } from 'redis';
-import { DataSource } from 'typeorm';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { createClient, type RedisClientType } from 'redis';
+import * as net from 'node:net';
+import { DataSource, Repository } from 'typeorm';
+import { AsteriskConfigService, type AmiQualifyResult } from '../asterisk/asterisk-config.service';
+import { runSqlMigrations } from '../db/run-sql-migrations';
+import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { DiagnosticsGateway } from './diagnostics.gateway';
-import {
-  CallTimelineEvent,
-  DiagnosticsSnapshot,
-  SipEndpointStatus,
+import type {
+  AmiRegistrationDetail,
+  CallEvent,
+  DiagnosticsSystemHealth,
+  SipTrafficEvent,
+  TrunkDiagnosticsResult,
 } from './diagnostics.types';
 
-interface RedisSipStatusMessage {
-  ts: number;
-  endpoints: SipEndpointStatus[];
-}
+const REDIS_SIP_TRAFFIC_CHANNEL = 'callytics:sip-traffic';
+const REDIS_CALL_EVENTS_CHANNEL = 'callytics:call-events';
 
-interface PaginatedDiagnosticsResult<T> {
-  data: T[];
-  total: number;
-}
-
-interface LiveExecutionItem {
-  callId: string;
-  events: CallTimelineEvent[];
-}
-
-const STALE_CALL_MAX_AGE_MS = 60 * 60 * 1000;
-const STALE_CALL_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+type TrunkDiagnosticsStatus = TrunkDiagnosticsResult['status'];
 
 @Injectable()
 export class DiagnosticsService implements OnModuleInit {
-  private readonly startedAt = Date.now();
-  private readonly sipStatuses = new Map<string, SipEndpointStatus>();
-  private readonly timeline = new Map<string, CallTimelineEvent[]>();
-  private redisSubscriber: RedisClientType | null = null;
+  private readonly logger = new Logger(DiagnosticsService.name);
+  private readonly ariUrl = process.env.ARI_URL || 'http://127.0.0.1:8088';
+  private readonly ariUser = process.env.ARI_USER || 'callytics';
+  private readonly ariPass = process.env.ARI_PASS || 'callytics';
+  private readonly amiHost = process.env.AMI_HOST || '127.0.0.1';
+  private readonly amiPort = Number(process.env.AMI_PORT || 5038);
+  private readonly amiUser = process.env.AMI_USER || 'callytics';
+  private readonly amiPass = process.env.AMI_PASSWORD || process.env.AMI_PASS || 'callytics';
   private gateway: DiagnosticsGateway | null = null;
-  private flowCount = 0;
+  private redisSubscriber: RedisClientType | null = null;
+  private readonly trunkResults = new Map<number, TrunkDiagnosticsResult>();
 
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    @InjectRepository(SipTrunkEntity)
+    private readonly trunksRepository: Repository<SipTrunkEntity>,
+    private readonly asteriskConfigService: AsteriskConfigService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    await runSqlMigrations(this.dataSource);
+    await this.initializeSipTrafficRelay();
+  }
 
   setGateway(gateway: DiagnosticsGateway): void {
     this.gateway = gateway;
   }
 
-  async onModuleInit(): Promise<void> {
-    await this.refreshFlowCount();
-    setInterval(() => {
-      void this.refreshFlowCount();
-    }, 10000);
-    setInterval(() => {
-      this.cleanupStaleCalls();
-    }, STALE_CALL_CLEANUP_INTERVAL_MS);
+  async getSystemHealth(): Promise<DiagnosticsSystemHealth> {
+    const checkedAt = new Date().toISOString();
+    const [ariInfo, channels, ami, postgres, redis] = await Promise.all([
+      this.fetchAriInfo(),
+      this.fetchAriChannels(),
+      this.asteriskConfigService.checkAmiConnection(),
+      this.checkPostgres(),
+      this.checkRedis(),
+    ]);
+
+    const uptimeSeconds = this.extractUptimeSeconds(ariInfo.data);
+    const version = this.extractVersion(ariInfo.data);
+    const activeChannels = Array.isArray(channels.data) ? channels.data.length : 0;
+
+    return {
+      ari: {
+        connected: ariInfo.connected,
+        latencyMs: ariInfo.latencyMs,
+      },
+      ami,
+      asterisk: {
+        version,
+        uptimeSeconds,
+      },
+      activeChannels,
+      postgres,
+      redis,
+      checkedAt,
+      items: [
+        {
+          label: 'ARI',
+          state: ariInfo.connected ? 'healthy' : 'down',
+          detail: ariInfo.connected
+            ? `${ariInfo.latencyMs ?? 0} ms`
+            : 'Disconnected',
+        },
+        {
+          label: 'AMI',
+          state: ami.connected ? 'healthy' : 'down',
+          detail: ami.connected ? 'Connected' : 'Disconnected',
+        },
+        {
+          label: 'Asterisk',
+          state: ariInfo.connected ? 'healthy' : 'degraded',
+          detail: [version, uptimeSeconds !== null ? `${uptimeSeconds}s` : null].filter(Boolean).join(' · ') || 'Unknown',
+        },
+        {
+          label: 'Channels',
+          state: ariInfo.connected ? 'healthy' : 'degraded',
+          detail: String(activeChannels),
+        },
+        {
+          label: 'PostgreSQL',
+          state: postgres.reachable ? 'healthy' : 'down',
+          detail: postgres.reachable ? 'Reachable' : 'Unreachable',
+        },
+        {
+          label: 'Redis',
+          state: redis.reachable ? 'healthy' : 'down',
+          detail: redis.reachable ? 'Reachable' : 'Unreachable',
+        },
+      ],
+    };
+  }
+
+  async testTrunk(id: number): Promise<TrunkDiagnosticsResult> {
+    const trunk = await this.trunksRepository.findOne({ where: { id } });
+    if (!trunk) {
+      throw new NotFoundException(`Trunk ${id} not found`);
+    }
+
+    const result = await this.runTrunkDiagnostics(trunk);
+    this.trunkResults.set(trunk.id, result);
+    return result;
+  }
+
+  async testAllTrunks(): Promise<{ data: TrunkDiagnosticsResult[] }> {
+    const trunks = await this.trunksRepository.find({
+      where: { enabled: true },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+
+    const results: TrunkDiagnosticsResult[] = [];
+    for (let index = 0; index < trunks.length; index += 1) {
+      const trunk = trunks[index];
+      const result = await this.runTrunkDiagnostics(trunk);
+      this.trunkResults.set(trunk.id, result);
+      results.push(result);
+
+      if (index < trunks.length - 1) {
+        await this.delay(500);
+      }
+    }
+
+    return { data: results };
+  }
+
+  async getSipRegistrations(): Promise<{ data: Array<{
+    name: string;
+    type: 'extension' | 'trunk' | 'unknown';
+    status: 'registered' | 'unregistered' | 'unknown';
+    contactUri: string | null;
+    roundtripMs: number | null;
+    lastSeen: string | null;
+  }> }> {
+    const [endpoints, contacts, knownExtensions, knownTrunks] = await Promise.all([
+      this.asteriskConfigService.getPjsipEndpoints(),
+      this.getPjsipContacts(),
+      this.loadKnownExtensions(),
+      this.loadKnownTrunks(),
+    ]);
+
+    const contactMap = new Map<string, AmiRegistrationDetail>();
+    for (const contact of contacts) {
+      contactMap.set(contact.endpoint, contact);
+    }
+
+    const data = endpoints
+      .map((endpoint) => {
+        const detail = contactMap.get(endpoint.endpoint);
+        const type: 'extension' | 'trunk' | 'unknown' = knownExtensions.has(endpoint.endpoint)
+          ? 'extension'
+          : knownTrunks.has(endpoint.endpoint)
+            ? 'trunk'
+            : 'unknown';
+        const contactUri = detail?.contacts[0] || endpoint.contacts[0] || null;
+        const status = this.resolveRegistrationStatus(detail?.contactStatus, endpoint.contacts.length > 0 || Boolean(contactUri));
+        return {
+          name: endpoint.endpoint,
+          type,
+          status,
+          contactUri,
+          roundtripMs: this.roundtripToMs(detail?.roundtripUsec),
+          lastSeen: detail?.lastQualifiedAt || null,
+        };
+      })
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    return { data };
+  }
+
+  async getRecentFailures(limit = 20, offset = 0): Promise<{ data: Array<{
+    callId: string;
+    callUuid: string;
+    callerNumber: string;
+    flowName: string;
+    failedNodeType: string | null;
+    errorMessage: string | null;
+    startedAt: string;
+    durationSeconds: number | null;
+  }>; total: number }> {
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    void offset;
+
+    const rows = await this.dataSource.query(
+      `
+      SELECT
+        cl.id AS "callId",
+        cl.call_uuid AS "callUuid",
+        cl.caller_number AS "callerNumber",
+        cf.name AS "flowName",
+        cl.exit_node_key AS "failedNodeType",
+        cl.end_reason AS "errorMessage",
+        cl.started_at AS "startedAt",
+        cl.duration_seconds AS "durationSeconds"
+      FROM call_logs cl
+      LEFT JOIN call_flows cf ON cf.id = cl.flow_id
+      WHERE cl.end_reason IS NOT NULL
+        AND cl.end_reason NOT IN ('completed', 'answered')
+      ORDER BY cl.started_at DESC
+      LIMIT $1
+      `,
+      [safeLimit],
+    );
+
+    return {
+      total: rows.length,
+      data: rows.map((row: Record<string, unknown>) => ({
+        callId: String(row.callId),
+        callUuid: row.callUuid ? String(row.callUuid) : '',
+        callerNumber: row.callerNumber ? String(row.callerNumber) : '',
+        flowName: row.flowName ? String(row.flowName) : '',
+        failedNodeType: row.failedNodeType ? String(row.failedNodeType) : null,
+        errorMessage: row.errorMessage ? String(row.errorMessage) : null,
+        startedAt: new Date(String(row.startedAt)).toISOString(),
+        durationSeconds: row.durationSeconds === null ? null : Number(row.durationSeconds),
+      })),
+    };
+  }
+
+  async testTrunkTcp(host: string, port: number, timeoutMs = 4000): Promise<{ reachable: boolean; latencyMs: number | null; message: string }> {
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      const socket = new net.Socket();
+      let settled = false;
+
+      const finish = (result: { reachable: boolean; latencyMs: number | null; message: string }) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        socket.destroy();
+        resolve(result);
+      };
+
+      socket.setTimeout(timeoutMs);
+      socket.connect(port, host, () => {
+        finish({
+          reachable: true,
+          latencyMs: Date.now() - startedAt,
+          message: 'Reachable',
+        });
+      });
+
+      socket.on('timeout', () => {
+        finish({
+          reachable: false,
+          latencyMs: null,
+          message: `Timed out after ${timeoutMs}ms`,
+        });
+      });
+
+      socket.on('error', (error: NodeJS.ErrnoException) => {
+        finish({
+          reachable: false,
+          latencyMs: null,
+          message: error.code || error.message || 'Unreachable',
+        });
+      });
+    });
+  }
+
+  async testTrunkSipOptions(id: number): Promise<AmiQualifyResult> {
+    return this.asteriskConfigService.qualifyEndpoint(`trunk-${id}`);
+  }
+
+  private async initializeSipTrafficRelay(): Promise<void> {
+    const redisPort = Number(process.env.REDIS_PORT || 6379);
+    if (!Number.isFinite(redisPort) || redisPort <= 0) {
+      return;
+    }
 
     this.redisSubscriber = createClient({
       socket: {
-        host: process.env.REDIS_HOST || 'redis',
-        port: Number(process.env.REDIS_PORT) || 6379,
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: redisPort,
       },
     });
 
     this.redisSubscriber.on('error', (error) => {
-      console.error('Diagnostics Redis subscriber error:', error);
+      this.logger.error(`Diagnostics Redis subscriber error: ${error instanceof Error ? error.message : String(error)}`);
     });
 
     await this.redisSubscriber.connect();
-
-    await this.redisSubscriber.subscribe('callytics:sip-status', async (message) => {
-      const payload = JSON.parse(message) as RedisSipStatusMessage;
-      this.sipStatuses.clear();
-      for (const endpoint of payload.endpoints) {
-        this.sipStatuses.set(endpoint.endpoint, endpoint);
+    await this.redisSubscriber.subscribe(REDIS_SIP_TRAFFIC_CHANNEL, async (message) => {
+      try {
+        const payload = JSON.parse(message) as SipTrafficEvent;
+        this.gateway?.broadcastSipTraffic(payload);
+      } catch (error) {
+        this.logger.warn(`Failed to parse SIP traffic payload: ${error instanceof Error ? error.message : String(error)}`);
       }
-      console.log(`[diagnostics] received sip status update for ${payload.endpoints.length} endpoints`);
-      this.gateway?.broadcastSipStatuses();
     });
-
-    await this.redisSubscriber.subscribe('callytics:call-timeline', async (message) => {
-      const event = JSON.parse(message) as CallTimelineEvent;
-      const existing = this.timeline.get(event.callId) || [];
-      const next = [...existing, event].slice(-50);
-      this.timeline.set(event.callId, next);
-      console.log(`[diagnostics] relaying timeline event ${event.nodeType}:${event.status} for ${event.callId}`);
-      this.gateway?.broadcastTimeline(event.callId);
+    await this.redisSubscriber.subscribe(REDIS_CALL_EVENTS_CHANNEL, async (message) => {
+      try {
+        const payload = JSON.parse(message) as CallEvent;
+        this.gateway?.broadcastCallEvent(payload);
+      } catch (error) {
+        this.logger.warn(`Failed to parse call event payload: ${error instanceof Error ? error.message : String(error)}`);
+      }
     });
   }
 
-  async refreshFlowCount(): Promise<void> {
-    const result = await this.dataSource.query('SELECT COUNT(*)::int AS count FROM call_flows');
-    this.flowCount = Number(result[0]?.count || 0);
-    this.gateway?.broadcastSnapshot();
+  private async fetchAriInfo(): Promise<{ connected: boolean; latencyMs: number | null; data: Record<string, unknown> | null }> {
+    return this.fetchAri('/asterisk/info');
   }
 
-  getSipStatuses(): SipEndpointStatus[] {
-    return Array.from(this.sipStatuses.values()).sort((a, b) => a.endpoint.localeCompare(b.endpoint));
-  }
-
-  listSipStatuses(limit = 10, offset = 0): PaginatedDiagnosticsResult<SipEndpointStatus> {
-    return this.paginate(this.getSipStatuses(), limit, offset);
-  }
-
-  getTimeline(): Record<string, CallTimelineEvent[]> {
-    return Object.fromEntries(
-      Array.from(this.timeline.entries()).map(([callId, events]) => [callId, events]),
-    );
-  }
-
-  listTimelineCalls(limit = 10, offset = 0): PaginatedDiagnosticsResult<LiveExecutionItem> {
-    const orderedCalls = Array.from(this.timeline.entries())
-      .sort((a, b) => (b[1][b[1].length - 1]?.ts || 0) - (a[1][a[1].length - 1]?.ts || 0))
-      .map(([callId, events]) => ({ callId, events }));
-
-    return this.paginate(orderedCalls, limit, offset);
-  }
-
-  getTimelineForCall(callId: string): CallTimelineEvent[] | undefined {
-    return this.timeline.get(callId);
-  }
-
-  getMetrics(): DiagnosticsSnapshot['metrics'] {
-    const activeCalls = Array.from(this.timeline.values()).filter((events) => {
-      if (events.length === 0) {
-        return false;
-      }
-      return !this.hasTerminalEvent(events);
-    }).length;
-
-    const registeredEndpoints = this.getSipStatuses().filter((status) => status.state === 'registered').length;
-
+  private async fetchAriChannels(): Promise<{ connected: boolean; latencyMs: number | null; data: unknown[] | null }> {
+    const response = await this.fetchAri('/channels');
     return {
-      activeCalls,
-      registeredEndpoints,
-      flows: this.flowCount,
-      uptimeSeconds: Math.floor((Date.now() - this.startedAt) / 1000),
+      connected: response.connected,
+      latencyMs: response.latencyMs,
+      data: Array.isArray(response.data) ? response.data : null,
     };
   }
 
-  getSnapshot(): DiagnosticsSnapshot {
+  private async fetchAri(path: string): Promise<{ connected: boolean; latencyMs: number | null; data: Record<string, unknown> | null }> {
+    const startedAt = Date.now();
+    try {
+      const response = await fetch(this.buildAriUrl(path), {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${this.ariUser}:${this.ariPass}`).toString('base64')}`,
+        },
+      });
+
+      if (!response.ok) {
+        return { connected: false, latencyMs: null, data: null };
+      }
+
+      return {
+        connected: true,
+        latencyMs: Date.now() - startedAt,
+        data: await response.json() as Record<string, unknown>,
+      };
+    } catch {
+      return { connected: false, latencyMs: null, data: null };
+    }
+  }
+
+  private buildAriUrl(path: string): string {
+    const trimmedBase = this.ariUrl.replace(/\/+$/, '');
+    return `${trimmedBase}/ari${path}`;
+  }
+
+  private async checkPostgres(): Promise<{ reachable: boolean }> {
+    try {
+      await this.dataSource.query('SELECT 1');
+      return { reachable: true };
+    } catch {
+      return { reachable: false };
+    }
+  }
+
+  private async checkRedis(): Promise<{ reachable: boolean }> {
+    const redisPort = Number(process.env.REDIS_PORT || 6379);
+    if (!Number.isFinite(redisPort) || redisPort <= 0) {
+      return { reachable: false };
+    }
+
+    let client: RedisClientType | null = null;
+    try {
+      client = createClient({
+        socket: {
+          host: process.env.REDIS_HOST || '127.0.0.1',
+          port: redisPort,
+        },
+      });
+      await client.connect();
+      await client.ping();
+      return { reachable: true };
+    } catch {
+      return { reachable: false };
+    } finally {
+      if (client) {
+        await client.disconnect().catch(() => undefined);
+      }
+    }
+  }
+
+  private extractVersion(data: Record<string, unknown> | null): string | null {
+    if (!data) {
+      return null;
+    }
+
+    const system = data.system as Record<string, unknown> | undefined;
+    const build = data.build as Record<string, unknown> | undefined;
+    const version = system?.version || build?.version || build?.os || null;
+    return version ? String(version) : null;
+  }
+
+  private extractUptimeSeconds(data: Record<string, unknown> | null): number | null {
+    if (!data) {
+      return null;
+    }
+
+    const system = data.system as Record<string, unknown> | undefined;
+    const status = data.status as Record<string, unknown> | undefined;
+    const rawUptime = system?.uptime_seconds ?? status?.uptime_seconds ?? status?.uptime;
+    if (typeof rawUptime === 'number') {
+      return Math.max(0, Math.round(rawUptime));
+    }
+    if (typeof rawUptime === 'string' && rawUptime.trim()) {
+      const numeric = Number(rawUptime);
+      if (Number.isFinite(numeric)) {
+        return Math.max(0, Math.round(numeric));
+      }
+      const startedAt = Date.parse(rawUptime);
+      if (!Number.isNaN(startedAt)) {
+        return Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      }
+    }
+    return null;
+  }
+
+  private async runTrunkDiagnostics(trunk: SipTrunkEntity): Promise<TrunkDiagnosticsResult> {
+    const tcp = await this.testTrunkTcp(trunk.host, trunk.port);
+    let sip: AmiQualifyResult = {
+      status: 'not_loaded',
+      rtt_ms: null,
+      message: 'Unknown',
+    };
+
+    if (tcp.reachable) {
+      sip = await this.testTrunkSipOptions(trunk.id);
+    }
+
+    const testedAt = new Date().toISOString();
+    const status = this.resolveTrunkStatus(tcp.reachable, sip.status);
+    const message = !tcp.reachable
+      ? tcp.message
+      : sip.status === 'reachable'
+        ? sip.message
+        : 'TCP reachable but SIP OPTIONS failed';
+
     return {
-      metrics: this.getMetrics(),
-      sipStatuses: this.getSipStatuses(),
-      timeline: this.getTimeline(),
+      trunkId: trunk.id,
+      tcpStatus: tcp.reachable ? 'reachable' : 'unreachable',
+      tcpLatencyMs: tcp.latencyMs,
+      sipStatus: !tcp.reachable
+        ? 'unknown'
+        : sip.status === 'reachable'
+          ? 'reachable'
+          : 'unreachable',
+      sipLatencyMs: sip.rtt_ms,
+      status,
+      message,
+      testedAt,
     };
   }
 
-  private hasTerminalEvent(events: CallTimelineEvent[]): boolean {
-    return events.some((event) => {
-      const result = String(event.meta.result || '');
-      return (
-        event.status === 'error'
-        || (event.nodeType === 'hangup' && event.status === 'completed')
-        || result === 'hangup'
-        || result === 'done'
-        || String(event.meta.eventType || '') === 'StasisEnd'
-      );
+  private resolveTrunkStatus(tcpReachable: boolean, sipStatus: AmiQualifyResult['status']): TrunkDiagnosticsStatus {
+    if (!tcpReachable) {
+      return 'unreachable';
+    }
+    if (sipStatus === 'reachable') {
+      return 'reachable';
+    }
+    if (sipStatus === 'unreachable' || sipStatus === 'not_loaded') {
+      return 'sip_unreachable';
+    }
+    return 'unknown';
+  }
+
+  private resolveRegistrationStatus(
+    contactStatus: string | null | undefined,
+    hasContact: boolean,
+  ): 'registered' | 'unregistered' | 'unknown' {
+    const normalized = String(contactStatus || '').toLowerCase();
+    if (normalized.includes('unavail') || normalized.includes('unreach') || normalized.includes('unknown')) {
+      return 'unregistered';
+    }
+    if (normalized.includes('avail') || normalized.includes('reach') || hasContact) {
+      return 'registered';
+    }
+    return hasContact ? 'registered' : 'unknown';
+  }
+
+  private roundtripToMs(value: string | null | undefined): number | null {
+    if (!value) {
+      return null;
+    }
+
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return null;
+    }
+
+    return numeric > 1000 ? Math.round((numeric / 1000) * 10) / 10 : Math.round(numeric * 10) / 10;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
     });
   }
 
-  private cleanupStaleCalls(): void {
-    let removed = 0;
-    const now = Date.now();
+  private async loadKnownExtensions(): Promise<Set<string>> {
+    const rows = await this.dataSource.query('SELECT username FROM sip_extensions');
+    return new Set(rows.map((row: Record<string, unknown>) => String(row.username)));
+  }
 
-    for (const [callId, events] of this.timeline.entries()) {
-      const lastEvent = events[events.length - 1];
-      if (!lastEvent) {
-        this.timeline.delete(callId);
-        removed += 1;
+  private async loadKnownTrunks(): Promise<Set<string>> {
+    const rows = await this.dataSource.query('SELECT id FROM sip_trunks');
+    return new Set(rows.map((row: Record<string, unknown>) => `trunk-${row.id}`));
+  }
+
+  private async getPjsipContacts(): Promise<AmiRegistrationDetail[]> {
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host: this.amiHost, port: this.amiPort });
+      const contacts: AmiRegistrationDetail[] = [];
+      const actionId = `contacts-${Date.now()}`;
+      let buffer = '';
+      let loggedIn = false;
+      let settled = false;
+
+      const finish = (result: AmiRegistrationDetail[]) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        socket.end();
+        resolve(result);
+      };
+
+      socket.setTimeout(8000, () => finish([]));
+      socket.on('error', () => finish([]));
+      socket.on('connect', () => {
+        socket.write(`Action: Login\r\nUsername: ${this.amiUser}\r\nSecret: ${this.amiPass}\r\n\r\n`);
+      });
+
+      socket.on('data', (chunk) => {
+        buffer += chunk.toString('utf8');
+
+        while (buffer.includes('\r\n\r\n')) {
+          const parts = buffer.split('\r\n\r\n');
+          const raw = parts.shift() || '';
+          buffer = parts.join('\r\n\r\n');
+          const message = this.parseAmiMessage(raw);
+
+          if (!loggedIn && message.Response === 'Success' && message.Message === 'Authentication accepted') {
+            loggedIn = true;
+            socket.write(`Action: PJSIPShowContacts\r\nActionID: ${actionId}\r\n\r\n`);
+            continue;
+          }
+
+          if (message.ActionID !== actionId) {
+            continue;
+          }
+
+          if (message.Event === 'ContactList') {
+            contacts.push({
+              endpoint: message.Endpoint || 'unknown',
+              aor: message.Endpoint || 'unknown',
+              contacts: message.Uri ? [message.Uri] : [],
+              contactStatus: message.Status || null,
+              roundtripUsec: message.RoundtripUsec || null,
+              lastQualifiedAt: this.normalizeRegExpire(message.RegExpire),
+            });
+            continue;
+          }
+
+          if (message.Event === 'ContactListComplete') {
+            socket.write('Action: Logoff\r\n\r\n');
+            finish(contacts);
+            return;
+          }
+        }
+      });
+    });
+  }
+
+  private parseAmiMessage(raw: string): Record<string, string> {
+    const parsed: Record<string, string> = {};
+    for (const line of raw.split('\r\n')) {
+      const separator = line.indexOf(':');
+      if (separator === -1) {
         continue;
       }
-
-      const ageMs = now - lastEvent.ts;
-      if (ageMs > STALE_CALL_MAX_AGE_MS && !this.hasTerminalEvent(events)) {
-        this.timeline.delete(callId);
-        removed += 1;
-      }
+      parsed[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
     }
-
-    if (removed > 0) {
-      console.log(`[diagnostics] evicted ${removed} stale call timeline entr${removed === 1 ? 'y' : 'ies'}`);
-      this.gateway?.broadcastSnapshot();
-      this.gateway?.broadcastSipStatuses();
-    }
+    return parsed;
   }
 
-  private paginate<T>(items: T[], limit = 10, offset = 0): PaginatedDiagnosticsResult<T> {
-    const safeLimit = Math.max(1, limit);
-    const safeOffset = Math.max(0, offset);
+  private normalizeRegExpire(value: string | undefined): string | null {
+    if (!value) {
+      return null;
+    }
 
-    return {
-      data: items.slice(safeOffset, safeOffset + safeLimit),
-      total: items.length,
-    };
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return new Date(numeric * 1000).toISOString();
+    }
+
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+
+    return null;
   }
 }

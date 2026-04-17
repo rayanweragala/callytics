@@ -206,3 +206,26 @@ What now works:
 - Stasis ignores `StasisStart` events for the `h` extension in `callytics-inbound`, preventing a second answer/run attempt on an already-ended channel
 - The Stasis seed path no longer overwrites flow 1 on restart; if flow 1 already has saved nodes, seeding is skipped entirely
 - Completed calls no longer need to remain stuck as active if a terminal event was missed in an older session
+
+## Current implementation status after Phase 18
+
+Phase 18 adds a dedicated network diagnostics page, SIP traffic inspection, trunk health testing, and global skeleton loading.
+
+What now works:
+
+- Dedicated `/diagnostics` page with 5 real-time panels:
+  - System Health: ARI, AMI, Asterisk, Channels, PostgreSQL, Redis (polling every 10s)
+  - Trunk Health: TCP reachability + AMI PJSIPQualify SIP OPTIONS test per trunk
+  - SIP Registrations: AMI PJSIPShowContacts + ContactList events (polling every 30s)
+  - SIP Traffic Inspector: Socket.io `sip:traffic` event relaying AMI `TransportDetail` and traffic logs
+  - Recent Call Failures: SQL join on `call_logs` and `call_flows` for non-answered/non-completed calls
+- Live call monitoring (StatBar, LiveExecutionPanel, SipEndpointsPanel) migrated from old DiagnosticsPage to a dedicated `/call-logs` page
+- Node config validation in the flow builder:
+  - Transfer node: destination required, timeout_ms > 0
+  - Menu node: prompt audio required, timeout_ms > 0, branches required
+  - Backend returns HTTP 400 with specific error messages; frontend shows inline field errors
+- Global skeleton loading implementation:
+  - Reusable `SkeletonRow` and `SkeletonCard` components
+  - Applied to Trunks, Extensions, Inbound, Audio, Recordings, CallLogs, and Diagnostics pages
+  - Every page starts in a skeleton state on mount and resolves independently per section
+- Stasis `sipTrafficMonitor` now filters and publishes AMI traffic events to Redis for frontend inspection

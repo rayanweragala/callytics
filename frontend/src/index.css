@@ -31,7 +31,7 @@ body { margin: 0; padding: 0; background: var(--bg-base); }
 .app-shell {
   min-height: 100vh;
   display: flex;
-  background: #0a0a0a;
+  background: var(--bg-base);
 }
 
 .sidebar {
