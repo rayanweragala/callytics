@@ -42,7 +42,7 @@ function createMenuFlowPayload(name = 'Menu Flow') {
         config: {
           timeout_ms: 5000,
           branches: ['1', 'timeout', 'invalid'],
-          prompt_audio_file_id: '',
+          prompt_audio_file_id: 1,
         },
       },
     ],
@@ -210,7 +210,7 @@ describe('Flows API', () => {
             label: 'HR Menu',
             positionX: 160,
             positionY: 0,
-            config: { timeout_ms: 5000, branches: ['1', 'timeout', 'invalid'] },
+            config: { timeout_ms: 5000, branches: ['1', 'timeout', 'invalid'], prompt_audio_file_id: 1  },
           },
         ],
         edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-2', branchKey: 'default', condition: null }],
