@@ -32,7 +32,7 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: 1fr 0.9fr 1fr 0.9fr 1.3fr 0.7fr;
+  grid-template-columns: 1fr 0.9fr 1fr 0.9fr 1.3fr 0.7fr 56px;
   gap: 12px;
   align-items: center;
   padding: 12px 14px;
@@ -64,4 +64,14 @@
 
 .pagination {
   margin-top: 16px;
+}
+
+.traceButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  width: 32px;
+  height: 28px;
+  cursor: pointer;
 }

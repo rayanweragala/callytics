@@ -170,7 +170,7 @@ export class FlowsService implements OnModuleInit {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const [flows, total] = await this.callFlowsRepository.findAndCount({
-      where: { parentFlowId: IsNull() },
+      where: { parentFlowId: IsNull(), isTemplate: false },
       order: { createdAt: 'ASC' },
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
@@ -232,6 +232,9 @@ export class FlowsService implements OnModuleInit {
         currentVersionId: null,
         parentFlowId: dto.parentFlowId ?? null,
         parentNodeKey: dto.parentNodeKey ?? null,
+        isTemplate: false,
+        templateDescription: null,
+        templateCategory: null,
       });
       const savedFlow = await manager.save(CallFlowEntity, flow);
       const normalizedNodes = await this.normalizeNodesForSave(manager, savedFlow, dto.nodes);

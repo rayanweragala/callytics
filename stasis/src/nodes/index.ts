@@ -5,6 +5,8 @@ import { publishNodeTelemetry } from '../telemetry';
 import { registerTransferWaiter } from '../transferManager';
 import { executeHunt } from './hunt.executor';
 import { executeMenu } from '../executors/menu.executor';
+import { executeBusinessHours } from '../executors/business_hours.executor';
+import { executeVoicemail } from '../executors/voicemail.executor';
 
 type PlaybackTarget =
   | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void> }
@@ -326,11 +328,6 @@ async function executeTransfer(
   }
 }
 
-async function executeVoicemail(node: FlowNode): Promise<string> {
-  console.log('voicemail: not yet implemented for mailbox: ' + String(node.config.mailbox || ''));
-  return 'default';
-}
-
 async function executeHangup(channel: { hangup: () => Promise<void> }): Promise<string> {
   try {
     await channel.hangup();
@@ -357,10 +354,11 @@ const executorMap: Record<string, NodeExecutor> = {
   play_audio: executePlayAudio,
   get_digits: executeGetDigits,
   menu: executeMenu,
+  business_hours: async (_channel, node) => executeBusinessHours(node),
   branch: async () => executeBranch(),
   transfer: executeTransfer,
   hunt: executeHunt,
-  voicemail: async (_channel, node) => executeVoicemail(node),
+  voicemail: executeVoicemail,
   hangup: async (channel) => executeHangup(channel),
   set_variable: async (_channel, node, session) => executeSetVariable(node, session),
 };
@@ -391,6 +389,7 @@ export async function executeNode(
     return result;
   } catch (error) {
     console.error(`Node execution failed for ${node.nodeKey}:`, error);
+    session.variables.__last_node_error__ = error instanceof Error ? error.message : 'unknown error';
     await publishNodeTelemetry(session, node, 'error', {
       message: error instanceof Error ? error.message : 'unknown error',
     });

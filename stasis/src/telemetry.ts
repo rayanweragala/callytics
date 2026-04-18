@@ -36,6 +36,9 @@ export interface CallEvent {
   type: 'started' | 'failed' | 'ended';
   caller: string;
   flowId?: number;
+  flowVersionId?: number;
+  entryNodeKey?: string;
+  exitNodeKey?: string;
   failedNode?: string;
   failureReason?: string;
   durationSeconds?: number;

@@ -20,6 +20,8 @@ const ARI_APP = process.env.ARI_APP || 'callytics';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
 const RECORDINGS_INTERNAL_TOKEN = process.env.RECORDINGS_INTERNAL_TOKEN || '';
 
+const failedCalls = new Set<string>();
+
 function buildAriUrl(path: string, query?: Record<string, string>): string {
   const trimmedBase = ARI_URL.replace(/\/+$/, '');
   const url = new URL(`${trimmedBase}/ari${path}`);
@@ -257,16 +259,6 @@ async function start(): Promise<void> {
       } catch (err) {
         console.error('[telemetry] sip traffic publish failed (StasisStart):', err);
       }
-      try {
-        await publishCallEvent({
-          callId: channel.id,
-          timestamp: new Date().toISOString(),
-          type: 'started',
-          caller: callerNumber,
-        });
-      } catch (err) {
-        console.error('[telemetry] call event publish failed (StasisStart):', err);
-      }
 
       let flow = null;
       if (inboundDid) {
@@ -299,6 +291,20 @@ async function start(): Promise<void> {
       addSession(session);
 
       try {
+        await publishCallEvent({
+          callId: channel.id,
+          timestamp: new Date().toISOString(),
+          type: 'started',
+          caller: callerNumber,
+          flowId: flow.id,
+          flowVersionId: flow.versionId,
+          entryNodeKey: entryNode.nodeKey,
+        });
+      } catch (err) {
+        console.error('[telemetry] call event publish failed (StasisStart):', err);
+      }
+
+      try {
         await channel.answer();
         session.inboundBridge = await createInboundBridge(client, channel.id);
         if (session.inboundBridge) {
@@ -313,10 +319,15 @@ async function start(): Promise<void> {
         } catch (error) {
           console.error(`Failed to subscribe ARI app ${ARI_APP} to channel:${channel.id}:`, error);
         }
-        await runFlow(channel, session, client);
+        await runFlow(channel, session, client).then((res) => {
+          if (res?.status === 'failed') {
+            failedCalls.add(channel.id);
+          }
+        });
       } catch (error) {
         console.error('Error running flow:', error);
         const failureReason = error instanceof Error ? error.message : 'Unknown flow error';
+        failedCalls.add(channel.id);
         try {
           await publishCallEvent({
             callId: channel.id,
@@ -324,6 +335,7 @@ async function start(): Promise<void> {
             type: 'failed',
             caller: session.callerNumber,
             flowId: session.flow.id,
+            flowVersionId: session.flow.versionId,
             failedNode: 'runtime',
             failureReason,
           });
@@ -360,6 +372,9 @@ async function start(): Promise<void> {
         `[channel] StasisEnd call_id=${channel.id} state=${String(event.channel?.state || 'unknown')} name=${String(event.channel?.name || 'unknown')}`,
       );
 
+      const isFailed = failedCalls.has(channel.id);
+      failedCalls.delete(channel.id);
+
       // 1. Destroy bridge immediately (non-blocking — destroyInboundBridge catches its own errors)
       if (session.inboundBridge) {
         void destroyInboundBridge(client, session.inboundBridge.id);
@@ -376,13 +391,17 @@ async function start(): Promise<void> {
         responseCode: null,
         rawMessage: `BYE sip:${channel.id} SIP/2.0`,
       }).catch((err) => console.error('[telemetry] sip traffic publish failed (StasisEnd):', err));
-      void publishCallEvent({
-        callId: channel.id,
-        timestamp: new Date().toISOString(),
-        type: 'ended',
-        caller: session.callerNumber,
-        durationSeconds: Math.round((Date.now() - session.startedAt.getTime()) / 1000),
-      }).catch((err) => console.error('[telemetry] call event publish failed (StasisEnd):', err));
+
+      if (!isFailed) {
+        void publishCallEvent({
+          callId: channel.id,
+          timestamp: new Date().toISOString(),
+          type: 'ended',
+          caller: session.callerNumber,
+          exitNodeKey: session.currentNodeKey,
+          durationSeconds: Math.round((Date.now() - session.startedAt.getTime()) / 1000),
+        }).catch((err) => console.error('[telemetry] call event publish failed (StasisEnd):', err));
+      }
 
       // 3. Remove session from in-memory registry
       removeSession(channel.id);

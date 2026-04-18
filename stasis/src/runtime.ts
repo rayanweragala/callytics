@@ -3,10 +3,65 @@ import { query } from './db';
 import { Flow, loadFlowById } from './flowLoader';
 import { executeNode } from './nodes';
 import { resolveNextEdge } from './engine/edgeResolver';
+import { publishCallEvent } from './telemetry';
 
 interface FlowStackFrame {
   flow: Flow;
   menuNodeKey: string;
+}
+
+async function insertNodeLog(session: CallSession, node: { nodeKey: string; type: string }): Promise<void> {
+  try {
+    await query(
+      `
+        INSERT INTO call_node_logs (call_uuid, flow_id, node_key, node_type, entered_at)
+        VALUES ($1, $2, $3, $4, NOW())
+      `,
+      [session.callUuid, session.flow.id, node.nodeKey, node.type],
+    );
+  } catch (error) {
+    console.error(`[runtime] failed to insert call_node_logs row for ${session.callUuid}/${node.nodeKey}:`, error);
+  }
+}
+
+async function updateNodeLog(
+  session: CallSession,
+  node: { nodeKey: string },
+  branch: string | null,
+  errorMessage: string | null,
+): Promise<void> {
+  try {
+    await query(
+      `
+        UPDATE call_node_logs
+        SET exited_at = NOW(),
+            exit_branch = $4,
+            error_message = $5
+        WHERE id = (
+          SELECT id
+          FROM call_node_logs
+          WHERE call_uuid = $1
+            AND flow_id = $2
+            AND node_key = $3
+            AND exited_at IS NULL
+          ORDER BY entered_at DESC, id DESC
+          LIMIT 1
+        )
+      `,
+      [session.callUuid, session.flow.id, node.nodeKey, branch, errorMessage],
+    );
+  } catch (error) {
+    console.error(`[runtime] failed to update call_node_logs row for ${session.callUuid}/${node.nodeKey}:`, error);
+  }
+}
+
+function consumeNodeError(session: CallSession): string | null {
+  const message = String(session.variables.__last_node_error__ || '').trim();
+  if (!message) {
+    return null;
+  }
+  delete session.variables.__last_node_error__;
+  return message;
 }
 
 function findEntryNode(flow: Flow): string | null {
@@ -65,31 +120,58 @@ export async function runFlow(
   channel: { id: string },
   session: CallSession,
   ariClient: unknown
-): Promise<void> {
+): Promise<{ status: 'completed' | 'failed' }> {
   const initialNodeKey = findEntryNode(session.flow);
 
   if (!initialNodeKey) {
     console.error('No entry node found in flow');
-    return;
+    await publishCallEvent({
+      callId: session.channelId,
+      timestamp: new Date().toISOString(),
+      type: 'failed',
+      caller: session.callerNumber,
+      flowId: session.flow.id,
+      failureReason: 'No entry node found in flow',
+    });
+    return { status: 'failed' };
   }
 
   session.currentNodeKey = initialNodeKey;
   const stack: FlowStackFrame[] = [];
+  let lastNodeKey = initialNodeKey;
+  let finalStatus: 'completed' | 'failed' = 'completed';
+  let failureReason: string | null = null;
 
   while (true) {
     const node = session.flow.nodes.find((item) => item.nodeKey === session.currentNodeKey);
+    lastNodeKey = session.currentNodeKey;
 
     if (!node) {
       console.warn(`Node not found: ${session.currentNodeKey}`);
       if (await returnToParentFlow(session, stack)) {
         continue;
       }
+      finalStatus = 'failed';
+      failureReason = `Node not found: ${session.currentNodeKey}`;
       break;
     }
 
     console.log(`Executing node: ${node.type} (${node.nodeKey})`);
+    await insertNodeLog(session, node);
 
-    const result = await executeNode(channel as never, node, session, ariClient);
+    let result = 'hangup';
+    let runtimeError: string | null = null;
+    try {
+      result = await executeNode(channel as never, node, session, ariClient);
+      runtimeError = consumeNodeError(session);
+    } catch (error) {
+      runtimeError = error instanceof Error ? error.message : 'unknown error';
+      result = 'hangup';
+      finalStatus = 'failed';
+      failureReason = runtimeError;
+    }
+
+    await updateNodeLog(session, node, result, runtimeError);
 
     console.log(`Node result: ${result}`);
 
@@ -114,18 +196,24 @@ export async function runFlow(
           const subflowId = await getMenuSubflowId(session.flow.versionId, node.nodeKey);
           if (!subflowId) {
             console.error(`Menu ${node.nodeKey} has submenu mapping for "${result}" but no subflow id`);
+            finalStatus = 'failed';
+            failureReason = `Menu ${node.nodeKey} submenu missing subflow_id`;
             break;
           }
 
           const subflow = await loadFlowById(subflowId);
           if (!subflow) {
             console.error(`Subflow ${subflowId} could not be loaded for menu ${node.nodeKey}`);
+            finalStatus = 'failed';
+            failureReason = `Subflow ${subflowId} load failure`;
             break;
           }
 
           const targetNode = subflow.nodes.find((item) => item.nodeKey === submenuTargetNodeKey);
           if (!targetNode) {
             console.error(`Subflow ${subflowId} missing mapped target node ${submenuTargetNodeKey} for menu ${node.nodeKey} result ${result}`);
+            finalStatus = 'failed';
+            failureReason = `Subflow ${subflowId} missing target node ${submenuTargetNodeKey}`;
             break;
           }
 
@@ -147,6 +235,10 @@ export async function runFlow(
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
       }
+
+      // If we reached here, it's a dead end and not a special case
+      finalStatus = 'failed';
+      failureReason = `No edge found from ${node.nodeKey} (${node.type}) for result "${result}"`;
       break;
     }
 
@@ -165,6 +257,8 @@ export async function runFlow(
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
       }
+      finalStatus = 'failed';
+      failureReason = `Target node ${edge.targetNodeKey} not found`;
       break;
     }
 
@@ -174,6 +268,8 @@ export async function runFlow(
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
       }
+      finalStatus = 'failed';
+      failureReason = `Subflow ${subflowId} load failure`;
       break;
     }
 
@@ -184,5 +280,27 @@ export async function runFlow(
       || edge.targetNodeKey;
   }
 
+  if (finalStatus === 'failed') {
+    await publishCallEvent({
+      callId: session.channelId,
+      timestamp: new Date().toISOString(),
+      type: 'failed',
+      caller: session.callerNumber,
+      flowId: session.flow.id,
+      failedNode: lastNodeKey,
+      failureReason: failureReason || 'Flow execution failed',
+    });
+  } else {
+    await publishCallEvent({
+      callId: session.channelId,
+      timestamp: new Date().toISOString(),
+      type: 'ended',
+      caller: session.callerNumber,
+      flowId: session.flow.id,
+      durationSeconds: Math.round((Date.now() - session.startedAt.getTime()) / 1000),
+    });
+  }
+
   console.log(`Call ended: ${session.channelId}`);
+  return { status: finalStatus };
 }

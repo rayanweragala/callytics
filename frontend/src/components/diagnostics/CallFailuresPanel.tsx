@@ -9,9 +9,10 @@ interface CallFailuresPanelProps {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  onTraceOpen?: (callId: string) => void;
 }
 
-export function CallFailuresPanel({ items, page, totalPages, onPageChange }: CallFailuresPanelProps) {
+export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTraceOpen }: CallFailuresPanelProps) {
   return (
     <section className={styles.panel}>
       <div className={styles.header}>
@@ -29,6 +30,7 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange }: Cal
           <span>Failed Node</span>
           <span>Error</span>
           <span>Duration</span>
+          <span>Trace</span>
         </div>
 
         {items.length === 0 ? (
@@ -41,6 +43,7 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange }: Cal
                 { width: '15%' },
                 { width: '25%' },
                 { width: '10%' },
+                { width: '5%' },
               ]} />
             ))}
           </>
@@ -53,6 +56,7 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange }: Cal
               <span className={styles.mono}>{item.failedNodeType || '—'}</span>
               <span>{item.errorMessage || 'Unknown failure'}</span>
               <span className={styles.mono}>{item.durationSeconds ?? '—'}</span>
+              <button className={styles.traceButton} onClick={() => onTraceOpen?.(item.callUuid || item.callId)} type="button">{'>'}</button>
             </div>
           ))
         )}

@@ -303,30 +303,29 @@ Notes:
 - This is more complex than a dialplan `Dial()` step
 - The app has to manage answer, failure, timeout, teardown of the temporary inbound bridge, and cleanup itself
 
+### Business Hours
+
+- Type key: `business_hours`
+- Purpose: Checks current time against a configured weekly schedule
+- Config fields:
+  - `timezone` (string) — IANA timezone e.g. `Asia/Colombo`
+  - `schedule` (object) — per day: `{ enabled, open, close }` in 24h HH:MM format
+- Output branches: `open`, `closed`
+- Evaluated at runtime using `Intl.DateTimeFormat` — no external library
+- Midnight-crossing schedules not yet supported (TODO)
+
 ### Voicemail
 
-Purpose:
-
-- Record a caller message and save it
-
-How it runs:
-
-1. The app optionally plays a voicemail greeting
-2. The app starts a channel recording through ARI
-3. The caller speaks
-4. The app stops recording on silence, timeout, or hangup
-5. The recording metadata is saved in the database
-
-Main ARI control:
-
-- `POST /channels/{channelId}/play` for the greeting
-- `POST /channels/{channelId}/record`
-
-Notes:
-
-- This is not the same as using the built-in Asterisk voicemail application
-- We are handling voicemail as an app-managed recording flow
-- That gives us more control, but it also means we own more logic
+- Type key: `voicemail`
+- Purpose: Plays a prompt then records the caller via ARI channel record
+- Config fields:
+  - `mailbox_name` (string) — label for the mailbox
+  - `max_duration_seconds` (number) — maximum recording length, default 60
+  - `prompt_audio_file_id` (number | null) — optional prompt audio
+- Output branch: `done`
+- Recording saved to `call_recordings` table with `recording_type = 'voicemail'`
+- Zero-duration recordings are not saved
+- Caller hangup mid-recording propagates as unhandled rejection (runtime ends call)
 
 ### Hangup
 

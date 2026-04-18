@@ -1,0 +1,135 @@
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(440px, 100vw);
+  height: 100vh;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+  z-index: 40;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.open {
+  transform: translateX(0);
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.closeButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.callMeta {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.metaLabel {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.metaValue {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.timeline {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 24px;
+}
+
+.nodeCard {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.failed {
+  border-left: 3px solid var(--color-error);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.nodeBadge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 3px 7px;
+  font-family: 'Space Mono', monospace;
+}
+
+.badgeStart { color: var(--accent); }
+.badgeMenu { color: var(--color-warning); }
+.badgeBusinessHours { color: var(--accent); }
+.badgeTransfer { color: var(--color-info); }
+.badgeVoicemail { color: var(--color-warning); }
+.badgeHangup { color: var(--text-muted); }
+.badgeDefault { color: var(--text-secondary); }
+
+.duration {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.nodeKey {
+  font-family: 'Space Mono', monospace;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.metaLine {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.errorText {
+  color: var(--color-error);
+  font-size: 12px;
+}

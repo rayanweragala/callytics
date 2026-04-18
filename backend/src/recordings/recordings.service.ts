@@ -161,5 +161,10 @@ export class RecordingsService implements OnModuleInit {
     `);
     await this.dataSource.query(`CREATE INDEX IF NOT EXISTS idx_call_recordings_call_id ON call_recordings(call_id)`);
     await this.dataSource.query(`CREATE INDEX IF NOT EXISTS idx_call_recordings_created_at ON call_recordings(created_at)`);
+    await this.dataSource.query(`
+      ALTER TABLE call_recordings
+      ADD COLUMN IF NOT EXISTS recording_type TEXT NOT NULL DEFAULT 'inbound',
+      ADD COLUMN IF NOT EXISTS call_log_id INTEGER
+    `);
   }
 }

@@ -6,6 +6,11 @@ jest.mock('./db', () => ({
   query: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock('./telemetry', () => ({
+  publishCallEvent: jest.fn().mockResolvedValue(undefined),
+  publishNodeTelemetry: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { executeNode } from './nodes';
 import { query } from './db';
 import { runFlow } from './runtime';

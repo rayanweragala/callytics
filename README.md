@@ -49,6 +49,12 @@ Phase 15 — Test Suite
   - Recent call failure analysis with flow and destination resolution
   - Unified skeleton loading across all core management pages
   - Comprehensive node config validation for Transfer and Menu nodes
+- Phase 19 — Templates Marketplace + Execution Trace + Business Hours + Voicemail
+- IVR Template Marketplace (3 pre-built templates: clinic, restaurant, dispatch)
+- Per-call execution trace viewer (node-by-node timeline)
+- Historical call log table with search and filtering
+- Business Hours node (timezone-aware schedule routing)
+- Voicemail node (ARI recording with zero-duration guard)
 
 - Menu node: new node type with branching options, executor in stasis
 - Node groups: multi-select nodes and group/ungroup via toolbar
@@ -61,6 +67,7 @@ Phase 15 — Test Suite
   ErrorBoundary, ErrorMessage, Loading, PageLayout,
   SipEndpointsPanel, LiveExecutionPanel
 - New pages: CallLogsPage, SettingsPage, NotFoundPage (placeholders)
+- New page: Templates (`/templates`) for one-click template import into Flow Builder
 - FlowCanvasEdge updated for new edge styles
 - apiError utility for consistent API error message extraction
 

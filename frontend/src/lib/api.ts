@@ -13,6 +13,9 @@ import type {
   FlowVersionSummary,
   InboundRouteItem,
   RecordingItem,
+  TemplateItem,
+  CallLogItem,
+  CallTraceResponse,
   SipRegistrationItem,
   SipTrunkItem,
   TrunkDiagnosticsResult,
@@ -331,5 +334,32 @@ export async function getDiagnosticsFailures(limit = 20, offset = 0): Promise<Li
   const response = await api.get<ListResponse<DiagnosticsFailureItem>>('/diagnostics/failures', {
     params: { limit, offset },
   });
+  return response.data;
+}
+
+export async function listTemplates(): Promise<ListResponse<TemplateItem>> {
+  const response = await api.get<ListResponse<TemplateItem>>('/templates');
+  return response.data;
+}
+
+export async function importTemplate(id: number): Promise<DetailResponse<{ id: number; name: string }>> {
+  const response = await api.post<DetailResponse<{ id: number; name: string }>>(`/templates/${id}/import`);
+  return response.data;
+}
+
+export async function listCallLogs(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  endReason?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<PaginatedResponse<CallLogItem>> {
+  const response = await api.get<PaginatedResponse<CallLogItem>>('/call-logs', { params });
+  return response.data;
+}
+
+export async function getCallTrace(callUuid: string): Promise<CallTraceResponse> {
+  const response = await api.get<CallTraceResponse>(`/call-logs/${encodeURIComponent(callUuid)}/trace`);
   return response.data;
 }

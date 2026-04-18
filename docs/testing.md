@@ -93,3 +93,9 @@ Recommended repeat checks:
 - **Backend**: `diagnostics.service.unit.spec.ts`, `diagnostics.int.spec.ts`, `flows.service.unit.spec.ts` (config validation)
 - **Frontend**: `NodeConfigPanel.test.tsx`, `AudioPage.test.tsx`, `DiagnosticsPage.test.tsx`, `CallLogsPage.test.tsx`
 - **Stasis**: `sipTrafficMonitor.unit.spec.ts`
+
+### Phase 19 additions
+- `stasis/src/executors/voicemail.executor.unit.spec.ts` — 5 tests covering prompt playback order, hangup mid-recording, zero duration guard, recording independence
+- `stasis/src/executors/business_hours.executor.unit.spec.ts` — open/closed logic for different times and days
+- `backend/src/call-logs/call-logs.service.unit.spec.ts` — trace endpoint
+- `backend/src/templates/templates.int.spec.ts` — import flow integration test

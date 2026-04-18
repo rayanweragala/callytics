@@ -73,3 +73,28 @@
   font-family: 'Space Mono', monospace;
   color: var(--text-primary);
 }
+
+.weekGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weekRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weekRowTimes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding-left: 22px;
+}
+
+.dayToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

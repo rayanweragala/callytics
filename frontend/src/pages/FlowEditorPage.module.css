@@ -144,7 +144,9 @@
 .barplayaudio { background: var(--color-info); }
 .bargetdigits { background: var(--color-warning); }
 .barmenu { background: var(--color-warning); }
+.barbusinesshours { background: var(--accent); }
 .bartransfer { background: var(--color-info); }
+.barvoicemail { background: var(--color-warning); }
 .barhunt { background: var(--color-warning); }
 .barhangup { background: var(--text-muted); }
 

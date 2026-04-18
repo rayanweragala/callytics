@@ -1,170 +1,283 @@
-import { useEffect, useState } from 'react';
-import { PageLayout } from '../components/common/PageLayout';
+import { useEffect, useMemo, useState } from 'react';
 import { ErrorMessage } from '../components/common/ErrorMessage';
-import { SkeletonRow } from '../components/common/skeleton';
-import { getDiagnosticsFailures } from '../lib/api';
+import { Pagination } from '../components/common/Pagination';
+import { PageLayout } from '../components/common/PageLayout';
+import { ExecutionTracePanel } from '../components/ExecutionTracePanel/ExecutionTracePanel';
+import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
+import { SipEndpointsPanel } from '../components/panels/SipEndpointsPanel';
+import { StatBar } from '../components/StatBar';
+import { getDiagnosticsHealth, getDiagnosticsRegistrations, listCallLogs, listFlows } from '../lib/api';
 import { getApiError } from '../lib/apiError';
+import { formatDateTime } from '../lib/time';
 import { diagnosticsSocket } from '../lib/socket';
-import type { DiagnosticsFailureItem, CallEvent } from '../types';
+import type { CallEvent, CallLogItem, CallTimelineEvent, SipEndpointStatus } from '../types';
 import styles from './CallLogsPage.module.css';
 
-const PAGE_SIZE = 20;
+const PAGE_LIMIT = 25;
+const SIP_PAGE_SIZE = 10;
 
-interface CallLogItem extends DiagnosticsFailureItem {
-  isLive?: boolean;
+function formatDuration(value: number | null): string {
+  if (value === null || value < 0) return '—';
+  const mins = Math.floor(value / 60);
+  const secs = value % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function endReasonClass(reason: string | null): string {
+  if (reason === 'completed') return styles.badgeCompleted;
+  if (reason === 'no-answer') return styles.badgeWarning;
+  return styles.badgeError;
 }
 
 export function CallLogsPage() {
-  const [failures, setFailures] = useState<CallLogItem[]>([]);
-  const [page, setPage] = useState(1);
+  const [metrics, setMetrics] = useState({ activeCalls: 0, registeredEndpoints: 0, flows: 0, uptimeSeconds: 0 });
+  const [sipStatuses, setSipStatuses] = useState<SipEndpointStatus[]>([]);
+  const [sipPage, setSipPage] = useState(0);
+  const [livePage, setLivePage] = useState(0);
+  const [expandedCalls, setExpandedCalls] = useState<Record<string, boolean>>({});
+  const [timelineByCall, setTimelineByCall] = useState<Record<string, CallTimelineEvent[]>>({});
+
+  const [data, setData] = useState<CallLogItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [liveEvents, setLiveEvents] = useState<CallLogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [endReason, setEndReason] = useState('');
 
-  // Load historical failures from REST API
-  const fetchFailures = async (pageNum: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const offset = (pageNum - 1) * PAGE_SIZE;
-      const response = await getDiagnosticsFailures(PAGE_SIZE, offset);
-      setFailures(response.data);
-      setTotal(response.total);
-    } catch (err) {
-      setError(getApiError(err, 'failed to load call failures'));
-    } finally {
-      setLoading(false);
-      setIsLoading(false);
-      setIsInitialLoad(false);
-    }
-  };
-
-  // Initial load
   useEffect(() => {
-    void fetchFailures(page);
-  }, [page]);
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
-  // Real-time call event subscription
   useEffect(() => {
-    const handleCallEvent = (event: CallEvent) => {
-      const item: CallLogItem = {
-        id: Math.random(),
-        callId: event.callId,
-        time: event.timestamp,
-        callerId: event.caller || null,
-        flowName: null,
-        failedNodeType: event.type === 'failed' ? event.failedNode || null : null,
-        errorMessage: event.type === 'failed' ? event.failureReason || null : null,
-        durationSeconds: event.durationSeconds || null,
-        isLive: true,
-      };
+    setPage(1);
+  }, [dateFrom, dateTo, endReason]);
 
-      // Only show failed calls in live stream
-      if (event.type === 'failed') {
-        setLiveEvents((current) => [item, ...current].slice(0, 50));
+  useEffect(() => {
+    let active = true;
+    const fetchTable = async () => {
+      setLoading(true);
+      setErrorText(null);
+      try {
+        const response = await listCallLogs({
+          page,
+          limit: PAGE_LIMIT,
+          search: search || undefined,
+          endReason: endReason || undefined,
+          dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00.000Z`).toISOString() : undefined,
+          dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : undefined,
+        });
+
+        if (!active) return;
+        setData(response.data);
+        setTotal(response.total);
+      } catch (error) {
+        if (!active) return;
+        setErrorText(getApiError(error, 'failed to load call logs'));
+      } finally {
+        if (active) setLoading(false);
       }
+    };
+
+    void fetchTable();
+    return () => {
+      active = false;
+    };
+  }, [page, search, dateFrom, dateTo, endReason]);
+
+  useEffect(() => {
+    let active = true;
+    const loadTopSection = async () => {
+      try {
+        const [health, registrations, flows] = await Promise.all([
+          getDiagnosticsHealth(),
+          getDiagnosticsRegistrations(),
+          listFlows(1, 1),
+        ]);
+        if (!active) return;
+
+        setMetrics({
+          activeCalls: health.activeChannels,
+          registeredEndpoints: registrations.data.filter((item) => item.status === 'registered').length,
+          flows: flows.total,
+          uptimeSeconds: health.asterisk.uptimeSeconds || 0,
+        });
+
+        setSipStatuses(registrations.data.map((item) => ({
+          endpoint: item.name,
+          aor: item.name,
+          contacts: item.contactUri ? [item.contactUri] : [],
+          state: item.status === 'registered' ? 'registered' : item.status === 'unregistered' ? 'unregistered' : 'unknown',
+          updatedAt: Date.now(),
+        })));
+      } catch {
+        // Keep top section resilient to partial failures.
+      }
+    };
+
+    void loadTopSection();
+    const timer = window.setInterval(() => {
+      void loadTopSection();
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const toTimeline = (event: CallEvent): CallTimelineEvent => ({
+      callId: event.callId,
+      flowId: event.flowId || 0,
+      nodeId: event.failedNode || event.type,
+      nodeType: event.failedNode || event.type,
+      status: event.type === 'failed' ? 'error' : event.type === 'ended' ? 'completed' : 'started',
+      ts: Date.parse(event.timestamp || new Date().toISOString()),
+      meta: {
+        callerNumber: event.caller,
+        result: event.type === 'ended' ? 'done' : event.type === 'failed' ? 'hangup' : 'default',
+        failureReason: event.failureReason || null,
+      },
+    });
+
+    const handleCallEvent = (event: CallEvent) => {
+      const timelineEvent = toTimeline(event);
+      setTimelineByCall((current) => {
+        const events = [...(current[event.callId] || []), timelineEvent]
+          .sort((a, b) => a.ts - b.ts)
+          .slice(-20);
+        return {
+          ...current,
+          [event.callId]: events,
+        };
+      });
     };
 
     if (diagnosticsSocket.connected) {
       diagnosticsSocket.emit('call:subscribe');
     }
 
-    diagnosticsSocket.on('connect', () => {
+    const handleConnect = () => {
       diagnosticsSocket.emit('call:subscribe');
-    });
+    };
+
+    diagnosticsSocket.on('connect', handleConnect);
     diagnosticsSocket.on('call:event', handleCallEvent);
 
     return () => {
-      diagnosticsSocket.off('connect', () => {});
-      diagnosticsSocket.off('call:event', handleCallEvent);
       diagnosticsSocket.emit('call:unsubscribe');
+      diagnosticsSocket.off('connect', handleConnect);
+      diagnosticsSocket.off('call:event', handleCallEvent);
     };
   }, []);
 
-  const allItems = [...liveEvents, ...failures];
+  const liveCalls = useMemo(
+    () => Object.entries(timelineByCall)
+      .map(([callId, events]) => ({ callId, events }))
+      .sort((left, right) => (right.events[right.events.length - 1]?.ts || 0) - (left.events[left.events.length - 1]?.ts || 0)),
+    [timelineByCall],
+  );
+
+  const pagedLiveCalls = useMemo(() => {
+    const start = livePage * 10;
+    return liveCalls.slice(start, start + 10);
+  }, [liveCalls, livePage]);
+
+  const sipTotalPages = Math.max(1, Math.ceil(sipStatuses.length / SIP_PAGE_SIZE));
+  const pagedSipStatuses = useMemo(() => {
+    const start = sipPage * SIP_PAGE_SIZE;
+    return sipStatuses.slice(start, start + SIP_PAGE_SIZE);
+  }, [sipPage, sipStatuses]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   return (
-    <PageLayout subtitle="call history & live events" title="Call Logs">
+    <PageLayout subtitle="call history & live execution" title="Call Logs">
       <div className={styles.page}>
-        <ErrorMessage message={error} />
+        <StatBar metrics={metrics} />
+
+        <section className={styles.topGrid}>
+          <LiveExecutionPanel
+            liveCalls={pagedLiveCalls}
+            liveTotal={liveCalls.length}
+            page={livePage}
+            setPage={setLivePage}
+            expandedCalls={expandedCalls}
+            toggleCall={(callId) => setExpandedCalls((current) => ({ ...current, [callId]: !current[callId] }))}
+          />
+          <SipEndpointsPanel
+            sipStatuses={pagedSipStatuses}
+            loading={false}
+            page={sipPage}
+            totalPages={sipTotalPages}
+            onPageChange={setSipPage}
+          />
+        </section>
 
         <section className={styles.panel}>
-          <div className={styles.header}>
-            <div>
-              <h2 className={styles.title}>Recent Failures</h2>
-              <p className={styles.subtitle}>Last {total} failed calls</p>
-            </div>
+          <div className={styles.filters}>
+            <input
+              className={styles.input}
+              placeholder="Search caller number"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+            <input className={styles.input} type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <input className={styles.input} type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <select className={styles.input} value={endReason} onChange={(event) => setEndReason(event.target.value)}>
+              <option value="">All</option>
+              <option value="completed">completed</option>
+              <option value="no-answer">no-answer</option>
+              <option value="busy">busy</option>
+              <option value="failed">failed</option>
+            </select>
           </div>
 
-          {isLoading ? (
-            <>
-              {Array.from({ length: 3 }, (_, i) => (
-                <SkeletonRow key={i} columns={[
-                  { width: '15%' },
-                  { width: '15%' },
-                  { width: '20%' },
-                  { width: '15%' },
-                  { width: '20%' },
-                ]} />
-              ))}
-            </>
-          ) : error ? (
-            <ErrorMessage message={error} />
-          ) : allItems.length === 0 ? (
-            <div className={styles.empty}>No call failures to display.</div>
-          ) : (
-            <div className="fadeIn">
-              <div className={styles.table}>
-                <div className={styles.head}>
-                  <span>Time</span>
-                  <span>Caller</span>
-                  <span>Failed Node</span>
-                  <span>Error</span>
-                  <span>Duration</span>
-                </div>
-                {allItems.map((item) => (
-                  <div
-                    className={`${styles.row} ${item.isLive ? styles.live : ''}`}
-                    key={`${item.callId}-${item.id}`}
-                  >
-                    <span className={styles.mono}>{new Date(item.time).toLocaleTimeString()}</span>
-                    <span className={styles.mono}>{item.callerId || '—'}</span>
-                    <span>{item.failedNodeType || '—'}</span>
-                    <span>{item.errorMessage || 'Unknown'}</span>
-                    <span className={styles.mono}>{item.durationSeconds ?? '—'}s</span>
-                  </div>
-                ))}
-              </div>
+          <ErrorMessage message={errorText} />
 
-              {failures.length > 0 && (
-                <div className={styles.pagination}>
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    type="button"
-                  >
-                    ← Prev
-                  </button>
-                  <span>Page {page} of {totalPages}</span>
-                  <button
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                    type="button"
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
+          <div className={styles.table}>
+            <div className={styles.head}>
+              <span>Caller number</span>
+              <span>Destination</span>
+              <span>Flow name</span>
+              <span>Duration</span>
+              <span>Start time</span>
+              <span>End reason</span>
+              <span>Trace</span>
             </div>
-          )}
+
+            {loading ? <div className={styles.empty}>Loading call logs...</div> : null}
+            {!loading && data.length === 0 ? <div className={styles.empty}>No call logs found.</div> : null}
+            {!loading && data.map((item) => (
+              <button className={styles.row} key={`${item.id}-${item.callUuid}`} onClick={() => setTraceCallUuid(item.callUuid)} type="button">
+                <span className={styles.mono}>{item.callerNumber || '—'}</span>
+                <span className={styles.mono}>{item.calleeNumber || '—'}</span>
+                <span>{item.flowName || '—'}</span>
+                <span className={styles.mono}>{formatDuration(item.durationSeconds)}</span>
+                <span>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
+                <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
+                <span className={styles.traceIcon}>{'>'}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.paginationWrap}>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
         </section>
       </div>
+
+      <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />
     </PageLayout>
   );
 }
-

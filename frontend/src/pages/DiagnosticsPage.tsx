@@ -4,9 +4,10 @@ import { SipRegistrationPanel } from '../components/diagnostics/SipRegistrationP
 import { SipTrafficInspector } from '../components/diagnostics/SipTrafficInspector';
 import { SystemHealthPanel } from '../components/diagnostics/SystemHealthPanel';
 import { TrunkHealthPanel } from '../components/diagnostics/TrunkHealthPanel';
+import { ExecutionTracePanel } from '../components/ExecutionTracePanel/ExecutionTracePanel';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
-import { SkeletonTable, SkeletonCard, SkeletonRow } from '../components/common/skeleton';
+import { SkeletonCard, SkeletonRow } from '../components/common/skeleton';
 import {
   getDiagnosticsFailures,
   getDiagnosticsHealth,
@@ -52,6 +53,7 @@ export function DiagnosticsPage() {
   const [failuresTotal, setFailuresTotal] = useState(0);
   const [pageError, setPageError] = useState<string | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
+  const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
   const successTimerRef = useRef<number | null>(null);
 
   const failureTotalPages = Math.max(1, Math.ceil(failuresTotal / FAILURES_PAGE_SIZE));
@@ -102,6 +104,7 @@ export function DiagnosticsPage() {
       setFailures(response.data.map((item: any, index: number) => ({
         id: item.id ?? index + 1,
         callId: item.callId,
+        callUuid: item.callUuid ?? item.callId,
         time: item.startedAt ?? item.time,
         callerId: item.callerNumber ?? item.callerId ?? null,
         flowName: item.flowName ?? null,
@@ -340,9 +343,12 @@ export function DiagnosticsPage() {
             onPageChange={setFailuresPage}
             page={failuresPage}
             totalPages={failureTotalPages}
+            onTraceOpen={setTraceCallUuid}
           />
         )}
       </div>
+
+      <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />
     </PageLayout>
   );
 }

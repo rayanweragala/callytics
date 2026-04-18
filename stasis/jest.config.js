@@ -10,6 +10,8 @@ module.exports = {
     'executors/menu.executor.ts',
     'nodes/hunt.executor.ts',
     'src/sipTrafficMonitor.ts',
+    'src/executors/business_hours.executor.ts',
+    'src/executors/voicemail.executor.ts',
   ],
   coverageThreshold: {
     global: {

@@ -12,6 +12,7 @@ import { TrunksPage } from './pages/Trunks/TrunksPage';
 import { CallLogsPage } from './pages/CallLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { TemplatesPage } from './pages/TemplatesPage/TemplatesPage';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/extensions" element={<ExtensionsPage />} />
           <Route path="/trunks" element={<TrunksPage />} />
           <Route path="/flows" element={<FlowsPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/flows/:id" element={<FlowEditorPage />} />
           <Route path="/inbound" element={<InboundRoutesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />

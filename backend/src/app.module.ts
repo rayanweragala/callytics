@@ -20,6 +20,8 @@ import { CallRecordingEntity } from './recordings/entities/call-recording.entity
 import { RecordingsModule } from './recordings/recordings.module';
 import { BackendConfigModule } from './config/config.module';
 import { TrunksModule } from './trunks/trunks.module';
+import { CallLogsModule } from './call-logs/call-logs.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -62,6 +64,8 @@ import { TrunksModule } from './trunks/trunks.module';
     InboundRoutesModule,
     BackendConfigModule,
     TrunksModule,
+    CallLogsModule,
+    TemplatesModule,
   ],
   controllers: [HealthController],
 })

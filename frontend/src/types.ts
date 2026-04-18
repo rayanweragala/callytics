@@ -68,6 +68,7 @@ export interface SipTrafficItem {
 export interface DiagnosticsFailureItem {
   id: number;
   callId: string;
+  callUuid?: string;
   time: string;
   callerId: string | null;
   flowName: string | null;
@@ -108,7 +109,17 @@ export interface DiagnosticsSnapshot {
   timeline: Record<string, CallTimelineEvent[]>;
 }
 
-export type BuilderNodeType = 'start' | 'play_audio' | 'get_digits' | 'menu' | 'hangup' | 'transfer' | 'hunt' | 'group';
+export type BuilderNodeType =
+  | 'start'
+  | 'play_audio'
+  | 'get_digits'
+  | 'menu'
+  | 'business_hours'
+  | 'voicemail'
+  | 'hangup'
+  | 'transfer'
+  | 'hunt'
+  | 'group';
 
 export interface FlowNodeData {
   label: string;
@@ -291,4 +302,50 @@ export interface RecordingItem {
   endedAt: string | null;
   createdAt: string;
   streamUrl: string;
+}
+
+export interface TemplateItem {
+  id: number;
+  name: string;
+  description: string | null;
+  templateDescription: string | null;
+  templateCategory: string | null;
+  nodeCount: number;
+}
+
+export interface CallLogItem {
+  id: number;
+  callUuid: string;
+  direction: string;
+  callerNumber: string | null;
+  calleeNumber: string | null;
+  startedAt: string | null;
+  answeredAt: string | null;
+  endedAt: string | null;
+  endReason: string | null;
+  durationSeconds: number | null;
+  talkSeconds: number | null;
+  flowId: number | null;
+  flowVersionId: number | null;
+  entryNodeKey: string | null;
+  exitNodeKey: string | null;
+  flowName: string | null;
+}
+
+export interface CallNodeTraceItem {
+  id: number;
+  nodeKey: string;
+  nodeType: string;
+  enteredAt: string;
+  exitedAt: string | null;
+  durationMs: number | null;
+  exitBranch: string | null;
+  errorMessage: string | null;
+}
+
+export interface CallTraceResponse {
+  callUuid: string;
+  callerNumber: string | null;
+  startTime: string | null;
+  nodes: CallNodeTraceItem[];
 }

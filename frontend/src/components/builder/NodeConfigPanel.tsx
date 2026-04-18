@@ -15,6 +15,7 @@
 import type { Edge, Node } from 'reactflow';
 import type { AudioFileItem, BuilderNodeType, FlowNodeData } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
+import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
 import styles from './NodeConfigPanel.module.css';
 import pageStyles from '../../pages/FlowEditorPage.module.css';
@@ -30,6 +31,15 @@ type BuilderEdgeData = {
 const menuBranchOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
 const menuRoutableBranchSet = new Set(menuBranchOptions);
 const conditionValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'timeout', 'invalid', 'default'];
+const businessHoursDays: Array<{ key: string; label: string }> = [
+  { key: 'monday', label: 'Mon' },
+  { key: 'tuesday', label: 'Tue' },
+  { key: 'wednesday', label: 'Wed' },
+  { key: 'thursday', label: 'Thu' },
+  { key: 'friday', label: 'Fri' },
+  { key: 'saturday', label: 'Sat' },
+  { key: 'sunday', label: 'Sun' },
+];
 
 function sanitizeMenuBranches(value: unknown): string[] {
   if (!Array.isArray(value)) return ['1', '2'];
@@ -89,6 +99,9 @@ export function NodeConfigPanel({
   const audioOptions = audioItems.map((item) => ({ value: String(item.id), label: item.name }));
   const nodeOptions = nodes.map((node) => ({ value: node.id, label: `${node.id} — ${node.data.label}` }));
   const conditionOptions = conditionValues.map((value) => ({ value, label: value }));
+  const selectedVoicemailAudio = selectedConfig.prompt_audio_file_id
+    ? audioItems.find((item) => item.id === Number(selectedConfig.prompt_audio_file_id))
+    : null;
 
   const edgeConditionOptions = (() => {
     if (!selectedEdge || !selectedEdgeSourceNode) return [] as Array<{ value: string; label: string }>;
@@ -248,6 +261,110 @@ export function NodeConfigPanel({
                   placeholder="select fallback node"
                 />
               </label>
+            </>
+          ) : null}
+
+          {selectedNode.data.type === 'business_hours' ? (
+            <>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>timezone</span>
+                <input
+                  className={styles.input}
+                  placeholder="e.g. Asia/Colombo"
+                  value={String(selectedConfig.timezone || '')}
+                  onChange={(event) => onConfigChange('timezone', event.target.value)}
+                />
+              </label>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>weekly schedule</span>
+                <div className={styles.weekGrid}>
+                  {businessHoursDays.map((day) => {
+                    const schedule = (selectedConfig.schedule && typeof selectedConfig.schedule === 'object'
+                      ? selectedConfig.schedule
+                      : {}) as Record<string, { enabled?: boolean; open?: string; close?: string }>;
+                    const daySchedule = schedule[day.key] || { enabled: false, open: '09:00', close: '17:00' };
+                    const enabled = Boolean(daySchedule.enabled);
+                    return (
+                      <div className={styles.weekRow} key={day.key}>
+                        <label className={styles.dayToggle}>
+                          <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={(event) => {
+                              onConfigValueChange('schedule', {
+                                ...schedule,
+                                [day.key]: { ...daySchedule, enabled: event.target.checked },
+                              });
+                            }}
+                          />
+                          <span className={styles.menuBranchLabel}>{day.label}</span>
+                        </label>
+                      <div className={styles.weekRowTimes}>
+                        <input
+                          className={styles.input}
+                          disabled={!enabled}
+                          type="time"
+                          value={String(daySchedule.open || '09:00')}
+                          onChange={(event) =>
+                            onConfigValueChange('schedule', {
+                              ...schedule,
+                              [day.key]: { ...daySchedule, open: event.target.value },
+                            })
+                          }
+                        />
+                        <input
+                          className={styles.input}
+                          disabled={!enabled}
+                          type="time"
+                          value={String(daySchedule.close || '17:00')}
+                          onChange={(event) =>
+                            onConfigValueChange('schedule', {
+                              ...schedule,
+                              [day.key]: { ...daySchedule, close: event.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {selectedNode.data.type === 'voicemail' ? (
+            <>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>mailbox_name</span>
+                <input
+                  className={styles.input}
+                  placeholder="main"
+                  value={String(selectedConfig.mailbox_name || 'main')}
+                  onChange={(event) => onConfigChange('mailbox_name', event.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>max_duration_seconds</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  value={String(selectedConfig.max_duration_seconds || 60)}
+                  onChange={(event) => onConfigValueChange('max_duration_seconds', Math.max(1, Number(event.target.value) || 60))}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>prompt audio</span>
+                <SearchableSelect
+                  options={audioOptions}
+                  value={selectedConfig.prompt_audio_file_id ? String(selectedConfig.prompt_audio_file_id) : null}
+                  onChange={(value) => onConfigValueChange('prompt_audio_file_id', value ? Number(value) : null)}
+                  placeholder="optional voicemail prompt"
+                />
+              </label>
+              {selectedVoicemailAudio?.previewUrl ? (
+                <AudioPreviewPlayer src={selectedVoicemailAudio.previewUrl} />
+              ) : null}
             </>
           ) : null}
 

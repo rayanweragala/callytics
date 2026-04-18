@@ -73,8 +73,18 @@
   background: currentColor !important;
 }
 
+.handleOpen {
+  background: var(--accent) !important;
+}
+
+.handleClosed {
+  background: var(--text-muted) !important;
+}
+
 .start { color: var(--color-active); }
 .playAudio { color: var(--color-info); }
 .getDigits { color: var(--color-warning); }
+.businessHours { color: var(--accent); }
 .transfer { color: var(--color-info); }
+.voicemail { color: var(--color-warning); }
 .hangup { color: var(--text-muted); }

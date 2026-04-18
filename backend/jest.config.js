@@ -12,6 +12,8 @@ module.exports = {
     'src/inbound-routes/inbound-routes.service.ts',
     'src/recordings/recordings.service.ts',
     'src/diagnostics/diagnostics.service.ts',
+    'src/call-logs/call-logs.service.ts',
+    'src/templates/templates.service.ts',
   ],
   coverageDirectory: './coverage',
   coverageThreshold: {

@@ -1,6 +1,6 @@
 import { IsIn, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
-const allowedNodeTypes = ['start', 'play_audio', 'get_digits', 'menu', 'hangup', 'transfer', 'hunt', 'group'];
+const allowedNodeTypes = ['start', 'play_audio', 'get_digits', 'menu', 'hangup', 'transfer', 'hunt', 'group', 'business_hours', 'voicemail'];
 
 export class FlowNodeDto {
   @IsString()

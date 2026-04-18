@@ -404,7 +404,7 @@ export function FlowEditorPage() {
     if (!selectedNodeId) return;
     setNodes((current) => decorateEditorNodes(current.map((node) => node.id !== selectedNodeId ? node : { ...node, data: { ...node.data, config: { ...node.data.config, [field]: value } } })));
   };
-  const numericFields = new Set(['timeout_ms', 'attempt_timeout_ms', 'total_timeout_ms', 'max_timeout_attempts', 'max_invalid_attempts']);
+  const numericFields = new Set(['timeout_ms', 'attempt_timeout_ms', 'total_timeout_ms', 'max_timeout_attempts', 'max_invalid_attempts', 'max_duration_seconds']);
   const handleConfigChange = (field: string, value: string) => handleConfigValueChange(field, numericFields.has(field) ? Number(value) || 0 : value);
   const handleMenuBranchToggle = (branch: string, checked: boolean) => {
     const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;

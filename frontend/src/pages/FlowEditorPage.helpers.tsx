@@ -27,7 +27,9 @@ export const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'play_audio', label: 'play audio' },
   { type: 'get_digits', label: 'get digits' },
   { type: 'menu', label: 'Menu Group' },
+  { type: 'business_hours', label: 'Business Hours' },
   { type: 'transfer', label: 'transfer' },
+  { type: 'voicemail', label: 'Voicemail' },
   { type: 'hunt', label: 'Hunt Group' },
   { type: 'hangup', label: 'hangup' },
 ];
@@ -76,7 +78,20 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
     invalid_prompt_audio_id: '', final_failure_audio_id: '', max_timeout_attempts: 3,
     max_invalid_attempts: 3, branches: ['1', '2'], submenu_branch_targets: {},
   };
+  if (type === 'business_hours') return {
+    timezone: '',
+    schedule: {
+      monday: { enabled: true, open: '09:00', close: '17:00' },
+      tuesday: { enabled: true, open: '09:00', close: '17:00' },
+      wednesday: { enabled: true, open: '09:00', close: '17:00' },
+      thursday: { enabled: true, open: '09:00', close: '17:00' },
+      friday: { enabled: true, open: '09:00', close: '17:00' },
+      saturday: { enabled: false, open: '09:00', close: '17:00' },
+      sunday: { enabled: false, open: '09:00', close: '17:00' },
+    },
+  };
   if (type === 'transfer') return { destination: '', timeout_ms: 30000, on_no_answer: '' };
+  if (type === 'voicemail') return { mailbox_name: 'main', max_duration_seconds: 60, prompt_audio_file_id: null };
   if (type === 'hunt') return {
     destinations: ['SIP/101'], strategy: 'sequential', attempt_timeout_ms: 20000,
     total_timeout_ms: 60000, hold_audio_file_id: null, busy_audio_file_id: null, on_no_answer: '',
@@ -325,7 +340,9 @@ export function minimapNodeColor(node: Node<FlowNodeData>): string {
     case 'play_audio': return 'var(--color-info)';
     case 'get_digits': return 'var(--color-warning)';
     case 'menu': return 'var(--color-warning)';
+    case 'business_hours': return 'var(--accent)';
     case 'transfer': return 'var(--color-info)';
+    case 'voicemail': return 'var(--color-warning)';
     case 'hunt': return 'var(--color-warning)';
     case 'hangup': return 'var(--color-error)';
     case 'group': return 'var(--accent)';
@@ -334,6 +351,29 @@ export function minimapNodeColor(node: Node<FlowNodeData>): string {
 }
 
 export function renderPaletteIcon(type: BuilderNodeType) {
+  if (type === 'business_hours') {
+    return (
+      <span style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }} aria-hidden="true">
+        <svg viewBox="0 0 16 16" focusable="false" style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}>
+          <circle cx="8" cy="8" r="5.5" />
+          <path d="M8 4.5V8L10.5 9.5" />
+        </svg>
+      </span>
+    );
+  }
+
+  if (type === 'voicemail') {
+    return (
+      <span style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }} aria-hidden="true">
+        <svg viewBox="0 0 16 16" focusable="false" style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}>
+          <circle cx="5" cy="8" r="2.5" />
+          <circle cx="11" cy="8" r="2.5" />
+          <path d="M7.5 10.5h1" />
+        </svg>
+      </span>
+    );
+  }
+
   if (type !== 'menu') return null;
   return (
     <span style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }} aria-hidden="true">

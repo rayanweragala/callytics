@@ -51,6 +51,8 @@ export async function truncateAll(): Promise<void> {
     'inbound_routes',
     'sip_trunks',
     'call_recordings',
+    'call_node_logs',
+    'call_logs',
     'call_sessions',
   ];
 

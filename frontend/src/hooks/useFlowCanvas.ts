@@ -207,7 +207,9 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
     { type: 'play_audio', label: 'play audio' },
     { type: 'get_digits', label: 'get digits' },
     { type: 'menu', label: 'Menu Group' },
+    { type: 'business_hours', label: 'Business Hours' },
     { type: 'transfer', label: 'transfer' },
+    { type: 'voicemail', label: 'Voicemail' },
     { type: 'hunt', label: 'Hunt Group' },
     { type: 'hangup', label: 'hangup' },
   ];
@@ -226,7 +228,20 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       branches: ['1', '2'],
       submenu_branch_targets: {},
     };
+    if (t === 'business_hours') return {
+      timezone: '',
+      schedule: {
+        monday: { enabled: true, open: '09:00', close: '17:00' },
+        tuesday: { enabled: true, open: '09:00', close: '17:00' },
+        wednesday: { enabled: true, open: '09:00', close: '17:00' },
+        thursday: { enabled: true, open: '09:00', close: '17:00' },
+        friday: { enabled: true, open: '09:00', close: '17:00' },
+        saturday: { enabled: false, open: '09:00', close: '17:00' },
+        sunday: { enabled: false, open: '09:00', close: '17:00' },
+      },
+    };
     if (t === 'transfer') return { destination: '', timeout_ms: 30000, on_no_answer: '' };
+    if (t === 'voicemail') return { mailbox_name: 'main', max_duration_seconds: 60, prompt_audio_file_id: null };
     if (t === 'hunt') return {
       destinations: ['SIP/101'],
       strategy: 'sequential',
@@ -508,12 +523,16 @@ export function useFlowCanvas(): UseFlowCanvasResult {
           ? 'default'
           : sourceNodeType === 'menu'
           ? menuBranch
+          : sourceNodeType === 'business_hours'
+          ? String(connection.sourceHandle || 'closed')
           : null;
       const branchKey =
         sourceNodeType === 'hunt'
           ? 'no answer'
           : sourceNodeType === 'menu'
           ? menuBranch || 'complete'
+          : sourceNodeType === 'business_hours'
+          ? String(connection.sourceHandle || 'closed')
           : condition || 'default';
       const newKey = makeEdgeKey(connection.source, connection.target, connection.sourceHandle, condition);
 

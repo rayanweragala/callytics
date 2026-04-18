@@ -32,6 +32,15 @@ export class CallFlowEntity {
   @Column({ name: 'parent_node_key', type: 'varchar', length: 64, nullable: true })
   parentNodeKey!: string | null;
 
+  @Column({ name: 'is_template', type: 'boolean', default: false })
+  isTemplate!: boolean;
+
+  @Column({ name: 'template_description', type: 'text', nullable: true })
+  templateDescription!: string | null;
+
+  @Column({ name: 'template_category', type: 'text', nullable: true })
+  templateCategory!: string | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

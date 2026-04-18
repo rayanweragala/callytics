@@ -1,3 +1,0 @@
-{
-  "TEST_DATABASE_URL": "postgresql://callytics:callytics@localhost:5432/callytics_test"
-}

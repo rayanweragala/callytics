@@ -84,6 +84,22 @@ export default async function migrate(): Promise<void> {
         )
       `,
     },
+    {
+      name: 'call_node_logs',
+      sql: `
+        CREATE TABLE IF NOT EXISTS call_node_logs (
+          id SERIAL PRIMARY KEY,
+          call_uuid TEXT NOT NULL,
+          flow_id INTEGER NOT NULL REFERENCES call_flows(id),
+          node_key TEXT NOT NULL,
+          node_type TEXT NOT NULL,
+          entered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          exited_at TIMESTAMPTZ,
+          exit_branch TEXT,
+          error_message TEXT
+        )
+      `,
+    },
   ];
 
   await pool.query('SELECT 1');
@@ -94,6 +110,18 @@ export default async function migrate(): Promise<void> {
   }
 
   await pool.query(`ALTER TABLE flow_edges ADD COLUMN IF NOT EXISTS condition VARCHAR(100)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_call_node_logs_call_uuid ON call_node_logs(call_uuid)`);
+  await pool.query(`
+    ALTER TABLE call_recordings
+    ADD COLUMN IF NOT EXISTS recording_type TEXT NOT NULL DEFAULT 'inbound',
+    ADD COLUMN IF NOT EXISTS call_log_id INTEGER
+  `).catch(() => undefined);
+  await pool.query(`
+    ALTER TABLE call_flows
+    ADD COLUMN IF NOT EXISTS is_template BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS template_description TEXT,
+    ADD COLUMN IF NOT EXISTS template_category TEXT
+  `);
 
   console.log('Tables checked successfully');
 }

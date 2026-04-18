@@ -12,6 +12,10 @@ function toneClass(type: FlowNodeData['type']): string {
       return styles.getDigits;
     case 'transfer':
       return styles.transfer;
+    case 'business_hours':
+      return styles.businessHours;
+    case 'voicemail':
+      return styles.voicemail;
     case 'hangup':
       return styles.hangup;
     default:
@@ -32,6 +36,14 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
         {data.type === 'transfer' && typeof data.config.destination === 'string' ? (
           <div className={styles.meta}>{String(data.config.destination || 'no destination')}</div>
         ) : null}
+        {data.type === 'business_hours' ? (
+          <div className={styles.meta}>
+            {String(data.config.timezone || '').trim() || 'Not configured'}
+          </div>
+        ) : null}
+        {data.type === 'voicemail' ? (
+          <div className={styles.meta}>{String(data.config.mailbox_name || 'main')}</div>
+        ) : null}
       </div>
       {selected && data.type !== 'start' && data.onDelete ? (
         <button
@@ -46,7 +58,26 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
         </button>
       ) : null}
       <Handle className={styles.handle} type="target" position={Position.Left} />
-      <Handle className={styles.handle} type="source" position={Position.Right} />
+      {data.type === 'business_hours' ? (
+        <>
+          <Handle
+            className={`${styles.handle} ${styles.handleOpen}`}
+            id="open"
+            type="source"
+            position={Position.Right}
+            style={{ top: '35%' }}
+          />
+          <Handle
+            className={`${styles.handle} ${styles.handleClosed}`}
+            id="closed"
+            type="source"
+            position={Position.Right}
+            style={{ top: '70%' }}
+          />
+        </>
+      ) : (
+        <Handle className={styles.handle} id={data.type === 'voicemail' ? 'done' : undefined} type="source" position={Position.Right} />
+      )}
     </div>
   );
 }

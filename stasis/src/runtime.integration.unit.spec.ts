@@ -8,6 +8,7 @@ jest.mock('./audioResolver', () => ({
 
 jest.mock('./telemetry', () => ({
   publishNodeTelemetry: jest.fn().mockResolvedValue(undefined),
+  publishCallEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('./huntManager', () => ({
@@ -187,7 +188,7 @@ describe('runtime integration — menu to submenu hunt', () => {
     ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
     await flushPromises(20);
 
-    await expect(runPromise).resolves.toBeUndefined();
+    await expect(runPromise).resolves.toEqual({status : 'completed'})
     expect(answeredLeg.hangup).toHaveBeenCalled();
     expect(channel.hangup).toHaveBeenCalled();
   });
