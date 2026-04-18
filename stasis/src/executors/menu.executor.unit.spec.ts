@@ -227,3 +227,121 @@ describe('menu executor — audio and first-attempt behaviour', () => {
     await expect(promise).resolves.toBe('hangup');
   });
 });
+
+describe('menu executor - barge-in behaviour', () => {
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it('resolves the pressed digit immediately when user presses during audio playback before play() resolves', async () => {
+
+    // Capture the resolve function of a Promise to manually control when playback completes
+    let resolvePlay!: () => void;
+    const playPromise = new Promise<void>((res) => { resolvePlay = res });
+    resolveAudioMediaPathMock.mockResolvedValue('callytics/welcome-menu');
+
+    const ariClient = createAriClient();
+    const playbackStop = jest.fn().mockResolvedValue(undefined);
+    ariClient.Playback.mockReturnValue({ id: 'playback-barge', stop: playbackStop });
+
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockReturnValue(playPromise),
+      hangup: jest.fn().mockResolvedValue(undefined)
+    };
+
+    const node = makeMenuNode({ branches: ['1', '2'], timeout_ms: 5000 });
+    const session = createSession();
+
+    const menuPromise = executeMenu(channel, node, session, ariClient);
+    await flushPromises(20);
+
+    expect(channel.play).toHaveBeenCalledWith(
+      { media: 'sound:callytics/welcome-menu' },
+      expect.objectContaining({ id: 'playback-barge' }),
+    );
+
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '2' });
+    await flushPromises(20);
+
+    await expect(menuPromise).resolves.toBe('2');
+
+    expect(playbackStop).toHaveBeenCalled();
+    resolvePlay();
+    await flushPromises(5);
+  })
+
+  it('ignores DTMF from a different channel during playback', async () => {
+
+    // Capture the resolve function of a Promise to manually control when playback completes
+    let resolvePlay!: () => void;
+    const playPromise = new Promise<void>((res) => { resolvePlay = res });
+
+    resolveAudioMediaPathMock.mockResolvedValue('callytics/welcome-menu');
+
+    const ariClient = createAriClient();
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockReturnValue(playPromise),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const node = makeMenuNode({ branches: ['1', '2'], timeout_ms: 5000 });
+    const menuPromise = executeMenu(channel, node, createSession(), ariClient);
+    await flushPromises(20);
+
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-INTRUDER' }, digit: '2' });
+    await flushPromises(20);
+
+    let settled = false;
+    menuPromise.then(() => { settled = true; });
+    await flushPromises(5);
+    expect(settled).toBe(false);
+
+    ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '1' });
+    await flushPromises(20);
+    await expect(menuPromise).resolves.toBe('1');
+
+    resolvePlay();
+  });
+
+  it('does not double-settle if digit fires and hangup fires simultaneously during playback', async () => {
+
+    // Capture the resolve function of a Promise to manually control when playback completes
+    let resolvePlay !: () => void;
+    const playPromise = new Promise<void>((res) => { resolvePlay = res });
+
+    const ariClient = createAriClient();
+    const playbackStop = jest.fn().mockResolvedValue(undefined);
+    ariClient.Playback.mockReturnValue({ id: 'playback-race', stop: playbackStop});
+
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockReturnValue(playPromise),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const node = makeMenuNode({ branches: ['2'], timeout_ms: 5000 });
+    const menuPromise = executeMenu(channel, node, createSession(), ariClient);
+    await flushPromises(20);
+
+    ariClient.emit('ChannelDtmfReceived', { channel: {id: 'channel-1'}, digit: '2' });
+    ariClient.emit('StasisEnd', {channel: { id: 'channel-1' }});
+    await flushPromises(20);
+
+    await expect(menuPromise).resolves.toBe('2');
+
+    expect(playbackStop).toHaveBeenCalledTimes(1);
+
+    resolvePlay();
+  })
+})
+
+

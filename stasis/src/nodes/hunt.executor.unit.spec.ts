@@ -94,7 +94,7 @@ describe('hunt executor — additional coverage', () => {
     const ariClient = createAriClient();
     const second = { id: 'hunt-2', hangup: jest.fn().mockResolvedValue(undefined) };
     registerHuntWaiterMock
-      .mockReturnValueOnce(new Promise<never>(() => {}))
+      .mockReturnValueOnce(new Promise<never>(() => { }))
       .mockReturnValueOnce(Promise.resolve(second));
 
     const node: FlowNode = {
@@ -214,7 +214,7 @@ describe('hunt executor — additional coverage', () => {
     // The waiter never resolves, so we simulate inbound hangup while the dial
     // attempt is in-flight and verify the executor exits as hangup (not fallback).
     const ariClient = createAriClient();
-    registerHuntWaiterMock.mockReturnValue(new Promise<never>(() => {}));
+    registerHuntWaiterMock.mockReturnValue(new Promise<never>(() => { }));
 
     const node: FlowNode = {
       nodeKey: 'hunt-1',
@@ -249,4 +249,57 @@ describe('hunt executor — additional coverage', () => {
     await expect(promise).resolves.toBe('hangup');
     expect(ariClient.channels.originate).toHaveBeenCalledTimes(1);
   });
+
+  it('adds outbound leg to the recording bridge when agent answers', async () => {
+
+    const ariClient = createAriClient();
+    const agentChannel = {
+      id: 'agent-channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined)
+    };
+    registerHuntWaiterMock.mockReturnValue(Promise.resolve(agentChannel));
+
+    const session = createSession();
+    session.recording = {
+      name: 'call-1',
+      fileName: 'call-1.wav',
+      filePath: '/var/lib/asterisk/recording/call-1.wav',
+      format: 'wav',
+      startedAt: new Date(),
+      endedAt: null,
+    };
+
+    const node: FlowNode = {
+      nodeKey: 'hunt-1',
+      type: 'hunt',
+      label: 'Hunt',
+      config: {
+        strategy: 'sequential',
+        destinations: ['agent-sip'],
+        attempt_timeout_ms: 5000,
+        total_timeout_ms: 10000,
+      },
+    };
+
+    const inboundChannel = {
+      id: 'channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined)
+    };
+
+    const promise = executeHunt(inboundChannel, node, session, ariClient as any);
+    await flushPromises(20);
+
+    expect(ariClient.bridges.addChannel).toHaveBeenCalledWith({
+      bridgeId: 'bridge-inbound-1',
+      channel: 'agent-channel-1',
+    });
+
+    expect(session.recording).not.toBeNull();
+    expect(session.recording!.endedAt).toBeNull();
+
+    ariClient.emit('StasisEnd', {channel: {id: 'channel-1'}});
+    await flushPromises(20);
+
+    await expect(promise).resolves.toBe('done');
+  })
 });

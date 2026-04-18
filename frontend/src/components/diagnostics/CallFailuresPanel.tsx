@@ -2,6 +2,7 @@ import { Pagination } from '../common/Pagination';
 import { formatDateTime } from '../../lib/time';
 import type { DiagnosticsFailureItem } from '../../types';
 import styles from './CallFailuresPanel.module.css';
+import { SkeletonRow } from '../common/skeleton';
 
 interface CallFailuresPanelProps {
   items: DiagnosticsFailureItem[];
@@ -29,18 +30,32 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange }: Cal
           <span>Error</span>
           <span>Duration</span>
         </div>
-        {items.map((item) => (
-          <div className={styles.row} key={item.id} style={{ cursor: 'default' }}>
-            {/* TODO Phase 19+: row click will navigate to per-call execution timeline
-            once CallLogsPage is implemented. Routing removed for now — target was a placeholder. */}
-            <span>{formatDateTime(item.time)}</span>
-            <span className={styles.mono}>{item.callerId || '—'}</span>
-            <span>{item.flowName || 'Unknown flow'}</span>
-            <span className={styles.mono}>{item.failedNodeType || '—'}</span>
-            <span>{item.errorMessage || 'Unknown failure'}</span>
-            <span className={styles.mono}>{item.durationSeconds ?? '—'}</span>
-          </div>
-        ))}
+
+        {items.length === 0 ? (
+          <>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} columns={[
+                { width: '15%' },
+                { width: '15%' },
+                { width: '20%' },
+                { width: '15%' },
+                { width: '25%' },
+                { width: '10%' },
+              ]} />
+            ))}
+          </>
+        ) : (
+          items.map((item) => (
+            <div className={styles.row} key={item.id} style={{ cursor: 'default' }}>
+              <span>{formatDateTime(item.time)}</span>
+              <span className={styles.mono}>{item.callerId || '—'}</span>
+              <span>{item.flowName || 'Unknown flow'}</span>
+              <span className={styles.mono}>{item.failedNodeType || '—'}</span>
+              <span>{item.errorMessage || 'Unknown failure'}</span>
+              <span className={styles.mono}>{item.durationSeconds ?? '—'}</span>
+            </div>
+          ))
+        )}
       </div>
 
       <div className={styles.pagination}>
