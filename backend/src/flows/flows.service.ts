@@ -615,7 +615,7 @@ export class FlowsService implements OnModuleInit {
     return latestVersion?.id ?? null;
   }
 
-  private async buildFlowSnapshot(
+  protected async buildFlowSnapshot(
     flow: CallFlowEntity,
     manager: DataSource['manager'] = this.dataSource.manager,
   ): Promise<FlowVersionSnapshot> {
@@ -664,7 +664,7 @@ export class FlowsService implements OnModuleInit {
     };
   }
 
-  private async normalizeNodesForSave(
+  protected async normalizeNodesForSave(
     manager: DataSource['manager'],
     flow: CallFlowEntity,
     nodes: CreateFlowDto['nodes'],
@@ -699,7 +699,7 @@ export class FlowsService implements OnModuleInit {
     return `${flowName} — ${menuLabel} submenu (${nodeKey})`;
   }
 
-  private async createStoredVersion(
+  protected async createStoredVersion(
     manager: DataSource['manager'],
     flowId: number,
     versionNumber: number,
@@ -719,7 +719,7 @@ export class FlowsService implements OnModuleInit {
     return manager.save(FlowVersionEntity, version);
   }
 
-  private mapFlowVersionSummary(version: FlowVersionEntity): FlowVersionSummaryResponse {
+  protected mapFlowVersionSummary(version: FlowVersionEntity): FlowVersionSummaryResponse {
     return {
       id: version.id,
       flowId: Number(version.flowId || 0),
@@ -737,7 +737,7 @@ export class FlowsService implements OnModuleInit {
     };
   }
 
-  private async saveNodesAndEdges(
+  protected async saveNodesAndEdges(
     manager: DataSource['manager'],
     versionId: number,
     nodes: CreateFlowDto['nodes'],
@@ -772,7 +772,7 @@ export class FlowsService implements OnModuleInit {
     }
   }
 
-  private async buildFlowDetail(
+  protected async buildFlowDetail(
     flow: CallFlowEntity,
     version: FlowVersionEntity,
     manager: DataSource['manager'] = this.dataSource.manager,
