@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { validateFlowBeforeSave } from './FlowEditorPage.helpers';
+import { validateFlowBeforeSave, validateFlowTimeoutConfig } from './FlowEditorPage.helpers';
 import type { Node, Edge } from 'reactflow';
 import type { FlowNodeData } from '../types';
 
@@ -56,6 +56,62 @@ describe('validateFlowBeforeSave — terminal node types (no outgoing required)'
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
   });
+
+  it('webhook with no outgoing edge: no error', async () => {
+    const nodes = [startNode, makeNode('wh1', 'webhook')];
+    const edges = [startEdge];
+    const result = await validateFlowBeforeSave(nodes, edges);
+    expect(result).toBeNull();
+  });
+
+  it('play_audio can have normal edge plus webhook edge simultaneously', async () => {
+    const nodes = [startNode, makeNode('p1', 'play_audio'), makeNode('next', 'hangup'), makeNode('wh1', 'webhook')];
+    const edges = [
+      makeEdge('start', 'p1'),
+      makeEdge('p1', 'next'),
+      makeEdge('p1', 'wh1'),
+    ];
+    const result = await validateFlowBeforeSave(nodes, edges);
+    expect(result).toBeNull();
+  });
+
+  it('menu can have normal edge plus webhook edge simultaneously', async () => {
+    const nodes = [
+      startNode,
+      { ...makeNode('m1', 'menu'), data: { ...makeNode('m1', 'menu').data, config: { branches: ['1'] } } },
+      makeNode('next', 'hangup'),
+      makeNode('wh1', 'webhook'),
+    ];
+    const edges: Edge[] = [
+      makeEdge('start', 'm1'),
+      { id: 'm1-next', source: 'm1', target: 'next', data: { branchKey: '1', condition: '1', sourceNodeType: 'menu' } as any },
+      { id: 'm1-wh1', source: 'm1', target: 'wh1', data: { branchKey: '1', condition: '1', sourceNodeType: 'menu' } as any },
+    ];
+    const result = await validateFlowBeforeSave(nodes, edges);
+    expect(result).toBeNull();
+  });
+
+  it('queue, hunt, and transfer can target webhook', async () => {
+    const nodes = [
+      startNode,
+      makeNode('q1', 'queue'),
+      makeNode('h1', 'hunt'),
+      makeNode('t1', 'transfer'),
+      makeNode('next', 'hangup'),
+      makeNode('wh1', 'webhook'),
+    ];
+    const edges = [
+      makeEdge('start', 'q1'),
+      makeEdge('q1', 'next'),
+      makeEdge('q1', 'wh1'),
+      makeEdge('h1', 'next'),
+      makeEdge('h1', 'wh1'),
+      makeEdge('t1', 'next'),
+      makeEdge('t1', 'wh1'),
+    ];
+    const result = await validateFlowBeforeSave(nodes, edges);
+    expect(result).toBeNull();
+  });
 });
 
 describe('validateFlowBeforeSave — nodes that require outgoing edges', () => {
@@ -78,5 +134,87 @@ describe('validateFlowBeforeSave — nodes that require outgoing edges', () => {
     const edges = [makeEdge('start', 'next')];
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
+  });
+});
+
+describe('validateFlowTimeoutConfig', () => {
+  it('returns warning when queue_login uses flow default but start default is missing', () => {
+    const nodes = [
+      makeNode('start', 'start'),
+      {
+        ...makeNode('ql1', 'queue_login'),
+        data: {
+          ...makeNode('ql1', 'queue_login').data,
+          config: { queue_id: 1, use_flow_default_timeout: true },
+        },
+      },
+    ];
+
+    const result = validateFlowTimeoutConfig(nodes);
+    expect(result.errors.length).toBe(1);
+    expect(result.errors[0]).toMatch(/flow default timeout/i);
+  });
+
+  it('returns no warning when queue_login uses flow default and start default is valid', () => {
+    const nodes = [
+      {
+        ...makeNode('start', 'start'),
+        data: {
+          ...makeNode('start', 'start').data,
+          config: { flow_default_timeout_ms: 10000 },
+        },
+      },
+      {
+        ...makeNode('ql1', 'queue_login'),
+        data: {
+          ...makeNode('ql1', 'queue_login').data,
+          config: { queue_id: 1, use_flow_default_timeout: true },
+        },
+      },
+    ];
+
+    const result = validateFlowTimeoutConfig(nodes);
+    expect(result.errors).toEqual([]);
+    expect(result.warningCount).toBe(0);
+  });
+
+  it('returns error when queue_login custom timeout is missing', () => {
+    const nodes = [
+      {
+        ...makeNode('start', 'start'),
+        data: {
+          ...makeNode('start', 'start').data,
+          config: { flow_default_timeout_ms: 10000 },
+        },
+      },
+      {
+        ...makeNode('ql1', 'queue_login'),
+        data: {
+          ...makeNode('ql1', 'queue_login').data,
+          config: { queue_id: 1, use_flow_default_timeout: false, input_timeout_ms: null },
+        },
+      },
+    ];
+
+    const result = validateFlowTimeoutConfig(nodes);
+    expect(result.errors.length).toBe(1);
+    expect(result.warningCount).toBe(0);
+  });
+
+  it('skips start timeout validation for subflows', () => {
+    const nodes = [
+      makeNode('start', 'start'),
+      {
+        ...makeNode('ql1', 'queue_login'),
+        data: {
+          ...makeNode('ql1', 'queue_login').data,
+          config: { queue_id: 1, use_flow_default_timeout: true },
+        },
+      },
+    ];
+
+    const result = validateFlowTimeoutConfig(nodes, { isSubflow: true });
+    expect(result.errors).toEqual([]);
+    expect(result.warningCount).toBe(0);
   });
 });

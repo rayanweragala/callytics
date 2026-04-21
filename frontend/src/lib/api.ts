@@ -12,10 +12,13 @@ import type {
   FlowVersionDetail,
   FlowVersionSummary,
   InboundRouteItem,
+  OperatorItem,
+  QueueItem,
   RecordingItem,
   TemplateItem,
   CallLogItem,
   CallTraceResponse,
+  ContactNumber,
   SipRegistrationItem,
   SipTrunkItem,
   TrunkDiagnosticsResult,
@@ -171,6 +174,11 @@ export async function listAudio(page = 1, limit = 5): Promise<PaginatedResponse<
   return response.data;
 }
 
+export async function listAllAudio(): Promise<PaginatedResponse<AudioFileItem>> {
+  const response = await api.get<PaginatedResponse<AudioFileItem>>('/audio', { params: { page: 1, limit: 1000 } });
+  return response.data;
+}
+
 export async function getAudio(id: number): Promise<AudioDetailResponse> {
   const response = await api.get<AudioDetailResponse>(`/audio/${id}`);
   return response.data;
@@ -221,17 +229,35 @@ export async function deleteRecording(id: number): Promise<DeleteFlowResponse> {
 
 export async function listExtensions(limit = 20, offset = 0): Promise<ListResponse<ExtensionItem>> {
   const response = await api.get<ListResponse<ExtensionItem>>('/extensions', { params: { limit, offset } });
-  return response.data;
+  return {
+    ...response.data,
+    data: response.data.data.map((item) => ({
+      ...item,
+      transportType: item.transportType || 'sip',
+    })),
+  };
 }
 
-export async function createExtension(payload: { username: string; password: string; displayName?: string }): Promise<DetailResponse<ExtensionItem>> {
+export async function createExtension(payload: { username: string; password: string; displayName?: string; transportType?: 'sip' | 'webrtc'; transport_type?: 'sip' | 'webrtc' }): Promise<DetailResponse<ExtensionItem>> {
   const response = await api.post<DetailResponse<ExtensionItem>>('/extensions', payload);
-  return response.data;
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      transportType: response.data.data.transportType || 'sip',
+    },
+  };
 }
 
-export async function updateExtension(id: number, payload: { username?: string; password?: string; displayName?: string }): Promise<DetailResponse<ExtensionItem>> {
+export async function updateExtension(id: number, payload: { username?: string; password?: string; displayName?: string; transportType?: 'sip' | 'webrtc'; transport_type?: 'sip' | 'webrtc' }): Promise<DetailResponse<ExtensionItem>> {
   const response = await api.put<DetailResponse<ExtensionItem>>(`/extensions/${id}`, payload);
-  return response.data;
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      transportType: response.data.data.transportType || 'sip',
+    },
+  };
 }
 
 export async function deleteExtension(id: number): Promise<DeleteFlowResponse> {
@@ -363,3 +389,103 @@ export async function getCallTrace(callUuid: string): Promise<CallTraceResponse>
   const response = await api.get<CallTraceResponse>(`/call-logs/${encodeURIComponent(callUuid)}/trace`);
   return response.data;
 }
+
+export async function listOperators(): Promise<ListResponse<OperatorItem>> {
+  const response = await api.get<ListResponse<OperatorItem>>('/operators');
+  return {
+    ...response.data,
+    data: response.data.data.map((item) => ({
+      ...item,
+      extension: item.extension
+        ? { ...item.extension, transportType: item.extension.transportType || 'sip' }
+        : undefined,
+      contactNumber: item.contactNumber || undefined,
+    })),
+  };
+}
+
+export async function createOperator(payload: {
+  name: string;
+  extension_id?: number;
+  contact_number_id?: number;
+  pin?: string;
+}): Promise<DetailResponse<OperatorItem>> {
+  const response = await api.post<DetailResponse<OperatorItem>>('/operators', payload);
+  return response.data;
+}
+
+export async function updateOperator(id: number, payload: {
+  name?: string;
+  extension_id?: number;
+  contact_number_id?: number;
+  pin?: string;
+}): Promise<DetailResponse<OperatorItem>> {
+  const response = await api.put<DetailResponse<OperatorItem>>(`/operators/${id}`, payload);
+  return response.data;
+}
+
+export async function getContactNumbers(): Promise<ListResponse<ContactNumber>> {
+  const response = await api.get<ListResponse<ContactNumber>>('/contact-numbers');
+  return response.data;
+}
+
+export async function createContactNumber(data: {
+  label: string;
+  number: string;
+  trunk_id?: number;
+  notes?: string;
+}): Promise<DetailResponse<ContactNumber>> {
+  const response = await api.post<DetailResponse<ContactNumber>>('/contact-numbers', data);
+  return response.data;
+}
+
+export async function updateContactNumber(id: number, data: {
+  label?: string;
+  number?: string;
+  trunk_id?: number | null;
+  notes?: string;
+}): Promise<DetailResponse<ContactNumber>> {
+  const response = await api.patch<DetailResponse<ContactNumber>>(`/contact-numbers/${id}`, data);
+  return response.data;
+}
+
+export async function deleteContactNumber(id: number): Promise<void> {
+  await api.delete(`/contact-numbers/${id}`);
+}
+
+
+export async function deleteOperator(id: number): Promise<void> {
+  await api.delete(`/operators/${id}`);
+}
+
+export async function listQueues(): Promise<ListResponse<QueueItem>> {
+  const response = await api.get<ListResponse<QueueItem>>('/queues');
+  return response.data;
+}
+
+export async function createQueue(payload: {
+  name: string;
+  wait_audio_file_id?: number | null;
+  max_wait_seconds?: number;
+  pin_retry_attempts?: number;
+  operator_ids?: number[];
+}): Promise<DetailResponse<QueueItem>> {
+  const response = await api.post<DetailResponse<QueueItem>>('/queues', payload);
+  return response.data;
+}
+
+export async function updateQueue(id: number, payload: {
+  name?: string;
+  wait_audio_file_id?: number | null;
+  max_wait_seconds?: number;
+  pin_retry_attempts?: number;
+  operator_ids?: number[];
+}): Promise<DetailResponse<QueueItem>> {
+  const response = await api.patch<DetailResponse<QueueItem>>(`/queues/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteQueue(id: number): Promise<void> {
+  await api.delete(`/queues/${id}`);
+}
+

@@ -4,6 +4,7 @@ import { Flow, loadFlowById } from './flowLoader';
 import { executeNode } from './nodes';
 import { resolveNextEdge } from './engine/edgeResolver';
 import { publishCallEvent } from './telemetry';
+import { fireWebhookAsync } from './executors/webhook.executor';
 
 interface FlowStackFrame {
   flow: Flow;
@@ -116,6 +117,35 @@ async function returnToParentFlow(session: CallSession, stack: FlowStackFrame[])
   return true;
 }
 
+function fireWebhookSideEffects(
+  sourceNodeKey: string,
+  flow: Flow,
+  session: CallSession,
+): void {
+  const nodeByKey = new Map(flow.nodes.map((node) => [node.nodeKey, node]));
+  const outgoing = flow.edges.filter((edge) => edge.sourceNodeKey === sourceNodeKey);
+  for (const edge of outgoing) {
+    const targetNode = nodeByKey.get(edge.targetNodeKey);
+    if (targetNode?.type === 'webhook') {
+      fireWebhookAsync(targetNode, session);
+    }
+  }
+}
+
+function getRoutingEdgesExcludingWebhookTargets(
+  sourceNodeKey: string,
+  flow: Flow,
+): Flow['edges'] {
+  const nodeByKey = new Map(flow.nodes.map((node) => [node.nodeKey, node]));
+  return flow.edges.filter((edge) => {
+    if (edge.sourceNodeKey !== sourceNodeKey) {
+      return false;
+    }
+    const targetNode = nodeByKey.get(edge.targetNodeKey);
+    return targetNode?.type !== 'webhook';
+  });
+}
+
 export async function runFlow(
   channel: { id: string },
   session: CallSession,
@@ -176,6 +206,11 @@ export async function runFlow(
     console.log(`Node result: ${result}`);
 
     if (result === 'done' || result === 'hangup') {
+      if (result === 'hangup') {
+        try {
+          await (channel as { hangup?: () => Promise<void> }).hangup?.();
+        } catch {}
+      }
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
       }
@@ -187,7 +222,9 @@ export async function runFlow(
       continue;
     }
 
-    const edge = resolveNextEdge(session.currentNodeKey, node.type, result, session.flow.edges);
+    fireWebhookSideEffects(session.currentNodeKey, session.flow, session);
+    const routingEdges = getRoutingEdgesExcludingWebhookTargets(session.currentNodeKey, session.flow);
+    const edge = resolveNextEdge(session.currentNodeKey, node.type, result, routingEdges);
 
     if (!edge) {
       if (node.type === 'menu') {
@@ -224,6 +261,10 @@ export async function runFlow(
         }
       }
 
+      if (node.type === 'queue_login' && result === 'authenticated') {
+        console.log(`[runtime] queue_login completed without outgoing edge node=${node.nodeKey}; ending call flow`);
+        break;
+      }
       console.error(`No edge found from ${session.currentNodeKey} with result ${result}`);
       if (node.type === 'play_audio') {
         console.warn(`Dead-end play_audio node ${node.nodeKey}; hanging up call ${session.channelId}`);
@@ -236,7 +277,6 @@ export async function runFlow(
         continue;
       }
 
-      // If we reached here, it's a dead end and not a special case
       finalStatus = 'failed';
       failureReason = `No edge found from ${node.nodeKey} (${node.type}) for result "${result}"`;
       break;

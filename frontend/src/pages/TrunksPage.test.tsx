@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { TrunksPage } from './TrunksPage';
 import { MemoryRouter } from 'react-router-dom';
-import * as api from '../../lib/api';
+import * as api from '../lib/api';
 
-vi.mock('../../lib/api', () => ({
+vi.mock('../lib/api', () => ({
   listTrunks: vi.fn(),
   createTrunk: vi.fn(),
   deleteTrunk: vi.fn(),

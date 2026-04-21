@@ -123,7 +123,7 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(160px, 1fr) minmax(250px, 1.2fr) 108px minmax(220px, 260px);
+  grid-template-columns: minmax(180px, 220px) minmax(160px, 1fr) 110px minmax(250px, 1.2fr) 108px minmax(220px, 260px);
   gap: 16px;
   align-items: center;
 }
@@ -156,7 +156,6 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  flex-wrap: wrap;
   align-items: center;
 }
 
@@ -193,6 +192,18 @@
 .dataMono {
   color: var(--text-primary);
   font-size: 12px;
+}
+
+.transportBadge {
+  display: inline-block;
+  min-width: 68px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  text-align: center;
 }
 
 .createdAt {

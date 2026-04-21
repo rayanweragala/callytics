@@ -64,3 +64,9 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.errorText {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  padding: 4px 0;
+}

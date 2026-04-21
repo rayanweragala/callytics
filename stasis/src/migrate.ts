@@ -100,6 +100,43 @@ export default async function migrate(): Promise<void> {
         )
       `,
     },
+    {
+      name: 'operators',
+      sql: `
+    CREATE TABLE IF NOT EXISTS operators (
+      id           SERIAL PRIMARY KEY,
+      name         VARCHAR(255) NOT NULL,
+      pin_hash     TEXT NOT NULL,
+      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      updated_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `,
+    },
+    {
+      name: 'queues',
+      sql: `
+    CREATE TABLE IF NOT EXISTS queues (
+      id                 SERIAL PRIMARY KEY,
+      name               VARCHAR(255) NOT NULL,
+      slug               VARCHAR(255) UNIQUE NOT NULL,
+      wait_audio_file_id INTEGER,
+      max_wait_seconds   INTEGER NOT NULL DEFAULT 300,
+      pin_retry_attempts INTEGER NOT NULL DEFAULT 3,
+      created_at         TIMESTAMPTZ DEFAULT NOW(),
+      updated_at         TIMESTAMPTZ DEFAULT NOW()
+    )
+  `,
+    },
+    {
+      name: 'queue_operators',
+      sql: `
+    CREATE TABLE IF NOT EXISTS queue_operators (
+      queue_id    INTEGER NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
+      operator_id INTEGER NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+      PRIMARY KEY (queue_id, operator_id)
+    )
+  `,
+    },
   ];
 
   await pool.query('SELECT 1');
@@ -122,6 +159,26 @@ export default async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS template_description TEXT,
     ADD COLUMN IF NOT EXISTS template_category TEXT
   `);
+
+  await pool.query(`ALTER TABLE IF EXISTS sip_extensions ADD COLUMN IF NOT EXISTS transport_type VARCHAR(20) NOT NULL DEFAULT 'sip'`).catch(() => undefined);
+  await pool.query(`ALTER TABLE IF EXISTS sip_extensions DROP CONSTRAINT IF EXISTS sip_extensions_transport_type_check`).catch(() => undefined);
+  await pool.query(`ALTER TABLE IF EXISTS sip_extensions ADD CONSTRAINT sip_extensions_transport_type_check CHECK (transport_type IN ('sip', 'webrtc'))`).catch(() => undefined);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS contact_numbers (
+      id         SERIAL PRIMARY KEY,
+      label      VARCHAR(255) NOT NULL,
+      number     VARCHAR(50)  NOT NULL,
+      trunk_id   INTEGER REFERENCES sip_trunks(id) ON DELETE SET NULL,
+      notes      TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(() => undefined);
+  await pool.query(`ALTER TABLE IF EXISTS operators ADD COLUMN IF NOT EXISTS extension_id INTEGER REFERENCES sip_extensions(id) ON DELETE SET NULL`).catch(() => undefined);
+  await pool.query(`ALTER TABLE IF EXISTS operators ADD COLUMN IF NOT EXISTS contact_number_id INTEGER REFERENCES contact_numbers(id) ON DELETE SET NULL`).catch(() => undefined);
+  await pool.query(`ALTER TABLE IF EXISTS operators DROP COLUMN IF EXISTS pin`).catch(() => undefined);
+  await pool.query(`ALTER TABLE IF EXISTS operators DROP COLUMN IF EXISTS phone_number`).catch(() => undefined);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_queues_wait_audio_file_id ON queues(wait_audio_file_id)`).catch(() => undefined);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_queue_operators_operator_id ON queue_operators(operator_id)`).catch(() => undefined);
 
   console.log('Tables checked successfully');
 }

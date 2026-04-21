@@ -8,11 +8,14 @@ import { FlowEditorPage } from './pages/FlowEditorPage';
 import { FlowsPage } from './pages/FlowsPage';
 import { InboundRoutesPage } from './pages/InboundRoutesPage';
 import { RecordingsPage } from './pages/RecordingsPage';
-import { TrunksPage } from './pages/Trunks/TrunksPage';
+import { TrunksPage } from './pages/TrunksPage';
 import { CallLogsPage } from './pages/CallLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { TemplatesPage } from './pages/TemplatesPage/TemplatesPage';
+import { TemplatesPage } from './pages/TemplatesPage';
+import { OperatorsPage } from './pages/OperatorsPage';
+import { QueuesPage } from './pages/QueuesPage';
+import { ContactNumbersPage } from './pages/ContactNumbersPage';
 
 export default function App() {
   return (
@@ -23,6 +26,7 @@ export default function App() {
           <Route path="/" element={<DiagnosticsPage />} />
           <Route path="/audio" element={<AudioPage />} />
           <Route path="/extensions" element={<ExtensionsPage />} />
+          <Route path="/contacts" element={<ContactNumbersPage />} />
           <Route path="/trunks" element={<TrunksPage />} />
           <Route path="/flows" element={<FlowsPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
@@ -31,6 +35,8 @@ export default function App() {
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/call-logs" element={<CallLogsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/operators" element={<OperatorsPage />} />
+          <Route path="/queues" element={<QueuesPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

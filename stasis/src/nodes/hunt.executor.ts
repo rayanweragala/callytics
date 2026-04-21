@@ -2,6 +2,7 @@ import { CallSession } from '../callSession';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { FlowNode } from '../flowLoader';
 import { registerHuntWaiter } from '../huntManager';
+import { query } from '../db';
 
 interface HuntExecutorChannel {
   id: string;
@@ -140,16 +141,8 @@ async function captureOriginatedChannel(
   const token = `${inboundChannelId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const appName = process.env.ARI_APP || 'callytics';
   const waiter = registerHuntWaiter(token);
-  const normalizedDestination = destination.includes('/')
-    ? destination
-    : `PJSIP/${destination}`;
-
-  if (normalizedDestination !== destination) {
-    console.log(`[hunt] normalized destination ${destination} → ${normalizedDestination}`);
-  }
-
   await ariClient.channels.originate({
-    endpoint: normalizedDestination,
+    endpoint: destination,
     app: appName,
     appArgs: `hunt-outbound,${token}`,
     callerId,
@@ -255,28 +248,105 @@ async function hangupChannels(channels: HuntExecutorChannel[], keepChannelId?: s
   );
 }
 
-function normalizeDestinations(config: Record<string, unknown>): string[] {
+interface HuntDestinationConfig {
+  target_type: 'extension' | 'pstn';
+  target_value: string;
+  trunk_id?: number;
+}
+
+function normalizeDestinations(config: Record<string, unknown>): HuntDestinationConfig[] {
   if (!Array.isArray(config.destinations)) {
     return [];
   }
 
   return config.destinations
-    .map((value) => String(value || '').trim())
-    .filter((value) => value.length > 0);
+    .map((value) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
+      }
+      const item = value as Record<string, unknown>;
+      const targetType = item.target_type === 'pstn' ? 'pstn' : item.target_type === 'extension' ? 'extension' : '';
+      const targetValue = String(item.target_value || '').trim();
+      if (!targetType || !targetValue) return null;
+      return {
+        target_type: targetType,
+        target_value: targetValue,
+        trunk_id: item.trunk_id ? Number(item.trunk_id) : undefined,
+      } as HuntDestinationConfig;
+    })
+    .filter((value): value is HuntDestinationConfig => Boolean(value));
 }
 
-function nextRandomDestination(destinations: string[], lastDestination: string | null): string {
+function nextRandomDestination(destinations: HuntDestinationConfig[], lastDestination: HuntDestinationConfig | null): HuntDestinationConfig {
+  if (destinations.length === 0) {
+    return { target_type: 'extension', target_value: '' };
+  }
   if (destinations.length <= 1) {
-    return destinations[0] || '';
+    return destinations[0];
   }
 
-  const options = destinations.filter((destination) => destination !== lastDestination);
-  return options[Math.floor(Math.random() * options.length)] || destinations[0] || '';
+  const options = destinations.filter((destination) =>
+    !lastDestination
+      || destination.target_type !== lastDestination.target_type
+      || destination.target_value !== lastDestination.target_value
+      || destination.trunk_id !== lastDestination.trunk_id,
+  );
+  return options[Math.floor(Math.random() * options.length)] || destinations[0];
 }
 
 function noAnswerResult(config: Record<string, unknown>): string {
   const nodeKey = String(config.on_no_answer || '').trim();
   return nodeKey ? `route:${nodeKey}` : 'hangup';
+}
+
+type HuntTrunk = { id: number; username: string };
+
+async function getTrunksById(trunkIds: number[]): Promise<Map<number, HuntTrunk>> {
+  if (!trunkIds.length) {
+    return new Map<number, HuntTrunk>();
+  }
+
+  const rows = await query(
+    'SELECT id, username FROM sip_trunks WHERE id = ANY($1::int[])',
+    [trunkIds],
+  ) as Array<{ id: number; username: string | null }>;
+
+  const trunksById = new Map<number, HuntTrunk>();
+  for (const row of rows) {
+    trunksById.set(row.id, { id: row.id, username: String(row.username || '').trim() });
+  }
+
+  return trunksById;
+}
+
+function resolveHuntDialString(destination: HuntDestinationConfig, trunksById: Map<number, HuntTrunk>): string {
+  if (destination.target_type === 'extension') {
+    return `PJSIP/${destination.target_value}`;
+  }
+
+  if (destination.target_type === 'pstn') {
+    const trunkId = Number(destination.trunk_id || 0);
+    if (!Number.isInteger(trunkId) || trunkId <= 0) return '';
+    const trunk = trunksById.get(trunkId);
+    if (!trunk || !trunk.username) return '';
+    return `PJSIP/${destination.target_value}@${trunk.username}`;
+  }
+
+  return '';
+}
+
+async function resolveDestinations(destinations: HuntDestinationConfig[]): Promise<Array<{ raw: HuntDestinationConfig; dial: string }>> {
+  const trunkIds = Array.from(
+    new Set(
+      destinations
+        .filter((destination) => destination.target_type === 'pstn')
+        .map((destination) => Number(destination.trunk_id || 0))
+        .filter((trunkId) => Number.isInteger(trunkId) && trunkId > 0),
+    ),
+  );
+  const trunksById = await getTrunksById(trunkIds);
+  const resolved = destinations.map((raw) => ({ raw, dial: resolveHuntDialString(raw, trunksById) }));
+  return resolved.filter((item) => Boolean(item.dial));
 }
 
 async function resolveOptionalBridgeMedia(
@@ -296,12 +366,13 @@ export async function executeHunt(
 ): Promise<string> {
   const client = ariClient as AriLike;
   const bridgeId = getSessionBridgeId(session);
-  const destinations = normalizeDestinations(node.config);
+  const destinationConfigs = normalizeDestinations(node.config);
+  const destinations = await resolveDestinations(destinationConfigs);
   const strategy = String(node.config.strategy || 'sequential').trim().toLowerCase();
   const attemptTimeoutMs = Math.max(1, Number(node.config.attempt_timeout_ms) || 20000);
   const totalTimeoutMs = Math.max(1, Number(node.config.total_timeout_ms) || 60000);
   const startTime = Date.now();
-  let lastDestination: string | null = null;
+  let lastDestination: HuntDestinationConfig | null = null;
   let holdLoop: HoldLoopController | null = null;
   let pendingChannels: HuntExecutorChannel[] = [];
   let inboundEnded = false;
@@ -361,8 +432,8 @@ export async function executeHunt(
       startHold();
       const createResults = await Promise.allSettled(
         destinations.map(async (destination) => {
-          console.log(`[hunt] group originate destination=${destination} timeout_ms=${totalTimeoutMs}`);
-          return await captureOriginatedChannel(client, destination, channel.id, session.callerNumber, totalTimeoutMs);
+          console.log(`[hunt] group originate destination=${destination.dial} timeout_ms=${totalTimeoutMs}`);
+          return await captureOriginatedChannel(client, destination.dial, channel.id, session.callerNumber, totalTimeoutMs);
         }),
       );
 
@@ -417,11 +488,15 @@ export async function executeHunt(
         return 'hangup';
       }
 
-      const destination = strategy === 'random'
-        ? nextRandomDestination(destinations, lastDestination)
-        : destinations[sequentialIndex % destinations.length] || '';
+      const destinationEntry = strategy === 'random'
+        ? nextRandomDestination(destinationConfigs, lastDestination)
+        : destinationConfigs[sequentialIndex % destinationConfigs.length] || { target_type: 'extension', target_value: '' };
       sequentialIndex += 1;
-      lastDestination = destination;
+      lastDestination = destinationEntry;
+      const destination = destinations.find((item) => item.raw.target_type === destinationEntry.target_type && item.raw.target_value === destinationEntry.target_value && item.raw.trunk_id === destinationEntry.trunk_id)?.dial || '';
+      if (!destination) {
+        continue;
+      }
       const dialTimeoutMs = Math.min(attemptTimeoutMs, remainingMs);
 
       startHold();

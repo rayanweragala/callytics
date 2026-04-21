@@ -1,0 +1,186 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.sectionLabel {
+  color: var(--text-muted);
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin: 6px 0 0;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.formPanel,
+.editPanel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--text-muted);
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.input {
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 0 10px;
+  font-family: var(--font-data);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.primaryButton,
+.secondaryButton {
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  padding: 0 12px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-data);
+  text-transform: lowercase;
+}
+
+.tablePanel {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  padding: 18px;
+}
+
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.1fr) minmax(140px, 0.9fr) minmax(180px, 1fr) 108px minmax(220px, 1.1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.tableHead {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rowWrap {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rowWrap:last-child {
+  border-bottom: 0;
+}
+
+.row {
+  padding: 16px 0;
+}
+
+.rowValue {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.rowMuted {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.dataMono {
+  color: var(--text-primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+
+.createdAt {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsInline {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.deleteButton {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--color-error);
+  padding: 0 12px;
+  height: 32px;
+}
+
+.empty {
+  padding-top: 16px;
+  color: var(--text-muted);
+  font-family: var(--font-data);
+}

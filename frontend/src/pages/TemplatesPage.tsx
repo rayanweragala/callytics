@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog';
-import { ErrorMessage } from '../../components/common/ErrorMessage';
-import { Loading } from '../../components/common/Loading';
-import { PageLayout } from '../../components/common/PageLayout';
-import { getApiError } from '../../lib/apiError';
-import { importTemplate, listTemplates } from '../../lib/api';
-import type { TemplateItem } from '../../types';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { ErrorMessage } from '../components/common/ErrorMessage';
+import { Loading } from '../components/common/Loading';
+import { PageLayout } from '../components/common/PageLayout';
+import { getApiError } from '../lib/apiError';
+import { importTemplate, listTemplates } from '../lib/api';
+import type { TemplateItem } from '../types';
 import styles from './TemplatesPage.module.css';
 
 export function TemplatesPage() {

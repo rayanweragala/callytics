@@ -16,32 +16,71 @@ function formatTime(seconds: number): string {
 
 export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: AudioPreviewPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sources = useMemo(() => {
+    const primary = String(src || '').trim();
+    if (!primary) return [] as string[];
+    const fallback = primary.replace('/audio/previews/', '/audio/converted/');
+    return fallback !== primary ? [primary, fallback] : [primary];
+  }, [src]);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const audio = new Audio(src);
+    setSourceIndex(0);
+    setError(null);
+  }, [src]);
+
+  const isValidSrc = useMemo(() => {
+    if (!sources.length) {
+      return false;
+    }
+    return true;
+  }, [sources]);
+
+  useEffect(() => {
+    if (!isValidSrc) {
+      setError('Invalid audio source');
+      return;
+    }
+
+    const audio = new Audio();
     audio.preload = 'metadata';
+    audio.src = sources[sourceIndex] || '';
     audioRef.current = audio;
 
     const syncTime = () => setCurrentTime(audio.currentTime);
-    const syncDuration = () => setDuration(audio.duration || 0);
+    const syncDuration = () => {
+      setDuration(audio.duration || 0);
+      setError(null);
+    };
     const syncEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
+    };
+    const handleError = () => {
+      if (sourceIndex + 1 < sources.length) {
+        setSourceIndex((current) => (current + 1 < sources.length ? current + 1 : current));
+        return;
+      }
+      setError('Unable to load audio');
+      setIsPlaying(false);
     };
 
     audio.addEventListener('timeupdate', syncTime);
     audio.addEventListener('loadedmetadata', syncDuration);
     audio.addEventListener('ended', syncEnded);
+    audio.addEventListener('error', handleError);
 
     if (autoPlay) {
       void audio.play().then(() => {
         setIsPlaying(true);
       }).catch(() => {
         setIsPlaying(false);
+        setError('Unable to play audio');
       });
     }
 
@@ -50,9 +89,10 @@ export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: A
       audio.removeEventListener('timeupdate', syncTime);
       audio.removeEventListener('loadedmetadata', syncDuration);
       audio.removeEventListener('ended', syncEnded);
+      audio.removeEventListener('error', handleError);
       audioRef.current = null;
     };
-  }, [autoPlay, src]);
+  }, [autoPlay, isValidSrc, sourceIndex, sources]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -65,10 +105,15 @@ export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: A
 
   const togglePlay = async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || error) return;
     if (audio.paused) {
-      await audio.play();
-      setIsPlaying(true);
+      try {
+        await audio.play();
+        setIsPlaying(true);
+      } catch (err) {
+        setIsPlaying(false);
+        setError('Unable to play audio');
+      }
     } else {
       audio.pause();
       setIsPlaying(false);
@@ -84,9 +129,19 @@ export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: A
 
   const progress = useMemo(() => (duration > 0 ? (currentTime / duration) * 100 : 0), [currentTime, duration]);
 
+  if (error) {
+    return (
+      <div className={styles.player} style={{ opacity: 0.6 }}>
+        <div className={styles.errorText}>
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.player}>
-      <button className={`${styles.iconButton} ${isPlaying ? styles.active : ''}`} onClick={() => void togglePlay()} type="button">
+      <button className={`${styles.iconButton} ${isPlaying ? styles.active : ''}`} onClick={() => void togglePlay()} type="button" disabled={!isValidSrc}>
         {isPlaying ? 'pause' : 'play'}
       </button>
       <div className={styles.progressWrap}>
@@ -104,10 +159,11 @@ export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: A
             setCurrentTime(audio.currentTime);
           }}
           style={{ backgroundSize: `${progress}% 100%` } as React.CSSProperties}
+          disabled={!isValidSrc}
         />
         <div className={styles.time}>{formatTime(currentTime)} / {formatTime(duration)}</div>
       </div>
-      <button className={styles.iconButton} onClick={toggleMute} type="button">
+      <button className={styles.iconButton} onClick={toggleMute} type="button" disabled={!isValidSrc}>
         {isMuted ? 'muted' : 'mute'}
       </button>
     </div>

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AsteriskConfigService } from './asterisk-config.service';
-import { SipExtensionEntity } from '../extensions/entities/sip-extension.entity';
 import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -14,7 +13,6 @@ describe('AsteriskConfigService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AsteriskConfigService,
-        { provide: getRepositoryToken(SipExtensionEntity), useValue: { find: jest.fn().mockResolvedValue([]) } },
         { provide: getRepositoryToken(SipTrunkEntity), useValue: { find: jest.fn().mockResolvedValue([]) } },
         { provide: DataSource, useValue: { query: jest.fn() } },
       ],
@@ -32,9 +30,9 @@ describe('AsteriskConfigService', () => {
   });
 
   it('generatePjsipConfig with extensions produces [endpoint/XXXX] sections with correct auth and aor blocks', () => {
-    const ext = { username: '1000', password: 'pwd' } as SipExtensionEntity;
+    const ext = { username: '1000', password: 'pwd', transport: 'transport-udp', endpointFlags: [] };
     const config = (service as any).buildExtensionsConfig([ext]);
-    expect(config).toContain('[1000]'); 
+    expect(config).toContain('[1000]');
     expect(config).toContain('type = endpoint');
     expect(config).toContain('[1000-auth]');
     expect(config).toContain('password = pwd');
@@ -57,9 +55,9 @@ describe('AsteriskConfigService', () => {
   it('AMI reload command is called after config is written', async () => {
     const spyWrite = jest.spyOn(service, 'writeExtensionsConfig').mockResolvedValue();
     const spyReload = jest.spyOn(service as any, 'sendAmiCommand').mockResolvedValue(undefined);
-    
+
     await service.syncExtensions([]);
-    
+
     expect(spyWrite).toHaveBeenCalled();
     expect(spyReload).toHaveBeenCalledWith('module reload res_pjsip.so');
   });

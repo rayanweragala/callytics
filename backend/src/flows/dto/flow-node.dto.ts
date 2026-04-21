@@ -1,6 +1,26 @@
 import { IsIn, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
-const allowedNodeTypes = ['start', 'play_audio', 'get_digits', 'menu', 'hangup', 'transfer', 'hunt', 'group', 'business_hours', 'voicemail'];
+const allowedNodeTypes = ['start', 'play_audio', 'get_digits', 'menu', 'hangup', 'transfer', 'hunt', 'group', 'business_hours', 'voicemail', 'webhook', 'queue_login', 'queue'];
+
+export type TransferTargetType = 'extension' | 'pstn' | 'sip_uri';
+
+export interface TransferNodeConfig {
+  target_type: TransferTargetType;
+  target_value: string;
+  trunk_id?: number;
+  timeout_ms?: number;
+}
+
+export interface HuntDestination {
+  target_type: 'extension' | 'pstn';
+  target_value: string;
+  trunk_id?: number;
+}
+
+export interface HuntNodeConfig {
+  destinations: HuntDestination[];
+  ring_timeout_ms?: number;
+}
 
 export class FlowNodeDto {
   @IsString()

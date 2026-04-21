@@ -28,6 +28,15 @@ export function SidebarNav() {
             <NavLink to="/extensions" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               extensions
             </NavLink>
+            <NavLink to="/contacts" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              contacts
+            </NavLink>
+            <NavLink to="/operators" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              operators
+            </NavLink>
+            <NavLink to="/queues" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              queues
+            </NavLink>
             <NavLink to="/trunks" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               trunks
             </NavLink>

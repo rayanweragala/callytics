@@ -12,7 +12,15 @@ export interface ExtensionResponse {
   username: string;
   password: string;
   displayName: string | null;
+  transportType: 'sip' | 'webrtc';
   createdAt: string;
+}
+
+export interface ResolvedExtensionConfig {
+  username: string;
+  password: string;
+  transport: string;
+  endpointFlags: string[];
 }
 
 @Injectable()
@@ -26,7 +34,7 @@ export class ExtensionsService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await runSqlMigrations(this.dataSource);
-    await this.asteriskConfigService.writeExtensionsConfig();
+    await this.rebuildConfig();
   }
 
   async list(limit = 20, offset = 0): Promise<{ data: ExtensionResponse[]; total: number }> {
@@ -55,6 +63,7 @@ export class ExtensionsService implements OnModuleInit {
       username,
       password,
       displayName: this.normalizeOptional(dto.displayName),
+      transportType: dto.transportType ?? 'sip',
     });
     const saved = await this.extensionsRepository.save(entity);
     await this.rebuildConfig();
@@ -84,6 +93,10 @@ export class ExtensionsService implements OnModuleInit {
       entity.displayName = this.normalizeOptional(dto.displayName);
     }
 
+    if (dto.transportType !== undefined) {
+      entity.transportType = dto.transportType;
+    }
+
     const saved = await this.extensionsRepository.save(entity);
     await this.rebuildConfig();
     return { data: this.toResponse(saved) };
@@ -102,7 +115,27 @@ export class ExtensionsService implements OnModuleInit {
 
   private async rebuildConfig(): Promise<void> {
     const extensions = await this.extensionsRepository.find({ order: { username: 'ASC' } });
-    await this.asteriskConfigService.syncExtensions(extensions);
+    const resolvedConfigs = extensions.map((extension) => this.resolveAsteriskConfig(extension));
+    await this.asteriskConfigService.syncExtensions(resolvedConfigs);
+  }
+
+  private resolveAsteriskConfig(extension: SipExtensionEntity): ResolvedExtensionConfig {
+    const transportType = extension.transportType === 'webrtc' ? 'webrtc' : 'sip';
+    return {
+      username: extension.username,
+      password: extension.password,
+      transport: transportType === 'webrtc' ? 'transport-wss' : 'transport-udp',
+      endpointFlags: transportType === 'webrtc'
+        ? [
+            'dtls_auto_generate_cert = yes',
+            'webrtc = yes',
+            'use_avpf = yes',
+            'media_encryption = dtls',
+            'ice_support = yes',
+            'media_use_received_transport = yes',
+          ]
+        : [],
+    };
   }
 
   private toResponse(item: SipExtensionEntity): ExtensionResponse {
@@ -111,6 +144,7 @@ export class ExtensionsService implements OnModuleInit {
       username: item.username,
       password: item.password,
       displayName: item.displayName,
+      transportType: item.transportType || 'sip',
       createdAt: item.createdAt.toISOString(),
     };
   }

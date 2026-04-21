@@ -20,6 +20,25 @@
   gap: 16px;
 }
 
+.inlineSaveWarning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-warning);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.inlineSaveWarningActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .topBarLeft {
   display: flex;
   align-items: center;
@@ -149,6 +168,9 @@
 .barvoicemail { background: var(--color-warning); }
 .barhunt { background: var(--color-warning); }
 .barhangup { background: var(--text-muted); }
+.barwebhook { background: var(--color-info); }
+.barqueuelogin { background: var(--color-warning); }
+.barqueue { background: var(--color-success); }
 
 .paletteIcon {
   width: 16px;
@@ -452,6 +474,34 @@
 
 .changedText {
   color: var(--color-warning);
+}
+
+.subflowDiffSection {
+  border-top: 1px solid var(--border-default);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subflowDiffList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subflowDiffItem {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  padding: 8px 10px;
+}
+
+.subflowDiffSummary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
 }
 
 @media (max-width: 1280px) {

@@ -1,11 +1,16 @@
 import { SearchableSelect, type SearchableSelectOption } from '../common/SearchableSelect';
+import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
+import type { AudioFileItem, HuntDestination } from '../../types';
 import styles from './HuntConfigPanel.module.css';
 
 interface HuntConfigPanelProps {
   nodeId: string;
   config: Record<string, unknown>;
   audioOptions: SearchableSelectOption[];
+  audioItems: AudioFileItem[];
   nodeOptions: SearchableSelectOption[];
+  extensionOptions: SearchableSelectOption[];
+  contactOptions: SearchableSelectOption[];
   onConfigReplace: (nextConfig: Record<string, unknown>) => void;
 }
 
@@ -15,25 +20,45 @@ const strategyOptions: SearchableSelectOption[] = [
   { value: 'group', label: 'Group' },
 ];
 
-function normalizeDestinations(config: Record<string, unknown>): string[] {
+function normalizeDestinations(config: Record<string, unknown>): HuntDestination[] {
   if (!Array.isArray(config.destinations) || config.destinations.length === 0) {
-    return [''];
+    return [{ target_type: 'extension', target_value: '', trunk_id: undefined }];
   }
 
-  const values = config.destinations.map((value) => String(value || ''));
-  return values.length > 0 ? values : [''];
+  const values = config.destinations.reduce<HuntDestination[]>((acc, value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return acc;
+    }
+    const item = value as Record<string, unknown>;
+    const targetType: HuntDestination['target_type'] = item.target_type === 'pstn' ? 'pstn' : 'extension';
+    const targetValue = String(item.target_value || '').trim();
+    acc.push({
+      target_type: targetType,
+      target_value: targetValue,
+      trunk_id: item.trunk_id ? Number(item.trunk_id) : undefined,
+    });
+    return acc;
+  }, []);
+
+  return values.length > 0 ? values : [{ target_type: 'extension', target_value: '', trunk_id: undefined }];
 }
 
 export function HuntConfigPanel({
   nodeId,
   config,
   audioOptions,
+  audioItems,
   nodeOptions,
+  extensionOptions,
+  contactOptions,
   onConfigReplace,
 }: HuntConfigPanelProps) {
   const strategy = String(config.strategy || 'sequential');
   const isGroup = strategy === 'group';
   const destinations = normalizeDestinations(config);
+  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const holdAudioItem = audioItems.find((item) => String(item.id) === String(config.hold_audio_file_id));
+  const busyAudioItem = audioItems.find((item) => String(item.id) === String(config.busy_audio_file_id));
 
   const updateConfig = (patch: Record<string, unknown>) => {
     onConfigReplace({
@@ -49,20 +74,18 @@ export function HuntConfigPanel({
     });
   };
 
-  const updateDestination = (index: number, value: string) => {
+  const updateDestination = (index: number, value: HuntDestination) => {
     const next = [...destinations];
     next[index] = value;
     updateConfig({ destinations: next });
   };
 
   const addDestination = () => {
-    updateConfig({ destinations: [...destinations, ''] });
+    updateConfig({ destinations: [...destinations, { target_type: 'extension', target_value: '', trunk_id: undefined }] });
   };
 
   const removeDestination = (index: number) => {
-    if (destinations.length <= 1) {
-      return;
-    }
+    if (destinations.length <= 1) return;
     updateConfig({ destinations: destinations.filter((_, itemIndex) => itemIndex !== index) });
   };
 
@@ -82,16 +105,43 @@ export function HuntConfigPanel({
         <span className={styles.fieldLabel}>destinations</span>
         <div className={styles.destinationsList}>
           {destinations.map((destination, index) => (
-            <div className={styles.destinationRow} key={`${nodeId}-destination-${index}`}>
-              <input
-                className={styles.input}
-                placeholder="SIP/101"
-                value={destination}
-                onChange={(event) => updateDestination(index, event.target.value)}
-              />
-              <button className={styles.removeButton} disabled={destinations.length <= 1} onClick={() => removeDestination(index)} type="button">
-                remove
-              </button>
+            <div className={styles.destinationCard} key={`${nodeId}-destination-${index}`}>
+              <div className={styles.destinationRow}>
+                <div className={styles.targetTypeCell}>
+                  <select
+                    className={styles.targetTypeSelect}
+                    value={destination.target_type}
+                    onChange={(event) => updateDestination(index, {
+                      target_type: event.target.value === 'pstn' ? 'pstn' : 'extension',
+                      target_value: '',
+                      trunk_id: undefined,
+                    })}
+                  >
+                    <option value="extension">Extension</option>
+                    <option value="pstn">PSTN</option>
+                  </select>
+                </div>
+                <div className={styles.targetValueCell}>
+                  {destination.target_type === 'extension' ? (
+                    <SearchableSelect
+                      options={extensionOptions}
+                      value={destination.target_value || null}
+                      onChange={(value) => updateDestination(index, { ...destination, target_type: 'extension', target_value: value || '', trunk_id: undefined })}
+                      placeholder="select extension"
+                    />
+                  ) : (
+                    <SearchableSelect
+                      options={contactOptions}
+                      value={destination.target_value || null}
+                      onChange={(value) => updateDestination(index, { ...destination, target_type: 'pstn', target_value: value || '', trunk_id: undefined })}
+                      placeholder="select contact"
+                    />
+                  )}
+                </div>
+                <button className={styles.removeButton} disabled={destinations.length <= 1} onClick={() => removeDestination(index)} type="button" aria-label="remove destination">
+                  ×
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -129,17 +179,27 @@ export function HuntConfigPanel({
           placeholder="none"
         />
       </label>
+      {(() => {
+        const srcPath = holdAudioItem?.previewUrl || holdAudioItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={holdAudioItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
 
       {!isGroup ? (
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>busy audio (played between retries)</span>
-          <SearchableSelect
-            options={audioOptions}
-            value={config.busy_audio_file_id ? String(config.busy_audio_file_id) : null}
-            onChange={(value) => updateConfig({ busy_audio_file_id: value ? Number(value) : null })}
-            placeholder="none"
-          />
-        </label>
+        <>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>busy audio (played between retries)</span>
+            <SearchableSelect
+              options={audioOptions}
+              value={config.busy_audio_file_id ? String(config.busy_audio_file_id) : null}
+              onChange={(value) => updateConfig({ busy_audio_file_id: value ? Number(value) : null })}
+              placeholder="none"
+            />
+          </label>
+          {(() => {
+            const srcPath = busyAudioItem?.previewUrl || busyAudioItem?.originalUrl;
+            return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={busyAudioItem?.id} src={`${BASE}${srcPath}`} /> : null;
+          })()}
+        </>
       ) : null}
 
       <label className={styles.field}>

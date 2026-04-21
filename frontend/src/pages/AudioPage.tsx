@@ -233,7 +233,6 @@ export function AudioPage() {
   };
 
   const voiceOptions = useMemo(() => voices.map(v => ({ value: v.id, label: humanizeVoice(v.id) })), [voices]);
-  const speedProgress = ((ttsSpeed - 0.5) / 1.5) * 100;
 
   return (
     <PageLayout title="audio" subtitle="configure">

@@ -1,19 +1,5 @@
-/**
- * NodeConfigPanel — right-side configuration panel.
- *
- * Purely presentational: no API calls, no ReactFlow hooks.
- * All state lives in the parent (FlowEditorPage) and is passed as props.
- *
- * Sub-panels per node type (PlayAudioConfig, GetDigitsConfig, MenuConfig,
- * TransferConfig) are kept as local components in this file per task rules.
- *
- * NOTE: The 8-prop limit is approached here. Additional props beyond the
- * specified interface  (submenuNodeOptionsLoading, submenuStartNodeKey,
- * selectedMenuLocalEdgeBranches) are grouped into an optional `menuExtra`
- * bag rather than individual props to keep the interface compact.
- */
 import type { Edge, Node } from 'reactflow';
-import type { AudioFileItem, BuilderNodeType, FlowNodeData } from '../../types';
+import type { AudioFileItem, BuilderNodeType, ContactNumber, ExtensionItem, FlowNodeData, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
@@ -62,7 +48,6 @@ export interface NodeConfigPanelProps {
   selectedEdgeSourceNode: Node<FlowNodeData> | null;
   audioItems: AudioFileItem[];
   nodes: Array<Node<FlowNodeData>>;
-  // Config change handlers
   onLabelChange: (value: string) => void;
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
@@ -70,9 +55,13 @@ export interface NodeConfigPanelProps {
   onEdgeConditionChange: (value: string | null) => void;
   onMenuBranchToggle: (branch: string, checked: boolean) => void;
   onMenuSubflowTargetChange: (branch: string, targetNodeKey: string | null) => void;
-  // Extra menu panel data
+  
   menuExtra: NodeConfigPanelMenuExtra;
-  // Validation trigger
+  flowDefaultTimeout?: number;
+  queueItems?: QueueItem[];
+  extensions?: ExtensionItem[];
+  contactNumbers?: ContactNumber[];
+  trunks?: SipTrunkItem[];
   saveAttempted?: boolean;
 }
 
@@ -89,8 +78,14 @@ export function NodeConfigPanel({
   onEdgeConditionChange,
   onMenuBranchToggle,
   menuExtra,
+  flowDefaultTimeout = 10000,
+  queueItems,
+  extensions = [],
+  contactNumbers = [],
+  trunks = [],
   saveAttempted = false,
 }: NodeConfigPanelProps) {
+  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;
   const audioFileSelected = Number(selectedConfig.audio_file_id || 0) > 0;
   const promptAudioSelected = Number(selectedConfig.prompt_audio_file_id || 0) > 0;
@@ -98,10 +93,21 @@ export function NodeConfigPanel({
 
   const audioOptions = audioItems.map((item) => ({ value: String(item.id), label: item.name }));
   const nodeOptions = nodes.map((node) => ({ value: node.id, label: `${node.id} — ${node.data.label}` }));
+  const extensionOptions = extensions.map((ext) => ({ value: ext.username, label: ext.displayName ? `${ext.username} — ${ext.displayName}` : ext.username }));
+  const contactOptions = contactNumbers.map((item) => ({ value: item.number, label: `${item.label} — ${item.number}` }));
+  const trunkOptions = trunks.map((trunk) => ({ value: String(trunk.id), label: trunk.name }));
+  const transferTargetTypeOptions = [
+    { value: 'extension', label: 'Extension' },
+    { value: 'pstn', label: 'PSTN Number' },
+    { value: 'sip_uri', label: 'SIP URI' },
+  ];
   const conditionOptions = conditionValues.map((value) => ({ value, label: value }));
   const selectedVoicemailAudio = selectedConfig.prompt_audio_file_id
     ? audioItems.find((item) => item.id === Number(selectedConfig.prompt_audio_file_id))
     : null;
+
+  const playAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.audio_file_id));
+  const getDigitsAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
 
   const edgeConditionOptions = (() => {
     if (!selectedEdge || !selectedEdgeSourceNode) return [] as Array<{ value: string; label: string }>;
@@ -128,6 +134,9 @@ export function NodeConfigPanel({
                 onChange={onEdgeConditionChange}
                 placeholder="select condition"
               />
+              {saveAttempted && !selectedEdge.data?.condition && !selectedEdge.data?.branchKey ? (
+                <span className={styles.inlineError}>Condition is required</span>
+              ) : null}
             </label>
           ) : null}
           <div className={styles.meta}>source: {selectedEdge.source}</div>
@@ -155,6 +164,10 @@ export function NodeConfigPanel({
                   placeholder="built-in path / manual"
                 />
               </label>
+              {(() => {
+                const srcPath = playAudioItem?.previewUrl || playAudioItem?.originalUrl;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={playAudioItem.id} src={`${BASE}${srcPath}`} /> : null;
+              })()}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>audio_file_path</span>
                 <input
@@ -168,6 +181,21 @@ export function NodeConfigPanel({
             </>
           ) : null}
 
+          {selectedNode.data.type === 'start' ? (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>flow default timeout (ms)</span>
+              <input
+                className={styles.input}
+                type="number"
+                min={1000}
+                max={120000}
+                value={String(selectedConfig.flow_default_timeout_ms ?? selectedConfig.queue_login_default_input_timeout_ms ?? 10000)}
+                onChange={(event) => onConfigChange('flow_default_timeout_ms', event.target.value)}
+              />
+              <span className={styles.meta}>Used by nodes configured to use flow default timeout.</span>
+            </label>
+          ) : null}
+
           {selectedNode.data.type === 'get_digits' ? (
             <>
               <label className={styles.field}>
@@ -179,6 +207,10 @@ export function NodeConfigPanel({
                   placeholder="built-in path / manual"
                 />
               </label>
+              {(() => {
+                const srcPath = getDigitsAudioItem?.previewUrl || getDigitsAudioItem?.originalUrl;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={getDigitsAudioItem.id} src={`${BASE}${srcPath}`} /> : null;
+              })()}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>prompt_path</span>
                 <input
@@ -194,8 +226,9 @@ export function NodeConfigPanel({
                 <input
                   className={styles.input}
                   type="number"
-                  value={String(selectedConfig.timeout_ms || 5000)}
+                  value={selectedConfig.timeout_ms === null || selectedConfig.timeout_ms === undefined ? '' : String(selectedConfig.timeout_ms)}
                   onChange={(event) => onConfigChange('timeout_ms', event.target.value)}
+                  placeholder="use flow default"
                 />
               </label>
             </>
@@ -206,6 +239,7 @@ export function NodeConfigPanel({
               selectedNode={selectedNode}
               selectedConfig={selectedConfig}
               selectedMenuBranches={selectedMenuBranches}
+              audioItems={audioItems}
               audioOptions={audioOptions}
               promptAudioSelected={promptAudioSelected}
               menuExtra={menuExtra}
@@ -221,48 +255,111 @@ export function NodeConfigPanel({
               nodeId={selectedNode.id}
               config={selectedConfig}
               audioOptions={audioOptions}
+              audioItems={audioItems}
               nodeOptions={nodeOptions}
+              extensionOptions={extensionOptions}
+              contactOptions={contactOptions}
               onConfigReplace={onConfigReplace}
             />
           ) : null}
 
-          {selectedNode.data.type === 'transfer' ? (
-            <>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>destination</span>
-                <input
-                  className={styles.input}
-                  placeholder="SIP/trunk/+94XXXXXXXXX"
-                  value={String(selectedConfig.destination || '')}
-                  onChange={(event) => onConfigChange('destination', event.target.value)}
-                />
-                {saveAttempted && !String(selectedConfig.destination || '').trim() ? (
-                  <span className={styles.inlineError}>Destination is required</span>
+          {selectedNode.data.type === 'transfer' ? (() => {
+            const transferConfig = selectedConfig as TransferNodeConfig & Record<string, unknown>;
+            const targetType = transferConfig.target_type || 'extension';
+            const targetValue = String(transferConfig.target_value || '');
+            return (
+              <>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>target type</span>
+                  <SearchableSelect
+                    options={transferTargetTypeOptions}
+                    value={targetType}
+                    onChange={(value) => {
+                      const resolvedType = (value || 'extension') as TransferNodeConfig['target_type'];
+                      onConfigValueChange('target_type', resolvedType);
+                      onConfigValueChange('target_value', '');
+                      if (resolvedType !== 'pstn') onConfigValueChange('trunk_id', undefined);
+                    }}
+                    placeholder="select target type"
+                  />
+                </label>
+
+                {targetType === 'extension' ? (
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>extension</span>
+                    <SearchableSelect
+                      options={extensionOptions}
+                      value={targetValue || null}
+                      onChange={(value) => onConfigValueChange('target_value', value || '')}
+                      placeholder="select extension"
+                    />
+                  </label>
                 ) : null}
-              </label>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>timeout_ms</span>
-                <input
-                  className={styles.input}
-                  type="number"
-                  value={String(selectedConfig.timeout_ms || 30000)}
-                  onChange={(event) => onConfigChange('timeout_ms', event.target.value)}
-                />
-                {saveAttempted && Number(selectedConfig.timeout_ms || 0) <= 0 ? (
-                  <span className={styles.inlineError}>Timeout must be greater than 0</span>
+
+                {targetType === 'pstn' ? (
+                  <>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>pstn number</span>
+                      <SearchableSelect
+                        options={contactOptions}
+                        value={targetValue || null}
+                        onChange={(value) => onConfigValueChange('target_value', value || '')}
+                        placeholder="select PSTN contact"
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>trunk</span>
+                      <SearchableSelect
+                        options={trunkOptions}
+                        value={transferConfig.trunk_id ? String(transferConfig.trunk_id) : null}
+                        onChange={(value) => onConfigValueChange('trunk_id', value ? Number(value) : undefined)}
+                        placeholder="select trunk"
+                      />
+                    </label>
+                  </>
                 ) : null}
-              </label>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>on_no_answer</span>
-                <SearchableSelect
-                  options={nodeOptions.filter((option) => option.value !== selectedNode.id)}
-                  value={selectedConfig.on_no_answer ? String(selectedConfig.on_no_answer) : null}
-                  onChange={(value) => onConfigChange('on_no_answer', value || '')}
-                  placeholder="select fallback node"
-                />
-              </label>
-            </>
-          ) : null}
+
+                {targetType === 'sip_uri' ? (
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>sip uri</span>
+                    <input
+                      className={styles.input}
+                      placeholder="sip:john@external.com"
+                      value={targetValue}
+                      onChange={(event) => onConfigChange('target_value', event.target.value)}
+                    />
+                  </label>
+                ) : null}
+
+                {saveAttempted && !targetValue.trim() ? (
+                  <span className={styles.inlineError}>Target value is required</span>
+                ) : null}
+
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>timeout_ms</span>
+                  <input
+                    className={styles.input}
+                    type="number"
+                    value={selectedConfig.timeout_ms === null || selectedConfig.timeout_ms === undefined ? '' : String(selectedConfig.timeout_ms)}
+                    onChange={(event) => onConfigChange('timeout_ms', event.target.value)}
+                    placeholder="use flow default"
+                  />
+                  {saveAttempted && selectedConfig.timeout_ms !== null && selectedConfig.timeout_ms !== undefined && selectedConfig.timeout_ms !== '' && (Number(selectedConfig.timeout_ms) < 1000 || Number(selectedConfig.timeout_ms) > 120000) ? (
+                    <span className={styles.inlineError}>Timeout must be between 1000 and 120000 ms</span>
+                  ) : null}
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>on_no_answer</span>
+                  <SearchableSelect
+                    options={nodeOptions.filter((option) => option.value !== selectedNode.id)}
+                    value={selectedConfig.on_no_answer ? String(selectedConfig.on_no_answer) : null}
+                    onChange={(value) => onConfigChange('on_no_answer', value || '')}
+                    placeholder="select fallback node"
+                  />
+                </label>
+              </>
+            );
+          })() : null}
 
           {selectedNode.data.type === 'business_hours' ? (
             <>
@@ -362,10 +459,43 @@ export function NodeConfigPanel({
                   placeholder="optional voicemail prompt"
                 />
               </label>
-              {selectedVoicemailAudio?.previewUrl ? (
-                <AudioPreviewPlayer src={selectedVoicemailAudio.previewUrl} />
-              ) : null}
+              {(() => {
+                const srcPath = selectedVoicemailAudio?.previewUrl || selectedVoicemailAudio?.originalUrl;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailAudio.id} src={`${BASE}${srcPath}`} /> : null;
+              })()}
             </>
+          ) : null}
+
+          {selectedNode.data.type === 'webhook' ? (
+            <WebhookConfigPanel
+              config={selectedConfig}
+              onConfigChange={onConfigChange}
+              onConfigValueChange={onConfigValueChange}
+              saveAttempted={saveAttempted}
+            />
+          ) : null}
+
+          {selectedNode.data.type === 'queue_login' ? (
+            <QueueLoginConfigPanel
+              config={selectedConfig}
+              flowDefaultTimeout={flowDefaultTimeout}
+              queueItems={queueItems}
+              audioItems={audioItems}
+              audioOptions={audioOptions}
+              onConfigValueChange={onConfigValueChange}
+              saveAttempted={saveAttempted}
+            />
+          ) : null}
+
+          {selectedNode.data.type === 'queue' ? (
+            <QueueConfigPanel
+              config={selectedConfig}
+              queueItems={queueItems}
+              audioItems={audioItems}
+              audioOptions={audioOptions}
+              onConfigValueChange={onConfigValueChange}
+              saveAttempted={saveAttempted}
+            />
           ) : null}
 
           <div className={styles.meta}>node key: {selectedNode.id}</div>
@@ -383,6 +513,7 @@ interface MenuConfigProps {
   selectedNode: Node<FlowNodeData>;
   selectedConfig: Record<string, unknown>;
   selectedMenuBranches: string[];
+  audioItems: AudioFileItem[];
   audioOptions: Array<{ value: string; label: string }>;
   promptAudioSelected: boolean;
   menuExtra: NodeConfigPanelMenuExtra;
@@ -396,6 +527,7 @@ function MenuConfig({
   selectedNode,
   selectedConfig,
   selectedMenuBranches,
+  audioItems,
   audioOptions,
   promptAudioSelected,
   menuExtra,
@@ -403,6 +535,12 @@ function MenuConfig({
   onMenuBranchToggle,
   saveAttempted = false,
 }: MenuConfigProps) {
+  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const menuPromptItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
+  const timeoutItem = audioItems.find((a) => String(a.id) === String(selectedConfig.timeout_prompt_audio_id));
+  const invalidItem = audioItems.find((a) => String(a.id) === String(selectedConfig.invalid_prompt_audio_id));
+  const failureItem = audioItems.find((a) => String(a.id) === String(selectedConfig.final_failure_audio_id));
+
   const { submenuNodeOptionsLoading, submenuStartNodeKey, selectedMenuLocalEdgeBranches, selectedMenuSubmenuTargets } = menuExtra;
 
   return (
@@ -419,6 +557,10 @@ function MenuConfig({
           <span className={styles.inlineError}>Prompt audio is required</span>
         ) : null}
       </label>
+      {(() => {
+        const srcPath = menuPromptItem?.previewUrl || menuPromptItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={menuPromptItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>prompt_path</span>
         <input
@@ -438,6 +580,10 @@ function MenuConfig({
           placeholder="select timeout prompt"
         />
       </label>
+      {(() => {
+        const srcPath = timeoutItem?.previewUrl || timeoutItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={timeoutItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>invalid prompt audio</span>
         <SearchableSelect
@@ -447,6 +593,10 @@ function MenuConfig({
           placeholder="select invalid prompt"
         />
       </label>
+      {(() => {
+        const srcPath = invalidItem?.previewUrl || invalidItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={invalidItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>final failure audio</span>
         <SearchableSelect
@@ -456,16 +606,21 @@ function MenuConfig({
           placeholder="select goodbye prompt"
         />
       </label>
+      {(() => {
+        const srcPath = failureItem?.previewUrl || failureItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={failureItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>timeout_ms</span>
         <input
           className={styles.input}
           type="number"
-          value={String(selectedConfig.timeout_ms || 5000)}
+          value={selectedConfig.timeout_ms === null || selectedConfig.timeout_ms === undefined ? '' : String(selectedConfig.timeout_ms)}
           onChange={(event) => onConfigChange('timeout_ms', event.target.value)}
+          placeholder="use flow default"
         />
-        {saveAttempted && Number(selectedConfig.timeout_ms || 0) <= 0 ? (
-          <span className={styles.inlineError}>Timeout must be greater than 0</span>
+        {saveAttempted && selectedConfig.timeout_ms !== null && selectedConfig.timeout_ms !== undefined && selectedConfig.timeout_ms !== '' && (Number(selectedConfig.timeout_ms) < 1000 || Number(selectedConfig.timeout_ms) > 120000) ? (
+          <span className={styles.inlineError}>Timeout must be between 1000 and 120000 ms</span>
         ) : null}
       </label>
       <label className={styles.field}>
@@ -531,6 +686,267 @@ function MenuConfig({
         )}
       </div>
       <div className={styles.meta}>subflow: {selectedNode.data.subflowId ? `#${selectedNode.data.subflowId}` : 'created on save'}</div>
+    </>
+  );
+}
+
+interface WebhookConfigPanelProps {
+  config: Record<string, unknown>;
+  onConfigChange: (field: string, value: string) => void;
+  onConfigValueChange: (field: string, value: unknown) => void;
+  saveAttempted?: boolean;
+}
+
+function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveAttempted }: WebhookConfigPanelProps) {
+  const headers = Array.isArray(config['headers'])
+    ? (config['headers'] as Array<{ key: string; value: string }>)
+    : [];
+
+  const addHeader = () => onConfigValueChange('headers', [...headers, { key: '', value: '' }]);
+
+  const updateHeader = (index: number, field: 'key' | 'value', val: string) => {
+    const next = headers.map((h, i) => i === index ? { ...h, [field]: val } : h);
+    onConfigValueChange('headers', next);
+  };
+
+  const removeHeader = (index: number) => {
+    onConfigValueChange('headers', headers.filter((_, i) => i !== index));
+  };
+
+  return (
+    <>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>url</span>
+        <input
+          className={styles.input}
+          placeholder="https://example.com/webhook"
+          value={String(config['url'] || '')}
+          onChange={(e) => onConfigChange('url', e.target.value)}
+        />
+        {saveAttempted && !String(config['url'] || '').trim() ? (
+          <span className={styles.inlineError}>URL is required</span>
+        ) : null}
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>method</span>
+        <select
+          className={styles.input}
+          value={String(config['method'] || 'POST')}
+          onChange={(e) => onConfigChange('method', e.target.value)}
+        >
+          <option value="POST">POST</option>
+          <option value="GET">GET</option>
+        </select>
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>timeout_ms</span>
+        <input
+          className={styles.input}
+          type="number"
+          value={config['timeout_ms'] === null || config['timeout_ms'] === undefined ? '' : String(config['timeout_ms'])}
+          onChange={(e) => onConfigChange('timeout_ms', e.target.value)}
+          placeholder="use flow default"
+        />
+      </label>
+      <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={Boolean(config['include_caller'])}
+          onChange={(e) => onConfigValueChange('include_caller', e.target.checked)}
+        />
+        <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>include caller number</span>
+      </label>
+      <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={Boolean(config['include_digits'])}
+          onChange={(e) => onConfigValueChange('include_digits', e.target.checked)}
+        />
+        <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>include session variables</span>
+      </label>
+      <div className={styles.field} style={{ width: '100%', overflow: 'hidden' }}>
+        <span className={styles.fieldLabel}>headers</span>
+        {headers.map((header, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, width: '100%', overflow: 'hidden', marginTop: 4 }}>
+            <input
+              className={styles.input}
+              placeholder="Header-Name"
+              value={header.key}
+              onChange={(e) => updateHeader(i, 'key', e.target.value)}
+              style={{ flex: '1 1 0', minWidth: 0 }}
+            />
+            <input
+              className={styles.input}
+              placeholder="value"
+              value={header.value}
+              onChange={(e) => updateHeader(i, 'value', e.target.value)}
+              style={{ flex: '1 1 0', minWidth: 0 }}
+            />
+            <button
+              type="button"
+              className={styles.input}
+              style={{ flex: '0 0 auto', width: 28, padding: 0, cursor: 'pointer', color: 'var(--color-error)' }}
+              onClick={() => removeHeader(i)}
+            >×</button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className={styles.input}
+          onClick={addHeader}
+          style={{ marginTop: 6, cursor: 'pointer', color: 'var(--text-secondary)', width: 'auto', padding: '0 10px' }}
+        >
+          + add header
+        </button>
+      </div>
+    </>
+  );
+}
+
+interface QueueLoginConfigPanelProps {
+  config: Record<string, unknown>;
+  flowDefaultTimeout: number;
+  queueItems?: import('../../types').QueueItem[];
+  audioItems: AudioFileItem[];
+  audioOptions: Array<{ value: string; label: string }>;
+  onConfigValueChange: (field: string, value: unknown) => void;
+  saveAttempted?: boolean;
+}
+
+function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioItems, audioOptions, onConfigValueChange, saveAttempted }: QueueLoginConfigPanelProps) {
+  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const queueOptions = (queueItems ?? []).map((q) => ({ value: String(q.id), label: q.name }));
+  const useFlowDefaultTimeout = config['use_flow_default_timeout'] !== false;
+  const promptItem = audioItems.find((a) => String(a.id) === String(config['prompt_audio_file_id']));
+  const wrongPinItem = audioItems.find((a) => String(a.id) === String(config['wrong_pin_audio_file_id']));
+  const successItem = audioItems.find((a) => String(a.id) === String(config['login_success_audio_file_id']));
+  return (
+    <>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>queue</span>
+        <SearchableSelect
+          options={queueOptions}
+          value={config['queue_id'] ? String(config['queue_id']) : null}
+          onChange={(value) => onConfigValueChange('queue_id', value ? Number(value) : null)}
+          placeholder="select queue"
+        />
+        {saveAttempted && !config['queue_id'] ? (
+          <span className={styles.inlineError}>Queue is required</span>
+        ) : null}
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>input timeout mode</span>
+        <select
+          className={styles.input}
+          value={useFlowDefaultTimeout ? 'flow_default' : 'custom'}
+          onChange={(event) => onConfigValueChange('use_flow_default_timeout', event.target.value === 'flow_default')}
+        >
+          <option value="flow_default">use flow default</option>
+          <option value="custom">custom timeout</option>
+        </select>
+      </label>
+      {useFlowDefaultTimeout ? (
+        <div className={styles.meta}>Effective timeout: {flowDefaultTimeout} ms (from start node default).</div>
+      ) : (
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>input timeout (ms)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min={1000}
+            max={120000}
+            value={String(config['input_timeout_ms'] || '')}
+            onChange={(event) => onConfigValueChange('input_timeout_ms', event.target.value ? Number(event.target.value) : null)}
+            placeholder="10000"
+          />
+          {saveAttempted && (Number(config['input_timeout_ms'] || 0) < 1000 || Number(config['input_timeout_ms'] || 0) > 120000) ? (
+            <span className={styles.inlineError}>Custom input timeout must be between 1000 and 120000 ms</span>
+          ) : null}
+        </label>
+      )}
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>prompt audio</span>
+        <SearchableSelect
+          options={audioOptions}
+          value={config['prompt_audio_file_id'] ? String(config['prompt_audio_file_id']) : null}
+          onChange={(value) => onConfigValueChange('prompt_audio_file_id', value ? Number(value) : null)}
+          placeholder="optional — enter PIN prompt"
+        />
+      </label>
+      {(() => {
+        const srcPath = promptItem?.previewUrl || promptItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>wrong PIN audio</span>
+        <SearchableSelect
+          options={audioOptions}
+          value={config['wrong_pin_audio_file_id'] ? String(config['wrong_pin_audio_file_id']) : null}
+          onChange={(value) => onConfigValueChange('wrong_pin_audio_file_id', value ? Number(value) : null)}
+          placeholder="optional — wrong PIN prompt"
+        />
+      </label>
+      {(() => {
+        const srcPath = wrongPinItem?.previewUrl || wrongPinItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={wrongPinItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>success audio</span>
+        <SearchableSelect
+          options={audioOptions}
+          value={config['login_success_audio_file_id'] ? String(config['login_success_audio_file_id']) : null}
+          onChange={(value) => onConfigValueChange('login_success_audio_file_id', value ? Number(value) : null)}
+          placeholder="optional — logged in confirmation"
+        />
+      </label>
+      {(() => {
+        const srcPath = successItem?.previewUrl || successItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={successItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
+    </>
+  );
+}
+
+interface QueueConfigPanelProps {
+  config: Record<string, unknown>;
+  queueItems?: import('../../types').QueueItem[];
+  audioItems: AudioFileItem[];
+  audioOptions: Array<{ value: string; label: string }>;
+  onConfigValueChange: (field: string, value: unknown) => void;
+  saveAttempted?: boolean;
+}
+
+function QueueConfigPanel({ config, queueItems, audioItems, audioOptions, onConfigValueChange, saveAttempted }: QueueConfigPanelProps) {
+ const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+ const queueOptions = (queueItems ?? []).map((q) => ({ value: String(q.id), label: q.name }));
+ const promptItem = audioItems.find((a) => String(a.id) === String(config['prompt_audio_file_id']));
+  return (
+    <>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>queue</span>
+        <SearchableSelect
+          options={queueOptions}
+          value={config['queue_id'] ? String(config['queue_id']) : null}
+          onChange={(value) => onConfigValueChange('queue_id', value ? Number(value) : null)}
+          placeholder="select queue"
+        />
+        {saveAttempted && !config['queue_id'] ? (
+          <span className={styles.inlineError}>Queue is required</span>
+        ) : null}
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>prompt audio</span>
+        <SearchableSelect
+          options={audioOptions}
+          value={config['prompt_audio_file_id'] ? String(config['prompt_audio_file_id']) : null}
+          onChange={(value) => onConfigValueChange('prompt_audio_file_id', value ? Number(value) : null)}
+          placeholder="optional — queue entry prompt"
+        />
+      </label>
+      {(() => {
+        const srcPath = promptItem?.previewUrl || promptItem?.originalUrl;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${BASE}${srcPath}`} /> : null;
+      })()}
     </>
   );
 }

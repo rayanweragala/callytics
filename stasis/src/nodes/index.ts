@@ -3,10 +3,14 @@ import { FlowNode } from '../flowLoader';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { publishNodeTelemetry } from '../telemetry';
 import { registerTransferWaiter } from '../transferManager';
+import { query } from '../db';
 import { executeHunt } from './hunt.executor';
 import { executeMenu } from '../executors/menu.executor';
 import { executeBusinessHours } from '../executors/business_hours.executor';
 import { executeVoicemail } from '../executors/voicemail.executor';
+import { executeQueueLogin } from '../executors/queue_login.executor';
+import { executeQueue } from '../executors/queue.executor';
+import { resolveNodeTimeoutMs } from '../timeoutResolver';
 
 type PlaybackTarget =
   | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop?: () => Promise<void> }) => Promise<void> }
@@ -139,7 +143,7 @@ async function executeGetDigits(
 ): Promise<string> {
   console.log(`[get_digits] start channel=${channel.id} config=${JSON.stringify(node.config)}`);
   const promptPath = await resolveAudioMediaPath(node.config, 'prompt_audio_file_id', 'prompt_path');
-  const timeoutMs = Number(node.config.timeout_ms) || 5000;
+  const timeoutMs = resolveNodeTimeoutMs(node, session, 5000);
   const client = ariClient as {
     Playback: () => { id: string; stop: () => Promise<void> };
     on: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
@@ -246,14 +250,52 @@ function waitForChannelEnd(
   });
 }
 
+async function getTrunk(id: number): Promise<{ id: number; username: string } | null> {
+  const rows = await query('SELECT id, username FROM sip_trunks WHERE id = $1 LIMIT 1', [id]) as Array<{ id: number; username: string | null }>;
+  if (!rows.length) return null;
+  const row = rows[0];
+  return { id: row.id, username: String(row.username || '').trim() };
+}
+
+function resolveTransferDialString(config: Record<string, unknown>): Promise<string> {
+  const targetType = String(config.target_type || '').trim();
+  const targetValue = String(config.target_value || '').trim();
+
+  if (!targetType || !targetValue) {
+    return Promise.resolve('');
+  }
+
+  if (targetType === 'extension') {
+    return Promise.resolve(`PJSIP/${targetValue}`);
+  }
+
+  if (targetType === 'sip_uri') {
+    return Promise.resolve(`PJSIP/${targetValue}`);
+  }
+
+  if (targetType === 'pstn') {
+    const trunkId = Number(config.trunk_id || 0);
+    if (!Number.isInteger(trunkId) || trunkId <= 0) {
+      return Promise.resolve('');
+    }
+    return getTrunk(trunkId).then((trunk) => {
+      if (!trunk || !trunk.username) return '';
+      return `PJSIP/${targetValue}@${trunk.username}`;
+    });
+  }
+
+  return Promise.resolve('');
+}
+
 async function executeTransfer(
   channel: { id: string },
   node: FlowNode,
   session: CallSession,
   ariClient: unknown,
 ): Promise<string> {
-  const destination = String(node.config.destination || '').trim();
-  const timeoutMs = Number(node.config.timeout_ms) || 30000;
+  const targetConfig = node.config as Record<string, unknown>;
+  const destination = await resolveTransferDialString(targetConfig);
+  const timeoutMs = resolveNodeTimeoutMs(node, session, 30000);
   const onNoAnswer = String(node.config.on_no_answer || '').trim();
 
   if (!destination) {
@@ -361,6 +403,8 @@ const executorMap: Record<string, NodeExecutor> = {
   voicemail: executeVoicemail,
   hangup: async (channel) => executeHangup(channel),
   set_variable: async (_channel, node, session) => executeSetVariable(node, session),
+  queue_login: executeQueueLogin,
+  queue: executeQueue,
 };
 
 export async function executeNode(

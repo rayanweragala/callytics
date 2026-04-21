@@ -18,6 +18,9 @@ export const menuBranchOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '
 export const menuRoutableBranchSet = new Set(menuBranchOptions);
 export const conditionValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'timeout', 'invalid', 'default'];
 export const SUBFLOW_JUMP_NODE_ID_PREFIX = '__submenu_jump_anchor__';
+export const QUEUE_LOGIN_TIMEOUT_MIN_MS = 1000;
+export const QUEUE_LOGIN_TIMEOUT_MAX_MS = 120000;
+export const QUEUE_LOGIN_TIMEOUT_DEFAULT_MS = 10000;
 const GHOST_BRANCH_HEADER_OFFSET = 90;
 const GHOST_BRANCH_ROW_STRIDE = 28;
 const GHOST_NODE_HALF_HEIGHT = 18;
@@ -31,6 +34,9 @@ export const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'transfer', label: 'transfer' },
   { type: 'voicemail', label: 'Voicemail' },
   { type: 'hunt', label: 'Hunt Group' },
+  { type: 'webhook', label: 'Webhook' },
+  { type: 'queue_login', label: 'Queue Login' },
+  { type: 'queue', label: 'Queue' },
   { type: 'hangup', label: 'hangup' },
 ];
 
@@ -68,9 +74,23 @@ export function resolveNodeDimension(value: unknown, fallback: number): number {
   return numeric;
 }
 
+function sortObjectKeysDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortObjectKeysDeep(item)) as T;
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  const sortedEntries = Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((key) => [key, sortObjectKeysDeep((value as Record<string, unknown>)[key])]);
+  return Object.fromEntries(sortedEntries) as T;
+}
+
 // ─── Node creation ────────────────────────────────────────────────────────────
 
 export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
+  if (type === 'start') return { queue_login_default_input_timeout_ms: QUEUE_LOGIN_TIMEOUT_DEFAULT_MS };
   if (type === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
   if (type === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
   if (type === 'menu') return {
@@ -90,16 +110,139 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
       sunday: { enabled: false, open: '09:00', close: '17:00' },
     },
   };
-  if (type === 'transfer') return { destination: '', timeout_ms: 30000, on_no_answer: '' };
+  if (type === 'transfer') return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '' };
   if (type === 'voicemail') return { mailbox_name: 'main', max_duration_seconds: 60, prompt_audio_file_id: null };
   if (type === 'hunt') return {
-    destinations: ['SIP/101'], strategy: 'sequential', attempt_timeout_ms: 20000,
+    destinations: [{ target_type: 'extension', target_value: '101' }], strategy: 'sequential', attempt_timeout_ms: 20000,
     total_timeout_ms: 60000, hold_audio_file_id: null, busy_audio_file_id: null, on_no_answer: '',
   };
+  if (type === 'webhook') return {
+    url: '', method: 'POST', include_caller: false, include_digits: false, timeout_ms: 5000, headers: [],
+  };
+  if (type === 'queue_login') return {
+    queue_id: null,
+    prompt_audio_file_id: null,
+    wrong_pin_audio_file_id: null,
+    login_success_audio_file_id: null,
+    use_flow_default_timeout: true,
+    input_timeout_ms: null,
+  };
+  if (type === 'queue') return { queue_id: null, prompt_audio_file_id: null };
   return {};
 }
 
-// ─── Serialization ────────────────────────────────────────────────────────────
+export function getQueueLoginFlowDefaultTimeoutMs(nodes: Array<Node<FlowNodeData>>): number | null {
+  const startNode = nodes.find((node) => node.data.type === 'start') || null;
+  if (!startNode) return null;
+  const raw = startNode.data.config.queue_login_default_input_timeout_ms;
+  const numeric = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isInteger(numeric)) return null;
+  if (numeric < QUEUE_LOGIN_TIMEOUT_MIN_MS || numeric > QUEUE_LOGIN_TIMEOUT_MAX_MS) return null;
+  return numeric;
+}
+
+export function validateQueueLoginTimeoutConfig(nodes: Array<Node<FlowNodeData>>): { errors: string[]; warningCount: number } {
+  const errors: string[] = [];
+  const flowDefaultTimeout = getQueueLoginFlowDefaultTimeoutMs(nodes);
+  const startNode = nodes.find((node) => node.data.type === 'start') || null;
+  if (startNode) {
+    const rawFlowDefault = startNode.data.config.queue_login_default_input_timeout_ms;
+    if (rawFlowDefault !== undefined && rawFlowDefault !== null && rawFlowDefault !== '') {
+      const parsedFlowDefault = typeof rawFlowDefault === 'number' ? rawFlowDefault : Number(rawFlowDefault);
+      if (!Number.isInteger(parsedFlowDefault) || parsedFlowDefault < QUEUE_LOGIN_TIMEOUT_MIN_MS || parsedFlowDefault > QUEUE_LOGIN_TIMEOUT_MAX_MS) {
+        errors.push(`Start node: queue login default timeout must be ${QUEUE_LOGIN_TIMEOUT_MIN_MS}-${QUEUE_LOGIN_TIMEOUT_MAX_MS} ms.`);
+      }
+    }
+  }
+  let warningCount = 0;
+
+  for (const node of nodes) {
+    if (node.data.type !== 'queue_login') continue;
+    const config = node.data.config || {};
+    const useFlowDefaultTimeout = config.use_flow_default_timeout !== false;
+    const rawTimeout = config.input_timeout_ms;
+    const timeoutMs = typeof rawTimeout === 'number' ? rawTimeout : Number(rawTimeout);
+    const nodeLabel = node.data.label || node.id;
+
+    if (useFlowDefaultTimeout) {
+      if (flowDefaultTimeout === null) {
+        warningCount += 1;
+      }
+      continue;
+    }
+
+    if (!Number.isInteger(timeoutMs)) {
+      errors.push(`Queue Login "${nodeLabel}": input timeout is required when not using flow default.`);
+      continue;
+    }
+
+    if (timeoutMs < QUEUE_LOGIN_TIMEOUT_MIN_MS || timeoutMs > QUEUE_LOGIN_TIMEOUT_MAX_MS) {
+      errors.push(`Queue Login "${nodeLabel}": input timeout must be ${QUEUE_LOGIN_TIMEOUT_MIN_MS}-${QUEUE_LOGIN_TIMEOUT_MAX_MS} ms.`);
+    }
+  }
+
+  return { errors, warningCount };
+}
+
+export function getFlowDefaultTimeoutMs(nodes: Array<Node<FlowNodeData>>): number | null {
+  const startNode = nodes.find((node) => node.data.type === 'start') || null;
+  if (!startNode) return null;
+  const raw = startNode.data.config.flow_default_timeout_ms;
+  const numeric = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isInteger(numeric)) return null;
+  if (numeric < QUEUE_LOGIN_TIMEOUT_MIN_MS || numeric > QUEUE_LOGIN_TIMEOUT_MAX_MS) return null;
+  return numeric;
+}
+
+export function validateFlowTimeoutConfig(
+  nodes: Array<Node<FlowNodeData>>,
+  options?: { isSubflow?: boolean },
+): { errors: string[]; warningCount: number } {
+  const errors: string[] = [];
+  const flowDefaultTimeout = getFlowDefaultTimeoutMs(nodes);
+  const startNode = nodes.find((node) => node.data.type === 'start') || null;
+
+  // Validate flow default timeout on start node, unless this is a subflow
+  if (!options?.isSubflow && startNode) {
+    const rawFlowDefault = startNode.data.config.flow_default_timeout_ms;
+    if (rawFlowDefault !== undefined && rawFlowDefault !== null && rawFlowDefault !== '') {
+      const parsedFlowDefault = typeof rawFlowDefault === 'number' ? rawFlowDefault : Number(rawFlowDefault);
+      if (!Number.isInteger(parsedFlowDefault) || parsedFlowDefault < QUEUE_LOGIN_TIMEOUT_MIN_MS || parsedFlowDefault > QUEUE_LOGIN_TIMEOUT_MAX_MS) {
+        errors.push(`Start node: flow default timeout must be ${QUEUE_LOGIN_TIMEOUT_MIN_MS}-${QUEUE_LOGIN_TIMEOUT_MAX_MS} ms.`);
+      }
+    }
+  }
+
+  let warningCount = 0;
+
+  for (const node of nodes) {
+    if (node.data.type !== 'queue_login') continue;
+    const config = node.data.config || {};
+    const useFlowDefaultTimeout = config.use_flow_default_timeout !== false;
+    const rawTimeout = config.input_timeout_ms;
+    const timeoutMs = typeof rawTimeout === 'number' ? rawTimeout : Number(rawTimeout);
+    const nodeLabel = node.data.label || node.id;
+
+    if (useFlowDefaultTimeout) {
+      if (flowDefaultTimeout === null) {
+        warningCount += 1;
+      }
+      continue;
+    }
+
+    if (!Number.isInteger(timeoutMs)) {
+      errors.push(`Queue Login "${nodeLabel}": input timeout is required when not using flow default.`);
+      continue;
+    }
+
+    if (timeoutMs < QUEUE_LOGIN_TIMEOUT_MIN_MS || timeoutMs > QUEUE_LOGIN_TIMEOUT_MAX_MS) {
+      errors.push(`Queue Login "${nodeLabel}": input timeout must be ${QUEUE_LOGIN_TIMEOUT_MIN_MS}-${QUEUE_LOGIN_TIMEOUT_MAX_MS} ms.`);
+    }
+  }
+
+  return { errors, warningCount };
+}
+
 
 export function serializeNodeForSave(node: Node<FlowNodeData>) {
   const isGroup = node.data.type === 'group';
@@ -108,7 +251,16 @@ export function serializeNodeForSave(node: Node<FlowNodeData>) {
     : node.data.type === 'menu'
       ? { ...node.data.config, branches: sanitizeMenuBranches(node.data.config.branches), submenu_branch_targets: sanitizeMenuSubmenuTargets(node.data.config.submenu_branch_targets) }
       : node.data.config;
-  return { nodeKey: node.id, type: node.data.type, label: node.data.label, positionX: node.position.x, positionY: node.position.y, config, groupId: node.parentId ?? null, subflowId: node.data.subflowId ?? null };
+  return {
+    nodeKey: node.id,
+    type: node.data.type,
+    label: node.data.label,
+    positionX: node.position.x,
+    positionY: node.position.y,
+    config: sortObjectKeysDeep(config),
+    groupId: node.parentId ?? null,
+    subflowId: node.data.subflowId ?? null,
+  };
 }
 
 export function createSavePayload(
@@ -165,7 +317,7 @@ export async function validateFlowBeforeSave(
     if (missing.length > 0) return `Menu "${node.data.label || node.id}" is missing route(s) for: ${missing.join(', ')}.`;
   }
   for (const node of nodes) {
-    if (node.data.type === 'hangup' || node.data.type === 'group' || node.data.type === 'menu' || node.data.type === 'play_audio' || node.data.type === 'transfer' || node.data.type === 'hunt') continue;
+    if (node.data.type === 'hangup' || node.data.type === 'group' || node.data.type === 'menu' || node.data.type === 'play_audio' || node.data.type === 'transfer' || node.data.type === 'hunt' || node.data.type === 'queue_login' || node.data.type === 'queue' || node.data.type === 'webhook') continue;
     const outgoingCount = (sourceOutgoing.get(node.id) || []).length;
     if (outgoingCount === 0) return `Node "${node.data.label || node.id}" (${node.data.type}) has no outgoing path.`;
   }
@@ -346,6 +498,9 @@ export function minimapNodeColor(node: Node<FlowNodeData>): string {
     case 'hunt': return 'var(--color-warning)';
     case 'hangup': return 'var(--color-error)';
     case 'group': return 'var(--accent)';
+    case 'webhook': return 'var(--color-info)';
+    case 'queue_login': return 'var(--color-warning)';
+    case 'queue': return 'var(--color-warning)';
     default: return 'var(--text-muted)';
   }
 }
@@ -369,6 +524,22 @@ export function renderPaletteIcon(type: BuilderNodeType) {
           <circle cx="5" cy="8" r="2.5" />
           <circle cx="11" cy="8" r="2.5" />
           <path d="M7.5 10.5h1" />
+        </svg>
+      </span>
+    );
+  }
+
+  if (type === 'queue') {
+    return (
+      <span style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }} aria-hidden="true">
+        <svg viewBox="0 0 16 16" focusable="false" style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}>
+          <circle cx="4" cy="4" r="1.5" />
+          <circle cx="8" cy="6" r="1.5" />
+          <circle cx="12" cy="4" r="1.5" />
+          <line x1="4" y1="5.5" x2="4" y2="10" />
+          <line x1="8" y1="7.5" x2="8" y2="10" />
+          <line x1="12" y1="5.5" x2="12" y2="10" />
+          <line x1="4" y1="10" x2="12" y2="10" />
         </svg>
       </span>
     );

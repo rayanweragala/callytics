@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import styles from './SearchableSelect.module.css';
 
 export interface SearchableSelectOption {
@@ -18,7 +18,9 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'sele
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [dropdownMinWidth, setDropdownMinWidth] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const filteredOptions = useMemo(() => {
@@ -44,6 +46,20 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'sele
   useEffect(() => {
     setHighlightedIndex(0);
   }, [query, open]);
+
+  useLayoutEffect(() => {
+    if (!open || disabled) return;
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const updateMinWidth = () => setDropdownMinWidth(trigger.offsetWidth);
+    updateMinWidth();
+
+    const observer = new ResizeObserver(updateMinWidth);
+    observer.observe(trigger);
+
+    return () => observer.disconnect();
+  }, [open, disabled]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!open) {
@@ -88,12 +104,13 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'sele
         onClick={() => {
           if (!disabled) setOpen((current) => !current);
         }}
+        ref={triggerRef}
         type="button"
       >
         <span className={styles.triggerText}>{selectedOption?.label || placeholder}</span>
       </button>
       {open && !disabled ? (
-        <div className={styles.dropdown}>
+        <div className={styles.dropdown} style={dropdownMinWidth ? { minWidth: `${dropdownMinWidth}px` } : undefined}>
           <input
             className={styles.searchInput}
             onChange={(event) => setQuery(event.target.value)}

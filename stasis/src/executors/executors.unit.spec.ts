@@ -14,17 +14,23 @@ jest.mock('../huntManager', () => ({
   registerHuntWaiter: jest.fn(),
 }));
 
+jest.mock('../db', () => ({
+  query: jest.fn(),
+}));
+
 import { executeNode } from '../nodes';
 import { executeHunt } from '../nodes/hunt.executor';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { registerTransferWaiter } from '../transferManager';
 import { registerHuntWaiter } from '../huntManager';
+import { query } from '../db';
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 
 const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<typeof resolveAudioMediaPath>;
 const registerTransferWaiterMock = registerTransferWaiter as jest.MockedFunction<typeof registerTransferWaiter>;
 const registerHuntWaiterMock = registerHuntWaiter as jest.MockedFunction<typeof registerHuntWaiter>;
+const queryMock = query as jest.MockedFunction<typeof query>;
 
 function createSession(): CallSession {
   return {
@@ -404,6 +410,7 @@ describe('transfer executor', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    queryMock.mockResolvedValue([] as never);
   });
 
   afterEach(() => {
@@ -416,7 +423,7 @@ describe('transfer executor', () => {
     const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
     registerTransferWaiterMock.mockReturnValue(Promise.resolve(outboundChannel));
     const channel = { id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) };
-    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { destination: 'PJSIP/2001', timeout_ms: 7000 } };
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 7000 } };
 
     const promise = executeNode(channel as any, node, createSession(), ariClient as any);
     await flushPromises();
@@ -434,11 +441,77 @@ describe('transfer executor', () => {
     await expect(promise).resolves.toBe('done');
   });
 
+  it('resolves pstn target through trunk and dials PJSIP/<number>@<trunk.username>', async () => {
+    const ariClient = createAriClient();
+    const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
+    registerTransferWaiterMock.mockReturnValue(Promise.resolve(outboundChannel));
+    queryMock.mockResolvedValue([{ id: 7, username: 'provider-trunk' }] as never);
+
+    const node: FlowNode = {
+      nodeKey: 'transfer-2',
+      type: 'transfer',
+      label: 'Transfer PSTN',
+      config: { target_type: 'pstn', target_value: '+18005551234', trunk_id: 7, timeout_ms: 7000 },
+    };
+
+    const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
+    await flushPromises(20);
+
+    expect(queryMock).toHaveBeenCalledWith('SELECT id, username FROM sip_trunks WHERE id = $1 LIMIT 1', [7]);
+    expect(ariClient.channels.originate).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'PJSIP/+18005551234@provider-trunk' }),
+    );
+
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    ariClient.emit('StasisEnd', { channel: { id: 'outbound-1' } });
+    await flushPromises();
+    await expect(promise).resolves.toBe('done');
+  });
+
+  it('handles pstn target with missing trunk cleanly by returning hangup', async () => {
+    const ariClient = createAriClient();
+    queryMock.mockResolvedValue([] as never);
+
+    const node: FlowNode = {
+      nodeKey: 'transfer-3',
+      type: 'transfer',
+      label: 'Transfer PSTN Missing Trunk',
+      config: { target_type: 'pstn', target_value: '+18005550000', trunk_id: 999, timeout_ms: 7000 },
+    };
+
+    await expect(executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any)).resolves.toBe('hangup');
+    expect(ariClient.channels.originate).not.toHaveBeenCalled();
+  });
+
+  it('dials sip_uri target as PJSIP/<target_value>', async () => {
+    const ariClient = createAriClient();
+    const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
+    registerTransferWaiterMock.mockReturnValue(Promise.resolve(outboundChannel));
+
+    const node: FlowNode = {
+      nodeKey: 'transfer-4',
+      type: 'transfer',
+      label: 'Transfer SIP URI',
+      config: { target_type: 'sip_uri', target_value: 'sip:john@external.com', timeout_ms: 7000 },
+    };
+
+    const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
+    await flushPromises();
+
+    expect(ariClient.channels.originate).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'PJSIP/sip:john@external.com' }),
+    );
+
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    await flushPromises();
+    await expect(promise).resolves.toBe('done');
+  });
+
   it('returns done when the originated channel enters the bridge flow and the channel ends', async () => {
     const ariClient = createAriClient();
     const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
     registerTransferWaiterMock.mockReturnValue(Promise.resolve(outboundChannel));
-    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { destination: 'PJSIP/2001', timeout_ms: 7000 } };
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 7000 } };
 
     const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
     await flushPromises();
@@ -454,7 +527,7 @@ describe('transfer executor', () => {
   it('returns route:on-no-answer when timeout elapses with no answer', async () => {
     const ariClient = createAriClient();
     registerTransferWaiterMock.mockReturnValue(new Promise(() => {}));
-    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { destination: 'PJSIP/2001', timeout_ms: 5000, on_no_answer: 'fallback' } };
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 5000, on_no_answer: 'fallback' } };
 
     const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
     await jest.advanceTimersByTimeAsync(5000);
@@ -465,7 +538,7 @@ describe('transfer executor', () => {
   it('returns route:on-no-answer when originated channel waiter rejects before bridgeing', async () => {
     const ariClient = createAriClient();
     registerTransferWaiterMock.mockReturnValue(Promise.reject(new Error('hangup')));
-    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { destination: 'PJSIP/2001', timeout_ms: 5000, on_no_answer: 'fallback' } };
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 5000, on_no_answer: 'fallback' } };
 
     await expect(executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any)).resolves.toBe('route:fallback');
   });
@@ -474,7 +547,7 @@ describe('transfer executor', () => {
     const ariClient = createAriClient();
     const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
     registerTransferWaiterMock.mockReturnValue(Promise.resolve(outboundChannel));
-    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { destination: 'PJSIP/2001', timeout_ms: 7000 } };
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 7000 } };
 
     const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
     await flushPromises();
@@ -502,7 +575,7 @@ describe('hunt executor', () => {
     const outboundChannel = { id: 'hunt-1', hangup: jest.fn().mockResolvedValue(undefined) };
     registerHuntWaiterMock.mockReturnValue(Promise.resolve(outboundChannel));
     resolveAudioMediaPathMock.mockResolvedValue(null);
-    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2001', '2002'], attempt_timeout_ms: 5000, total_timeout_ms: 10000 } };
+    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: [{ target_type: 'extension', target_value: '2001' }, { target_type: 'extension', target_value: '2002' }], attempt_timeout_ms: 5000, total_timeout_ms: 10000 } };
 
     const promise = executeHunt({ id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) }, node, createSession(), ariClient as any);
     await flushPromises();
@@ -532,7 +605,7 @@ describe('hunt executor', () => {
         resolveSecondWaiter?.(second);
       });
     resolveAudioMediaPathMock.mockResolvedValue(null);
-    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2001', '2002'], attempt_timeout_ms: 5000, total_timeout_ms: 15000 } };
+    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: [{ target_type: 'extension', target_value: '2001' }, { target_type: 'extension', target_value: '2002' }], attempt_timeout_ms: 5000, total_timeout_ms: 15000 } };
 
     const promise = executeHunt({ id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) }, node, createSession(), ariClient as any);
     await flushPromises();
@@ -554,7 +627,7 @@ describe('hunt executor', () => {
     const answered = { id: 'hunt-2', hangup: jest.fn().mockResolvedValue(undefined) };
     registerHuntWaiterMock.mockReturnValue(Promise.resolve(answered));
     resolveAudioMediaPathMock.mockResolvedValue(null);
-    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2002'], attempt_timeout_ms: 5000, total_timeout_ms: 15000 } };
+    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: [{ target_type: 'extension', target_value: '2002' }], attempt_timeout_ms: 5000, total_timeout_ms: 15000 } };
 
     const promise = executeHunt({ id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) }, node, createSession(), ariClient as any);
     await flushPromises();
@@ -576,7 +649,7 @@ describe('hunt executor', () => {
       .mockImplementationOnce(async () => undefined)
       .mockImplementationOnce(async () => undefined);
     resolveAudioMediaPathMock.mockResolvedValue(null);
-    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2001', '2002'], attempt_timeout_ms: 3000, total_timeout_ms: 6000, on_no_answer: 'fallback' } };
+    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: [{ target_type: 'extension', target_value: '2001' }, { target_type: 'extension', target_value: '2002' }], attempt_timeout_ms: 3000, total_timeout_ms: 6000, on_no_answer: 'fallback' } };
 
     const promise = executeHunt({ id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) }, node, createSession(), ariClient as any);
     await flushPromises();
@@ -601,7 +674,7 @@ describe('hunt executor', () => {
       }
       return null;
     });
-    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: ['2002'], attempt_timeout_ms: 5000, total_timeout_ms: 15000, hold_audio_file_path: 'hold' } };
+    const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: [{ target_type: 'extension', target_value: '2002' }], attempt_timeout_ms: 5000, total_timeout_ms: 15000, hold_audio_file_path: 'hold' } };
 
     const promise = executeHunt({ id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) }, node, createSession(), ariClient as any);
     await flushPromises();
@@ -624,7 +697,7 @@ describe('hunt executor', () => {
       nodeKey: 'hunt-1',
       type: 'hunt',
       label: 'Hunt',
-      config: { destinations: ['2001'], attempt_timeout_ms: 3000, total_timeout_ms: 3500, on_no_answer: 'fallback' },
+      config: { destinations: [{ target_type: 'extension', target_value: '2001' }], attempt_timeout_ms: 3000, total_timeout_ms: 3500, on_no_answer: 'fallback' },
     };
 
     const promise = executeHunt(

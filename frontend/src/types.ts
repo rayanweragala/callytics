@@ -119,7 +119,30 @@ export type BuilderNodeType =
   | 'hangup'
   | 'transfer'
   | 'hunt'
-  | 'group';
+  | 'group'
+  | 'webhook'
+  | 'queue_login'
+  | 'queue';
+
+export type TransferTargetType = 'extension' | 'pstn' | 'sip_uri';
+
+export interface TransferNodeConfig {
+  target_type: TransferTargetType;
+  target_value: string;
+  trunk_id?: number;
+  timeout_ms?: number;
+}
+
+export interface HuntDestination {
+  target_type: 'extension' | 'pstn';
+  target_value: string;
+  trunk_id?: number;
+}
+
+export interface HuntNodeConfig {
+  destinations: HuntDestination[];
+  ring_timeout_ms?: number;
+}
 
 export interface FlowNodeData {
   label: string;
@@ -205,6 +228,8 @@ export interface FlowVersionSummary {
 }
 
 export interface FlowSnapshot {
+  flowId?: number;
+  name?: string;
   nodes: Array<{
     nodeKey: string;
     type: BuilderNodeType;
@@ -221,6 +246,15 @@ export interface FlowSnapshot {
     branchKey: string;
     condition: string | null;
   }>;
+  subflows?: FlowSnapshotSubflow[];
+}
+
+export interface FlowSnapshotSubflow {
+  flowId: number;
+  name: string;
+  nodes: FlowSnapshot['nodes'];
+  edges: FlowSnapshot['edges'];
+  subflows?: FlowSnapshotSubflow[];
 }
 
 export interface FlowVersionDetail extends FlowVersionSummary {
@@ -250,11 +284,49 @@ export interface AudioVoiceItem {
   label: string;
 }
 
+export interface ContactNumber {
+  id: number;
+  label: string;
+  number: string;
+  trunkId?: number;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface ExtensionItem {
   id: number;
   username: string;
   password: string;
   displayName: string | null;
+  transportType: 'sip' | 'webrtc';
+  createdAt: string;
+}
+
+export interface OperatorItem {
+  id: number;
+  name: string;
+  status: 'offline' | 'available' | 'busy';
+  extension?: ExtensionItem;
+  contactNumber?: ContactNumber;
+  hasPIN: boolean;
+  createdAt: string;
+}
+
+export interface QueueOperatorSummary {
+  id: number;
+  name: string;
+}
+
+export interface QueueItem {
+  id: number;
+  name: string;
+  slug: string;
+  waitAudioFileId: number | null;
+  maxWaitSeconds: number;
+  pinRetryAttempts: number;
+  operatorCount: number;
+  operatorIds: number[];
+  operators: QueueOperatorSummary[];
   createdAt: string;
 }
 

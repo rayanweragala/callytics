@@ -10,7 +10,7 @@ import { formatDateTime } from '../lib/time';
 import type { RecordingItem } from '../types';
 import styles from './RecordingsPage.module.css';
 
-const backendBase = 'http://localhost:3001';
+const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null || Number.isNaN(seconds)) return '00:00';

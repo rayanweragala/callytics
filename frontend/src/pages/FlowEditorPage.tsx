@@ -1,24 +1,31 @@
 import { getApiError } from '../lib/apiError';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
+import type { BlockerFunction } from 'react-router-dom';
 import ReactFlow, {
   Background,
   Connection,
   Controls,
   Edge,
+  EdgeChange,
   MiniMap,
   Node,
+  NodeChange,
   ReactFlowInstance,
 } from 'reactflow';
 import {
   createFlow,
   createFlowVersion,
+  getContactNumbers,
   getFlow,
   getFlowBreadcrumb,
+  listExtensions,
   listFlowVersions,
+  listQueues,
+  listTrunks,
   updateFlow,
 } from '../lib/api';
-import type { BuilderNodeType, FlowDetail, FlowNodeData, FlowVersionSummary } from '../types';
+import type { ContactNumber, ExtensionItem, FlowDetail, FlowNodeData, FlowSnapshot, FlowSnapshotSubflow, FlowVersionSummary, QueueItem, SipTrunkItem } from '../types';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { FlowBreadcrumb } from '../components/FlowBreadcrumb';
 import { FlowTreePanel } from '../components/FlowTreePanel';
@@ -29,6 +36,7 @@ import { HuntNode } from '../components/nodes/HuntNode';
 import { MenuGroupNode } from '../components/nodes/MenuGroupNode';
 import { NodeConfigPanel } from '../components/builder/NodeConfigPanel';
 import { FlowVersionPanel } from '../components/builder/FlowVersionPanel';
+import { FlowSimulator } from '../components/FlowSimulator/FlowSimulator';
 import { useFlowData } from '../hooks/useFlowData';
 import {
   attachEdgeMetadata,
@@ -45,11 +53,14 @@ import {
   buildSubflowJumpVisuals,
   createDraftFlow,
   createSavePayload,
+  getFlowDefaultTimeoutMs,
   mapFlowToEdges,
   mapFlowToNodes,
   mapSnapshotToEdges,
   mapSnapshotToNodes,
+  QUEUE_LOGIN_TIMEOUT_DEFAULT_MS,
   validateFlowBeforeSave,
+  validateFlowTimeoutConfig,
   decorateDiffNodes,
   decorateDiffEdges,
   makeVersionEdgeKey,
@@ -73,6 +84,7 @@ const edgeTypes = {
 };
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
+const isFlowEditorPath = (pathname: string) => /^\/flows\/[^/]+$/.test(pathname);
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 type BuilderEdgeData = {
@@ -83,15 +95,27 @@ type BuilderEdgeData = {
   onDelete?: (edgeId: string) => void;
 };
 type PendingLeaveAction =
-  | { kind: 'navigate'; to: string }
-  | { kind: 'external'; href: string }
-  | { kind: 'history-back' };
+  | { kind: 'navigate'; to: string };
+
+interface SubflowDiffEntry {
+  flowId: number;
+  name: string;
+  depth: number;
+  status: 'added' | 'removed' | 'present';
+  nodesAdded: string[];
+  nodesRemoved: string[];
+  nodesChanged: string[];
+  edgesAdded: string[];
+  edgesRemoved: string[];
+  edgesChanged: string[];
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FlowEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isDraftRoute = id === 'new';
   const initialRouteFlowId = Number(id || 0);
 
@@ -100,15 +124,41 @@ export function FlowEditorPage() {
   const saveFeedbackTimer = useRef<number | null>(null);
   const autoSaveTimer = useRef<number | null>(null);
   const saveInFlightRef = useRef(false);
+  const nodesRef = useRef<Array<Node<FlowNodeData>>>([]);
+  const edgesRef = useRef<Array<Edge<BuilderEdgeData>>>([]);
+  const flowRef = useRef<FlowDetail | null>(null);
+  const currentFlowIdRef = useRef<number>(0);
   const fitDone = useRef(false);
   const pendingLeaveActionRef = useRef<PendingLeaveAction | null>(null);
-  const allowNextPopStateRef = useRef(false);
+  const allowNavigationRef = useRef(false);
+  const userEditedRef = useRef(false);
 
   // ── Hooks ────────────────────────────────────────────────────────────────────
   const flowData = useFlowData(isDraftRoute);
   const canvas = useFlowCanvas();
   const { flow, setFlow, audioItems, breadcrumb, setBreadcrumb, flowTree, setFlowTree, treeRefreshKey, incrementTreeRefreshKey, versions, setVersions, versionsLoading, loadVersions, loadFlowTree, restoreVersion, loadBreadcrumb, loadVersionDetail } = flowData;
   const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, selectedNode, selectedEdge, selectedEdgeSourceNode, selectedGroupNode, canGroupSelection, canUngroupSelection, canRemoveFromGroupSelection, selectedChildNode, groupableSelection, decorateEditorNodes, deleteNode, deleteEdge, onConnect, onEdgeClick, onReconnect, onReconnectStart, handleNodeDragStop, handleSelectionChange, handleDragStart, handleDrop, handleGroupSelection, handleUngroupSelection, handleRemoveFromGroup, handlePaneClick, triggerAutoLayout, setHandleOpenSubmenuCallback, selectedNodeId, setSelectedNodeId, selectedNodeIds, setSelectedNodeIds, selectedEdgeId, setSelectedEdgeId, editingGroupId, setEditingGroupId } = canvas;
+
+  // ── Tracked Canvas Methods ───────────────────────────────────────────────────
+  const handleGroupSelectionWithTracking = useCallback(() => {
+    userEditedRef.current = true;
+    handleGroupSelection();
+  }, [handleGroupSelection]);
+
+  const handleUngroupSelectionWithTracking = useCallback(() => {
+    userEditedRef.current = true;
+    handleUngroupSelection();
+  }, [handleUngroupSelection]);
+
+  const handleRemoveFromGroupWithTracking = useCallback(() => {
+    userEditedRef.current = true;
+    handleRemoveFromGroup();
+  }, [handleRemoveFromGroup]);
+
+  const triggerAutoLayoutWithTracking = useCallback((instance: ReactFlowInstance | null) => {
+    userEditedRef.current = true;
+    triggerAutoLayout(instance);
+  }, [triggerAutoLayout]);
 
   // ── Editor-local state ───────────────────────────────────────────────────────
   const [currentFlowId, setCurrentFlowId] = useState<number>(initialRouteFlowId > 0 ? initialRouteFlowId : 0);
@@ -121,6 +171,7 @@ export function FlowEditorPage() {
   const [saveAttempted, setSaveAttempted] = useState(false);
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [dirtyVisitedFlowIds, setDirtyVisitedFlowIds] = useState<number[]>([]);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [versionMessage, setVersionMessage] = useState('');
   const [versionSaveState, setVersionSaveState] = useState<'idle' | 'saving'>('idle');
@@ -128,8 +179,22 @@ export function FlowEditorPage() {
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [pendingRestoreVersion, setPendingRestoreVersion] = useState<FlowVersionSummary | null>(null);
   const [compareVersion, setCompareVersion] = useState<import('../types').FlowVersionDetail | null>(null);
+  const [currentCompareSnapshot, setCurrentCompareSnapshot] = useState<FlowSnapshot | null>(null);
+  const [subflowDiffs, setSubflowDiffs] = useState<SubflowDiffEntry[]>([]);
   const [submenuNodeOptionsLoading, setSubmenuNodeOptionsLoading] = useState(false);
   const [submenuStartNodeKey, setSubmenuStartNodeKey] = useState<string | null>(null);
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [extensions, setExtensions] = useState<ExtensionItem[]>([]);
+  const [contactNumbers, setContactNumbers] = useState<ContactNumber[]>([]);
+  const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
+  const [timeoutWarningConfirmVisible, setTimeoutWarningConfirmVisible] = useState(false);
+  const [timeoutWarningMessage, setTimeoutWarningMessage] = useState<string | null>(null);
+
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => { flowRef.current = flow; }, [flow]);
+  useEffect(() => { currentFlowIdRef.current = currentFlowId; }, [currentFlowId]);
 
   // ── Toast helpers ────────────────────────────────────────────────────────────
   const editorNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,6 +205,21 @@ export function FlowEditorPage() {
   };
   useEffect(() => () => { if (editorNoticeTimerRef.current) clearTimeout(editorNoticeTimerRef.current); }, []);
   useEffect(() => () => { if (saveFeedbackTimer.current) window.clearTimeout(saveFeedbackTimer.current); if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); }, []);
+
+  // Fetch routing resources on mount for NodeConfigPanel
+  useEffect(() => {
+    let active = true;
+    Promise.all([listQueues(), listExtensions(200, 0), getContactNumbers(), listTrunks(200, 0)])
+      .then(([queuesRes, extensionsRes, contactsRes, trunksRes]) => {
+        if (!active) return;
+        setQueueItems(queuesRes.data);
+        setExtensions(extensionsRes.data);
+        setContactNumbers(contactsRes.data);
+        setTrunks(trunksRes.data);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   // ── Route → flow id sync ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -169,7 +249,7 @@ export function FlowEditorPage() {
       setSubmenuStartNodeKey(defaultStart);
     }).catch(() => { if (active) setSubmenuStartNodeKey(null); }).finally(() => { if (active) setSubmenuNodeOptionsLoading(false); });
     return () => { active = false; };
-  }, [nodes, selectedNodeId]);
+  }, [selectedNodeId]);
 
   // ── Auto-assign submenu branch targets ──────────────────────────────────────
   useEffect(() => {
@@ -189,7 +269,15 @@ export function FlowEditorPage() {
       let changed = false;
       for (const branch of Object.keys(nextTargets)) { if (localEdgeBranches.has(branch)) { delete nextTargets[branch]; changed = true; } }
       if (submenuStartNodeKey) {
-        for (const branch of configuredBranches) { if (localEdgeBranches.has(branch) || nextTargets[branch]) continue; nextTargets[branch] = submenuStartNodeKey; changed = true; }
+        for (const branch of configuredBranches) {
+          if (localEdgeBranches.has(branch)) continue;
+          // Only update if the branch already had a submenu target assigned
+          // Never auto-assign a branch that has no existing target
+          if (!currentTargets[branch]) continue;
+          if (nextTargets[branch] === submenuStartNodeKey) continue;
+          nextTargets[branch] = submenuStartNodeKey;
+          changed = true;
+        }
       }
       if (!changed) return current;
       return decorateEditorNodes(current.map((node) => node.id === currentNode.id ? { ...node, data: { ...node.data, config: { ...node.data.config, submenu_branch_targets: nextTargets } } } : node));
@@ -207,7 +295,10 @@ export function FlowEditorPage() {
 
   // ── handleOpenSubmenu — needs API + canvas state (stays in page) ─────────────
   // (getFlow, currentFlowId) and canvas state (setBreadcrumb, setCurrentFlowId).
-  const handleOpenSubmenu = useCallback(async (nodeId: string) => {
+  // isSubflow is derived from breadcrumb state.
+  const isSubflow = breadcrumb.length > 1;
+
+  const performOpenSubmenu = useCallback(async (nodeId: string) => {
     if (isDraft || currentFlowId <= 0) { showEditorNotice('Save this flow before opening a submenu.'); return; }
     try {
       const response = await getFlow(String(currentFlowId));
@@ -223,12 +314,7 @@ export function FlowEditorPage() {
       });
       setCurrentFlowId(subflowId);
     } catch { showEditorNotice('Failed to open submenu.'); }
-  }, [currentFlowId, flow?.name, isDraftRoute, setBreadcrumb]);
-
-  // Register handleOpenSubmenu with the canvas hook so decorateEditorNodes can call it
-  useEffect(() => {
-    setHandleOpenSubmenuCallback(() => handleOpenSubmenu);
-  }, [handleOpenSubmenu, setHandleOpenSubmenuCallback]);
+  }, [currentFlowId, flow?.name, isDraft, setBreadcrumb]);
 
   // ── Main load effect ─────────────────────────────────────────────────────────
   // (DOM ref), calls decorateEditorNodes and attachEdgeMetadata (canvas helpers),
@@ -244,6 +330,7 @@ export function FlowEditorPage() {
         const draftNodes = decorateEditorNodes([{ id: 'start', type: 'flowNode', position: { x: 120, y: 140 }, data: { label: 'Start', type: 'start', config: {}, subflowId: null }, draggable: false }], null);
         if (!active) return;
         setFlow(draftFlow); setBreadcrumb([]); setNodes(draftNodes); setEdges([]); setSavedSnapshot(null);
+        userEditedRef.current = false;
         setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null); setIsInitialized(true); return;
       }
       if (currentFlowId <= 0) return;
@@ -254,13 +341,52 @@ export function FlowEditorPage() {
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
       const nextNodes = decorateEditorNodes(arrangedNodes, null);
-      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
+      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, handleDeleteEdgeWithUserTracking);
       setNodes(nextNodes); setEdges(nextEdges); setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+      userEditedRef.current = false;
       setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null); setIsInitialized(true);
     };
     void load();
     return () => { active = false; };
   }, [currentFlowId, isDraftRoute]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleNodesChangeWithUserTracking = useCallback((changes: NodeChange[]) => {
+    const hasUserEdit = changes.some((change) => (
+      change.type === 'add'
+      || change.type === 'remove'
+      || change.type === 'position'
+    ));
+    if (hasUserEdit) {
+      userEditedRef.current = true;
+    }
+    onNodesChange(changes);
+  }, [onNodesChange]);
+
+  const handleEdgesChangeWithUserTracking = useCallback((changes: EdgeChange[]) => {
+    const hasUserEdit = changes.some((change) => (
+      change.type === 'add'
+      || change.type === 'remove'
+    ));
+    if (hasUserEdit) {
+      userEditedRef.current = true;
+    }
+    onEdgesChange(changes);
+  }, [onEdgesChange]);
+
+  const handleConnectWithUserTracking = useCallback((connection: Connection) => {
+    userEditedRef.current = true;
+    onConnect(connection);
+  }, [onConnect]);
+
+  const handleReconnectWithUserTracking = useCallback((oldEdge: Edge, newConnection: Connection) => {
+    userEditedRef.current = true;
+    onReconnect(oldEdge, newConnection);
+  }, [onReconnect]);
+
+  const handleDeleteEdgeWithUserTracking = useCallback((edgeId: string) => {
+    userEditedRef.current = true;
+    deleteEdge(edgeId);
+  }, [deleteEdge]);
 
   // ── Computed state ──────────────────────────────────────────────────────────
   const hasUnsavedChanges = useMemo(() => {
@@ -269,8 +395,22 @@ export function FlowEditorPage() {
     if (savedSnapshot === null) return false;
     return buildEditorSnapshot(flow, nodes, edges) !== savedSnapshot;
   }, [edges, flow, isDraft, isInitialized, nodes, savedSnapshot]);
+  const hasSessionUnsavedChanges = hasUnsavedChanges || dirtyVisitedFlowIds.length > 0;
 
-  const isSubflow = breadcrumb.length > 1;
+  useEffect(() => {
+    if (!isInitialized || currentFlowId <= 0) {
+      return;
+    }
+    setDirtyVisitedFlowIds((current) => {
+      const exists = current.includes(currentFlowId);
+      if (hasUnsavedChanges && !exists) {
+        return [...current, currentFlowId];
+      }
+      return current;
+    });
+  }, [currentFlowId, hasUnsavedChanges, isInitialized]);
+
+  // isSubflow is declared earlier, before handleOpenSubmenu.
 
   // ── Versions panel load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -283,42 +423,51 @@ export function FlowEditorPage() {
   // ── Navigation guards ────────────────────────────────────────────────────────
   const performLeaveAction = useCallback((action: PendingLeaveAction) => {
     if (action.kind === 'navigate') { navigate(action.to); return; }
-    if (action.kind === 'external') { window.location.assign(action.href); return; }
-    allowNextPopStateRef.current = true; window.history.back();
   }, [navigate]);
 
   const requestLeave = useCallback((action: PendingLeaveAction) => {
-    if (!hasUnsavedChanges) { performLeaveAction(action); return; }
+    if (!hasSessionUnsavedChanges) { performLeaveAction(action); return; }
     pendingLeaveActionRef.current = action; setConfirmLeaveOpen(true);
-  }, [hasUnsavedChanges, performLeaveAction]);
+  }, [hasSessionUnsavedChanges, performLeaveAction]);
 
-  useEffect(() => { if (!hasUnsavedChanges && confirmLeaveOpen) { pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); } }, [confirmLeaveOpen, hasUnsavedChanges]);
+  const navigationBlocker = useBlocker(useCallback<BlockerFunction>(({ currentLocation, nextLocation }) => (
+    !allowNavigationRef.current
+    && hasSessionUnsavedChanges
+    && isFlowEditorPath(currentLocation.pathname)
+    && !isFlowEditorPath(nextLocation.pathname)
+  ), [hasSessionUnsavedChanges]));
 
   useEffect(() => {
-    if (!hasUnsavedChanges) return;
-    const message = 'You have unsaved changes. Leave anyway?';
-    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = message; return message; };
-    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (navigationBlocker.state === 'blocked') {
+      setConfirmLeaveOpen(true);
+    }
+  }, [navigationBlocker.state]);
+
+  useEffect(() => {
+    allowNavigationRef.current = false;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!hasSessionUnsavedChanges) return;
     const handleDocumentClick = (event: MouseEvent) => {
       const anchor = (event.target as HTMLElement | null)?.closest('a[href]') as HTMLAnchorElement | null;
       if (!anchor) return;
       const href = anchor.getAttribute('href');
-      if (!href || href.startsWith('#') || href === currentPath) return;
+      if (!href || href.startsWith('#')) return;
       if (anchor.target === '_blank' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const nextUrl = new URL(anchor.href, window.location.href);
-      event.preventDefault(); event.stopPropagation();
-      if (nextUrl.origin === window.location.origin) { requestLeave({ kind: 'navigate', to: `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}` }); return; }
-      requestLeave({ kind: 'external', href: nextUrl.toString() });
+      if (nextUrl.origin !== window.location.origin) return;
+      const to = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (to === currentPath) return;
+      if (isFlowEditorPath(nextUrl.pathname)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      requestLeave({ kind: 'navigate', to });
     };
-    const handlePopState = () => {
-      if (allowNextPopStateRef.current) { allowNextPopStateRef.current = false; return; }
-      window.history.pushState(null, '', currentPath); requestLeave({ kind: 'history-back' });
-    };
-    window.addEventListener('beforeunload', beforeUnload);
     document.addEventListener('click', handleDocumentClick, true);
-    window.addEventListener('popstate', handlePopState);
-    return () => { window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('click', handleDocumentClick, true); window.removeEventListener('popstate', handlePopState); };
-  }, [hasUnsavedChanges, requestLeave]);
+    return () => { document.removeEventListener('click', handleDocumentClick, true); };
+  }, [hasSessionUnsavedChanges, requestLeave]);
 
   // ── Keyboard handler (Delete / Backspace) ────────────────────────────────────
   useEffect(() => {
@@ -326,29 +475,57 @@ export function FlowEditorPage() {
       const target = event.target as HTMLElement | null;
       if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return;
       if (event.key !== 'Backspace' && event.key !== 'Delete') return;
-      if (selectedEdgeId) { event.preventDefault(); deleteEdge(selectedEdgeId); return; }
-      if (selectedNodeIds.length === 1 && selectedGroupNode) { event.preventDefault(); handleUngroupSelection(); return; }
+      if (selectedEdgeId) { event.preventDefault(); userEditedRef.current = true; deleteEdge(selectedEdgeId); return; }
+      if (selectedNodeIds.length === 1 && selectedGroupNode) { event.preventDefault(); handleUngroupSelectionWithTracking(); return; }
       if (selectedNodeIds.length === 0) return;
       event.preventDefault();
+      userEditedRef.current = true;
       for (const nodeId of selectedNodeIds) deleteNode(nodeId);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [deleteEdge, deleteNode, handleUngroupSelection, selectedEdgeId, selectedGroupNode, selectedNodeIds]);
+  }, [deleteEdge, deleteNode, handleUngroupSelectionWithTracking, selectedEdgeId, selectedGroupNode, selectedNodeIds]);
 
-  // ── saveFlow — stays in the page (touches both API state and canvas state) ───
-  // decorateEditorNodes/attachEdgeMetadata, writes to setNodes/setEdges/setFlow,
-  // and calls navigate. Moving to useFlowData would need ~10 canvas params.
-  const saveFlow = async (versionMessage?: string, options?: { auto?: boolean }): Promise<FlowDetail | null> => {
-    if (!flow) return null;
+  const saveFlow = async (versionMessage?: string, options?: { auto?: boolean; allowTimeoutWarningBypass?: boolean }): Promise<FlowDetail | null> => {
+    const currentFlow = flowRef.current;
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    const flowId = currentFlowIdRef.current;
+    if (!currentFlow) return null;
     if (saveInFlightRef.current) return null;
     if (!options?.auto) setSaveAttempted(true);
-    const validationError = await validateFlowBeforeSave(nodes, edges);
-    if (validationError) { if (!options?.auto) { setSaveState('failed'); showEditorNotice(validationError); } return null; }
+    if (!options?.auto) {
+      const timeoutValidation = validateFlowTimeoutConfig(currentNodes, { isSubflow: Boolean(currentFlow.parentFlowId) });
+      if (timeoutValidation.errors.length > 0) {
+        setSaveState('failed');
+        showEditorNotice(timeoutValidation.errors[0]);
+        return null;
+      }
+      if (timeoutValidation.warningCount > 0 && !options?.allowTimeoutWarningBypass) {
+        setTimeoutWarningConfirmVisible(true);
+        setTimeoutWarningMessage(
+          `${timeoutValidation.warningCount} node(s) will have no effective timeout because flow default is unset. Save anyway?`,
+        );
+        return null;
+      }
+      setTimeoutWarningConfirmVisible(false);
+      setTimeoutWarningMessage(null);
+    }
+    const validationError = await validateFlowBeforeSave(currentNodes, currentEdges);
+    if (validationError) {
+      console.error('[auto-save] failed:', {
+        flowId,
+        error: validationError,
+        nodes: currentNodes,
+        edges: currentEdges,
+      });
+      if (!options?.auto) { setSaveState('failed'); showEditorNotice(validationError); }
+      return null;
+    }
     saveInFlightRef.current = true; setSaveState('saving');
     try {
-      const payload = createSavePayload(flow, nodes, edges, versionMessage);
-      const response = isDraft ? await createFlow(payload) : await updateFlow(String(currentFlowId), payload);
+      const payload = createSavePayload(currentFlow, currentNodes, currentEdges, versionMessage);
+      const response = isDraft ? await createFlow(payload) : await updateFlow(String(flowId), payload);
       setFlow(response.data);
       if (isDraft) setRootFlowId(response.data.id);
       setCurrentFlowId(response.data.id); setIsDraft(false);
@@ -356,10 +533,20 @@ export function FlowEditorPage() {
       const mappedNodes = mapFlowToNodes(response.data);
       const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
       const nextNodes = decorateEditorNodes(arrangedNodes, null);
-      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, deleteEdge);
+      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, handleDeleteEdgeWithUserTracking);
       setNodes(nextNodes); setEdges(nextEdges); setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+      userEditedRef.current = false;
+      if (response.data.id > 0) {
+        setDirtyVisitedFlowIds((current) => current.filter((dirtyId) => dirtyId !== response.data.id));
+      }
       window.setTimeout(() => { void rfInstance?.fitView({ padding: 0.2, duration: 300 }); }, 150);
-      setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null); showEditorNotice(null);
+      if (!options?.auto) {
+        setSelectedNodeId(null);
+        setSelectedNodeIds([]);
+        setSelectedEdgeId(null);
+        setEditingGroupId(null);
+      }
+      showEditorNotice(null);
       if (response.data.id > 0) {
         const [refreshedVersions, breadcrumbResponse] = await Promise.all([listFlowVersions(response.data.id), getFlowBreadcrumb(response.data.id)]);
         setVersions(refreshedVersions.data); setBreadcrumb(breadcrumbResponse.data); incrementTreeRefreshKey();
@@ -368,9 +555,15 @@ export function FlowEditorPage() {
       if (!options?.auto) setSaveAttempted(false);
       if (isDraft) navigate(`/flows/${response.data.id}`, { replace: true });
       return response.data;
-    } catch (error) {
+    } catch (err: any) {
+      console.error('[auto-save] failed:', {
+        flowId,
+        error: err?.response?.data ?? err?.message ?? err,
+        nodes: currentNodes,
+        edges: currentEdges,
+      });
       if (!options?.auto) {
-        const apiMsg = getApiError(error, 'failed to save flow');
+        const apiMsg = getApiError(err, 'failed to save flow');
         const isNodeConfigError = apiMsg.startsWith('Node ');
         if (isNodeConfigError) {
           setSaveAttempted(true);
@@ -386,26 +579,70 @@ export function FlowEditorPage() {
     }
   };
 
-  // ── Auto-save ────────────────────────────────────────────────────────────────
+  // ── Main-flow auto-save ──────────────────────────────────────────────────────
+  // Subflow navigation uses silent save-on-navigate behavior.
+  // Main flow changes auto-save with debounce.
   useEffect(() => {
-    if (!hasUnsavedChanges || !isInitialized || !flow || !isSubflow) { if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); return; }
-    if (versionSaveState === 'saving' || saveState === 'saving' || confirmLeaveOpen || compareVersion) return;
     if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = window.setTimeout(() => { void saveFlow(undefined, { auto: true }); }, AUTO_SAVE_DEBOUNCE_MS);
+    if (!hasUnsavedChanges || !isInitialized || !flow || isSubflow || confirmLeaveOpen) {
+      return () => { if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); };
+    }
+    autoSaveTimer.current = window.setTimeout(() => {
+      void saveFlow(undefined, { auto: true });
+    }, AUTO_SAVE_DEBOUNCE_MS);
     return () => { if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); };
-  }, [compareVersion, confirmLeaveOpen, flow, hasUnsavedChanges, isInitialized, saveState, versionSaveState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasUnsavedChanges, isInitialized, flow, isSubflow, versionSaveState, saveState, confirmLeaveOpen, compareVersion]);
 
   // ── Config panel handlers ────────────────────────────────────────────────────
   const handleLabelChange = (value: string) => {
     if (!selectedNodeId) return;
-    setNodes((current) => decorateEditorNodes(current.map((node) => node.id === selectedNodeId ? { ...node, data: { ...node.data, label: value } } : node)));
+    userEditedRef.current = true;
+    setNodes((current) => decorateEditorNodes(current.map((node) => {
+      if (node.id !== selectedNodeId) return node;
+      if (node.data.label === value) return node;
+      return { ...node, data: { ...node.data, label: value } };
+    })));
   };
   const handleConfigValueChange = (field: string, value: unknown) => {
     if (!selectedNodeId) return;
-    setNodes((current) => decorateEditorNodes(current.map((node) => node.id !== selectedNodeId ? node : { ...node, data: { ...node.data, config: { ...node.data.config, [field]: value } } })));
+    userEditedRef.current = true;
+    setNodes((current) => decorateEditorNodes(current.map((node) => {
+      if (node.id !== selectedNodeId) return node;
+      if (node.data.config[field] === value) return node;
+      return { ...node, data: { ...node.data, config: { ...node.data.config, [field]: value } } };
+    })));
   };
-  const numericFields = new Set(['timeout_ms', 'attempt_timeout_ms', 'total_timeout_ms', 'max_timeout_attempts', 'max_invalid_attempts', 'max_duration_seconds']);
-  const handleConfigChange = (field: string, value: string) => handleConfigValueChange(field, numericFields.has(field) ? Number(value) || 0 : value);
+  const numericFields = new Set([
+    'timeout_ms',
+    'attempt_timeout_ms',
+    'total_timeout_ms',
+    'max_timeout_attempts',
+    'max_invalid_attempts',
+    'max_duration_seconds',
+    'input_timeout_ms',
+    'queue_login_default_input_timeout_ms',
+    'flow_default_timeout_ms',
+  ]);
+  const timeoutFields = new Set([
+    'timeout_ms',
+    'attempt_timeout_ms',
+    'total_timeout_ms',
+    'input_timeout_ms',
+    'queue_login_default_input_timeout_ms',
+    'flow_default_timeout_ms',
+  ]);
+  const handleConfigChange = (field: string, value: string) => {
+    if (!numericFields.has(field)) {
+      handleConfigValueChange(field, value);
+      return;
+    }
+    if (timeoutFields.has(field) && value.trim() === '') {
+      handleConfigValueChange(field, null);
+      return;
+    }
+    const numeric = Number(value);
+    handleConfigValueChange(field, Number.isFinite(numeric) ? numeric : 0);
+  };
   const handleMenuBranchToggle = (branch: string, checked: boolean) => {
     const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;
     const currentBranches = (Array.isArray(selectedConfig.branches) ? selectedConfig.branches as string[] : ['1', '2']).filter((b) => menuRoutableBranchSet.has(String(b)));
@@ -424,11 +661,18 @@ export function FlowEditorPage() {
   };
   const handleConfigReplace = (nextConfig: Record<string, unknown>) => {
     if (!selectedNodeId) return;
-    setNodes((current) => decorateEditorNodes(current.map((node) => node.id === selectedNodeId ? { ...node, data: { ...node.data, config: nextConfig } } : node)));
+    userEditedRef.current = true;
+    const nextSerialized = JSON.stringify(nextConfig);
+    setNodes((current) => decorateEditorNodes(current.map((node) => {
+      if (node.id !== selectedNodeId) return node;
+      if (JSON.stringify(node.data.config) === nextSerialized) return node;
+      return { ...node, data: { ...node.data, config: nextConfig } };
+    })));
   };
   const handleEdgeConditionChange = (value: string | null) => {
     if (!selectedEdgeId) return;
-    setEdges((current) => attachEdgeMetadata(current.map((edge) => edge.id !== selectedEdgeId ? edge : { ...edge, data: { branchKey: value || 'default', condition: value, sourceNodeType: String(edge.data?.sourceNodeType || nodes.find((node) => node.id === edge.source)?.data.type || 'hangup'), onDelete: () => deleteEdge(edge.id) } }), nodes, deleteEdge));
+    userEditedRef.current = true;
+    setEdges((current) => attachEdgeMetadata(current.map((edge) => edge.id !== selectedEdgeId ? edge : { ...edge, data: { branchKey: value || 'default', condition: value, sourceNodeType: String(edge.data?.sourceNodeType || nodes.find((node) => node.id === edge.source)?.data.type || 'hangup'), onDelete: () => handleDeleteEdgeWithUserTracking(edge.id) } }), nodes, handleDeleteEdgeWithUserTracking));
   };
 
   const selectedMenuLocalEdgeBranches = useMemo(
@@ -437,12 +681,34 @@ export function FlowEditorPage() {
   );
 
   // ── Version handlers ─────────────────────────────────────────────────────────
-  const ensureSavedBeforeNavigation = async (): Promise<boolean> => { if (!hasUnsavedChanges) return true; const saved = await saveFlow(); return Boolean(saved); };
+
+  const handleOpenSubmenu = useCallback(async (nodeId: string) => {
+    if (hasUnsavedChanges) {
+      void saveFlow(undefined, { auto: true }).catch((error) => {
+        console.error('[auto-save] failed silently:', error);
+      });
+    }
+    await performOpenSubmenu(nodeId);
+  }, [hasUnsavedChanges, performOpenSubmenu]);
+
+  // Register handleOpenSubmenu with the canvas hook so decorateEditorNodes can call it
+  useEffect(() => {
+    setHandleOpenSubmenuCallback(() => handleOpenSubmenu);
+  }, [handleOpenSubmenu, setHandleOpenSubmenuCallback]);
+
   const handleBreadcrumbNavigate = async (flowId: number) => {
-    const canNavigate = await ensureSavedBeforeNavigation();
-    if (!canNavigate) return;
-    setBreadcrumb((current) => { const index = current.findIndex((item) => item.flowId === flowId); return index >= 0 ? current.slice(0, index + 1) : current; });
-    setCurrentFlowId(flowId); showEditorNotice(null);
+    if (flowId === currentFlowId) return;
+    if (hasUnsavedChanges) {
+      void saveFlow(undefined, { auto: true }).catch((error) => {
+        console.error('[auto-save] failed silently:', error);
+      });
+    }
+    setBreadcrumb((current) => {
+      const index = current.findIndex((item) => item.flowId === flowId);
+      return index >= 0 ? current.slice(0, index + 1) : current;
+    });
+    setCurrentFlowId(flowId);
+    showEditorNotice(null);
   };
   const handleCreateVersion = async () => {
     if (!flow) return;
@@ -468,16 +734,173 @@ export function FlowEditorPage() {
     setFlow(restored); setBreadcrumb(breadcrumbResponse); incrementTreeRefreshKey(); setIsDraft(false);
     const panelWidth = canvasPanelRef.current?.clientWidth || 900;
     const nextNodes = decorateEditorNodes(applyAutoLayout(mapFlowToNodes(restored), panelWidth), null);
-    const nextEdges = attachEdgeMetadata(mapFlowToEdges(restored), nextNodes, deleteEdge);
+    const nextEdges = attachEdgeMetadata(mapFlowToEdges(restored), nextNodes, handleDeleteEdgeWithUserTracking);
     setNodes(nextNodes); setEdges(nextEdges); setSavedSnapshot(buildEditorSnapshot(restored, nextNodes, nextEdges));
+    userEditedRef.current = false;
+    if (restored.id > 0) {
+      setDirtyVisitedFlowIds((current) => current.filter((dirtyId) => dirtyId !== restored.id));
+    }
     setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null);
     setPendingRestoreVersion(null); setRestoreConfirmOpen(false);
   };
   const handleCompareVersion = async (version: FlowVersionSummary) => {
     if (!flow) return;
-    const detail = await flowData.loadVersionDetail(flow.id, version.id);
-    if (detail) setCompareVersion(detail);
+
+    const compareTarget = version.id === flow.versionId
+      ? versions.find((candidate) => candidate.id !== flow.versionId) ?? null
+      : version;
+
+    if (!compareTarget) {
+      showEditorNotice('No previous version available to compare.');
+      return;
+    }
+
+    const [detail, currentDetail] = await Promise.all([
+      flowData.loadVersionDetail(flow.id, compareTarget.id),
+      flowData.loadVersionDetail(flow.id, flow.versionId),
+    ]);
+    if (!detail || !currentDetail) return;
+
+    showEditorNotice(null);
+
+    setCompareVersion(detail);
+    setCurrentCompareSnapshot(currentDetail.snapshot);
+
+    const nodeKey = (node: { nodeKey: string }) => node.nodeKey;
+    const edgeKey = (edge: { sourceNodeKey: string; targetNodeKey: string; condition: string | null; branchKey: string }) =>
+      `${edge.sourceNodeKey}|${edge.targetNodeKey}|${edge.condition ?? ''}|${edge.branchKey ?? ''}`;
+
+    const normalizeNode = (node: {
+      nodeKey: string;
+      type: string;
+      label: string | null;
+      positionX: number;
+      positionY: number;
+      config: Record<string, unknown>;
+      groupId: string | null;
+      subflowId: number | null;
+    }) => JSON.stringify({
+      nodeKey: node.nodeKey,
+      type: node.type,
+      label: node.label ?? null,
+      positionX: Number(node.positionX ?? 0),
+      positionY: Number(node.positionY ?? 0),
+      config: node.config ?? {},
+      groupId: node.groupId ?? null,
+      subflowId: node.subflowId ?? null,
+    });
+
+    const normalizeEdge = (edge: {
+      sourceNodeKey: string;
+      targetNodeKey: string;
+      branchKey: string;
+      condition: string | null;
+    }) => JSON.stringify({
+      sourceNodeKey: edge.sourceNodeKey,
+      targetNodeKey: edge.targetNodeKey,
+      branchKey: edge.branchKey ?? 'default',
+      condition: edge.condition ?? null,
+    });
+
+    const compareSubflows = (
+      previousSubflows: FlowSnapshotSubflow[],
+      nextSubflows: FlowSnapshotSubflow[],
+      depth = 0,
+    ): SubflowDiffEntry[] => {
+      const entries: SubflowDiffEntry[] = [];
+      const prevById = new Map(previousSubflows.map((subflow) => [subflow.flowId, subflow]));
+      const nextById = new Map(nextSubflows.map((subflow) => [subflow.flowId, subflow]));
+      const allIds = Array.from(new Set([...prevById.keys(), ...nextById.keys()])).sort((a, b) => a - b);
+
+      for (const flowId of allIds) {
+        const prev = prevById.get(flowId);
+        const next = nextById.get(flowId);
+        const name = next?.name ?? prev?.name ?? `Subflow #${flowId}`;
+
+        if (!prev && next) {
+          entries.push({
+            flowId,
+            name,
+            depth,
+            status: 'added',
+            nodesAdded: next.nodes.map(nodeKey),
+            nodesRemoved: [],
+            nodesChanged: [],
+            edgesAdded: next.edges.map(edgeKey),
+            edgesRemoved: [],
+            edgesChanged: [],
+          });
+          entries.push(...compareSubflows([], next.subflows ?? [], depth + 1));
+          continue;
+        }
+
+        if (prev && !next) {
+          entries.push({
+            flowId,
+            name,
+            depth,
+            status: 'removed',
+            nodesAdded: [],
+            nodesRemoved: prev.nodes.map(nodeKey),
+            nodesChanged: [],
+            edgesAdded: [],
+            edgesRemoved: prev.edges.map(edgeKey),
+            edgesChanged: [],
+          });
+          entries.push(...compareSubflows(prev.subflows ?? [], [], depth + 1));
+          continue;
+        }
+
+        const prevNodesByKey = new Map((prev?.nodes ?? []).map((node) => [node.nodeKey, node]));
+        const nextNodesByKey = new Map((next?.nodes ?? []).map((node) => [node.nodeKey, node]));
+        const allNodeKeys = Array.from(new Set([...prevNodesByKey.keys(), ...nextNodesByKey.keys()])).sort();
+        const nodesAdded: string[] = [];
+        const nodesRemoved: string[] = [];
+        const nodesChanged: string[] = [];
+        for (const key of allNodeKeys) {
+          const prevNode = prevNodesByKey.get(key);
+          const nextNode = nextNodesByKey.get(key);
+          if (!prevNode && nextNode) nodesAdded.push(key);
+          else if (prevNode && !nextNode) nodesRemoved.push(key);
+          else if (prevNode && nextNode && normalizeNode(prevNode) !== normalizeNode(nextNode)) nodesChanged.push(key);
+        }
+
+        const prevEdgesByKey = new Map((prev?.edges ?? []).map((edge) => [edgeKey(edge), edge]));
+        const nextEdgesByKey = new Map((next?.edges ?? []).map((edge) => [edgeKey(edge), edge]));
+        const allEdgeKeys = Array.from(new Set([...prevEdgesByKey.keys(), ...nextEdgesByKey.keys()])).sort();
+        const edgesAdded: string[] = [];
+        const edgesRemoved: string[] = [];
+        const edgesChanged: string[] = [];
+        for (const key of allEdgeKeys) {
+          const prevEdge = prevEdgesByKey.get(key);
+          const nextEdge = nextEdgesByKey.get(key);
+          if (!prevEdge && nextEdge) edgesAdded.push(key);
+          else if (prevEdge && !nextEdge) edgesRemoved.push(key);
+          else if (prevEdge && nextEdge && normalizeEdge(prevEdge) !== normalizeEdge(nextEdge)) edgesChanged.push(key);
+        }
+
+        entries.push({
+          flowId,
+          name,
+          depth,
+          status: 'present',
+          nodesAdded,
+          nodesRemoved,
+          nodesChanged,
+          edgesAdded,
+          edgesRemoved,
+          edgesChanged,
+        });
+
+        entries.push(...compareSubflows(prev?.subflows ?? [], next?.subflows ?? [], depth + 1));
+      }
+
+      return entries;
+    };
+
+    setSubflowDiffs(compareSubflows(detail.snapshot.subflows ?? [], currentDetail.snapshot.subflows ?? []));
   };
+
 
   // ── Canvas visuals ──────────────────────────────────────────────────────────
   const { canvasNodes, canvasEdges } = useMemo(() => {
@@ -486,28 +909,91 @@ export function FlowEditorPage() {
   }, [edges, nodes]);
 
   // ── Diff overlay ─────────────────────────────────────────────────────────────
+  const currentCompareNodes = compareVersion && currentCompareSnapshot ? mapSnapshotToNodes(currentCompareSnapshot) : [];
+  const currentCompareEdges = compareVersion && currentCompareSnapshot ? mapSnapshotToEdges(currentCompareSnapshot) : [];
   const compareSnapshotNodes = compareVersion ? mapSnapshotToNodes(compareVersion.snapshot) : [];
   const compareSnapshotEdges = compareVersion ? mapSnapshotToEdges(compareVersion.snapshot) : [];
-  const currentNodeIds = new Set(nodes.map((node) => node.id));
+
+  const currentRootSnapshot = currentCompareSnapshot;
+  const previousRootSnapshot = compareVersion?.snapshot ?? null;
+  const normalizeRootNode = (node: FlowSnapshot['nodes'][number]) => JSON.stringify({
+    nodeKey: node.nodeKey,
+    type: node.type,
+    label: node.label ?? null,
+    positionX: Number(node.positionX ?? 0),
+    positionY: Number(node.positionY ?? 0),
+    config: node.config ?? {},
+    groupId: node.groupId ?? null,
+    subflowId: node.subflowId ?? null,
+  });
+  const normalizeRootEdge = (edge: FlowSnapshot['edges'][number]) => JSON.stringify({
+    sourceNodeKey: edge.sourceNodeKey,
+    targetNodeKey: edge.targetNodeKey,
+    branchKey: edge.branchKey ?? 'default',
+    condition: edge.condition ?? null,
+  });
+
+  const currentRootNodesByKey = new Map((currentRootSnapshot?.nodes ?? []).map((node) => [node.nodeKey, node]));
+  const previousRootNodesByKey = new Map((previousRootSnapshot?.nodes ?? []).map((node) => [node.nodeKey, node]));
+  const allRootNodeKeys = Array.from(new Set([...currentRootNodesByKey.keys(), ...previousRootNodesByKey.keys()])).sort();
+  const rootNodesAdded: string[] = [];
+  const rootNodesRemoved: string[] = [];
+  const rootNodesChanged: string[] = [];
+  for (const key of allRootNodeKeys) {
+    const currentNode = currentRootNodesByKey.get(key);
+    const previousNode = previousRootNodesByKey.get(key);
+    if (currentNode && !previousNode) rootNodesAdded.push(key);
+    else if (!currentNode && previousNode) rootNodesRemoved.push(key);
+    else if (currentNode && previousNode && normalizeRootNode(currentNode) !== normalizeRootNode(previousNode)) rootNodesChanged.push(key);
+  }
+
+  const rootEdgeIdentity = (edge: FlowSnapshot['edges'][number]) => `${edge.sourceNodeKey}|${edge.targetNodeKey}|${edge.branchKey ?? 'default'}`;
+  const rootEdgeLabel = (edge: FlowSnapshot['edges'][number]) => `${edge.sourceNodeKey}→${edge.targetNodeKey}${edge.condition ? ` (${edge.condition})` : ''}`;
+  const currentRootEdgesByIdentity = new Map((currentRootSnapshot?.edges ?? []).map((edge) => [rootEdgeIdentity(edge), edge]));
+  const previousRootEdgesByIdentity = new Map((previousRootSnapshot?.edges ?? []).map((edge) => [rootEdgeIdentity(edge), edge]));
+  const allRootEdgeIdentities = Array.from(new Set([...currentRootEdgesByIdentity.keys(), ...previousRootEdgesByIdentity.keys()])).sort();
+  const rootEdgesAdded: string[] = [];
+  const rootEdgesRemoved: string[] = [];
+  const rootEdgesChanged: string[] = [];
+  for (const identity of allRootEdgeIdentities) {
+    const currentEdge = currentRootEdgesByIdentity.get(identity);
+    const previousEdge = previousRootEdgesByIdentity.get(identity);
+    if (currentEdge && !previousEdge) rootEdgesAdded.push(rootEdgeLabel(currentEdge));
+    else if (!currentEdge && previousEdge) rootEdgesRemoved.push(rootEdgeLabel(previousEdge));
+    else if (currentEdge && previousEdge && normalizeRootEdge(currentEdge) !== normalizeRootEdge(previousEdge)) rootEdgesChanged.push(rootEdgeLabel(currentEdge));
+  }
+
+  const currentNodeIds = new Set(currentCompareNodes.map((node) => node.id));
   const snapshotNodeIds = new Set(compareSnapshotNodes.map((node) => node.id));
-  const addedNodeIds = new Set(nodes.filter((node) => !snapshotNodeIds.has(node.id)).map((node) => node.id));
+  const addedNodeIds = new Set(currentCompareNodes.filter((node) => !snapshotNodeIds.has(node.id)).map((node) => node.id));
   const removedNodeIds = new Set(compareSnapshotNodes.filter((node) => !currentNodeIds.has(node.id)).map((node) => node.id));
-  const currentEdgeKeys = new Set(edges.map((edge) => makeVersionEdgeKey(edge)));
+  const currentEdgeKeys = new Set(currentCompareEdges.map((edge) => makeVersionEdgeKey(edge)));
   const snapshotEdgeKeys = new Set(compareSnapshotEdges.map((edge) => makeVersionEdgeKey(edge)));
   const changedEdgeKeys = new Set([...Array.from(currentEdgeKeys).filter((key) => !snapshotEdgeKeys.has(key)), ...Array.from(snapshotEdgeKeys).filter((key) => !currentEdgeKeys.has(key))]);
-  const currentDiffNodes = decorateDiffNodes(nodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--accent');
+  const currentDiffNodes = decorateDiffNodes(currentCompareNodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--accent');
   const versionDiffNodes = decorateDiffNodes(compareSnapshotNodes.map((node) => ({ ...node, selected: false })), removedNodeIds, '--color-error');
-  const currentDiffEdges = decorateDiffEdges(edges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
+  const currentDiffEdges = decorateDiffEdges(currentCompareEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
   const versionDiffEdges = decorateDiffEdges(compareSnapshotEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
-  const addedNodeLabels = nodes.filter((node) => addedNodeIds.has(node.id)).map((node) => node.data.type);
-  const removedNodeLabels = compareSnapshotNodes.filter((node) => removedNodeIds.has(node.id)).map((node) => node.data.type);
-  const changedEdgeLabels = Array.from(changedEdgeKeys).map((key) => { const [source, target] = key.split('|'); return `${source}→${target}`; });
 
   // ── Derived UI labels ────────────────────────────────────────────────────────
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : 'save';
   const saveStatusLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'save failed' : hasUnsavedChanges ? 'unsaved changes' : 'up to date';
   const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
-  const leaveFlowEditor = async () => { const canLeave = await ensureSavedBeforeNavigation(); if (canLeave) { navigate('/flows'); return; } requestLeave({ kind: 'navigate', to: '/flows' }); };
+  const flowDefaultTimeout = getFlowDefaultTimeoutMs(nodes);
+  const leaveFlowEditor = () => { requestLeave({ kind: 'navigate', to: '/flows' }); };
+  const handleLeaveAnyway = () => {
+    if (navigationBlocker.state === 'blocked') {
+      pendingLeaveActionRef.current = null;
+      setConfirmLeaveOpen(false);
+      allowNavigationRef.current = true;
+      navigationBlocker.proceed();
+      return;
+    }
+    const action = pendingLeaveActionRef.current;
+    pendingLeaveActionRef.current = null;
+    setConfirmLeaveOpen(false);
+    if (action) performLeaveAction(action);
+  };
 
   const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;
   const selectedMenuSubmenuTargets = typeof selectedConfig.submenu_branch_targets === 'object' && selectedConfig.submenu_branch_targets ? selectedConfig.submenu_branch_targets as Record<string, string> : {};
@@ -521,17 +1007,42 @@ export function FlowEditorPage() {
           <button className={styles.secondaryButton} onClick={isSubflow ? () => void handleBreadcrumbNavigate(breadcrumb[breadcrumb.length - 2].flowId) : () => void leaveFlowEditor()} type="button">
             {isSubflow ? '← back to parent' : 'back'}
           </button>
-          <button className={styles.secondaryButton} onClick={() => triggerAutoLayout(rfInstance)} type="button">tidy layout</button>
-          {canGroupSelection ? <button className={styles.secondaryButton} onClick={handleGroupSelection} type="button">group</button> : null}
-          {canUngroupSelection ? <button className={styles.secondaryButton} onClick={handleUngroupSelection} type="button">ungroup</button> : null}
-          {canRemoveFromGroupSelection ? <button className={styles.secondaryButton} onClick={() => void handleRemoveFromGroup()} type="button">remove from group</button> : null}
-          <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => { if (flow) setFlow({ ...flow, name: event.target.value }); }} />
+          <button className={styles.secondaryButton} onClick={() => triggerAutoLayoutWithTracking(rfInstance)} type="button">tidy layout</button>
+          {canGroupSelection ? <button className={styles.secondaryButton} onClick={handleGroupSelectionWithTracking} type="button">group</button> : null}
+          {canUngroupSelection ? <button className={styles.secondaryButton} onClick={handleUngroupSelectionWithTracking} type="button">ungroup</button> : null}
+          {canRemoveFromGroupSelection ? <button className={styles.secondaryButton} onClick={() => void handleRemoveFromGroupWithTracking()} type="button">remove from group</button> : null}
+          <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => { if (flow) { userEditedRef.current = true; setFlow({ ...flow, name: event.target.value }); } }} />
         </div>
         <div className={styles.topBarRight}>
           {!isSubflow ? <button className={styles.secondaryButton} onClick={() => setVersionsOpen((current) => !current)} type="button">versions</button> : null}
-          {!isSubflow ? <button className={saveButtonClass} onClick={async () => { const saved = await saveFlow(); if (saved) await createFlowVersion(saved.id, 'Saved from editor'); }} type="button">{saveLabel}</button> : <span className={styles.saveStatus}>{saveStatusLabel}</span>}
+          <button className={styles.secondaryButton} onClick={() => setSimulatorOpen((current) => !current)} type="button">simulate</button>
+          {!isSubflow ? <button className={saveButtonClass} onClick={() => { void saveFlow(); }} type="button">{saveLabel}</button> : <span className={styles.saveStatus}>{saveStatusLabel}</span>}
         </div>
       </div>
+      {timeoutWarningConfirmVisible && timeoutWarningMessage ? (
+        <div className={styles.inlineSaveWarning}>
+          <span>{timeoutWarningMessage}</span>
+          <div className={styles.inlineSaveWarningActions}>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => {
+                setTimeoutWarningConfirmVisible(false);
+                setTimeoutWarningMessage(null);
+              }}
+            >
+              fix now
+            </button>
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={() => { void saveFlow(undefined, { allowTimeoutWarningBypass: true }); }}
+            >
+              save anyway
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.editorShell}>
         <section className={styles.leftPanel}>
@@ -551,14 +1062,14 @@ export function FlowEditorPage() {
           <FlowTreePanel tree={flowTree} currentFlowId={currentFlowId} onNavigate={handleBreadcrumbNavigate} />
         </section>
 
-        <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, rfInstance)}>
+        <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { userEditedRef.current = true; handleDrop(event, rfInstance); }}>
           <FlowBreadcrumb items={breadcrumb} onNavigate={handleBreadcrumbNavigate} />
           <div className={styles.canvasWrapper}>
             <ReactFlow
               fitView fitViewOptions={{ padding: 0.2 }}
               nodes={canvasNodes} edges={canvasEdges}
-              onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-              onConnect={onConnect} onReconnect={onReconnect} onReconnectStart={onReconnectStart}
+              onNodesChange={handleNodesChangeWithUserTracking} onEdgesChange={handleEdgesChangeWithUserTracking}
+              onConnect={handleConnectWithUserTracking} onReconnect={handleReconnectWithUserTracking} onReconnectStart={onReconnectStart}
               onNodeDoubleClick={(_event, node) => { if (String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX)) return; if (node.data.type === 'menu') void handleOpenSubmenu(node.id); }}
               onNodeDragStop={handleNodeDragStop} onEdgeClick={onEdgeClick}
               onSelectionChange={handleSelectionChange} multiSelectionKeyCode="Shift"
@@ -566,7 +1077,8 @@ export function FlowEditorPage() {
               onNodesDelete={(deletedNodes) => {
                 const deletedIds = new Set(deletedNodes.filter((node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX)).map((node) => node.id));
                 if (deletedIds.size === 0) return;
-                setEdges((current) => attachEdgeMetadata(current.filter((edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target)), nodes, deleteEdge));
+                userEditedRef.current = true;
+                setEdges((current) => attachEdgeMetadata(current.filter((edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target)), nodes, handleDeleteEdgeWithUserTracking));
                 setNodes((current) => {
                   const groupIds = new Set(deletedNodes.filter((node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX)).filter((node) => node.data.type === 'group').map((node) => node.id));
                   if (groupIds.size === 0) return current;
@@ -599,10 +1111,26 @@ export function FlowEditorPage() {
             onMenuBranchToggle={handleMenuBranchToggle}
             onMenuSubflowTargetChange={handleMenuSubflowTargetChange}
             menuExtra={{ submenuNodeOptionsLoading, submenuStartNodeKey, selectedMenuLocalEdgeBranches, selectedMenuSubmenuTargets }}
+            flowDefaultTimeout={flowDefaultTimeout ?? QUEUE_LOGIN_TIMEOUT_DEFAULT_MS}
+            queueItems={queueItems}
+            extensions={extensions}
+            contactNumbers={contactNumbers}
+            trunks={trunks}
             saveAttempted={saveAttempted}
           />
         </section>
       </div>
+
+
+      {simulatorOpen ? (
+        <FlowSimulator
+          nodes={nodes}
+          edges={edges}
+          onClose={() => setSimulatorOpen(false)}
+          onSubflowEnter={(flowId: number) => setCurrentFlowId(flowId)}
+          onSubflowExit={() => setCurrentFlowId(rootFlowId)}
+        />
+      ) : null}
 
       <FlowVersionPanel
         versions={versions}
@@ -622,7 +1150,7 @@ export function FlowEditorPage() {
       {compareVersion ? (
         <div className={styles.compareOverlay}>
           <div className={styles.compareHeader}>
-            <button className={styles.secondaryButton} onClick={() => setCompareVersion(null)} type="button">← back</button>
+            <button className={styles.secondaryButton} onClick={() => { setCompareVersion(null); setCurrentCompareSnapshot(null); setSubflowDiffs([]); }} type="button">← back</button>
             <div className={styles.compareTitle}>Comparing v{flow?.versionNumber || 'current'} (current) vs v{compareVersion.versionNum}</div>
           </div>
           <div className={styles.compareSubhead}>v{compareVersion.versionNum} — "{compareVersion.message}"</div>
@@ -644,20 +1172,81 @@ export function FlowEditorPage() {
               </div>
             </div>
           </div>
-          <div className={styles.compareLists}>
-            <div className={styles.compareListRow}><span className={styles.addedText}>Nodes added ({addedNodeLabels.length}):</span> {addedNodeLabels.length ? addedNodeLabels.join(', ') : '—'}</div>
-            <div className={styles.compareListRow}><span className={styles.removedText}>Nodes removed ({removedNodeLabels.length}):</span> {removedNodeLabels.length ? removedNodeLabels.join(', ') : '—'}</div>
-            <div className={styles.compareListRow}><span className={styles.changedText}>Edges changed ({changedEdgeLabels.length}):</span> {changedEdgeLabels.length ? changedEdgeLabels.join(', ') : '—'}</div>
-          </div>
+          <section className={styles.compareLists}>
+            <div className={styles.compareCanvasTitle}>Root flow changes</div>
+            <div className={styles.compareListRow}><span className={styles.addedText}>Nodes added ({rootNodesAdded.length}):</span> {rootNodesAdded.length ? rootNodesAdded.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.removedText}>Nodes removed ({rootNodesRemoved.length}):</span> {rootNodesRemoved.length ? rootNodesRemoved.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.changedText}>Nodes changed ({rootNodesChanged.length}):</span> {rootNodesChanged.length ? rootNodesChanged.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.addedText}>Edges added ({rootEdgesAdded.length}):</span> {rootEdgesAdded.length ? rootEdgesAdded.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.removedText}>Edges removed ({rootEdgesRemoved.length}):</span> {rootEdgesRemoved.length ? rootEdgesRemoved.join(', ') : '—'}</div>
+            <div className={styles.compareListRow}><span className={styles.changedText}>Edges changed ({rootEdgesChanged.length}):</span> {rootEdgesChanged.length ? rootEdgesChanged.join(', ') : '—'}</div>
+          </section>
           <div className={styles.compareSummaryBar}>
-            <div className={styles.addedText}>Nodes added: {addedNodeLabels.length}</div>
-            <div className={styles.removedText}>Nodes removed: {removedNodeLabels.length}</div>
-            <div className={styles.changedText}>Edges changed: {changedEdgeLabels.length}</div>
+            <div className={styles.addedText}>Nodes added: {rootNodesAdded.length}</div>
+            <div className={styles.removedText}>Nodes removed: {rootNodesRemoved.length}</div>
+            <div className={styles.changedText}>Nodes changed: {rootNodesChanged.length}</div>
+            <div className={styles.addedText}>Edges added: {rootEdgesAdded.length}</div>
+            <div className={styles.removedText}>Edges removed: {rootEdgesRemoved.length}</div>
+            <div className={styles.changedText}>Edges changed: {rootEdgesChanged.length}</div>
           </div>
+          {(subflowDiffs.length > 0 || (currentCompareSnapshot?.subflows?.length ?? 0) > 0 || (compareVersion.snapshot.subflows?.length ?? 0) > 0) ? (
+            <section className={styles.subflowDiffSection}>
+              <div className={styles.compareCanvasTitle}>Subflow changes</div>
+              {subflowDiffs.length === 0 ? (
+                <div className={styles.compareListRow}>No subflows in this flow tree.</div>
+              ) : (
+                <div className={styles.subflowDiffList}>
+                  {subflowDiffs.map((entry) => {
+                    const summaryParts: string[] = [];
+                    if (entry.status === 'added') {
+                      summaryParts.push('Subflow added');
+                    } else if (entry.status === 'removed') {
+                      summaryParts.push('Subflow removed');
+                    } else {
+                      if (entry.nodesChanged.length > 0) summaryParts.push(`${entry.nodesChanged.length} nodes changed`);
+                      if (entry.nodesAdded.length > 0) summaryParts.push(`${entry.nodesAdded.length} nodes added`);
+                      if (entry.nodesRemoved.length > 0) summaryParts.push(`${entry.nodesRemoved.length} nodes removed`);
+                      if (entry.edgesChanged.length > 0) summaryParts.push(`${entry.edgesChanged.length} edges changed`);
+                      if (entry.edgesAdded.length > 0) summaryParts.push(`${entry.edgesAdded.length} edges added`);
+                      if (entry.edgesRemoved.length > 0) summaryParts.push(`${entry.edgesRemoved.length} edges removed`);
+                      if (summaryParts.length === 0) summaryParts.push('No changes');
+                    }
+                    return (
+                      <details className={styles.subflowDiffItem} key={`${entry.flowId}-${entry.depth}`}>
+                        <summary className={styles.subflowDiffSummary} style={{ paddingLeft: `${entry.depth * 16}px` }}>
+                          {entry.name} — {summaryParts.join(', ')}
+                        </summary>
+                        <div className={styles.compareListRow}><span className={styles.addedText}>Nodes added ({entry.nodesAdded.length}):</span> {entry.nodesAdded.length ? entry.nodesAdded.join(', ') : '—'}</div>
+                        <div className={styles.compareListRow}><span className={styles.removedText}>Nodes removed ({entry.nodesRemoved.length}):</span> {entry.nodesRemoved.length ? entry.nodesRemoved.join(', ') : '—'}</div>
+                        <div className={styles.compareListRow}><span className={styles.changedText}>Nodes changed ({entry.nodesChanged.length}):</span> {entry.nodesChanged.length ? entry.nodesChanged.join(', ') : '—'}</div>
+                        <div className={styles.compareListRow}><span className={styles.addedText}>Edges added ({entry.edgesAdded.length}):</span> {entry.edgesAdded.length ? entry.edgesAdded.join(', ') : '—'}</div>
+                        <div className={styles.compareListRow}><span className={styles.removedText}>Edges removed ({entry.edgesRemoved.length}):</span> {entry.edgesRemoved.length ? entry.edgesRemoved.join(', ') : '—'}</div>
+                        <div className={styles.compareListRow}><span className={styles.changedText}>Edges changed ({entry.edgesChanged.length}):</span> {entry.edgesChanged.length ? entry.edgesChanged.join(', ') : '—'}</div>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          ) : null}
         </div>
       ) : null}
 
-      <ConfirmDialog open={confirmLeaveOpen} title="Unsaved changes" message="You have unsaved changes. Leave anyway?" confirmLabel="Leave" onConfirm={() => { const action = pendingLeaveActionRef.current; pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); if (action) performLeaveAction(action); }} onCancel={() => { pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); }} />
+      <ConfirmDialog
+        open={confirmLeaveOpen}
+        title="Unsaved changes"
+        message="You have unsaved changes. Leave anyway?"
+        confirmLabel="Leave anyway"
+        cancelLabel="Cancel"
+        onConfirm={handleLeaveAnyway}
+        onCancel={() => {
+          pendingLeaveActionRef.current = null;
+          if (navigationBlocker.state === 'blocked') {
+            navigationBlocker.reset();
+          }
+          setConfirmLeaveOpen(false);
+        }}
+      />
       <ConfirmDialog open={restoreConfirmOpen} title="Restore version" message="Restore this version? Current unsaved changes will be lost." confirmLabel="Restore" onConfirm={() => void handleConfirmRestore()} onCancel={() => { setPendingRestoreVersion(null); setRestoreConfirmOpen(false); }} />
     </div>
   );

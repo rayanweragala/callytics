@@ -62,6 +62,23 @@ describe('ConfirmDialog', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
+  it('calls onSecondary when secondary button clicked', () => {
+    const onSecondary = vi.fn();
+    render(
+      <ConfirmDialog
+        open={true}
+        title="T"
+        message="M"
+        onConfirm={() => {}}
+        onSecondary={onSecondary}
+        secondaryLabel="Discard"
+        onCancel={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByText('Discard'));
+    expect(onSecondary).toHaveBeenCalled();
+  });
+
   it('renders default labels if none provided', () => {
     render(
       <ConfirmDialog

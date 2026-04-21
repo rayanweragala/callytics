@@ -103,7 +103,7 @@ describe('hunt executor — additional coverage', () => {
       label: 'Hunt',
       config: {
         strategy: 'sequential',
-        destinations: ['2001', '2002'],
+        destinations: [{ target_type: 'extension', target_value: '2001' }, { target_type: 'extension', target_value: '2002' }],
         attempt_timeout_ms: 3000,
         total_timeout_ms: 10000,
         on_no_answer: 'fallback',
@@ -158,7 +158,7 @@ describe('hunt executor — additional coverage', () => {
       label: 'Hunt',
       config: {
         strategy: 'sequential',
-        destinations: ['2001'],
+        destinations: [{ target_type: 'extension', target_value: '2001' }],
         attempt_timeout_ms: 3000,
         total_timeout_ms: 10000,
       },
@@ -221,7 +221,7 @@ describe('hunt executor — additional coverage', () => {
       type: 'hunt',
       label: 'Hunt',
       config: {
-        destinations: ['2001'],
+        destinations: [{ target_type: 'extension', target_value: '2001' }],
         // attempt_timeout_ms drives the internal race inside captureOriginatedChannel
         // (capped at min(attempt_timeout_ms, 5000)). Keep it short so the test runs fast.
         attempt_timeout_ms: 3000,
@@ -275,7 +275,7 @@ describe('hunt executor — additional coverage', () => {
       label: 'Hunt',
       config: {
         strategy: 'sequential',
-        destinations: ['agent-sip'],
+        destinations: [{ target_type: 'extension', target_value: 'agent-sip' }],
         attempt_timeout_ms: 5000,
         total_timeout_ms: 10000,
       },

@@ -55,7 +55,7 @@ export class AudioService implements OnModuleInit {
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
     });
-    const data = items.map((item) => this.toResponse(item));
+    const data = await Promise.all(items.map((item) => this.toResponse(item)));
     return {
       data,
       total,
@@ -68,7 +68,7 @@ export class AudioService implements OnModuleInit {
   async getOne(id: number): Promise<{ data: AudioResponse }> {
     const item = await this.audioRepository.findOne({ where: { id } });
     if (!item) throw new NotFoundException(`Audio file ${id} not found`);
-    return { data: this.toResponse(item) };
+    return { data: await this.toResponse(item) };
   }
 
   async listVoices(): Promise<{ data: Array<{ id: string; label: string }>; total: number }> {
@@ -108,7 +108,7 @@ export class AudioService implements OnModuleInit {
 
     const saved = await this.audioRepository.save(asset);
     const processed = await this.processAudio(saved.id, originalPath);
-    return { data: this.toResponse(processed) };
+    return { data: await this.toResponse(processed) };
   }
 
   async createTts(name: string, text: string, voice: string, speed = 1): Promise<{ data: AudioResponse }> {
@@ -144,7 +144,7 @@ export class AudioService implements OnModuleInit {
 
     const saved = await this.audioRepository.save(asset);
     const processed = await this.processAudio(saved.id, rawTtsPath);
-    return { data: this.toResponse(processed) };
+    return { data: await this.toResponse(processed) };
   }
 
   async previewTts(text: string, voice: string, speed = 1, res: Response): Promise<void> {
@@ -303,7 +303,12 @@ export class AudioService implements OnModuleInit {
     return refreshed;
   }
 
-  private toResponse(item: AudioFileEntity): AudioResponse {
+  private async toResponse(item: AudioFileEntity): Promise<AudioResponse> {
+    const previewPath = await this.resolvePlayablePath(
+      item.storagePathPreview,
+      item.storagePathConverted,
+      item.storagePathOriginal,
+    );
     return {
       id: item.id,
       name: item.name,
@@ -316,11 +321,30 @@ export class AudioService implements OnModuleInit {
       ttsVoice: item.ttsVoice,
       speed: item.speed ?? 1,
       originalUrl: this.toMediaUrl(item.storagePathOriginal),
-      previewUrl: this.toMediaUrl(item.storagePathPreview),
+      previewUrl: this.toMediaUrl(previewPath),
       convertedUrl: this.toMediaUrl(item.storagePathConverted),
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };
+  }
+
+  private async resolvePlayablePath(...candidates: Array<string | null | undefined>): Promise<string | null> {
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      if (await this.pathExists(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  private async pathExists(path: string): Promise<boolean> {
+    try {
+      await fs.access(path);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private toMediaUrl(filePath: string | null): string | null {

@@ -7,7 +7,13 @@ function destinationCount(config: Record<string, unknown>): number {
     return 0;
   }
 
-  return config.destinations.filter((value) => String(value || '').trim().length > 0).length;
+  return config.destinations.filter((value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return String(value || '').trim().length > 0;
+    }
+    const item = value as Record<string, unknown>;
+    return String(item.target_value || '').trim().length > 0;
+  }).length;
 }
 
 function strategyLabel(config: Record<string, unknown>): string {

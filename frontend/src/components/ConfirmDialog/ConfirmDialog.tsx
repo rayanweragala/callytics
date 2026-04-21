@@ -7,8 +7,11 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  secondaryLabel?: string;
   onConfirm: () => void;
+  onSecondary?: () => void;
   onCancel: () => void;
+  inline?: boolean;
 }
 
 export function ConfirmDialog({
@@ -17,8 +20,11 @@ export function ConfirmDialog({
   message,
   confirmLabel = 'Leave',
   cancelLabel = 'Cancel',
+  secondaryLabel,
   onConfirm,
+  onSecondary,
   onCancel,
+  inline = false,
 }: ConfirmDialogProps) {
   useEffect(() => {
     if (!open) {
@@ -42,24 +48,35 @@ export function ConfirmDialog({
     return null;
   }
 
+  const dialogBody = (
+    <div
+      aria-describedby="confirm-dialog-message"
+      aria-labelledby="confirm-dialog-title"
+      aria-modal={inline ? undefined : true}
+      className={inline ? styles.inlineDialog : styles.dialog}
+      role={inline ? undefined : 'dialog'}
+    >
+      <div className={styles.content}>
+        <h2 className={styles.title} id="confirm-dialog-title">{title}</h2>
+        <p className={styles.message} id="confirm-dialog-message">{message}</p>
+      </div>
+      <div className={styles.actions}>
+        <button className={styles.cancelButton} onClick={onCancel} type="button">{cancelLabel}</button>
+        {secondaryLabel && onSecondary ? (
+          <button className={styles.secondaryButton} onClick={onSecondary} type="button">{secondaryLabel}</button>
+        ) : null}
+        <button className={styles.confirmButton} onClick={onConfirm} type="button">{confirmLabel}</button>
+      </div>
+    </div>
+  );
+
+  if (inline) {
+    return <div className={styles.inlineWrapper}>{dialogBody}</div>;
+  }
+
   return (
     <div className={styles.overlay} role="presentation">
-      <div
-        aria-describedby="confirm-dialog-message"
-        aria-labelledby="confirm-dialog-title"
-        aria-modal="true"
-        className={styles.dialog}
-        role="dialog"
-      >
-        <div className={styles.content}>
-          <h2 className={styles.title} id="confirm-dialog-title">{title}</h2>
-          <p className={styles.message} id="confirm-dialog-message">{message}</p>
-        </div>
-        <div className={styles.actions}>
-          <button className={styles.cancelButton} onClick={onCancel} type="button">{cancelLabel}</button>
-          <button className={styles.confirmButton} onClick={onConfirm} type="button">{confirmLabel}</button>
-        </div>
-      </div>
+      {dialogBody}
     </div>
   );
 }

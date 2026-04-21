@@ -11,13 +11,19 @@ jest.mock('./telemetry', () => ({
   publishNodeTelemetry: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('./executors/webhook.executor', () => ({
+  fireWebhookAsync: jest.fn(),
+}));
+
 import { executeNode } from './nodes';
 import { query } from './db';
 import { runFlow } from './runtime';
 import type { CallSession } from './callSession';
+import { fireWebhookAsync } from './executors/webhook.executor';
 
 const executeNodeMock = executeNode as jest.MockedFunction<typeof executeNode>;
 const queryMock = query as jest.MockedFunction<typeof query>;
+const fireWebhookAsyncMock = fireWebhookAsync as jest.MockedFunction<typeof fireWebhookAsync>;
 
 function createSession(): CallSession {
   return {
@@ -59,6 +65,23 @@ describe('runFlow dead-end safety', () => {
     executeNodeMock
       .mockResolvedValueOnce('default')
       .mockResolvedValueOnce('default');
+
+    await runFlow(channel as never, session, {});
+
+    expect(executeNodeMock).toHaveBeenCalledTimes(2);
+    expect(channel.hangup).toHaveBeenCalledTimes(1);
+  });
+
+  it('hangs up when a node returns terminal hangup result', async () => {
+    const session = createSession();
+    const channel = {
+      id: 'channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    executeNodeMock
+      .mockResolvedValueOnce('default')
+      .mockResolvedValueOnce('hangup');
 
     await runFlow(channel as never, session, {});
 
@@ -124,5 +147,57 @@ describe('runFlow dead-end safety', () => {
     expect(executeNodeMock).toHaveBeenCalledTimes(5);
     expect(executeNodeMock.mock.calls[2]?.[1]?.nodeKey).toBe('sub-play-2');
     expect(executeNodeMock.mock.calls[4]?.[1]?.nodeKey).toBe('after-sub');
+  });
+
+  it('treats queue_login authenticated as terminal when no outgoing edge exists', async () => {
+    const session = createSession();
+    session.flow.nodes = [
+      { nodeKey: 'start', type: 'start', label: 'Start', config: {} },
+      { nodeKey: 'queue-login-1', type: 'queue_login', label: 'Queue Login', config: { queue_id: 1 } },
+    ];
+    session.flow.edges = [
+      { sourceNodeKey: 'start', targetNodeKey: 'queue-login-1', branchKey: 'default', condition: null },
+    ];
+    const channel = {
+      id: 'channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    executeNodeMock
+      .mockResolvedValueOnce('default')
+      .mockResolvedValueOnce('authenticated');
+
+    await expect(runFlow(channel as never, session, {})).resolves.toEqual({ status: 'completed' });
+    expect(executeNodeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fires webhook side-effect asynchronously and continues on non-webhook edge', async () => {
+    const session = createSession();
+    session.flow.nodes = [
+      { nodeKey: 'start', type: 'start', label: 'Start', config: {} },
+      { nodeKey: 'play-1', type: 'play_audio', label: 'Play', config: {} },
+      { nodeKey: 'menu-1', type: 'menu', label: 'Menu', config: { branches: ['1'] } },
+      { nodeKey: 'webhook-1', type: 'webhook', label: 'Webhook', config: { url: 'https://example.com/webhook' } },
+    ];
+    session.flow.edges = [
+      { sourceNodeKey: 'start', targetNodeKey: 'play-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'play-1', targetNodeKey: 'webhook-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'play-1', targetNodeKey: 'menu-1', branchKey: 'default', condition: null },
+    ];
+    const channel = {
+      id: 'channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    executeNodeMock
+      .mockResolvedValueOnce('default')
+      .mockResolvedValueOnce('default')
+      .mockResolvedValueOnce('done');
+
+    await expect(runFlow(channel as never, session, {})).resolves.toEqual({ status: 'completed' });
+    expect(executeNodeMock).toHaveBeenCalledTimes(3);
+    expect(executeNodeMock.mock.calls[2]?.[1]?.nodeKey).toBe('menu-1');
+    expect(fireWebhookAsyncMock).toHaveBeenCalledTimes(1);
+    expect(fireWebhookAsyncMock.mock.calls[0]?.[0]?.nodeKey).toBe('webhook-1');
   });
 });

@@ -240,10 +240,10 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
         sunday: { enabled: false, open: '09:00', close: '17:00' },
       },
     };
-    if (t === 'transfer') return { destination: '', timeout_ms: 30000, on_no_answer: '' };
+    if (t === 'transfer') return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '' };
     if (t === 'voicemail') return { mailbox_name: 'main', max_duration_seconds: 60, prompt_audio_file_id: null };
     if (t === 'hunt') return {
-      destinations: ['SIP/101'],
+      destinations: [{ target_type: 'extension', target_value: '101' }],
       strategy: 'sequential',
       attempt_timeout_ms: 20000,
       total_timeout_ms: 60000,
@@ -268,7 +268,6 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
   };
 }
 
-// ─── Hook interface ────────────────────────────────────────────────────────────
 
 export interface UseFlowCanvasResult {
   nodes: Array<Node<FlowNodeData>>;
@@ -331,8 +330,7 @@ export function useFlowCanvas(): UseFlowCanvasResult {
   // Allows the page to inject the handleOpenSubmenu callback (which needs API state)
   const [handleOpenSubmenuCallback, setHandleOpenSubmenuCallback] = useState<((nodeId: string) => void) | null>(null);
 
-  // ── Derived selection state ──────────────────────────────────────────────────
-
+  
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) || null,
     [nodes, selectedNodeId],
@@ -517,6 +515,7 @@ export function useFlowCanvas(): UseFlowCanvasResult {
   const onConnect = useCallback(
     (connection: Connection) => {
       const sourceNodeType = nodes.find((node) => node.id === connection.source)?.data.type || 'hangup';
+      const targetNodeType = nodes.find((node) => node.id === connection.target)?.data.type || 'hangup';
       const menuBranch = sourceNodeType === 'menu' ? String(connection.sourceHandle || 'complete') : null;
       const condition =
         sourceNodeType === 'get_digits'
@@ -537,7 +536,20 @@ export function useFlowCanvas(): UseFlowCanvasResult {
       const newKey = makeEdgeKey(connection.source, connection.target, connection.sourceHandle, condition);
 
       setEdges((current) => {
-        if (sourceNodeType === 'hunt' && current.some((edge) => edge.source === connection.source)) {
+        if (sourceNodeType === 'webhook') {
+          return current;
+        }
+        if (sourceNodeType === 'hunt') {
+          const existingFromSource = current.filter((edge) => edge.source === connection.source);
+          const hasExistingNonWebhookRoute = existingFromSource.some((edge) => {
+            const edgeTargetType = nodes.find((node) => node.id === edge.target)?.data.type || 'hangup';
+            return edgeTargetType !== 'webhook';
+          });
+          if (targetNodeType !== 'webhook' && hasExistingNonWebhookRoute) {
+            return current;
+          }
+        }
+        if (targetNodeType === 'webhook' && current.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
           return current;
         }
         const duplicate = current.find(
@@ -601,6 +613,9 @@ export function useFlowCanvas(): UseFlowCanvasResult {
           nodes.find((node) => node.id === (newConnection.source || oldEdge.source))?.data.type ||
           oldEdge.data?.sourceNodeType ||
           'hangup';
+        if (sourceNodeType === 'webhook') {
+          return current;
+        }
         const reconnected = reconnectEdge(oldEdge, newConnection, current).map((edge) =>
           edge.id === oldEdge.id
             ? {

@@ -108,9 +108,19 @@
 .input:focus,
 .primaryButton:hover,
 .secondaryButton:hover,
-.deleteConfirmButton:hover,
 .toggleButton:hover {
   border-color: var(--border-strong);
+}
+
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .helper {
@@ -121,7 +131,6 @@
 
 .primaryButton,
 .secondaryButton,
-.deleteConfirmButton,
 .toggleButton {
   border: 1px solid var(--border-default);
   border-radius: 6px;
@@ -130,8 +139,7 @@
 }
 
 .primaryButton,
-.secondaryButton,
-.deleteConfirmButton {
+.secondaryButton {
   height: 36px;
   padding: 0 14px;
   text-transform: lowercase;
@@ -191,27 +199,40 @@
 }
 
 .actions,
-.formActions {
+.formActions,
+.confirmActions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  flex-wrap: wrap;
   align-items: center;
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .formActions {
   align-self: flex-end;
 }
 
-.secondaryButton,
-.deleteConfirmButton {
+.secondaryButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.deleteConfirmButton,
 .failedText {
   color: var(--color-error);
 }

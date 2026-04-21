@@ -88,3 +88,10 @@
 .transfer { color: var(--color-info); }
 .voicemail { color: var(--color-warning); }
 .hangup { color: var(--text-muted); }
+.webhook { color: var(--color-info); }
+.queueLogin { color: var(--color-warning); }
+.queue { color: var(--color-success); }
+
+.webhookSideEffect {
+  border-style: dashed;
+}

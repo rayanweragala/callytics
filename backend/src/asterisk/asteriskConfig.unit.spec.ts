@@ -3,7 +3,6 @@ import { AsteriskConfigService } from './asterisk-config.service';
 function createService() {
   return new AsteriskConfigService(
     { find: jest.fn() } as any,
-    { find: jest.fn() } as any,
     { query: jest.fn() } as any,
   );
 }
@@ -12,7 +11,7 @@ describe('AsteriskConfigService config generation', () => {
   it('generates a valid SIP extension endpoint block for a given extension', () => {
     const service = createService();
     const content = (service as any).buildExtensionsConfig([
-      { username: '1001', password: 'secret' },
+      { username: '1001', password: 'secret', transport: 'transport-udp', endpointFlags: [] },
     ]);
 
     expect(content).toContain('[1001]');
@@ -57,7 +56,7 @@ describe('AsteriskConfigService config generation', () => {
   it('generated config contains username with the correct extension username', () => {
     const service = createService();
     const content = (service as any).buildExtensionsConfig([
-      { username: '2001', password: 'secret' },
+      { username: '2001', password: 'secret', transport: 'transport-udp', endpointFlags: [] },
     ]);
 
     expect(content).toContain('username = 2001');

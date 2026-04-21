@@ -9,7 +9,9 @@
     "stasis"
   ],
   "scripts": {
-    "dev": "docker compose up --build",
+    "dev": "docker compose up -d",
+    "dev:build": "docker compose up -d --build",
+    "dev:rebuild:app": "docker compose up -d --build backend stasis frontend",
     "start": "docker compose up -d",
     "stop": "docker compose down",
     "logs": "docker compose logs -f",

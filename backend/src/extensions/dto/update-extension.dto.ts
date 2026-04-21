@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateExtensionDto {
   @IsOptional()
@@ -15,4 +15,9 @@ export class UpdateExtensionDto {
   @IsString()
   @MaxLength(128)
   displayName?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['sip', 'webrtc'])
+  transportType?: 'sip' | 'webrtc';
 }

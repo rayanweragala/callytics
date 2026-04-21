@@ -22,6 +22,12 @@ import { BackendConfigModule } from './config/config.module';
 import { TrunksModule } from './trunks/trunks.module';
 import { CallLogsModule } from './call-logs/call-logs.module';
 import { TemplatesModule } from './templates/templates.module';
+import { OperatorsModule } from './operators/operators.module';
+import { OperatorEntity } from './operators/entities/operator.entity';
+import { QueuesModule } from './queues/queues.module';
+import { QueueEntity } from './queues/entities/queue.entity';
+import { ContactNumberEntity } from './contact-numbers/entities/contact-number.entity';
+import { ContactNumbersModule } from './contact-numbers/contact-numbers.module';
 
 @Module({
   imports: [
@@ -48,6 +54,9 @@ import { TemplatesModule } from './templates/templates.module';
           SipExtensionEntity,
           SipTrunkEntity,
           InboundRouteEntity,
+          OperatorEntity,
+          QueueEntity,
+          ContactNumberEntity,
         ],
         synchronize: false,
         logging: false,
@@ -66,6 +75,9 @@ import { TemplatesModule } from './templates/templates.module';
     TrunksModule,
     CallLogsModule,
     TemplatesModule,
+    OperatorsModule,
+    QueuesModule,
+    ContactNumbersModule,
   ],
   controllers: [HealthController],
 })

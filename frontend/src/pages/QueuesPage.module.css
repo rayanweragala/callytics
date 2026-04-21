@@ -1,0 +1,266 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.formPanel,
+.tablePanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 18px;
+}
+
+.panelTitle {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: lowercase;
+  margin-bottom: 12px;
+}
+
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: 200px 1fr 100px 100px 140px 160px;
+  gap: 12px;
+  align-items: center;
+}
+
+.tableHead {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.row {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.editorRow {
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: -1px;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.field {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.select {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.operatorTagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.operatorTag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+}
+
+.tagRemove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.tagRemove:hover {
+  color: var(--color-error);
+}
+
+.primaryButton,
+.deleteButton,
+.editButton,
+.cancelButton {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  height: 36px;
+  padding: 0 14px;
+  text-transform: lowercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.deleteButton {
+  color: var(--color-error);
+}
+
+.primaryButton:hover,
+.deleteButton:hover,
+.editButton:hover,
+.cancelButton:hover,
+.input:hover,
+.input:focus,
+.select:hover,
+.select:focus {
+  border-color: var(--border-strong);
+}
+
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.actions,
+.formActions,
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+}
+
+.dataMono,
+.createdAt {
+  font-family: 'Space Mono', monospace;
+}
+
+.dataMono {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.createdAt {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.empty {
+  padding-top: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.errorText {
+  color: var(--color-error);
+  font-size: 12px;
+  padding-top: 8px;
+}
+
+@media (max-width: 1100px) {
+  .formRow,
+  .editorRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tableHead,
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+

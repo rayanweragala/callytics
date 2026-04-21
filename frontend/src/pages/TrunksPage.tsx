@@ -1,13 +1,13 @@
 import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { SearchableSelect, type SearchableSelectOption } from '../../components/common/SearchableSelect';
-import { PageLayout } from '../../components/common/PageLayout';
-import { ErrorMessage } from '../../components/common/ErrorMessage';
-import { Pagination } from '../../components/common/Pagination';
-import { SkeletonRow } from '../../components/common/skeleton';
-import { createTrunk, deleteTrunk, listTrunks, testTrunk, updateTrunk } from '../../lib/api';
-import { getApiError } from '../../lib/apiError';
-import { formatDateTime } from '../../lib/time';
-import type { SipTrunkItem, TrunkTestResult } from '../../types';
+import { SearchableSelect, type SearchableSelectOption } from '../components/common/SearchableSelect';
+import { PageLayout } from '../components/common/PageLayout';
+import { ErrorMessage } from '../components/common/ErrorMessage';
+import { Pagination } from '../components/common/Pagination';
+import { SkeletonRow } from '../components/common/skeleton';
+import { createTrunk, deleteTrunk, listTrunks, testTrunk, updateTrunk } from '../lib/api';
+import { getApiError } from '../lib/apiError';
+import { formatDateTime } from '../lib/time';
+import type { SipTrunkItem, TrunkTestResult } from '../types';
 import styles from './TrunksPage.module.css';
 
 function SignalIcon() {
@@ -470,9 +470,15 @@ export function TrunksPage() {
                 <div className={styles.actionsCell}>
                   <div className={styles.actions}>
                     {confirmDeleteId === item.id ? (
-                      <button className={styles.deleteConfirmButton} onClick={() => void handleDelete(item.id)} type="button">
-                        {busyKey === `delete-${item.id}` ? 'Deleting…' : 'Confirm?'}
-                      </button>
+                      <div className={styles.confirmBox}>
+                        <div className={styles.confirmText}>Delete this trunk?</div>
+                        <div className={styles.confirmActions}>
+                          <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
+                          <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
+                            {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <button className={styles.secondaryButton} onClick={() => void handleTest(item)} type="button">

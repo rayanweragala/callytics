@@ -14,12 +14,14 @@ interface ExtensionFormState {
   username: string;
   password: string;
   displayName: string;
+  transportType: 'sip' | 'webrtc';
 }
 
 const emptyForm: ExtensionFormState = {
   username: '',
   password: '',
   displayName: '',
+  transportType: 'sip',
 };
 
 export function ExtensionsPage() {
@@ -107,6 +109,8 @@ export function ExtensionsPage() {
         username: createForm.username.trim(),
         password: createForm.password.trim(),
         displayName: createForm.displayName.trim() || undefined,
+        transportType: createForm.transportType,
+        transport_type: createForm.transportType,
       });
       setCreateForm(emptyForm);
       setCreateOpen(false);
@@ -128,6 +132,7 @@ export function ExtensionsPage() {
       username: item.username,
       password: item.password,
       displayName: item.displayName || '',
+      transportType: item.transportType || 'sip',
     });
   };
 
@@ -141,6 +146,8 @@ export function ExtensionsPage() {
         username: editForm.username.trim(),
         password: editForm.password.trim(),
         displayName: editForm.displayName.trim() || undefined,
+        transportType: editForm.transportType,
+        transport_type: editForm.transportType,
       });
       setEditingId(null);
       setEditForm(emptyForm);
@@ -232,6 +239,20 @@ export function ExtensionsPage() {
                 setCreateForm((current) => ({ ...current, displayName: event.target.value }));
               }} />
             </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>transport</span>
+              <select
+                className={styles.input}
+                value={createForm.transportType}
+                onChange={(event) => {
+                  resetMessages();
+                  setCreateForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
+                }}
+              >
+                <option value="sip">SIP / UDP</option>
+                <option value="webrtc">WebRTC / WSS</option>
+              </select>
+            </label>
             <div className={styles.formActions}>
               <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
             </div>
@@ -243,6 +264,7 @@ export function ExtensionsPage() {
           <div className={styles.tableHead}>
             <div>username</div>
             <div>display name</div>
+            <div>transport</div>
             <div>sip uri</div>
             <div>created</div>
             <div className={styles.actionsHeader}>actions</div>
@@ -253,6 +275,7 @@ export function ExtensionsPage() {
                 <SkeletonRow key={i} columns={[
                   { width: '200px' },
                   { width: '160px' },
+                  { width: '140px' },
                   { width: '250px' },
                   { width: '108px' },
                   { width: '220px' },
@@ -270,6 +293,9 @@ export function ExtensionsPage() {
                   <div className={styles.row}>
                 <div className={styles.dataMono}>{item.username}</div>
                 <div className={styles.displayName}>{item.displayName || '—'}</div>
+                <div>
+                  <span className={styles.transportBadge}>{item.transportType === 'webrtc' ? 'WebRTC' : 'SIP'}</span>
+                </div>
                 <div className={styles.dataMono}>{buildSipUri(item.username)}</div>
                 <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
                 <div className={styles.actions}>
@@ -314,6 +340,20 @@ export function ExtensionsPage() {
                       resetMessages();
                       setEditForm((current) => ({ ...current, displayName: event.target.value }));
                     }} />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>transport</span>
+                    <select
+                      className={styles.input}
+                      value={editForm.transportType}
+                      onChange={(event) => {
+                        resetMessages();
+                        setEditForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
+                      }}
+                    >
+                      <option value="sip">SIP / UDP</option>
+                      <option value="webrtc">WebRTC / WSS</option>
+                    </select>
                   </label>
                   <div className={styles.formActions}>
                     <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>

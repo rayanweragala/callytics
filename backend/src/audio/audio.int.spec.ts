@@ -56,8 +56,9 @@ describe('Audio API', () => {
       id: expect.any(Number),
       name: 'Prompt',
       originalFilename: expect.any(String),
-      previewUrl: expect.stringMatching(/^\/media\//),
+      originalUrl: expect.stringMatching(/^\/media\//),
       convertedUrl: expect.stringMatching(/^\/media\//),
+      previewUrl: null,
     }));
   });
 
@@ -113,8 +114,9 @@ describe('Audio API', () => {
       id: expect.any(Number),
       name: 'Upload Test',
       originalFilename: 'test.wav',
-      previewUrl: expect.stringMatching(/^\/media\//),
+      originalUrl: expect.stringMatching(/^\/media\//),
       convertedUrl: expect.stringMatching(/^\/media\//),
+      previewUrl: null,
     }));
   });
 

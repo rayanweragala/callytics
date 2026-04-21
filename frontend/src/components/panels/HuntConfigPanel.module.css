@@ -25,9 +25,20 @@
 .input {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text-primary);
   padding: 10px 12px;
+}
+
+.input[type='number']::-webkit-inner-spin-button,
+.input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .destinationsList {
@@ -36,26 +47,73 @@
   gap: 8px;
 }
 
+.destinationCard {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  padding: 8px;
+}
+
 .destinationRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.targetTypeCell {
+  width: 120px;
+  flex: 0 0 120px;
+}
+
+.targetTypeSelect {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 0 8px;
+  font-family: var(--font-ui);
+}
+
+.targetValueCell {
+  flex: 1;
+  min-width: 0;
 }
 
 .addButton,
 .removeButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--bg-surface);
   color: var(--text-primary);
-  padding: 10px 14px;
   text-transform: lowercase;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.addButton {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+}
+
+.removeButton {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .addButton:hover,
-.removeButton:hover {
-  background: var(--bg-elevated);
+.removeButton:hover,
+.targetTypeSelect:hover,
+.targetTypeSelect:focus,
+.input:hover,
+.input:focus {
   border-color: var(--border-strong);
 }
 

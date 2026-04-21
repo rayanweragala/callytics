@@ -133,7 +133,7 @@ describe('runtime integration — menu to submenu hunt', () => {
             label: 'Hunt',
             config_json: {
               strategy: 'sequential',
-              destinations: ['2001'],
+              destinations: [{ target_type: 'extension', target_value: '2001' }],
               attempt_timeout_ms: 3000,
               total_timeout_ms: 10000,
             },

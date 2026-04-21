@@ -53,7 +53,10 @@ services:
     network_mode: "host"
     volumes:
       - ./asterisk/base:/etc/asterisk
-      - ./storage:/app/storage
+      - ./storage/audio/originals:/app/storage/audio/originals
+      - ./storage/audio/converted:/app/storage/audio/converted
+      - ./storage/audio/previews:/app/storage/audio/previews
+      - ./storage/audio/tts:/app/storage/audio/tts
       - asterisk_recordings:/var/lib/asterisk/recording
     environment:
       AMI_HOST: 127.0.0.1
@@ -85,6 +88,9 @@ services:
       dockerfile: ./docker/web/Dockerfile
     ports:
       - 127.0.0.1:3000:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
     depends_on:
       - backend
     restart: unless-stopped

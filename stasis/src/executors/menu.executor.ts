@@ -1,6 +1,7 @@
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 import { resolveAudioMediaPath } from '../audioResolver';
+import { resolveNodeTimeoutMs } from '../timeoutResolver';
 
 type PlaybackTarget =
   | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop: () => Promise<void> }) => Promise<void> }
@@ -104,7 +105,7 @@ async function collectMenuAttempt(
   session: CallSession,
   ariClient: unknown,
 ): Promise<MenuAttemptResult> {
-  const timeoutMs = Number(node.config.timeout_ms) || 5000;
+  const timeoutMs = resolveNodeTimeoutMs(node, session, 5000);
   const client = ariClient as {
     Playback: () => { id: string; stop: () => Promise<void> };
     on: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;

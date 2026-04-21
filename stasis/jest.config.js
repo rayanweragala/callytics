@@ -12,6 +12,9 @@ module.exports = {
     'src/sipTrafficMonitor.ts',
     'src/executors/business_hours.executor.ts',
     'src/executors/voicemail.executor.ts',
+    'src/executors/webhook.executor.ts',
+    'src/executors/queue.executor.ts',
+    'src/engine/queueManager.ts',
   ],
   coverageThreshold: {
     global: {

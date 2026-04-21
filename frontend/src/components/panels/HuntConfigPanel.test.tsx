@@ -3,31 +3,54 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { HuntConfigPanel } from './HuntConfigPanel';
 
-type HuntConfig = {
-  strategy: string;
-  destinations: string[];
-  timeout: number;
-  on_failure: string;
+const audioOptions = [{ value: '1', label: 'Audio 1' }];
+const audioItems = [{
+  id: 1,
+  name: 'Audio 1',
+  sourceType: 'upload',
+  originalFilename: 'audio-1.wav',
+  mimeType: 'audio/wav',
+  durationMs: 1000,
+  conversionStatus: 'ready',
+  ttsText: null,
+  ttsVoice: null,
+  speed: 1,
+  originalUrl: '/audio/1.wav',
+  previewUrl: '/audio/1.wav',
+  convertedUrl: '/audio/1.ulaw.wav',
+  createdAt: '',
+  updatedAt: '',
+}];
+const nodeOptions = [{ value: 'n1', label: 'Node 1' }];
+const extensionOptions = [
+  { value: '101', label: '101 — Agent 101' },
+  { value: '102', label: '102 — Agent 102' },
+];
+const contactOptions = [{ value: '+947****8762', label: 'Mobile — +947****8762' }];
+
+const baseConfig = {
+  strategy: 'sequential',
+  destinations: [
+    { target_type: 'extension' as const, target_value: '101' },
+    { target_type: 'extension' as const, target_value: '102' },
+  ],
+  attempt_timeout_ms: 5000,
+  total_timeout_ms: 30000,
+  on_no_answer: 'n1',
 };
 
 describe('HuntConfigPanel coverage boost', () => {
-  const audioOptions = [{ value: 'a1', label: 'Audio 1' }];
-  const nodeOptions = [{ value: 'n1', label: 'Node 1' }];
-  const config: HuntConfig = {
-    strategy: 'sequential',
-    destinations: ['101', '102'],
-    timeout: 30,
-    on_failure: 'n1',
-  };
-
   it('renders config and handles strategy change', () => {
     const onConfigReplace = vi.fn();
     render(
       <HuntConfigPanel
         nodeId="1"
-        config={config}
+        config={baseConfig}
         audioOptions={audioOptions}
+        audioItems={audioItems}
         nodeOptions={nodeOptions}
+        extensionOptions={extensionOptions}
+        contactOptions={contactOptions}
         onConfigReplace={onConfigReplace}
       />
     );
@@ -36,15 +59,15 @@ describe('HuntConfigPanel coverage boost', () => {
 
     fireEvent.click(screen.getByText(/Sequential/i));
     fireEvent.click(screen.getByText(/Random/i));
-    
+
     expect(onConfigReplace).toHaveBeenCalledWith(expect.objectContaining({ strategy: 'random' }));
   });
 
   it('handles adding destination', () => {
     function Wrapper() {
-      const [nextConfig, setNextConfig] = useState(config);
+      const [nextConfig, setNextConfig] = useState(baseConfig);
       const handleConfigReplace = (replacement: Record<string, unknown>) => {
-        setNextConfig(replacement as HuntConfig);
+        setNextConfig(replacement as typeof baseConfig);
       };
 
       return (
@@ -52,18 +75,19 @@ describe('HuntConfigPanel coverage boost', () => {
           nodeId="1"
           config={nextConfig}
           audioOptions={audioOptions}
+          audioItems={audioItems}
           nodeOptions={nodeOptions}
+          extensionOptions={extensionOptions}
+          contactOptions={contactOptions}
           onConfigReplace={handleConfigReplace}
         />
       );
     }
 
-    render(
-      <Wrapper />
-    );
+    render(<Wrapper />);
 
-    expect(screen.getAllByPlaceholderText('SIP/101')).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /add destination/i }));
-    expect(screen.getAllByPlaceholderText('SIP/101')).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(3);
   });
 });

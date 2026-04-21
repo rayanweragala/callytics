@@ -38,28 +38,28 @@ describe('NodeConfigPanel', () => {
     },
   };
 
-  it('renders error for transfer node with empty destination when save attempted', () => {
-    const node = mockNode('transfer', { destination: '', timeout_ms: 30000 });
+  it('renders error for transfer node with empty target_value when save attempted', () => {
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '', timeout_ms: 30000 });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={true} />);
-    expect(screen.getByText('Destination is required')).toBeInTheDocument();
+    expect(screen.getByText('Target value is required')).toBeInTheDocument();
   });
 
-  it('does not render error for transfer node with non-empty destination when save attempted', () => {
-    const node = mockNode('transfer', { destination: 'SIP/123', timeout_ms: 30000 });
+  it('does not render error for transfer node with non-empty target_value when save attempted', () => {
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '2001', timeout_ms: 30000 });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={true} />);
-    expect(screen.queryByText('Destination is required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Target value is required')).not.toBeInTheDocument();
   });
 
   it('does not render error on initial load without saveAttempted', () => {
-    const node = mockNode('transfer', { destination: '', timeout_ms: 30000 });
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '', timeout_ms: 30000 });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
-    expect(screen.queryByText('Destination is required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Target value is required')).not.toBeInTheDocument();
   });
 
   it('renders error for transfer node with invalid timeout_ms when save attempted', () => {
-    const node = mockNode('transfer', { destination: 'SIP/123', timeout_ms: 0 });
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '2001', timeout_ms: 0 });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={true} />);
-    expect(screen.getByText('Timeout must be greater than 0')).toBeInTheDocument();
+    expect(screen.getByText('Timeout must be between 1000 and 120000 ms')).toBeInTheDocument();
   });
 
   it('renders error for menu node with missing prompt_audio_file_id when save attempted', () => {
@@ -77,7 +77,7 @@ describe('NodeConfigPanel', () => {
   it('renders error for menu node with invalid timeout_ms when save attempted', () => {
     const node = mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: -100, branches: ['1', '2'] });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={true} />);
-    expect(screen.getByText('Timeout must be greater than 0')).toBeInTheDocument();
+    expect(screen.getByText('Timeout must be between 1000 and 120000 ms')).toBeInTheDocument();
   });
 
   it('renders error for menu node with empty branches when save attempted', () => {
@@ -100,5 +100,17 @@ describe('NodeConfigPanel', () => {
     expect(screen.queryByText('Prompt audio is required')).not.toBeInTheDocument();
     expect(screen.queryByText('Timeout must be greater than 0')).not.toBeInTheDocument();
     expect(screen.queryByText('At least one branch is required')).not.toBeInTheDocument();
+  });
+
+  it('renders prompt audio field for queue_login node', () => {
+    const node = mockNode('queue_login', { queue_id: 1, prompt_audio_file_id: null });
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+    expect(screen.getByText('prompt audio')).toBeInTheDocument();
+  });
+
+  it('renders prompt audio field for queue node', () => {
+    const node = mockNode('queue', { queue_id: 1, prompt_audio_file_id: null });
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+    expect(screen.getByText('prompt audio')).toBeInTheDocument();
   });
 });

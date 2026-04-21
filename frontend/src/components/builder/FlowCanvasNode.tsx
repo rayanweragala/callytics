@@ -18,23 +18,33 @@ function toneClass(type: FlowNodeData['type']): string {
       return styles.voicemail;
     case 'hangup':
       return styles.hangup;
+    case 'webhook':
+      return styles.webhook;
+    case 'queue_login':
+      return styles.queueLogin;
+    case 'queue':
+      return styles.queue;
     default:
-      return styles.hangup;
+      return '';
   }
 }
 
 export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
+  const isWebhookNode = data.type === 'webhook';
   return (
-    <div className={`${styles.node} ${toneClass(data.type)} ${selected ? styles.selected : ''}`}>
+    <div className={`${styles.node} ${toneClass(data.type)} ${selected ? styles.selected : ''} ${isWebhookNode ? styles.webhookSideEffect : ''}`}>
       <span className={styles.accent} />
       <div className={styles.body}>
         <div className={styles.type}>{data.type}</div>
-        <div className={styles.label}>{data.label}</div>
+        <div className={styles.label}>{isWebhookNode ? `⚡ ${data.label}` : data.label}</div>
         {data.type === 'get_digits' && typeof data.config.timeout_ms === 'number' ? (
           <div className={styles.meta}>timeout: {Math.round(Number(data.config.timeout_ms) / 1000)}s</div>
         ) : null}
-        {data.type === 'transfer' && typeof data.config.destination === 'string' ? (
-          <div className={styles.meta}>{String(data.config.destination || 'no destination')}</div>
+        {data.type === 'transfer' ? (
+          <div className={styles.meta}>{String((data.config as Record<string, unknown>).target_value || 'no target')}</div>
+        ) : null}
+        {data.type === 'hunt' ? (
+          <div className={styles.meta}>{Array.isArray((data.config as Record<string, unknown>).destinations) ? `${((data.config as Record<string, unknown>).destinations as unknown[]).length} destination(s)` : 'no destinations'}</div>
         ) : null}
         {data.type === 'business_hours' ? (
           <div className={styles.meta}>
@@ -75,7 +85,7 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
             style={{ top: '70%' }}
           />
         </>
-      ) : (
+      ) : isWebhookNode ? null : (
         <Handle className={styles.handle} id={data.type === 'voicemail' ? 'done' : undefined} type="source" position={Position.Right} />
       )}
     </div>

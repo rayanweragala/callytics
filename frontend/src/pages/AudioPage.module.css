@@ -262,8 +262,7 @@
 }
 
 .meta,
-.createdAt,
-.confirmText {
+.createdAt {
   color: var(--text-secondary);
   font-size: 11px;
 }
@@ -278,8 +277,6 @@
   gap: 8px;
   justify-content: flex-end;
   align-items: center;
-  flex-wrap: wrap;
-  text-align: right;
 }
 
 .confirmBox {
@@ -290,6 +287,11 @@
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-overlay);
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .confirmActions {

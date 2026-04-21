@@ -1,0 +1,25 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+.DS_Store
+.idea
+.vscode
+
+# Build artifacts
+**/dist
+**/coverage
+**/.turbo
+
+# Runtime/storage artifacts not needed for image build context
+storage/recordings
+storage/voicemail
+storage/audio/converted
+storage/audio/temp
+*.log
+
+# Local env/secrets
+.env
+.env.*
+!.env.example
+
