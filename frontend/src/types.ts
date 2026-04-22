@@ -79,6 +79,24 @@ export interface SipMessage {
   createdAt: string | null;
 }
 
+export interface SipPacket {
+  id: string;
+  timestamp: string;
+  method: string;
+  from: string;
+  to: string;
+  callId: string;
+  direction: 'in' | 'out';
+  statusCode?: number;
+  rawJson: string;
+}
+
+export interface SipVerdict {
+  message: string;
+  cause: string;
+  colour: 'green' | 'amber' | 'red';
+}
+
 export interface DiagnosticsFailureItem {
   id: number;
   callId: string;

@@ -16,6 +16,9 @@ export function SidebarNav() {
             <NavLink to="/call-logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               call logs
             </NavLink>
+            <NavLink to="/capture" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              capture
+            </NavLink>
             <NavLink to="/recordings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               recordings
             </NavLink>

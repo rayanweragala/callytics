@@ -134,6 +134,12 @@ Dial multiple SIP destinations with configurable strategy.
 - SIP traffic persistence to `sip_messages` for historical diagnostics and Call-ID correlation
 - SIP ladder diagram slide-in for per-Call-ID drill-down from traffic/failure rows
 - Recent call failures panel with flow and destination resolution
+- Dedicated `/capture` page (MONITOR → Capture) for packet-level SIP troubleshooting
+  - Live packet stream with method/Call-ID/trunk/time filters
+  - Rule-based verdict banner (offline, no API dependency)
+  - Inline SIP ladder and packet header accordion
+  - `.pcap` export for selected dialog or current filtered view
+  - Existing Diagnostics Panel D SIP Traffic Inspector remains unchanged (Capture is additive)
 
 ## Node config validation
 

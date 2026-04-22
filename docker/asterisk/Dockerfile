@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     wget \
+    nodejs \
     libssl-dev \
     libncurses5-dev \
     libnewt-dev \
@@ -16,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     libedit-dev \
     binutils-dev \
     libsrtp2-dev \
+    redis-tools \
+    tshark \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,9 +51,15 @@ RUN cd /usr/src && \
     make install && \
     make samples && \
     make config && \
-    ldconfig
+    ldconfig && \
+    groupadd -f wireshark && \
+    (id -u asterisk >/dev/null 2>&1 && usermod -aG wireshark asterisk || true)
 
 EXPOSE 8088 5038 5060/udp
 EXPOSE 10000-10100/udp
 
-CMD ["asterisk", "-f", "-C", "/etc/asterisk/asterisk.conf"]
+COPY capture-sidecar.js /usr/local/bin/capture-sidecar.js
+COPY entrypoint.sh /usr/local/bin/asterisk-entrypoint.sh
+RUN chmod +x /usr/local/bin/capture-sidecar.js /usr/local/bin/asterisk-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/asterisk-entrypoint.sh"]

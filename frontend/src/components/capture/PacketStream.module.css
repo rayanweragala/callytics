@@ -1,0 +1,93 @@
+.leftPanel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  background: var(--bg-base);
+  min-height: 0;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.input {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-template-columns: 110px 90px 1fr 1fr 70px 180px;
+  gap: 10px;
+  align-items: center;
+}
+
+.tableHead {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.tableBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tableRow {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+
+.tableRow:hover {
+  background: var(--bg-surface);
+}
+
+.selectedRow {
+  border-left: 2px solid var(--color-info);
+}
+
+.errorRow {
+  background: var(--color-error-soft);
+}
+
+.timeCell {
+  color: var(--color-warning);
+}
+
+.methodInvite {
+  color: var(--color-info);
+}
+
+.methodBye {
+  color: var(--color-warning);
+}
+
+.methodDefault {
+  color: var(--text-primary);
+}
+
+.emptyState {
+  padding: 20px;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}

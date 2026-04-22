@@ -36,6 +36,8 @@
   Chosen because it exposes call events, channel updates, queue events, and enough runtime control for dashboards and status.
 - `ARI` with a `Stasis` app for flow execution
   Chosen because the visual flow lives in the database while the Node.js runtime executes each call step through ARI. Asterisk keeps a small static dialplan that hands calls into the Stasis app.
+- `tshark` for SIP capture ingestion (Phase 22B)
+  Used by backend capture service to parse live SIP packets (`-T ek`) for UI diagnostics and `.pcap` export workflows.
 
 ## Current telephony runtime topology
 
@@ -71,6 +73,11 @@
 
 - `Socket.io`
   Chosen because it handles reconnects, rooms, and browser support cleanly for dashboards. Raw WebSockets would work, but Socket.io removes a lot of boilerplate.
+
+## Packet capture export
+
+- `pcap-writer`
+  Used by backend capture export endpoints to generate valid `.pcap` binaries directly from parsed/stored SIP packet data without writing temporary files to disk.
 
 ## Flow editor
 

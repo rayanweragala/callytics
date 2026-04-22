@@ -32,6 +32,11 @@ services:
   asterisk:
     build: ./docker/asterisk
     network_mode: "host"
+    environment:
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6380
+      TSHARK_ENABLED: "true"
+      TSHARK_PORT: "5080"
     volumes:
       - ./asterisk/base:/etc/asterisk
       - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics

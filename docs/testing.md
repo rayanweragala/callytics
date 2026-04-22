@@ -1,6 +1,26 @@
 # Testing
 
-## Phase 17 completion summary
+## Phase 22A current baseline
+
+- Stasis test suite: **126 tests**
+- Backend test suite: **201 tests**
+- Frontend test suite: **212 tests**
+
+Phase 22B target additions:
+- Backend: **+8 tests**
+  - CaptureService spawn/parse/write/shutdown/CI guard
+  - Capture export endpoints
+  - Redis replay-on-reconnect behavior
+- Frontend: **+15 tests**
+  - Capture filter bar behavior
+  - Packet row selection + pagination
+  - Verdict rule engine (all rules)
+  - Accordion/raw toggle/export actions/empty state
+
+CI guard requirement for capture tests:
+- With `TSHARK_ENABLED=false` (or unset), backend startup and test runs must pass without requiring `tshark` binary availability.
+
+## Phase 17 completion summary (historical)
 
 - Stasis test suite: **58 tests** (`npm run test:ci` in `stasis/`)
 - Backend test suite: **85 tests** (`npm run test:ci` in `backend/`)

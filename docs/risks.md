@@ -30,6 +30,22 @@ AMI events are noisy. Correlating channels, bridges, transfers, and queue action
 
 Bad uploads, unsupported codecs, long files, clipping, and volume mismatch can make prompts sound broken. TTS voices can also sound unnatural enough that users reject them.
 
+### tshark unavailable in CI/runtime
+
+SIP capture depends on `tshark` availability and packet-capture permissions. Some CI environments and minimal hosts do not include `tshark`.
+
+Mitigation:
+- Guard capture startup behind `TSHARK_ENABLED === "true"`
+- Keep CI default with `TSHARK_ENABLED=false` so backend can boot/test without packet-capture binaries
+
+### Docker image size growth from tshark
+
+Installing tshark in the Asterisk image increases container size and pull/build time.
+
+Mitigation:
+- Keep package install scoped to Asterisk image only
+- Consider optional slim/non-capture image variants if distribution size becomes a blocker
+
 ## Product risks
 
 ### The install promise may be too ambitious

@@ -1,0 +1,403 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.statusLine {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+
+.errorText {
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  background: var(--color-error-soft);
+  color: var(--color-error);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: lowercase;
+}
+
+.actionButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.splitLayout {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.hasSelection {
+  width: 100%;
+}
+
+.splitLayout > :first-child {
+  flex: 0 0 var(--capture-left-width, 38%);
+  min-width: 280px;
+  max-width: 60%;
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
+.splitHandle {
+  width: 6px;
+  min-width: 6px;
+  cursor: col-resize;
+  background: var(--border-default);
+  align-self: stretch;
+  flex: 0 0 6px;
+}
+
+.rightPanel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  padding: 12px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.splitLayout > :first-child :global([class*='leftPanel']) {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
+.splitLayout > :first-child :global([class*='tableHead']),
+.splitLayout > :first-child :global([class*='tableRow']) {
+  width: 100%;
+  grid-template-columns: 110px 80px minmax(0, 180px) minmax(0, 180px) 55px 120px;
+  gap: 8px;
+}
+
+.splitLayout > :first-child :global([class*='filters']) {
+  position: relative;
+  z-index: 20;
+}
+
+.splitLayout > :first-child :global([class*='container']) {
+  position: relative;
+  z-index: 20;
+}
+
+.splitLayout > :first-child :global([class*='dropdown']) {
+  z-index: 20;
+}
+
+.splitLayout > :first-child :global([class*='tableHead']),
+.splitLayout > :first-child :global([class*='tableBody']) {
+  overflow: hidden;
+}
+
+.splitLayout > :first-child :global([class*='tableBody']) {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(3),
+.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(4) {
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(1),
+.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(1) {
+  width: 110px;
+}
+
+.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(2),
+.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(2) {
+  width: 80px;
+}
+
+.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(5),
+.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(5) {
+  width: 55px;
+}
+
+.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(6),
+.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(6) {
+  width: 120px;
+}
+
+.rightPanel :global([class*='verdictBanner']) {
+  flex-shrink: 0;
+}
+
+.rightPanel :global([class*='dialogHeader']) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.rightPanel :global([class*='inlinePanel']) {
+  flex-shrink: 0;
+}
+
+.rightPanel :global([class*='actionButton']) {
+  flex-shrink: 0;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.select,
+.input {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-template-columns: 120px 90px 1fr 1fr 60px 160px;
+  gap: 10px;
+  align-items: center;
+}
+
+.tableHead {
+  border: 1px solid var(--border-default);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 10px;
+  text-transform: uppercase;
+}
+
+.tableBody {
+  border: 1px solid var(--border-default);
+  border-radius: 0 0 8px 8px;
+  max-height: 440px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.tableRow {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  padding: 10px;
+  cursor: pointer;
+  animation: timeline-enter 200ms ease;
+}
+
+.tableRow:hover {
+  background: var(--bg-elevated);
+}
+
+.selectedRow {
+  border-left: 2px solid var(--color-info);
+}
+
+.errorRow {
+  background: var(--color-error-soft);
+}
+
+.timeCell {
+  color: var(--color-warning);
+}
+
+.methodInvite {
+  color: var(--color-info);
+}
+
+.methodBye {
+  color: var(--color-warning);
+}
+
+.methodDefault {
+  color: var(--text-primary);
+}
+
+.emptyState {
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.verdictBanner {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.verdictGreen {
+  border-color: var(--color-active);
+  background: var(--color-active-soft);
+}
+
+.verdictAmber {
+  border-color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.verdictRed {
+  border-color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.verdictMessage {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.verdictCause {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.dialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  margin: 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.accordionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.accordionItem {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.accordionSummary {
+  cursor: pointer;
+  padding: 8px 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.headerList {
+  border-top: 1px solid var(--border-default);
+  padding: 8px;
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.headerKey {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+}
+
+.headerValue {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.sdpBlock {
+  margin-top: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.sdpBlock pre,
+.rawJson {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rawButton {
+  margin-top: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+}

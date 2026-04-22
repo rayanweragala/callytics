@@ -81,6 +81,9 @@ jobs:
     environment: ci
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      REDIS_PORT: "6380"
+      REDIS_HOST: "127.0.0.1"
     services:
       postgres:
         image: postgres:15
@@ -94,6 +97,15 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
           --health-retries 5
     steps:
       - name: Checkout repository

@@ -16,7 +16,8 @@ callytics/
 │   ├── live-dashboard.md
 │   ├── monetization.md
 │   ├── risks.md
-│   └── roadmap.md
+│   ├── roadmap.md
+│   └── sip-capture.md
 ├── package.json                  # npm workspace root, CLI commands, and install metadata
 ├── docker-compose.yml            # local development and self-hosted service orchestration, including host networking for asterisk and stasis
 ├── .env.example                  # environment variable template for local and containerized runs
@@ -73,7 +74,11 @@ Notes:
 - `stasis/` is a real standalone Node.js package in the npm workspace. It is not embedded inside the NestJS backend process.
 - `stasis/src/` now includes the flow runtime engine, database migration/seed entrypoints, flow loader, call session manager, and node executors.
 - `frontend/src/` now contains routed pages for diagnostics, audio, and the flow builder, plus canonical Control Room components and builder-specific canvas components.
+- Phase 22B adds `/capture` route and capture-focused UI under `frontend/src/pages/CapturePage.tsx` with reusable packet/dialog components in shared/common component folders where possible.
 - `frontend/src/components/common/` contains shared `SearchableSelect` and `Pagination` components used across multiple pages.
+- `backend/src/` now includes diagnostics and capture infrastructure:
+  - `backend/src/diagnostics/` for socket relay and diagnostics stream fanout
+  - `backend/src/capture/` for `CaptureService`, `CaptureController`, and SIP capture DTOs/export logic
 - `asterisk/base` should stay mostly hand-maintained and small.
 - `asterisk/trunks` should be fully machine-generated from saved SIP trunk settings.
 - `storage` should be mount-backed so reinstalls do not destroy user data.

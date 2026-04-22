@@ -77,7 +77,19 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
   - Stasis now includes Call-ID in SIP traffic telemetry when available
   - Backend persists SIP traffic rows into `sip_messages` and exposes diagnostics read endpoints
   - Diagnostics UI supports Call-ID drill-down from Panel D and Panel E into right-side SIP ladder panel
-- Phase 22: next planned phase (in progress planning)
+- Phase 22A: live call timeline relay and diagnostics gateway hardening completed ✓
+  - Stasis `callytics:call-timeline` events are relayed through backend to frontend live execution panels
+  - DiagnosticsGateway registration moved to `afterInit()` to avoid pre-server broadcast race
+  - CallLogsListener startup now guarded when Redis config is absent/invalid
+  - Post-22A test totals: Stasis 126, Backend 201, Frontend 212
+- Phase 22B: SIP Capture page (current phase)
+  - New `/capture` monitor page with split packet/dialog workflow
+  - New backend CaptureService + CaptureController for tshark ingest and `.pcap` export
+  - New Redis stream `callytics:sip-capture` and socket event `sip:packet` to `capture-room`
+  - Existing Diagnostics SIP Traffic Inspector remains unchanged
+- Phase 23: RTP monitor (planned)
+- Phase 24: Asterisk log viewer (planned)
+- Phase 25–34: remain in previously defined roadmap order after Phase 24
 
 Important infrastructure change made during Phase 4:
 

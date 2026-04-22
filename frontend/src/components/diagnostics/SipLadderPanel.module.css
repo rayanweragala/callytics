@@ -22,6 +22,44 @@
   overflow-y: auto;
 }
 
+.inlinePanel {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 280px;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.inlinePanel::after {
+  content: '';
+  position: sticky;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  height: 24px;
+  margin-top: -24px;
+  background: linear-gradient(to bottom, transparent, var(--bg-surface));
+  pointer-events: none;
+}
+
+.inlinePanel .svgWrap svg > line {
+  stroke: var(--text-secondary);
+}
+
+.inlinePanel .svgWrap svg g line,
+.inlinePanel .svgWrap svg g polygon,
+.inlinePanel .svgWrap svg g text {
+  stroke: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+}
+
 .open {
   transform: translateX(0);
 }
@@ -69,6 +107,8 @@
   border-radius: 8px;
   background: var(--bg-base);
   padding: 8px;
+  width: 100%;
+  min-height: 280px;
 }
 
 .errorBox {

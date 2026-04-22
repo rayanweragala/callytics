@@ -1,0 +1,144 @@
+.emptyState {
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.dialogRoot {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.verdictBanner {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.verdictGreen {
+  border-color: var(--color-active);
+  background: var(--color-active-soft);
+}
+
+.verdictAmber {
+  border-color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.verdictRed {
+  border-color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.verdictHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verdictIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+}
+
+.verdictMessage {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.verdictCause {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.tabBar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tabButton {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.tabButton:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.tabButtonActive {
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.exportButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tabContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tabPane {
+  display: none;
+}
+
+.tabPaneActive {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 12px;
+}
+
+.headersTabPane :global([class*='dialogHeader']) {
+  display: none;
+}
+
+.ladderTabPane :global([class*='inlinePanel']) {
+  max-height: none;
+  height: 100%;
+}

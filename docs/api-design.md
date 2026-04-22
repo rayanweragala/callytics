@@ -398,6 +398,26 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
 - Returns:
   `SipMessage[]` (empty array when no matching messages exist)
 
+## Capture
+
+### `GET /capture/export/dialog/:callId`
+
+- What it does:
+  Exports a single SIP dialog (by Call-ID) as `.pcap`
+- Input:
+  Path param: `callId`
+- Returns:
+  Binary `application/vnd.tcpdump.pcap` response with attachment filename
+
+### `GET /capture/export/bulk`
+
+- What it does:
+  Exports the current SIP capture filtered view as `.pcap`
+- Input:
+  Optional query filters (method, callId, trunkOrExtension, from, to, page slice)
+- Returns:
+  Binary `application/vnd.tcpdump.pcap` response with attachment filename
+
 ## Inbound routes
 
 ### `GET /inbound-routes`

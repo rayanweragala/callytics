@@ -28,6 +28,7 @@ import { QueuesModule } from './queues/queues.module';
 import { QueueEntity } from './queues/entities/queue.entity';
 import { ContactNumberEntity } from './contact-numbers/entities/contact-number.entity';
 import { ContactNumbersModule } from './contact-numbers/contact-numbers.module';
+import { CaptureModule } from './capture/capture.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { ContactNumbersModule } from './contact-numbers/contact-numbers.module';
       }),
     }),
     DiagnosticsModule,
+    CaptureModule,
     FlowsModule,
     AudioModule,
     RecordingsModule,

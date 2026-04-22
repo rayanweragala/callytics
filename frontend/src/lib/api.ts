@@ -376,6 +376,27 @@ export async function getDiagnosticsSipMessagesByCallId(callId: string): Promise
   return response.data;
 }
 
+export async function exportCaptureDialog(callId: string): Promise<Blob> {
+  const response = await api.get(`/capture/export/dialog/${encodeURIComponent(callId)}`, {
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
+export async function exportCaptureBulk(params: {
+  method?: string;
+  callId?: string;
+  endpoint?: string;
+  from?: string;
+  to?: string;
+}): Promise<Blob> {
+  const response = await api.get('/capture/export/bulk', {
+    params,
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
 export async function listTemplates(): Promise<ListResponse<TemplateItem>> {
   const response = await api.get<ListResponse<TemplateItem>>('/templates');
   return response.data;
