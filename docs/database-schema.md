@@ -145,3 +145,21 @@
 | from_user | text | nullable |
 | enabled | boolean | default true |
 | created_at | timestamptz | |
+
+## sip_messages
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| call_id | text | nullable |
+| timestamp | timestamptz | |
+| method | text | nullable |
+| from_uri | text | nullable |
+| to_uri | text | nullable |
+| direction | text | inbound, outbound |
+| response_code | integer | nullable |
+| raw_message | text | nullable |
+| created_at | timestamptz | default now() |
+
+Indexes:
+- `idx_sip_messages_call_id` on `(call_id)`
+- `idx_sip_messages_timestamp` on `(timestamp)`

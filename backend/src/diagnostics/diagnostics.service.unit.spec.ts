@@ -4,8 +4,12 @@ import { DiagnosticsService } from './diagnostics.service';
 import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
 import * as net from 'node:net';
+import { createClient } from 'redis';
 
 jest.mock('node:net');
+jest.mock('redis', () => ({
+  createClient: jest.fn(),
+}));
 
 describe('DiagnosticsService', () => {
   let service: DiagnosticsService;
@@ -21,6 +25,14 @@ describe('DiagnosticsService', () => {
     qualifyEndpoint: jest.fn(),
     getPjsipEndpoints: jest.fn(),
   };
+  const sipSubscriptions = new Map<string, (message: string) => Promise<void> | void>();
+  const mockRedisSubscriber = {
+    on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(undefined),
+    subscribe: jest.fn(async (channel: string, handler: (message: string) => Promise<void> | void) => {
+      sipSubscriptions.set(channel, handler);
+    }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -33,6 +45,8 @@ describe('DiagnosticsService', () => {
     }).compile();
 
     service = module.get(DiagnosticsService);
+    sipSubscriptions.clear();
+    (createClient as unknown as jest.Mock).mockReturnValue(mockRedisSubscriber);
     jest.spyOn(global, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/asterisk/info')) {
@@ -206,5 +220,73 @@ describe('DiagnosticsService', () => {
     await service.getRecentFailures(250);
 
     expect(mockDataSource.query).toHaveBeenCalledWith(expect.any(String), [100]);
+  });
+
+  it('persists SIP traffic events into sip_messages with all mapped fields', async () => {
+    await (service as any).initializeSipTrafficRelay();
+
+    const onSipTraffic = sipSubscriptions.get('callytics:sip-traffic');
+    expect(onSipTraffic).toBeDefined();
+
+    const payload = {
+      callId: 'abc-123',
+      timestamp: '2026-04-21T20:00:00.000Z',
+      method: 'INVITE',
+      from: '<sip:1001@example.com>',
+      to: '<sip:2001@example.com>',
+      direction: 'inbound' as const,
+      responseCode: 180,
+      rawMessage: 'INVITE sip:2001@example.com SIP/2.0\nCall-ID: abc-123',
+    };
+
+    await onSipTraffic?.(JSON.stringify(payload));
+
+    expect(mockDataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO sip_messages'),
+      [
+        'abc-123',
+        '2026-04-21T20:00:00.000Z',
+        'INVITE',
+        '<sip:1001@example.com>',
+        '<sip:2001@example.com>',
+        'inbound',
+        180,
+        'INVITE sip:2001@example.com SIP/2.0\nCall-ID: abc-123',
+      ],
+    );
+  });
+
+  it('persists SIP traffic events even when callId is null', async () => {
+    await (service as any).initializeSipTrafficRelay();
+
+    const onSipTraffic = sipSubscriptions.get('callytics:sip-traffic');
+    expect(onSipTraffic).toBeDefined();
+
+    const payload = {
+      callId: null,
+      timestamp: '2026-04-21T20:01:00.000Z',
+      method: 'BYE',
+      from: '<sip:2001@example.com>',
+      to: '<sip:1001@example.com>',
+      direction: 'outbound' as const,
+      responseCode: 486,
+      rawMessage: 'SIP/2.0 486 Busy Here',
+    };
+
+    await onSipTraffic?.(JSON.stringify(payload));
+
+    expect(mockDataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO sip_messages'),
+      [
+        null,
+        '2026-04-21T20:01:00.000Z',
+        'BYE',
+        '<sip:2001@example.com>',
+        '<sip:1001@example.com>',
+        'outbound',
+        486,
+        'SIP/2.0 486 Busy Here',
+      ],
+    );
   });
 });

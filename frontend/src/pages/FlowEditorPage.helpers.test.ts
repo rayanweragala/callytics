@@ -57,19 +57,23 @@ describe('validateFlowBeforeSave — terminal node types (no outgoing required)'
     expect(result).toBeNull();
   });
 
-  it('webhook with no outgoing edge: no error', async () => {
-    const nodes = [startNode, makeNode('wh1', 'webhook')];
-    const edges = [startEdge];
+  it('webhook with a success outgoing edge: no error', async () => {
+    const nodes = [startNode, makeNode('wh1', 'webhook'), nextNode];
+    const edges: Edge[] = [
+      makeEdge('start', 'wh1'),
+      { id: 'wh1-next', source: 'wh1', target: 'next', data: { branchKey: 'success', condition: 'success', sourceNodeType: 'webhook' } as any },
+    ];
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
   });
 
   it('play_audio can have normal edge plus webhook edge simultaneously', async () => {
     const nodes = [startNode, makeNode('p1', 'play_audio'), makeNode('next', 'hangup'), makeNode('wh1', 'webhook')];
-    const edges = [
+    const edges: Edge[] = [
       makeEdge('start', 'p1'),
       makeEdge('p1', 'next'),
       makeEdge('p1', 'wh1'),
+      { id: 'wh1-next', source: 'wh1', target: 'next', data: { branchKey: 'success', condition: 'success', sourceNodeType: 'webhook' } as any },
     ];
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
@@ -86,6 +90,7 @@ describe('validateFlowBeforeSave — terminal node types (no outgoing required)'
       makeEdge('start', 'm1'),
       { id: 'm1-next', source: 'm1', target: 'next', data: { branchKey: '1', condition: '1', sourceNodeType: 'menu' } as any },
       { id: 'm1-wh1', source: 'm1', target: 'wh1', data: { branchKey: '1', condition: '1', sourceNodeType: 'menu' } as any },
+      { id: 'wh1-next', source: 'wh1', target: 'next', data: { branchKey: 'success', condition: 'success', sourceNodeType: 'webhook' } as any },
     ];
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
@@ -100,7 +105,7 @@ describe('validateFlowBeforeSave — terminal node types (no outgoing required)'
       makeNode('next', 'hangup'),
       makeNode('wh1', 'webhook'),
     ];
-    const edges = [
+    const edges: Edge[] = [
       makeEdge('start', 'q1'),
       makeEdge('q1', 'next'),
       makeEdge('q1', 'wh1'),
@@ -108,6 +113,7 @@ describe('validateFlowBeforeSave — terminal node types (no outgoing required)'
       makeEdge('h1', 'wh1'),
       makeEdge('t1', 'next'),
       makeEdge('t1', 'wh1'),
+      { id: 'wh1-next', source: 'wh1', target: 'next', data: { branchKey: 'success', condition: 'success', sourceNodeType: 'webhook' } as any },
     ];
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
@@ -151,8 +157,8 @@ describe('validateFlowTimeoutConfig', () => {
     ];
 
     const result = validateFlowTimeoutConfig(nodes);
-    expect(result.errors.length).toBe(1);
-    expect(result.errors[0]).toMatch(/flow default timeout/i);
+    expect(result.errors).toEqual([]);
+    expect(result.warningCount).toBe(1);
   });
 
   it('returns no warning when queue_login uses flow default and start default is valid', () => {
@@ -215,6 +221,6 @@ describe('validateFlowTimeoutConfig', () => {
 
     const result = validateFlowTimeoutConfig(nodes, { isSubflow: true });
     expect(result.errors).toEqual([]);
-    expect(result.warningCount).toBe(0);
+    expect(result.warningCount).toBe(1);
   });
 });

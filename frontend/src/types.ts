@@ -56,6 +56,7 @@ export interface SipRegistrationItem {
 }
 
 export interface SipTrafficItem {
+  callId: string | null;
   timestamp: string;
   method: string;
   from: string;
@@ -63,6 +64,19 @@ export interface SipTrafficItem {
   direction: 'inbound' | 'outbound';
   responseCode: number | null;
   rawMessage: string;
+}
+
+export interface SipMessage {
+  id: number;
+  callId: string | null;
+  timestamp: string;
+  method: string | null;
+  fromUri: string | null;
+  toUri: string | null;
+  direction: string | null;
+  responseCode: number | null;
+  rawMessage: string | null;
+  createdAt: string | null;
 }
 
 export interface DiagnosticsFailureItem {

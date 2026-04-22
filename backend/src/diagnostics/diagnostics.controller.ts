@@ -34,4 +34,18 @@ export class DiagnosticsController {
   ) {
     return this.diagnosticsService.getRecentFailures(limit, offset);
   }
+
+  @Get('sip-messages')
+  getSipMessages(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('callId') callId?: string,
+  ) {
+    return this.diagnosticsService.getSipMessages(page, limit, callId);
+  }
+
+  @Get('sip-messages/:callId')
+  getSipMessagesByCallId(@Param('callId') callId: string) {
+    return this.diagnosticsService.getSipMessagesByCallId(callId);
+  }
 }

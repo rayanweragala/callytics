@@ -35,6 +35,17 @@
   margin-bottom: 12px;
 }
 
+.note {
+  margin-bottom: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
 .select,
 .input,
 .button {
@@ -123,4 +134,8 @@
 
 .error {
   color: var(--color-error);
+}
+
+.pagination {
+  margin-top: 16px;
 }

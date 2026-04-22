@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getDiagnosticsSipMessages } from '../../lib/api';
+import type { SipMessage, SipTrafficItem } from '../../types';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog';
+import { Pagination } from '../common/Pagination';
 import { SkeletonRow } from '../common/skeleton';
-import type { SipTrafficItem } from '../../types';
 import styles from './SipTrafficInspector.module.css';
 
 interface SipTrafficInspectorProps {
   items: SipTrafficItem[];
   onClear: () => void;
   loading?: boolean;
+  onRowClick?: (callId: string) => void;
 }
 
 const METHOD_OPTIONS = ['all', 'INVITE', 'REGISTER', 'OPTIONS', 'BYE'] as const;
+const SIP_PAGE_SIZE = 5;
 
 function formatSipTimestamp(isoString: string): string {
   const d = new Date(isoString);
@@ -19,6 +23,19 @@ function formatSipTimestamp(isoString: string): string {
   const ss = String(d.getSeconds()).padStart(2, '0');
   const ms = String(d.getMilliseconds()).padStart(3, '0');
   return `${hh}:${mm}:${ss}.${ms}`;
+}
+
+function toTrafficItem(message: SipMessage): SipTrafficItem {
+  return {
+    callId: message.callId,
+    timestamp: message.timestamp,
+    method: message.method || '-',
+    from: message.fromUri || 'unknown',
+    to: message.toUri || 'unknown',
+    direction: message.direction === 'outbound' ? 'outbound' : 'inbound',
+    responseCode: message.responseCode,
+    rawMessage: message.rawMessage || '',
+  };
 }
 
 function getRowTone(item: SipTrafficItem): string {
@@ -34,38 +51,102 @@ function getRowTone(item: SipTrafficItem): string {
   return styles.info;
 }
 
-export function SipTrafficInspector({ items, onClear }: SipTrafficInspectorProps) {
+function uniqueItems(items: SipTrafficItem[]): SipTrafficItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.timestamp}|${item.method}|${item.from}|${item.to}|${item.direction}|${item.responseCode ?? '-'}|${item.callId ?? ''}|${item.rawMessage}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+export function SipTrafficInspector({ items, onClear, loading = false, onRowClick }: SipTrafficInspectorProps) {
   const [paused, setPaused] = useState(false);
   const [methodFilter, setMethodFilter] = useState<(typeof METHOD_OPTIONS)[number]>('all');
   const [endpointFilter, setEndpointFilter] = useState('');
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [displayedItems, setDisplayedItems] = useState<SipTrafficItem[]>(items);
-  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyItems, setHistoryItems] = useState<SipTrafficItem[]>([]);
+  const [liveItems, setLiveItems] = useState<SipTrafficItem[]>([]);
+  const [viewCleared, setViewCleared] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const liveCursorRef = useRef(items.length);
 
   useEffect(() => {
+    let active = true;
+    const loadPage = async () => {
+      setHistoryLoading(true);
+      try {
+        const response = await getDiagnosticsSipMessages(historyPage, SIP_PAGE_SIZE);
+        if (!active) {
+          return;
+        }
+        setHistoryItems(response.data.map(toTrafficItem));
+        setHistoryTotal(response.total);
+      } catch {
+        if (!active) {
+          return;
+        }
+        setHistoryItems([]);
+        setHistoryTotal(0);
+      } finally {
+        if (active) {
+          setHistoryLoading(false);
+        }
+      }
+    };
+
+    void loadPage();
+    return () => {
+      active = false;
+    };
+  }, [historyPage]);
+
+  useEffect(() => {
+    if (items.length < liveCursorRef.current) {
+      liveCursorRef.current = items.length;
+    }
+
     if (paused) {
       return;
     }
-    setDisplayedItems(items);
+
+    const nextItems = items.slice(liveCursorRef.current);
+    liveCursorRef.current = items.length;
+
+    if (nextItems.length === 0) {
+      return;
+    }
+
+    setLiveItems((current) => [...current, ...nextItems].slice(-100));
   }, [items, paused]);
 
+  const totalPages = Math.max(1, Math.ceil(historyTotal / SIP_PAGE_SIZE));
+
+  const pageItems = useMemo(() => {
+    if (viewCleared) {
+      return [];
+    }
+    if (historyPage === 1) {
+      return uniqueItems([...liveItems.slice().reverse(), ...historyItems]);
+    }
+    return historyItems;
+  }, [historyItems, historyPage, liveItems, viewCleared]);
+
   const filteredItems = useMemo(() => (
-    displayedItems.filter((item) => {
+    pageItems.filter((item) => {
       const methodMatches = methodFilter === 'all' || item.method.startsWith(methodFilter);
       const endpointValue = `${item.from} ${item.to}`.toLowerCase();
       const endpointMatches = !endpointFilter.trim() || endpointValue.includes(endpointFilter.trim().toLowerCase());
       return methodMatches && endpointMatches;
     })
-  ), [displayedItems, endpointFilter, methodFilter]);
-
-  useEffect(() => {
-    if (!stickToBottom || !bodyRef.current) {
-      return;
-    }
-    bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [filteredItems, stickToBottom]);
+  ), [endpointFilter, methodFilter, pageItems]);
 
   const visibleItems = paused ? filteredItems.slice(0, Math.min(filteredItems.length, 200)) : filteredItems;
 
@@ -81,7 +162,7 @@ export function SipTrafficInspector({ items, onClear }: SipTrafficInspectorProps
             {paused ? 'Resume' : 'Pause'}
           </button>
           <button className={styles.button} onClick={() => setConfirmOpen(true)} type="button">
-            Clear
+            Clear View
           </button>
         </div>
       </div>
@@ -101,6 +182,8 @@ export function SipTrafficInspector({ items, onClear }: SipTrafficInspectorProps
         />
       </div>
 
+      {note ? <div className={styles.note}>{note}</div> : null}
+
       <div className={styles.head}>
         <span>Time</span>
         <span>Method</span>
@@ -111,16 +194,8 @@ export function SipTrafficInspector({ items, onClear }: SipTrafficInspectorProps
         <span>Code</span>
       </div>
 
-      <div
-        className={styles.stream}
-        onScroll={(event) => {
-          const element = event.currentTarget;
-          const nextStickToBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 8;
-          setStickToBottom(nextStickToBottom);
-        }}
-        ref={bodyRef}
-      >
-        {items.length === 0 ? (
+      <div className={styles.stream}>
+        {((loading || historyLoading) && visibleItems.length === 0) ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (
               <SkeletonRow key={i} columns={[
@@ -139,7 +214,15 @@ export function SipTrafficInspector({ items, onClear }: SipTrafficInspectorProps
             <div key={`${item.timestamp}-${index}`}>
               <button
                 className={`${styles.row} ${getRowTone(item)}`}
-                onClick={() => setExpandedIndex((current) => current === index ? null : index)}
+                onClick={() => {
+                  setExpandedIndex((current) => current === index ? null : index);
+                  if (!item.callId) {
+                    setNote('No Call-ID available for this message');
+                    return;
+                  }
+                  setNote(null);
+                  onRowClick?.(item.callId);
+                }}
                 type="button"
               >
                 <span>[{formatSipTimestamp(item.timestamp)}]</span>
@@ -158,19 +241,30 @@ export function SipTrafficInspector({ items, onClear }: SipTrafficInspectorProps
         )}
       </div>
 
+      <div className={styles.pagination}>
+        <Pagination onPageChange={(page) => {
+          setExpandedIndex(null);
+          setViewCleared(false);
+          setHistoryPage(page);
+        }} page={historyPage} totalPages={totalPages} />
+      </div>
+
       <ConfirmDialog
         cancelLabel="Cancel"
         confirmLabel="Clear"
-        message="Remove all captured SIP rows from the inspector?"
+        message="Clear only the local SIP traffic view? Stored history remains in the database."
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
           setConfirmOpen(false);
           setExpandedIndex(null);
-          setDisplayedItems([]);
+          setNote(null);
+          setViewCleared(true);
+          setLiveItems([]);
+          liveCursorRef.current = items.length;
           onClear();
         }}
         open={confirmOpen}
-        title="Clear SIP traffic"
+        title="Clear SIP traffic view"
       />
     </section>
   );

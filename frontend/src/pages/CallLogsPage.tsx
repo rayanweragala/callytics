@@ -13,7 +13,7 @@ import { diagnosticsSocket } from '../lib/socket';
 import type { CallEvent, CallLogItem, CallTimelineEvent, SipEndpointStatus } from '../types';
 import styles from './CallLogsPage.module.css';
 
-const PAGE_LIMIT = 25;
+const PAGE_LIMIT = 10;
 const SIP_PAGE_SIZE = 10;
 
 function formatDuration(value: number | null): string {

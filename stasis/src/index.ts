@@ -248,6 +248,7 @@ async function start(): Promise<void> {
       console.log(`Incoming call: ${channel.id} from ${callerNumber}`);
       try {
         await publishSipTraffic({
+          callId: channel.id,
           timestamp: new Date().toISOString(),
           method: 'INVITE',
           from: callerNumber,
@@ -383,6 +384,7 @@ async function start(): Promise<void> {
       // 2. Publish telemetry (non-blocking)
       void publishCallEndTelemetry(channel.id, session.flow.id, session.callerNumber);
       void publishSipTraffic({
+        callId: channel.id,
         timestamp: new Date().toISOString(),
         method: 'BYE',
         from: session.callerNumber,

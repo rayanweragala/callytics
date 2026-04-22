@@ -99,3 +99,19 @@ Recommended repeat checks:
 - `stasis/src/executors/business_hours.executor.unit.spec.ts` — open/closed logic for different times and days
 - `backend/src/call-logs/call-logs.service.unit.spec.ts` — trace endpoint
 - `backend/src/templates/templates.int.spec.ts` — import flow integration test
+
+## Phase 21 added tests
+
+- **Stasis**: `stasis/src/sipTrafficMonitor.unit.spec.ts`
+  - Call-ID extraction from raw SIP payloads (present, missing, mid-message, empty)
+- **Backend**: `backend/src/diagnostics/diagnostics.service.unit.spec.ts`
+  - `sip_messages` persistence path from Redis SIP events, including `callId = null`
+  - Field mapping verification: `from -> from_uri`, `to -> to_uri`, `responseCode -> response_code`
+- **Backend**: `backend/src/diagnostics/diagnostics.int.spec.ts`
+  - `GET /diagnostics/sip-messages` base and `callId`-filtered responses
+  - `GET /diagnostics/sip-messages/:callId` response behavior for existing and missing Call-ID
+- **Frontend**: `frontend/src/components/__tests__/SipLadderDiagram.test.tsx`
+  - SVG ladder rendering, SIP labels, chronological row ordering, failure highlighting, empty-message rendering
+- **Frontend**: `frontend/src/pages/__tests__/DiagnosticsPage.phase21.test.tsx`
+  - Panel D SIP Traffic Inspector drill-down behavior
+  - Panel E Recent Call Failures drill-down and failure-highlighted ladder behavior

@@ -12,6 +12,8 @@ describe('DiagnosticsController', () => {
     testAllTrunks: jest.fn(),
     getSipRegistrations: jest.fn(),
     getRecentFailures: jest.fn(),
+    getSipMessages: jest.fn(),
+    getSipMessagesByCallId: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -35,6 +37,8 @@ describe('DiagnosticsController', () => {
     mockService.testAllTrunks.mockResolvedValue({ data: [] });
     mockService.getSipRegistrations.mockResolvedValue({ data: [] });
     mockService.getRecentFailures.mockResolvedValue({ data: [], total: 0 });
+    mockService.getSipMessages.mockResolvedValue({ data: [], total: 0, page: 1, limit: 50 });
+    mockService.getSipMessagesByCallId.mockResolvedValue([]);
   });
 
   it('GET /diagnostics/health returns system health', async () => {
@@ -59,5 +63,65 @@ describe('DiagnosticsController', () => {
     const response = await request(app.getHttpServer()).get('/diagnostics/failures');
     expect(response.status).toBe(200);
     expect(mockService.getRecentFailures).toHaveBeenCalledWith(20, 0);
+  });
+
+  it('GET /diagnostics/sip-messages without query params returns 200 and array data', async () => {
+    mockService.getSipMessages.mockResolvedValueOnce({
+      data: [
+        { id: 1, callId: 'abc-123', timestamp: '2026-04-21T20:00:00.000Z' },
+      ],
+      total: 1,
+      page: 1,
+      limit: 50,
+    });
+
+    const response = await request(app.getHttpServer()).get('/diagnostics/sip-messages');
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body.data)).toBe(true);
+    expect(mockService.getSipMessages).toHaveBeenCalledWith(1, 50, undefined);
+  });
+
+  it('GET /diagnostics/sip-messages?callId=abc-123 returns filtered rows', async () => {
+    mockService.getSipMessages.mockResolvedValueOnce({
+      data: [
+        { id: 2, callId: 'abc-123', timestamp: '2026-04-21T20:01:00.000Z' },
+      ],
+      total: 1,
+      page: 1,
+      limit: 50,
+    });
+
+    const response = await request(app.getHttpServer()).get('/diagnostics/sip-messages?callId=abc-123');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([
+      expect.objectContaining({ callId: 'abc-123' }),
+    ]);
+    expect(mockService.getSipMessages).toHaveBeenCalledWith(1, 50, 'abc-123');
+  });
+
+  it('GET /diagnostics/sip-messages/:callId returns 200 and callId rows', async () => {
+    mockService.getSipMessagesByCallId.mockResolvedValueOnce([
+      { id: 3, callId: 'abc-123', timestamp: '2026-04-21T20:02:00.000Z' },
+    ]);
+
+    const response = await request(app.getHttpServer()).get('/diagnostics/sip-messages/abc-123');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([
+      expect.objectContaining({ callId: 'abc-123' }),
+    ]);
+    expect(mockService.getSipMessagesByCallId).toHaveBeenCalledWith('abc-123');
+  });
+
+  it('GET /diagnostics/sip-messages/:callId returns 200 and empty array when no rows exist', async () => {
+    mockService.getSipMessagesByCallId.mockResolvedValueOnce([]);
+
+    const response = await request(app.getHttpServer()).get('/diagnostics/sip-messages/missing-call');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+    expect(mockService.getSipMessagesByCallId).toHaveBeenCalledWith('missing-call');
   });
 });

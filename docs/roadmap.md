@@ -73,6 +73,11 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
   - CI workflow added at `.github/workflows/ci.yml` for `dev` and `main` push/PR validation
   - Coverage gates now enforced across all three apps (`stasis`, `backend`, `frontend`)
   - Hunt executor behavior aligned with outbound Stasis-entry answer detection to reduce missed-bridge races
+- Phase 21: SIP diagnostics ladder + persistent SIP message history completed
+  - Stasis now includes Call-ID in SIP traffic telemetry when available
+  - Backend persists SIP traffic rows into `sip_messages` and exposes diagnostics read endpoints
+  - Diagnostics UI supports Call-ID drill-down from Panel D and Panel E into right-side SIP ladder panel
+- Phase 22: next planned phase (in progress planning)
 
 Important infrastructure change made during Phase 4:
 

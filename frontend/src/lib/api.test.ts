@@ -159,13 +159,29 @@ describe('api library', () => {
   });
 
   it('createExtension calls correct endpoint', async () => {
-    (axios.post as any).mockResolvedValue({ data: {} });
+    (axios.post as any).mockResolvedValue({
+      data: {
+        data: {
+          id: 1,
+          username: 'u',
+          transportType: 'sip',
+        },
+      },
+    });
     await api.createExtension({ username: 'u', password: 'p' });
     expect(axios.post).toHaveBeenCalledWith('/extensions', { username: 'u', password: 'p' });
   });
 
   it('updateExtension calls correct endpoint', async () => {
-    (axios.put as any).mockResolvedValue({ data: {} });
+    (axios.put as any).mockResolvedValue({
+      data: {
+        data: {
+          id: 1,
+          username: 'u',
+          transportType: 'sip',
+        },
+      },
+    });
     await api.updateExtension(1, { displayName: 'n' });
     expect(axios.put).toHaveBeenCalledWith('/extensions/1', { displayName: 'n' });
   });

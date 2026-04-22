@@ -10,9 +10,10 @@ interface CallFailuresPanelProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   onTraceOpen?: (callId: string) => void;
+  onFailureClick?: (item: DiagnosticsFailureItem) => void;
 }
 
-export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTraceOpen }: CallFailuresPanelProps) {
+export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTraceOpen, onFailureClick }: CallFailuresPanelProps) {
   return (
     <section className={styles.panel}>
       <div className={styles.header}>
@@ -49,14 +50,22 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTra
           </>
         ) : (
           items.map((item) => (
-            <div className={styles.row} key={item.id} style={{ cursor: 'default' }}>
+            <div className={styles.row} key={item.id} onClick={() => onFailureClick?.(item)} role="button" tabIndex={0} onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onFailureClick?.(item);
+              }
+            }}>
               <span>{formatDateTime(item.time)}</span>
               <span className={styles.mono}>{item.callerId || '—'}</span>
               <span>{item.flowName || 'Unknown flow'}</span>
               <span className={styles.mono}>{item.failedNodeType || '—'}</span>
               <span>{item.errorMessage || 'Unknown failure'}</span>
               <span className={styles.mono}>{item.durationSeconds ?? '—'}</span>
-              <button className={styles.traceButton} onClick={() => onTraceOpen?.(item.callUuid || item.callId)} type="button">{'>'}</button>
+              <button className={styles.traceButton} onClick={(event) => {
+                event.stopPropagation();
+                onTraceOpen?.(item.callUuid || item.callId);
+              }} type="button">{'>'}</button>
             </div>
           ))
         )}

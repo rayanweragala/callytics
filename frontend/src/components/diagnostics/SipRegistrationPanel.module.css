@@ -32,7 +32,7 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: 1fr 0.8fr 0.9fr 1.4fr 0.7fr 1fr;
+  grid-template-columns: minmax(120px, 1fr) 96px 124px minmax(180px, 1.4fr) 72px 150px;
   gap: 12px;
   align-items: center;
   padding: 12px 14px;
@@ -50,6 +50,37 @@
   font-size: 13px;
 }
 
+.head > span,
+.cell {
+  min-width: 0;
+}
+
+.cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameCell,
+.contactCell {
+  font-family: 'Space Mono', monospace;
+}
+
+.typeCell {
+  text-transform: capitalize;
+}
+
+.lastSeenCell {
+  white-space: nowrap;
+}
+
+.empty {
+  border-top: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
 .mono {
   font-family: 'Space Mono', monospace;
 }
@@ -57,7 +88,7 @@
 .badge {
   display: inline-flex;
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 4px 8px;
   font-size: 12px;
 }

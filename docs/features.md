@@ -131,6 +131,8 @@ Dial multiple SIP destinations with configurable strategy.
 - Trunk health panel with live reachability testing and PJSIP qualify actions
 - SIP registration panel for active endpoint contacts
 - SIP traffic inspector with real-time scrolling transport events
+- SIP traffic persistence to `sip_messages` for historical diagnostics and Call-ID correlation
+- SIP ladder diagram slide-in for per-Call-ID drill-down from traffic/failure rows
 - Recent call failures panel with flow and destination resolution
 
 ## Node config validation

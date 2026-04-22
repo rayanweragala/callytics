@@ -12,6 +12,7 @@ import type {
   CallEvent,
   DiagnosticsSystemHealth,
   SipTrafficEvent,
+  SipMessage,
   TrunkDiagnosticsResult,
 } from './diagnostics.types';
 
@@ -207,7 +208,7 @@ export class DiagnosticsService implements OnModuleInit {
     const rows = await this.dataSource.query(
       `
       SELECT
-        cl.id AS "callId",
+        cl.call_uuid AS "callId",
         cl.call_uuid AS "callUuid",
         cl.caller_number AS "callerNumber",
         cf.name AS "flowName",
@@ -238,6 +239,109 @@ export class DiagnosticsService implements OnModuleInit {
         durationSeconds: row.durationSeconds === null ? null : Number(row.durationSeconds),
       })),
     };
+  }
+
+  async getSipMessages(
+    page = 1,
+    limit = 50,
+    callId?: string,
+  ): Promise<{ data: SipMessage[]; total: number; page: number; limit: number }> {
+    const safePage = Math.max(1, Math.floor(page));
+    const safeLimit = Math.min(200, Math.max(1, Math.floor(limit)));
+    const offset = (safePage - 1) * safeLimit;
+
+    if (callId && callId.trim()) {
+      const normalizedCallId = callId.trim();
+      const [totalRows, rows] = await Promise.all([
+        this.dataSource.query('SELECT COUNT(*)::int AS total FROM sip_messages WHERE call_id = $1', [normalizedCallId]),
+        this.dataSource.query(
+          `
+          SELECT
+            id,
+            call_id AS "callId",
+            timestamp,
+            method,
+            from_uri AS "fromUri",
+            to_uri AS "toUri",
+            direction,
+            response_code AS "responseCode",
+            raw_message AS "rawMessage",
+            created_at AS "createdAt"
+          FROM sip_messages
+          WHERE call_id = $1
+          ORDER BY timestamp DESC
+          LIMIT $2 OFFSET $3
+          `,
+          [normalizedCallId, safeLimit, offset],
+        ),
+      ]);
+
+      return {
+        data: rows.map((row: Record<string, unknown>) => this.mapSipMessage(row)),
+        total: Number(totalRows[0]?.total || 0),
+        page: safePage,
+        limit: safeLimit,
+      };
+    }
+
+    const [totalRows, rows] = await Promise.all([
+      this.dataSource.query('SELECT COUNT(*)::int AS total FROM sip_messages'),
+      this.dataSource.query(
+        `
+        SELECT
+          id,
+          call_id AS "callId",
+          timestamp,
+          method,
+          from_uri AS "fromUri",
+          to_uri AS "toUri",
+          direction,
+          response_code AS "responseCode",
+          raw_message AS "rawMessage",
+          created_at AS "createdAt"
+        FROM sip_messages
+        ORDER BY timestamp DESC
+        LIMIT $1 OFFSET $2
+        `,
+        [safeLimit, offset],
+      ),
+    ]);
+
+    return {
+      data: rows.map((row: Record<string, unknown>) => this.mapSipMessage(row)),
+      total: Number(totalRows[0]?.total || 0),
+      page: safePage,
+      limit: safeLimit,
+    };
+  }
+
+  async getSipMessagesByCallId(callId: string): Promise<SipMessage[]> {
+    const normalizedCallId = callId.trim();
+    if (!normalizedCallId) {
+      return [];
+    }
+
+    const rows = await this.dataSource.query(
+      `
+      SELECT
+        id,
+        call_id AS "callId",
+        timestamp,
+        method,
+        from_uri AS "fromUri",
+        to_uri AS "toUri",
+        direction,
+        response_code AS "responseCode",
+        raw_message AS "rawMessage",
+        created_at AS "createdAt"
+      FROM sip_messages
+      WHERE call_id = $1
+      ORDER BY timestamp ASC
+      `,
+      [normalizedCallId],
+    );
+
+    return rows.map((row: Record<string, unknown>) => this.mapSipMessage(row));
   }
 
   async testTrunkTcp(host: string, port: number, timeoutMs = 4000): Promise<{ reachable: boolean; latencyMs: number | null; message: string }> {
@@ -308,6 +412,32 @@ export class DiagnosticsService implements OnModuleInit {
       try {
         const payload = JSON.parse(message) as SipTrafficEvent;
         this.gateway?.broadcastSipTraffic(payload);
+        void this.dataSource.query(
+          `
+          INSERT INTO sip_messages (
+            call_id,
+            timestamp,
+            method,
+            from_uri,
+            to_uri,
+            direction,
+            response_code,
+            raw_message
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `,
+          [
+            payload.callId,
+            payload.timestamp,
+            payload.method,
+            payload.from,
+            payload.to,
+            payload.direction,
+            payload.responseCode,
+            payload.rawMessage,
+          ],
+        ).catch((error) => {
+          this.logger.error(`Failed to persist SIP message: ${error instanceof Error ? error.message : String(error)}`);
+        });
       } catch (error) {
         this.logger.warn(`Failed to parse SIP traffic payload: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -507,6 +637,21 @@ export class DiagnosticsService implements OnModuleInit {
     }
 
     return numeric > 1000 ? Math.round((numeric / 1000) * 10) / 10 : Math.round(numeric * 10) / 10;
+  }
+
+  private mapSipMessage(row: Record<string, unknown>): SipMessage {
+    return {
+      id: Number(row.id),
+      callId: row.callId === null || row.callId === undefined ? null : String(row.callId),
+      timestamp: new Date(String(row.timestamp)).toISOString(),
+      method: row.method === null || row.method === undefined ? null : String(row.method),
+      fromUri: row.fromUri === null || row.fromUri === undefined ? null : String(row.fromUri),
+      toUri: row.toUri === null || row.toUri === undefined ? null : String(row.toUri),
+      direction: row.direction === null || row.direction === undefined ? null : String(row.direction),
+      responseCode: row.responseCode === null || row.responseCode === undefined ? null : Number(row.responseCode),
+      rawMessage: row.rawMessage === null || row.rawMessage === undefined ? null : String(row.rawMessage),
+      createdAt: row.createdAt === null || row.createdAt === undefined ? null : new Date(String(row.createdAt)).toISOString(),
+    };
   }
 
   private delay(ms: number): Promise<void> {

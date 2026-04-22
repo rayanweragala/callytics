@@ -1,0 +1,84 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  --sip-ladder-z-index: 70;
+  z-index: var(--sip-ladder-z-index);
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  max-width: 100%;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  padding: 24px;
+  pointer-events: auto;
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+  overflow-y: auto;
+}
+
+.open {
+  transform: translateX(0);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+
+.closeButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.loading {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+
+.svgWrap {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  padding: 8px;
+}
+
+.errorBox {
+  margin-top: 12px;
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  color: var(--color-error);
+  background: var(--bg-base);
+  padding: 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}

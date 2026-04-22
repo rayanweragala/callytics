@@ -54,8 +54,10 @@ export function extractSipTrafficEvent(message: AmiMessage): SipTrafficEvent | n
 
   const method = requestLine ? requestLine[1].toUpperCase() : `${responseLine?.[1] || ''} ${responseLine?.[2] || ''}`.trim();
   const responseCode = responseLine ? Number(responseLine[1]) : null;
+  const callId = extractCallId(rawText);
 
   return {
+    callId,
     timestamp: new Date().toISOString(),
     method,
     from: fromMatch?.[1] || 'unknown',
@@ -64,6 +66,19 @@ export function extractSipTrafficEvent(message: AmiMessage): SipTrafficEvent | n
     responseCode,
     rawMessage: rawText,
   };
+}
+
+function extractCallId(rawText: string): string | null {
+  const lines = rawText.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('Call-ID:') || trimmed.startsWith('i:')) {
+      const [, ...parts] = trimmed.split(':');
+      const value = parts.join(':').trim();
+      return value || null;
+    }
+  }
+  return null;
 }
 
 function inferDirection(rawText: string): SipTrafficEvent['direction'] {

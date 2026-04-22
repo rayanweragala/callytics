@@ -243,6 +243,7 @@ export function validateFlowTimeoutConfig(
   return { errors, warningCount };
 }
 
+// ─── Serialization ────────────────────────────────────────────────────────────
 
 export function serializeNodeForSave(node: Node<FlowNodeData>) {
   const isGroup = node.data.type === 'group';
@@ -317,7 +318,7 @@ export async function validateFlowBeforeSave(
     if (missing.length > 0) return `Menu "${node.data.label || node.id}" is missing route(s) for: ${missing.join(', ')}.`;
   }
   for (const node of nodes) {
-    if (node.data.type === 'hangup' || node.data.type === 'group' || node.data.type === 'menu' || node.data.type === 'play_audio' || node.data.type === 'transfer' || node.data.type === 'hunt' || node.data.type === 'queue_login' || node.data.type === 'queue' || node.data.type === 'webhook') continue;
+    if (node.data.type === 'hangup' || node.data.type === 'group' || node.data.type === 'menu' || node.data.type === 'play_audio' || node.data.type === 'transfer' || node.data.type === 'hunt' || node.data.type === 'queue_login' || node.data.type === 'queue') continue;
     const outgoingCount = (sourceOutgoing.get(node.id) || []).length;
     if (outgoingCount === 0) return `Node "${node.data.label || node.id}" (${node.data.type}) has no outgoing path.`;
   }

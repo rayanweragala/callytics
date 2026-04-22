@@ -43,7 +43,7 @@ function applyTestDatabaseEnv(): void {
   process.env.DB_USER = decodeURIComponent(parsed.username);
   process.env.DB_PASS = decodeURIComponent(parsed.password);
   process.env.REDIS_HOST = '127.0.0.1';
-  process.env.REDIS_PORT = '0';
+  process.env.REDIS_PORT = '6380';
   process.env.ASTERISK_CONFIG_DIR = '/tmp/callytics-test-asterisk';
 }
 

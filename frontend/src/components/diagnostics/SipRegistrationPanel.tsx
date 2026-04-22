@@ -27,17 +27,21 @@ export function SipRegistrationPanel({ items, loading }: SipRegistrationPanelPro
           <span>RTT</span>
           <span>Last Seen</span>
         </div>
-        {items.length === 0 ? (
+        {loading && items.length === 0 ? (
+          <div className={styles.empty}>Loading SIP registrations…</div>
+        ) : items.length === 0 ? (
           <div className={styles.empty}>No SIP registrations found.</div>
         ) : (
           items.map((item) => (
             <div className={styles.row} key={item.name}>
-              <span className={styles.mono}>{item.name}</span>
-              <span>{item.type}</span>
-              <span className={`${styles.badge} ${styles[item.status]}`}>{item.status}</span>
-              <span className={styles.mono}>{item.contactUri || '—'}</span>
-              <span className={styles.mono}>{item.rttMs ?? '—'}</span>
-              <span>{item.lastSeen ? formatDateTime(item.lastSeen) : '—'}</span>
+              <span className={`${styles.mono} ${styles.cell} ${styles.nameCell}`} title={item.name}>{item.name}</span>
+              <span className={`${styles.cell} ${styles.typeCell}`}>{item.type}</span>
+              <span className={styles.cell}>
+                <span className={`${styles.badge} ${styles[item.status]}`}>{item.status}</span>
+              </span>
+              <span className={`${styles.mono} ${styles.cell} ${styles.contactCell}`} title={item.contactUri || '—'}>{item.contactUri || '—'}</span>
+              <span className={`${styles.mono} ${styles.cell}`}>{item.rttMs ?? '—'}</span>
+              <span className={`${styles.cell} ${styles.lastSeenCell}`}>{item.lastSeen ? formatDateTime(item.lastSeen) : '—'}</span>
             </div>
           ))
         )}

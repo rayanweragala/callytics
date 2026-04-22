@@ -12,6 +12,7 @@ import {
   getDiagnosticsFailures,
   getDiagnosticsHealth,
   getDiagnosticsRegistrations,
+  getDiagnosticsSipMessages,
   listTrunks,
   testDiagnosticsTrunk,
 } from '../lib/api';
@@ -25,6 +26,7 @@ import type {
   SipTrunkItem,
   TrunkDiagnosticsResult,
 } from '../types';
+import { SipLadderPanel } from '../components/diagnostics/SipLadderPanel';
 import styles from './DiagnosticsPage.module.css';
 
 const FAILURES_PAGE_SIZE = 20;
@@ -54,6 +56,9 @@ export function DiagnosticsPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
   const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
+  const [ladderCallId, setLadderCallId] = useState<string | null>(null);
+  const [ladderFailedAt, setLadderFailedAt] = useState<string | undefined>(undefined);
+  const [ladderError, setLadderError] = useState<string | undefined>(undefined);
   const successTimerRef = useRef<number | null>(null);
 
   const failureTotalPages = Math.max(1, Math.ceil(failuresTotal / FAILURES_PAGE_SIZE));
@@ -239,6 +244,45 @@ export function DiagnosticsPage() {
     }
   };
 
+  const handleOpenLadderFromTraffic = (callId: string) => {
+    setLadderCallId(callId);
+    setLadderFailedAt(undefined);
+    setLadderError(undefined);
+  };
+
+  const handleOpenLadderFromFailure = async (failure: DiagnosticsFailureItem) => {
+    let candidateCallId = (failure.callUuid || failure.callId || '').trim();
+
+    if (!candidateCallId && failure.callerId && failure.time) {
+      try {
+        const history = await getDiagnosticsSipMessages(1, 200);
+        const failedAtTime = Date.parse(failure.time);
+        const match = history.data.find((message) => {
+          if (!message.callId) {
+            return false;
+          }
+          const timeDelta = Math.abs(Date.parse(message.timestamp) - failedAtTime);
+          if (!Number.isFinite(timeDelta) || timeDelta > 300000) {
+            return false;
+          }
+          const fromMatches = (message.fromUri || '').includes(failure.callerId || '');
+          const toMatches = (message.toUri || '').includes(failure.callerId || '');
+          return fromMatches || toMatches;
+        });
+        candidateCallId = match?.callId || '';
+      } catch {
+        candidateCallId = '';
+      }
+    }
+
+    if (!candidateCallId) {
+      return;
+    }
+    setLadderCallId(candidateCallId);
+    setLadderFailedAt(failure.time || undefined);
+    setLadderError(failure.errorMessage || undefined);
+  };
+
   const actions = useMemo(() => (
     <button className={styles.refreshButton} onClick={() => {
       void refreshHealth();
@@ -320,7 +364,7 @@ export function DiagnosticsPage() {
           <SipRegistrationPanel items={registrations} loading={registrationsLoading} />
         )}
 
-        <SipTrafficInspector items={traffic} onClear={() => setTraffic([])} loading={trafficLoading} />
+        <SipTrafficInspector items={traffic} loading={trafficLoading} onClear={() => setTraffic([])} onRowClick={handleOpenLadderFromTraffic} />
 
         {isFailuresInitial ? (
           <>
@@ -344,11 +388,20 @@ export function DiagnosticsPage() {
             page={failuresPage}
             totalPages={failureTotalPages}
             onTraceOpen={setTraceCallUuid}
+            onFailureClick={handleOpenLadderFromFailure}
           />
         )}
       </div>
 
       <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />
+      {ladderCallId ? (
+        <SipLadderPanel
+          callId={ladderCallId}
+          errorMessage={ladderError}
+          failedAt={ladderFailedAt}
+          onClose={() => setLadderCallId(null)}
+        />
+      ) : null}
     </PageLayout>
   );
 }

@@ -21,6 +21,7 @@ export interface SipEndpointStatus {
 }
 
 export interface SipTrafficEvent {
+  callId: string | null;
   timestamp: string;
   method: string;
   from: string;

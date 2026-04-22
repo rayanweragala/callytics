@@ -355,6 +355,49 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
 - Returns:
   `{ status, rtt_ms, message }`
 
+## Diagnostics
+
+### `GET /diagnostics/sip-messages`
+
+- What it does:
+  Returns paginated SIP messages from persistent diagnostics history
+- Input:
+  Query params:
+  - `page` (default `1`)
+  - `limit` (default `50`, max `200`)
+  - `callId?` (optional exact Call-ID filter)
+- Returns:
+  ```json
+  {
+    "data": [
+      {
+        "id": 1,
+        "callId": "abc-123",
+        "timestamp": "2026-04-21T20:00:00.000Z",
+        "method": "INVITE",
+        "fromUri": "<sip:1001@example.com>",
+        "toUri": "<sip:2001@example.com>",
+        "direction": "inbound",
+        "responseCode": 180,
+        "rawMessage": "...",
+        "createdAt": "2026-04-21T20:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 50
+  }
+  ```
+
+### `GET /diagnostics/sip-messages/:callId`
+
+- What it does:
+  Returns all SIP messages for one Call-ID in ascending timestamp order
+- Input:
+  Path param: `callId`
+- Returns:
+  `SipMessage[]` (empty array when no matching messages exist)
+
 ## Inbound routes
 
 ### `GET /inbound-routes`

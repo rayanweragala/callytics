@@ -19,6 +19,7 @@ import type {
   CallLogItem,
   CallTraceResponse,
   ContactNumber,
+  SipMessage,
   SipRegistrationItem,
   SipTrunkItem,
   TrunkDiagnosticsResult,
@@ -360,6 +361,18 @@ export async function getDiagnosticsFailures(limit = 20, offset = 0): Promise<Li
   const response = await api.get<ListResponse<DiagnosticsFailureItem>>('/diagnostics/failures', {
     params: { limit, offset },
   });
+  return response.data;
+}
+
+export async function getDiagnosticsSipMessages(page = 1, limit = 50, callId?: string): Promise<{ data: SipMessage[]; total: number; page: number; limit: number }> {
+  const response = await api.get<{ data: SipMessage[]; total: number; page: number; limit: number }>('/diagnostics/sip-messages', {
+    params: { page, limit, callId },
+  });
+  return response.data;
+}
+
+export async function getDiagnosticsSipMessagesByCallId(callId: string): Promise<SipMessage[]> {
+  const response = await api.get<SipMessage[]>(`/diagnostics/sip-messages/${encodeURIComponent(callId)}`);
   return response.data;
 }
 
