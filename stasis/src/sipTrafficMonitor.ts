@@ -1,4 +1,6 @@
 import net from 'node:net';
+import type { RedisClientType } from 'redis';
+import { handleAmiRtcpEvent } from './handlers/rtcp-ami.handler';
 import { publishSipTraffic, type SipTrafficEvent } from './telemetry';
 
 type AmiMessage = Record<string, string>;
@@ -89,7 +91,7 @@ function inferDirection(rawText: string): SipTrafficEvent['direction'] {
   return 'inbound';
 }
 
-export function startSipTrafficMonitor(): void {
+export function startSipTrafficMonitor(redis: RedisClientType): void {
   const socket = net.createConnection({ host: AMI_HOST, port: AMI_PORT });
   let buffer = '';
   let loggedIn = false;
@@ -111,6 +113,10 @@ export function startSipTrafficMonitor(): void {
         socket.write('Action: Events\r\nEventMask: on\r\n\r\n');
         socket.write('Action: Command\r\nActionID: sip-logger\r\nCommand: pjsip set logger on\r\n\r\n');
         continue;
+      }
+
+      if (message.Event === 'RTCPReceived' || message.Event === 'RTCPSent') {
+        handleAmiRtcpEvent(message, redis);
       }
 
       const event = extractSipTrafficEvent(message);

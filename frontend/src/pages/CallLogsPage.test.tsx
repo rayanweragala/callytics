@@ -11,6 +11,7 @@ vi.mock('../lib/api', () => ({
   getDiagnosticsRegistrations: vi.fn(async () => ({ data: [] })),
   listFlows: vi.fn(async () => ({ total: 0 })),
   listCallLogs: vi.fn(async () => ({ data: [], total: 0, page: 1, limit: 25, totalPages: 1 })),
+  getCallQuality: vi.fn(async () => null),
   getCallTrace: vi.fn(async () => ({ callUuid: 'x', callerNumber: null, startTime: null, nodes: [] })),
 }));
 

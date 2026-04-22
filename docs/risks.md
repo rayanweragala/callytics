@@ -46,6 +46,39 @@ Mitigation:
 - Keep package install scoped to Asterisk image only
 - Consider optional slim/non-capture image variants if distribution size becomes a blocker
 
+### rtp.conf Dockerfile append pattern
+
+**Risk:** The `RUN cat >> /etc/asterisk/rtp.conf` pattern in the Dockerfile
+appends on every build. If the same setting is appended twice (e.g. rebuild
+without cache invalidation on that layer), Asterisk will see duplicate entries.
+Asterisk uses last-value-wins for duplicate keys — functionally harmless but
+produces noisy config.
+
+**Mitigation:** Acceptable for now. If config management becomes complex,
+replace with explicit COPY of full config files into the image.
+
+### RTCP data availability
+
+**Risk:** Asterisk may not emit RTCPReceived / RTCPSent for very short calls
+(< 5 seconds), calls that fail before media is established, or calls where
+the remote party suppresses RTCP. In these cases no quality data is available.
+
+**Mitigation:** Call Logs renders a grey dash (no badge) when quality is null.
+The quality drawer shows "No quality data available for this call." This is
+expected behaviour, not an error state.
+
+---
+
+### MOS score accuracy
+
+**Risk:** The simplified E-model used for MOS calculation is an approximation.
+It does not account for codec-specific quality (G.711 vs G.729 vs Opus),
+background noise, or echo. The score is indicative, not a certified measurement.
+
+**Mitigation:** Labels in the quality drawer are intentionally plain-English
+and conservative. Raw metrics (jitter ms, packet loss %, RTT ms) are always
+shown alongside MOS so users can assess for themselves.
+
 ## Product risks
 
 ### The install promise may be too ambitious

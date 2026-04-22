@@ -2,7 +2,7 @@ import { createClient, RedisClientType } from 'redis';
 
 let publisher: RedisClientType | null = null;
 
-async function getPublisher(): Promise<RedisClientType> {
+export async function getPublisher(): Promise<RedisClientType> {
   if (!publisher) {
     publisher = createClient({
       socket: {

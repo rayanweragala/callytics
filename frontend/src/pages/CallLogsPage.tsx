@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
 import { ExecutionTracePanel } from '../components/ExecutionTracePanel/ExecutionTracePanel';
+import { QualityDrawer } from '../components/quality/QualityDrawer';
 import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
 import { SipEndpointsPanel } from '../components/panels/SipEndpointsPanel';
 import { StatBar } from '../components/StatBar';
-import { getDiagnosticsHealth, getDiagnosticsRegistrations, listCallLogs, listFlows } from '../lib/api';
+import { getCallQuality, getDiagnosticsHealth, getDiagnosticsRegistrations, listCallLogs, listFlows } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import { diagnosticsSocket } from '../lib/socket';
-import type { CallEvent, CallLogItem, CallTimelineEvent, SipEndpointStatus } from '../types';
+import type { CallEvent, CallLogItem, CallQuality, CallTimelineEvent, SipEndpointStatus } from '../types';
 import styles from './CallLogsPage.module.css';
 
 const PAGE_LIMIT = 10;
@@ -29,6 +30,28 @@ function endReasonClass(reason: string | null): string {
   return styles.badgeError;
 }
 
+function mosGradeClass(grade: CallQuality['grade']): string {
+  if (grade === 'good') return styles.mosGood;
+  if (grade === 'fair') return styles.mosFair;
+  return styles.mosPoor;
+}
+
+function MosBadge({
+  grade,
+  mos,
+  onClick,
+}: {
+  grade: CallQuality['grade'];
+  mos: number;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button className={`${styles.mosBadge} ${mosGradeClass(grade)}`} onClick={onClick} type="button">
+      {mos.toFixed(2)}
+    </button>
+  );
+}
+
 export function CallLogsPage() {
   const [metrics, setMetrics] = useState({ activeCalls: 0, registeredEndpoints: 0, flows: 0, uptimeSeconds: 0 });
   const [sipStatuses, setSipStatuses] = useState<SipEndpointStatus[]>([]);
@@ -39,11 +62,13 @@ export function CallLogsPage() {
   const [timelineEvents, setTimelineEvents] = useState<Record<string, CallTimelineEvent[]>>({});
 
   const [data, setData] = useState<CallLogItem[]>([]);
+  const [qualityByCall, setQualityByCall] = useState<Record<string, CallQuality | null>>({});
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
+  const [qualityDrawerCallId, setQualityDrawerCallId] = useState<string | null>(null);
 
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -94,6 +119,44 @@ export function CallLogsPage() {
       active = false;
     };
   }, [page, search, dateFrom, dateTo, endReason]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadQuality = async () => {
+      if (data.length === 0) {
+        return;
+      }
+
+      const calls = data.map((item) => item.callUuid).filter(Boolean);
+      const missing = calls.filter((callId) => !(callId in qualityByCall));
+      if (missing.length === 0) {
+        return;
+      }
+
+      const results = await Promise.all(
+        missing.map(async (callId) => ({ callId, quality: await getCallQuality(callId) })),
+      );
+
+      if (!active) {
+        return;
+      }
+
+      setQualityByCall((current) => {
+        const next = { ...current };
+        for (const item of results) {
+          next[item.callId] = item.quality;
+        }
+        return next;
+      });
+    };
+
+    void loadQuality();
+
+    return () => {
+      active = false;
+    };
+  }, [data, qualityByCall]);
 
   useEffect(() => {
     let active = true;
@@ -263,6 +326,7 @@ export function CallLogsPage() {
               <span>Destination</span>
               <span>Flow name</span>
               <span>Duration</span>
+              <span>Quality</span>
               <span>Start time</span>
               <span>End reason</span>
               <span>Trace</span>
@@ -270,17 +334,44 @@ export function CallLogsPage() {
 
             {loading ? <div className={styles.empty}>Loading call logs...</div> : null}
             {!loading && data.length === 0 ? <div className={styles.empty}>No call logs found.</div> : null}
-            {!loading && data.map((item) => (
-              <button className={styles.row} key={`${item.id}-${item.callUuid}`} onClick={() => setTraceCallUuid(item.callUuid)} type="button">
-                <span className={styles.mono}>{item.callerNumber || '—'}</span>
-                <span className={styles.mono}>{item.calleeNumber || '—'}</span>
-                <span>{item.flowName || '—'}</span>
-                <span className={styles.mono}>{formatDuration(item.durationSeconds)}</span>
-                <span>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
-                <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
-                <span className={styles.traceIcon}>{'>'}</span>
-              </button>
-            ))}
+            {!loading && data.map((item) => {
+              const quality = qualityByCall[item.callUuid];
+              return (
+                <div className={styles.row} key={`${item.id}-${item.callUuid}`}>
+                  <span className={styles.mono}>{item.callerNumber || '—'}</span>
+                  <span className={styles.mono}>{item.calleeNumber || '—'}</span>
+                  <span>{item.flowName || '—'}</span>
+                  <span className={styles.mono}>{formatDuration(item.durationSeconds)}</span>
+                  <span>
+                    {quality ? (
+                      <MosBadge
+                        grade={quality.grade}
+                        mos={quality.mos}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setQualityDrawerCallId(item.callUuid);
+                        }}
+                      />
+                    ) : (
+                      <span className={styles.missingQuality}>—</span>
+                    )}
+                  </span>
+                  <span>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
+                  <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
+                  <span className={styles.traceIcon}>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setTraceCallUuid(item.callUuid);
+                      }}
+                      type="button"
+                    >
+                      {'>'}
+                    </button>
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className={styles.paginationWrap}>
@@ -290,6 +381,7 @@ export function CallLogsPage() {
       </div>
 
       <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />
+      <QualityDrawer callId={qualityDrawerCallId} onClose={() => setQualityDrawerCallId(null)} />
     </PageLayout>
   );
 }

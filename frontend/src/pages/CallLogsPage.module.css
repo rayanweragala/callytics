@@ -41,7 +41,7 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 100px 170px 120px 48px;
+  grid-template-columns: 1fr 1fr 1fr 90px 110px 170px 120px 48px;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
@@ -87,6 +87,35 @@
   width: fit-content;
 }
 
+.mosBadge {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.missingQuality {
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+
+.mosGood {
+  color: var(--color-success);
+}
+
+.mosFair {
+  color: var(--color-warning);
+}
+
+.mosPoor {
+  color: var(--color-error);
+}
+
 .badgeCompleted {
   color: var(--accent);
 }
@@ -130,15 +159,15 @@
 
   .head,
   .row {
-    grid-template-columns: 1.2fr 1fr 1fr 90px;
+    grid-template-columns: 1.2fr 1fr 1fr 90px 100px;
   }
 
-  .head span:nth-child(5),
   .head span:nth-child(6),
   .head span:nth-child(7),
-  .row span:nth-child(5),
+  .head span:nth-child(8),
   .row span:nth-child(6),
-  .row span:nth-child(7) {
+  .row span:nth-child(7),
+  .row span:nth-child(8) {
     display: none;
   }
 }

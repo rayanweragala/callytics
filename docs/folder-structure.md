@@ -85,3 +85,54 @@ Notes:
 
 - The backend container mounts the repo `./storage` directory at `/app/storage` for audio and other persistent assets.
 - Asterisk mounts `./storage/audio/converted` at `/var/lib/asterisk/sounds/callytics` for telephony playback.
+
+## Phase 23 structure changes
+
+### Stasis — new files:
+
+```text
+stasis/src/
+  handlers/
+    rtcp.handler.ts           NEW — RTCPReceived + RTCPSent ARI event handlers
+    rtcp.handler.test.ts      NEW
+  lib/
+    mosScore.ts               NEW — MOS calculation pure function (simplified E-model)
+    mosScore.test.ts          NEW
+  index.ts                    MODIFIED — wire rtcp.handler after ARI connect
+```
+
+### Backend — new files:
+
+```text
+backend/src/
+  quality/
+    quality.module.ts                 NEW
+    quality.service.ts                NEW — Redis stream consumer + DB upsert writer
+    quality.controller.ts             NEW — GET /quality/:callId
+    dto/
+      quality-record.dto.ts           NEW
+    quality.service.unit.spec.ts      NEW
+    quality.int.spec.ts               NEW
+  app.module.ts                       MODIFIED — imports QualityModule
+backend/migrations/
+  020_phase23.sql                     NEW — creates call_quality table
+```
+
+### Frontend — new files:
+
+```text
+frontend/src/
+  components/
+    quality/
+      QualityDrawer.tsx               NEW
+      QualityDrawer.module.css        NEW
+      QualityDrawer.test.tsx          NEW
+      MosGauge.tsx                    NEW — metric row with proportional bar
+      MosGauge.module.css             NEW
+      MosGauge.test.tsx               NEW
+  lib/
+    mosLabel.ts                       NEW — plain-English label pure functions
+    mosLabel.test.ts                  NEW
+  pages/
+    CallLogsPage.tsx                  MODIFIED — MOS column, badge, drawer trigger
+```

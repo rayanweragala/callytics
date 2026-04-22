@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LiveDot } from '../components/LiveDot';
 import { PageLayout } from '../components/common/PageLayout';
 import { DialogDetail } from '../components/capture/DialogDetail';
@@ -28,6 +29,7 @@ function triggerDownload(blob: Blob, filename: string): void {
 }
 
 export function CapturePage() {
+  const [searchParams] = useSearchParams();
   const [packets, setPackets] = useState<SipPacket[]>([]);
   const [paused, setPaused] = useState(false);
   const [filters, setFilters] = useState<PacketStreamFilters>({
@@ -43,6 +45,14 @@ export function CapturePage() {
   const [leftPanelWidth, setLeftPanelWidth] = useState(38);
   const splitLayoutRef = useRef<HTMLDivElement | null>(null);
   const resizingRef = useRef(false);
+
+  useEffect(() => {
+    const callIdParam = searchParams.get('callId');
+    if (callIdParam) {
+      setFilters((prev) => ({ ...prev, callId: callIdParam }));
+      setSelectedCallId(callIdParam);
+    }
+  }, []);
 
   useEffect(() => {
     const onPacket = (packet: SipPacket) => {

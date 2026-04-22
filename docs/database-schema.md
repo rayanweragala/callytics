@@ -163,3 +163,31 @@
 Indexes:
 - `idx_sip_messages_call_id` on `(call_id)`
 - `idx_sip_messages_timestamp` on `(timestamp)`
+
+## call_quality
+
+Stores per-call RTP quality metrics computed from RTCP events at call end.
+One row per call. Upserted — if both RTCPReceived and RTCPSent fire,
+the row is updated with the worse of the two directions.
+
+| Column       | Type        | Notes                                      |
+|--------------|-------------|--------------------------------------------|
+| id           | SERIAL      | PK — integer, matches all other tables     |
+| call_id      | varchar     | UNIQUE. Call identifier from Stasis.       |
+| mos          | float       | Mean Opinion Score 1.0–5.0 (2dp)          |
+| jitter       | float       | Milliseconds                               |
+| packet_loss  | float       | Percentage 0–100                           |
+| rtt          | float       | Round-trip time in milliseconds            |
+| grade        | varchar     | good / fair / poor                         |
+| recorded_at  | timestamptz | Timestamp of RTCP event                    |
+| created_at   | timestamptz | Row creation timestamp (DEFAULT NOW())     |
+
+**MOS grade thresholds:**
+- good  → MOS ≥ 4.0  (green badge)
+- fair  → MOS 3.0–3.9 (amber badge)
+- poor  → MOS < 3.0  (red badge)
+- null  → no RTCP data received (grey dash — call too short or RTCP suppressed)
+
+**Migration file:** `backend/migrations/020_phase23.sql`
+
+**Note on PK type:** SERIAL (integer) — not UUID. Matches every other table in the schema.

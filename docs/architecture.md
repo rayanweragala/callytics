@@ -45,3 +45,64 @@ Every node visited during a call is logged to `call_node_logs`:
   - `GET /capture/export/dialog/:callId`
   - `GET /capture/export/bulk`
 - Exports are generated in-memory using `pcap-writer` and streamed directly (no disk write)
+
+## Phase 23 architecture updates (RTP quality monitor)
+
+### Redis Streams
+- `callytics:call-timeline`    Phase 22A — call execution steps per channel
+- `callytics:sip-capture`      Phase 22B — raw SIP packets from tshark
+- `callytics:rtp-quality`      Phase 23  — per-call RTP quality (jitter, loss, MOS, RTT)
+
+### Backend Modules
+- `QualityModule`    Consumes `callytics:rtp-quality` Redis stream.
+  Upserts rows in `call_quality` DB table on `call_id`.
+  Exposes `GET /quality/:callId` REST endpoint.
+
+### Stasis Handlers
+- `sipTrafficMonitor.ts` keeps a persistent AMI socket (`EventMask: on`).
+- `handlers/rtcp-ami.handler.ts` handles `RTCPReceived` + `RTCPSent` AMI events,
+  extracts jitter/loss/RTT, computes MOS via `mosScore.ts`, and publishes to
+  `callytics:rtp-quality` via Redis XADD + XTRIM.
+- RTCP direction accumulation is cleaned on `StasisEnd` to avoid stale entries.
+
+### Data Flow
+Call ends
+  → Asterisk fires RTCPReceived + RTCPSent via AMI
+  → stasis RTCP AMI handler extracts metrics + computes MOS
+  → publishes to callytics:rtp-quality (Redis XADD + XTRIM 1000)
+  → backend QualityService consumes stream
+  → upserts call_quality row in PostgreSQL
+  → GET /quality/:callId available immediately
+  → Call Logs frontend fetches quality on row render → shows MOS badge
+  → clicking badge opens QualityDrawer with full metric breakdown
+  → "View in Capture" links to /capture?callId=<id>
+
+### Asterisk config
+`rtp.conf` — added Phase 23.
+All Asterisk configs live at `/etc/asterisk/` inside the container, written
+by `make samples` at image build time. There is no bind-mount for configs.
+`rtp.conf` was absent before Phase 23. Fixed by appending to the file in
+the Dockerfile after make install. Pattern for future config changes:
+
+```dockerfile
+RUN cat >> /etc/asterisk/<file>.conf << 'EOF'
+...content...
+EOF
+```
+
+### WebSocket events — no change in Phase 23
+Phase 23 is post-call only. No new WebSocket events.
+`callytics:rtp-quality` Redis stream is consumed by `QualityService`
+and persisted to DB. Frontend reads via REST only.
+
+### Sidebar structure — no change in Phase 23
+
+```text
+MONITOR
+  ├── diagnostics     (existing)
+  ├── call logs       (existing — MOS column + quality drawer added here)
+  ├── capture         (Phase 22B)
+  └── recordings      (existing)
+```
+
+No new sidebar entry. Quality is accessible from within Call Logs only.

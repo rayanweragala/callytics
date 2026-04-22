@@ -1,0 +1,104 @@
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(440px, 100vw);
+  height: 100vh;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+  z-index: 40;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.open {
+  transform: translateX(0);
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.closeButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.content {
+  display: grid;
+  gap: 14px;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.scoreWrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.score {
+  font-family: 'Space Mono', monospace;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.grade {
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  text-transform: lowercase;
+  font-size: 13px;
+}
+
+.verdict {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.gauges {
+  display: grid;
+  gap: 12px;
+}
+
+.captureButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+}
+
+.good {
+  color: var(--color-success);
+}
+
+.fair {
+  color: var(--color-warning);
+}
+
+.poor {
+  color: var(--color-error);
+}

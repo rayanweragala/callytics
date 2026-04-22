@@ -1,24 +1,69 @@
 # Testing
 
-## Phase 22A current baseline
+## Phase 23 current baseline
 
-- Stasis test suite: **126 tests**
-- Backend test suite: **201 tests**
-- Frontend test suite: **212 tests**
+Stasis:   134 passed  (+8 from Phase 23)
+Backend:  220 passed  (+10 from Phase 23)
+Frontend: 255 passed  (+15 from Phase 23)
+CI:       all green
 
-Phase 22B target additions:
-- Backend: **+8 tests**
-  - CaptureService spawn/parse/write/shutdown/CI guard
-  - Capture export endpoints
-  - Redis replay-on-reconnect behavior
-- Frontend: **+15 tests**
-  - Capture filter bar behavior
-  - Packet row selection + pagination
-  - Verdict rule engine (all rules)
-  - Accordion/raw toggle/export actions/empty state
+## Phase 23 test files
 
-CI guard requirement for capture tests:
-- With `TSHARK_ENABLED=false` (or unset), backend startup and test runs must pass without requiring `tshark` binary availability.
+stasis/src/lib/mosScore.test.ts
+  - MOS ≥ 4.0 for zero jitter + zero loss (expect ~4.4)
+  - MOS threshold boundary at 4.0 (good → fair)
+  - MOS threshold boundary at 3.0 (fair → poor)
+  - High jitter (80ms), low loss → fair/poor
+  - Low jitter, high loss (5%) → poor
+  - Clamps at 1.0 floor (extreme loss + jitter)
+  - Clamps at 5.0 ceiling (perfect conditions)
+
+stasis/src/handlers/rtcp.handler.test.ts
+  - Extracts jitter, packetsLost, packetsReceived, RTT from RTCPReceived event
+  - Publishes to callytics:rtp-quality with correct shape
+  - Handles RTCPSent event and upserts with worse values
+  - Handles missing callId gracefully (no publish, no throw)
+
+backend/src/quality/quality.service.unit.spec.ts
+  - findByCallId returns quality record
+  - findByCallId returns null for unknown callId
+  - consumeStream writes to DB on new Redis entry
+  - upsert overwrites with worse values on second RTCP direction
+
+backend/src/quality/quality.int.spec.ts
+  - GET /quality/:callId returns 200 with correct shape
+  - GET /quality/:callId returns 404 when no record exists
+  - Redis consumer writes and DB record is queryable
+
+frontend/src/lib/mosLabel.test.ts
+  - jitter < 20ms → "excellent"
+  - jitter 20–50ms → "slight"
+  - jitter > 50ms → "high"
+  - packet loss < 1% → "none"
+  - packet loss 1–3% → "low"
+  - packet loss > 3% → "elevated"
+  - RTT < 50ms → "normal"
+  - RTT 50–150ms → "moderate"
+  - RTT > 150ms → "high"
+
+frontend/src/components/quality/QualityDrawer.test.tsx
+  - Renders MOS score with correct colour class (good/fair/poor)
+  - Renders jitter, packet loss, RTT rows with plain-English labels
+  - "View in Capture" button navigates to /capture?callId=<id>
+  - Renders grey state when quality data is null
+  - Drawer opens and closes correctly
+
+frontend/src/components/quality/MosGauge.test.tsx
+  - Renders bar at correct fill percentage
+  - Applies correct colour class per grade
+
+frontend/src/pages/CallLogsPage.test.tsx (additions)
+  - MOS column renders green badge for good calls
+  - MOS column renders amber badge for fair calls
+  - MOS column renders red badge for poor calls
+  - MOS column renders grey dash when no quality data
+  - Clicking MOS badge opens QualityDrawer
+  - Clicking row body still opens ExecutionTrace drawer (not quality)
 
 ## Phase 17 completion summary (historical)
 

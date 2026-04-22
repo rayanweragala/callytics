@@ -29,6 +29,7 @@ import { QueueEntity } from './queues/entities/queue.entity';
 import { ContactNumberEntity } from './contact-numbers/entities/contact-number.entity';
 import { ContactNumbersModule } from './contact-numbers/contact-numbers.module';
 import { CaptureModule } from './capture/capture.module';
+import { QualityModule } from './quality/quality.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { CaptureModule } from './capture/capture.module';
     OperatorsModule,
     QueuesModule,
     ContactNumbersModule,
+    QualityModule,
   ],
   controllers: [HealthController],
 })

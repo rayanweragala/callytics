@@ -55,6 +55,13 @@ RUN cd /usr/src && \
     groupadd -f wireshark && \
     (id -u asterisk >/dev/null 2>&1 && usermod -aG wireshark asterisk || true)
 
+RUN cat >> /etc/asterisk/rtp.conf << 'EOF'
+
+[general]
+rtcpstats=yes
+rtcpinterval=5000
+EOF
+
 EXPOSE 8088 5038 5060/udp
 EXPOSE 10000-10100/udp
 

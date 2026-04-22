@@ -141,6 +141,27 @@ Dial multiple SIP destinations with configurable strategy.
   - `.pcap` export for selected dialog or current filtered view
   - Existing Diagnostics Panel D SIP Traffic Inspector remains unchanged (Capture is additive)
 
+### RTP Quality Monitor (Phase 23)
+
+Per-call audio quality scoring surfaced directly on the Call Logs page.
+
+**MOS badge** — every completed call row shows a colour-coded Mean Opinion
+Score badge (green ≥ 4.0 / amber 3.0–3.9 / red < 3.0 / grey = no data).
+Score is computed offline from RTCP statistics using the simplified E-model
+(ITU-T G.107). No API cost.
+
+**Quality drawer** — clicking the MOS badge opens a side drawer showing:
+- MOS score (large, colour-coded)
+- Jitter in ms with plain-English label (excellent / slight / high)
+- Packet loss % with plain-English label (none / low / elevated)
+- Round-trip time in ms with plain-English label (normal / moderate / high)
+- A one-line verdict summarising the likely quality cause
+- "View in Capture" button — jumps to the Capture page filtered by Call-ID
+
+**No new page** — quality is accessible directly from Call Logs without
+navigating away. The Execution Trace drawer and Quality drawer are two
+independent interactions on the same call row.
+
 ## Node config validation
 
 - Transfer node: destination required, timeout_ms required > 0

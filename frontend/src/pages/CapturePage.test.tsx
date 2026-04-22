@@ -133,8 +133,8 @@ describe('CapturePage', () => {
     socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
     fireEvent.click(await screen.findByRole('button', { name: /10:00:00.000/i }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Export \.pcap/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /Export this dialog \.pcap/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Export \.pcap$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Export \.pcap ↓$/i }));
 
     await waitFor(() => {
       expect(apiMocks.exportCaptureBulk).toHaveBeenCalled();

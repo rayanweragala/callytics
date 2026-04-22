@@ -456,6 +456,40 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
 - Returns:
   `{ data: { id: number, deleted: true } }`
 
+## Quality
+
+### `GET /quality/:callId`
+
+Returns the RTP quality record for a completed call.
+
+**Params:**
+- `callId` — the call identifier string from Stasis/Asterisk
+
+**Response 200:**
+```json
+{
+  "callId": "1776868925.5",
+  "mos": 3.72,
+  "jitter": 18.4,
+  "packetLoss": 1.2,
+  "rtt": 44.0,
+  "grade": "fair",
+  "recordedAt": "2026-04-22T17:07:19.000Z"
+}
+```
+
+**Response 404:**
+```json
+{ "message": "No quality data for this call" }
+```
+
+**Notes:**
+- Returns 404 if call was too short to generate RTCP data, or if media
+  was never established (failed calls, very short calls < ~5s)
+- MOS is computed at call end by Stasis and stored; this endpoint is read-only
+- Used by the Call Logs QualityDrawer component
+- No authentication required (same as other internal endpoints)
+
 ## Calls
 
 ### `GET /api/calls/live`

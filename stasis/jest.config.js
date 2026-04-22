@@ -2,7 +2,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: 'src',
-  testMatch: ['**/*.unit.spec.ts'],
+  testMatch: ['**/*.unit.spec.ts', '**/*.test.ts'],
   moduleFileExtensions: ['js', 'json', 'ts'],
   collectCoverageFrom: [
     'engine/edgeResolver.ts',

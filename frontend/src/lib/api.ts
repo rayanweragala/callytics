@@ -17,6 +17,7 @@ import type {
   RecordingItem,
   TemplateItem,
   CallLogItem,
+  CallQuality,
   CallTraceResponse,
   ContactNumber,
   SipMessage,
@@ -422,6 +423,18 @@ export async function listCallLogs(params: {
 export async function getCallTrace(callUuid: string): Promise<CallTraceResponse> {
   const response = await api.get<CallTraceResponse>(`/call-logs/${encodeURIComponent(callUuid)}/trace`);
   return response.data;
+}
+
+export async function getCallQuality(callId: string): Promise<CallQuality | null> {
+  try {
+    const response = await api.get<CallQuality>(`/quality/${encodeURIComponent(callId)}`);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404) {
+      return null;
+    }
+    return null;
+  }
 }
 
 export async function listOperators(): Promise<ListResponse<OperatorItem>> {

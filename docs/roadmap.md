@@ -77,19 +77,50 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
   - Stasis now includes Call-ID in SIP traffic telemetry when available
   - Backend persists SIP traffic rows into `sip_messages` and exposes diagnostics read endpoints
   - Diagnostics UI supports Call-ID drill-down from Panel D and Panel E into right-side SIP ladder panel
-- Phase 22A: live call timeline relay and diagnostics gateway hardening completed ✓
-  - Stasis `callytics:call-timeline` events are relayed through backend to frontend live execution panels
-  - DiagnosticsGateway registration moved to `afterInit()` to avoid pre-server broadcast race
-  - CallLogsListener startup now guarded when Redis config is absent/invalid
-  - Post-22A test totals: Stasis 126, Backend 201, Frontend 212
-- Phase 22B: SIP Capture page (current phase)
-  - New `/capture` monitor page with split packet/dialog workflow
-  - New backend CaptureService + CaptureController for tshark ingest and `.pcap` export
-  - New Redis stream `callytics:sip-capture` and socket event `sip:packet` to `capture-room`
-  - Existing Diagnostics SIP Traffic Inspector remains unchanged
-- Phase 23: RTP monitor (planned)
-- Phase 24: Asterisk log viewer (planned)
-- Phase 25–34: remain in previously defined roadmap order after Phase 24
+- Phase 22A  ✓ COMPLETE — Live call timeline
+- Phase 22B  ✓ COMPLETE — SIP Capture page (commit: c9cee21)
+- Phase 23   IN PROGRESS — RTP quality monitor
+- Phase 24   PLANNED     — Asterisk log viewer (plain-English translation)
+- Phase 25   PLANNED     — Trunk failover — auto-route via backup trunk on failure
+- Phase 26   PLANNED     — Network preflight wizard — NAT / RTP / STUN checker
+- Phase 27   PLANNED     — Outbound call campaigns — CSV upload + flow + scheduler
+- Phase 28   PLANNED     — Call scheduler — single outbound call at specific datetime
+- Phase 29   PLANNED     — Blacklist / whitelist — number rules page
+- Phase 30   PLANNED     — Callback node — caller leaves number, system calls back
+- Phase 31   PLANNED     — Conference room node — multi-party, PIN-protected
+- Phase 32   PLANNED     — Backup and restore UI
+- Phase 33   PLANNED     — Resource usage panel + recording storage manager
+- Phase 34   PLANNED     — Open source launch prep → v1.0.0
+- Phase 36+  DEFERRED    — WebRTC softphone (post-launch)
+
+### Phase 23  RTP quality monitor
+
+Scope:
+- rtp.conf added to Asterisk Dockerfile (rtcpstats=yes, rtcpinterval=5000)
+- New RTCP event handlers in stasis (RTCPReceived + RTCPSent)
+- MOS score calculation via simplified E-model (pure function, mosScore.ts)
+- Redis stream: callytics:rtp-quality (XTRIM maxlen 1000)
+- New call_quality DB table (per-call, SERIAL PK, upsert on call_id)
+- New QualityModule in backend (Redis consumer + REST endpoint)
+- MOS badge column on Call Logs page (green/amber/red/grey)
+- Quality drawer on Call Logs — same drawer pattern as ExecutionTrace
+  — MOS score, jitter, packet loss, RTT with plain-English labels
+  — "View in Capture" link pre-filtered by Call-ID
+- No new sidebar entry — quality lives inside Call Logs
+
+Root cause note:
+  rtp.conf was absent from the container pre-Phase 23. make samples in the
+  Dockerfile skipped it. RTCP events were never emitted. Fixed by appending
+  rtcpstats=yes to /etc/asterisk/rtp.conf in the Dockerfile build step.
+
+Diagnostic flow this completes:
+  Call Logs (MOS badge) → Quality drawer → View in Capture (Phase 22B)
+
+Key decisions:
+- Post-call only (RTCP is a call-end summary, not a live stream)
+- Separate call_quality table (not columns on call_logs)
+- MOS computed from the worse of RTCPReceived / RTCPSent directions
+- REST not WebSocket — quality data is static after call end
 
 Important infrastructure change made during Phase 4:
 

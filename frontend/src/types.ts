@@ -436,6 +436,16 @@ export interface CallLogItem {
   flowName: string | null;
 }
 
+export interface CallQuality {
+  callId: string;
+  mos: number;
+  jitter: number;
+  packetLoss: number;
+  rtt: number;
+  grade: 'good' | 'fair' | 'poor';
+  recordedAt: string;
+}
+
 export interface CallNodeTraceItem {
   id: number;
   nodeKey: string;

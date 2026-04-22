@@ -12,6 +12,8 @@ import { startSipTrafficMonitor } from './sipTrafficMonitor';
 import { publishCallEndTelemetry, publishSipTraffic, publishCallEvent } from './telemetry';
 import { resolveTransferWaiter } from './transferManager';
 import { resolveHuntWaiter } from './huntManager';
+import { getPublisher } from './redis';
+import { accumulator as rtcpAmiAccumulator } from './handlers/rtcp-ami.handler';
 
 const ARI_URL = process.env.ARI_URL || 'http://127.0.0.1:8088';
 const ARI_USER = process.env.ARI_USER || 'callytics';
@@ -204,8 +206,10 @@ async function start(): Promise<void> {
   console.log('Seeding database...');
   await seed();
 
+  const redis = await getPublisher();
+
   startAmiMonitor();
-  startSipTrafficMonitor();
+  startSipTrafficMonitor(redis);
 
   console.log(`Connecting to ARI at ${ARI_URL}...`);
 
@@ -364,17 +368,19 @@ async function start(): Promise<void> {
       },
       channel: { id: string },
     ) => {
-      const session = getSession(channel.id);
+      const channelId = channel.id;
+      rtcpAmiAccumulator.delete(channelId);
+      const session = getSession(channelId);
       if (!session) {
         return;
       }
 
       console.log(
-        `[channel] StasisEnd call_id=${channel.id} state=${String(event.channel?.state || 'unknown')} name=${String(event.channel?.name || 'unknown')}`,
+        `[channel] StasisEnd call_id=${channelId} state=${String(event.channel?.state || 'unknown')} name=${String(event.channel?.name || 'unknown')}`,
       );
 
-      const isFailed = failedCalls.has(channel.id);
-      failedCalls.delete(channel.id);
+      const isFailed = failedCalls.has(channelId);
+      failedCalls.delete(channelId);
 
       // 1. Destroy bridge immediately (non-blocking — destroyInboundBridge catches its own errors)
       if (session.inboundBridge) {
