@@ -289,4 +289,53 @@ describe('DiagnosticsService', () => {
       ],
     );
   });
+
+  it('broadcasts call timeline event when valid redis timeline payload arrives', async () => {
+    const gateway = {
+      broadcastCallTimelineEvent: jest.fn(),
+    };
+    service.setGateway(gateway as any);
+
+    await (service as any).initializeSipTrafficRelay();
+
+    const onCallTimeline = sipSubscriptions.get('callytics:call-timeline');
+    expect(onCallTimeline).toBeDefined();
+
+    const payload = {
+      callId: 'call-live-1',
+      flowId: 7,
+      nodeId: 'menu-1776264496563-1',
+      nodeType: 'menu',
+      status: 'started' as const,
+      ts: 1710000000000,
+      meta: { result: '1' },
+    };
+
+    await onCallTimeline?.(JSON.stringify(payload));
+
+    expect(gateway.broadcastCallTimelineEvent).toHaveBeenCalledWith(payload);
+  });
+
+  it('ignores call timeline payloads without callId', async () => {
+    const gateway = {
+      broadcastCallTimelineEvent: jest.fn(),
+    };
+    service.setGateway(gateway as any);
+
+    await (service as any).initializeSipTrafficRelay();
+
+    const onCallTimeline = sipSubscriptions.get('callytics:call-timeline');
+    expect(onCallTimeline).toBeDefined();
+
+    await onCallTimeline?.(JSON.stringify({
+      flowId: 7,
+      nodeId: 'menu-1776264496563-1',
+      nodeType: 'menu',
+      status: 'started',
+      ts: 1710000000000,
+      meta: {},
+    }));
+
+    expect(gateway.broadcastCallTimelineEvent).not.toHaveBeenCalled();
+  });
 });

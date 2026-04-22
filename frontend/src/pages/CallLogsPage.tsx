@@ -36,6 +36,7 @@ export function CallLogsPage() {
   const [livePage, setLivePage] = useState(0);
   const [expandedCalls, setExpandedCalls] = useState<Record<string, boolean>>({});
   const [timelineByCall, setTimelineByCall] = useState<Record<string, CallTimelineEvent[]>>({});
+  const [timelineEvents, setTimelineEvents] = useState<Record<string, CallTimelineEvent[]>>({});
 
   const [data, setData] = useState<CallLogItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -163,6 +164,14 @@ export function CallLogsPage() {
       });
     };
 
+    const handleCallTimeline = (event: CallTimelineEvent) => {
+      setTimelineEvents((prev) => {
+        const existing = prev[event.callId] ?? [];
+        const updated = [...existing, event].slice(-200);
+        return { ...prev, [event.callId]: updated };
+      });
+    };
+
     if (diagnosticsSocket.connected) {
       diagnosticsSocket.emit('call:subscribe');
     }
@@ -173,11 +182,13 @@ export function CallLogsPage() {
 
     diagnosticsSocket.on('connect', handleConnect);
     diagnosticsSocket.on('call:event', handleCallEvent);
+    diagnosticsSocket.on('call:timeline', handleCallTimeline);
 
     return () => {
       diagnosticsSocket.emit('call:unsubscribe');
       diagnosticsSocket.off('connect', handleConnect);
       diagnosticsSocket.off('call:event', handleCallEvent);
+      diagnosticsSocket.off('call:timeline');
     };
   }, []);
 
@@ -213,6 +224,7 @@ export function CallLogsPage() {
             page={livePage}
             setPage={setLivePage}
             expandedCalls={expandedCalls}
+            timelineEvents={timelineEvents}
             toggleCall={(callId) => setExpandedCalls((current) => ({ ...current, [callId]: !current[callId] }))}
           />
           <SipEndpointsPanel

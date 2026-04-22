@@ -251,4 +251,86 @@ describe('api library', () => {
     await api.testTrunk(1);
     expect(axios.post).toHaveBeenCalledWith('/trunks/1/test');
   });
+
+  it('diagnostics API helpers call correct endpoints', async () => {
+    (axios.get as any).mockResolvedValueOnce({ data: { ari: { connected: true } } });
+    (axios.post as any).mockResolvedValueOnce({ data: { trunkId: 1 } });
+    (axios.post as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [], total: 0, page: 1, limit: 50 } });
+    (axios.get as any).mockResolvedValueOnce({ data: [] });
+
+    await api.getDiagnosticsHealth();
+    await api.testDiagnosticsTrunk(1);
+    await api.testAllDiagnosticsTrunks();
+    await api.getDiagnosticsRegistrations();
+    await api.getDiagnosticsFailures(20, 5);
+    await api.getDiagnosticsSipMessages(1, 50, 'call-1');
+    await api.getDiagnosticsSipMessagesByCallId('call/1');
+
+    expect(axios.get).toHaveBeenCalledWith('/diagnostics/health');
+    expect(axios.post).toHaveBeenCalledWith('/diagnostics/trunks/1/test');
+    expect(axios.post).toHaveBeenCalledWith('/diagnostics/trunks/test-all');
+    expect(axios.get).toHaveBeenCalledWith('/diagnostics/registrations');
+    expect(axios.get).toHaveBeenCalledWith('/diagnostics/failures', { params: { limit: 20, offset: 5 } });
+    expect(axios.get).toHaveBeenCalledWith('/diagnostics/sip-messages', { params: { page: 1, limit: 50, callId: 'call-1' } });
+    expect(axios.get).toHaveBeenCalledWith('/diagnostics/sip-messages/call%2F1');
+  });
+
+  it('template and call-log helpers call correct endpoints', async () => {
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1, name: 'x' } } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [], total: 0, page: 1, limit: 10 } });
+    (axios.get as any).mockResolvedValueOnce({ data: { callUuid: 'abc', nodes: [] } });
+
+    await api.listTemplates();
+    await api.importTemplate(1);
+    await api.listCallLogs({ page: 1, limit: 10, search: '1001' });
+    await api.getCallTrace('abc/123');
+
+    expect(axios.get).toHaveBeenCalledWith('/templates');
+    expect(axios.post).toHaveBeenCalledWith('/templates/1/import');
+    expect(axios.get).toHaveBeenCalledWith('/call-logs', { params: { page: 1, limit: 10, search: '1001' } });
+    expect(axios.get).toHaveBeenCalledWith('/call-logs/abc%2F123/trace');
+  });
+
+  it('operator/contact/queue helpers call correct endpoints', async () => {
+    (axios.get as any).mockResolvedValueOnce({
+      data: {
+        data: [{ id: 1, name: 'op', extension: { id: 7, transportType: '' }, contactNumber: null }],
+      },
+    });
+    (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
+    (axios.put as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
+    (axios.delete as any).mockResolvedValueOnce({ data: {} });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
+    (axios.delete as any).mockResolvedValueOnce({ data: {} });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
+    (axios.delete as any).mockResolvedValueOnce({ data: {} });
+
+    const operators = await api.listOperators();
+    await api.createOperator({ name: 'op', extension_id: 1 });
+    await api.updateOperator(1, { name: 'op2' });
+    await api.deleteOperator(1);
+    await api.getContactNumbers();
+    await api.createContactNumber({ label: 'sales', number: '123' });
+    await api.deleteContactNumber(1);
+    await api.listQueues();
+    await api.createQueue({ name: 'q1' });
+    await api.deleteQueue(1);
+
+    expect(operators.data[0]?.extension?.transportType).toBe('sip');
+    expect(axios.post).toHaveBeenCalledWith('/operators', { name: 'op', extension_id: 1 });
+    expect(axios.put).toHaveBeenCalledWith('/operators/1', { name: 'op2' });
+    expect(axios.delete).toHaveBeenCalledWith('/operators/1');
+    expect(axios.get).toHaveBeenCalledWith('/contact-numbers');
+    expect(axios.post).toHaveBeenCalledWith('/contact-numbers', { label: 'sales', number: '123' });
+    expect(axios.delete).toHaveBeenCalledWith('/contact-numbers/1');
+    expect(axios.get).toHaveBeenCalledWith('/queues');
+    expect(axios.post).toHaveBeenCalledWith('/queues', { name: 'q1' });
+    expect(axios.delete).toHaveBeenCalledWith('/queues/1');
+  });
 });

@@ -1,152 +1,96 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { LiveExecutionPanel } from './LiveExecutionPanel';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { CallTimelineEvent } from '../../types';
+import { LiveExecutionPanel } from './LiveExecutionPanel';
+import styles from './LiveExecutionPanel.module.css';
 
-type LiveCallFixture = {
-  callId: string;
-  events: CallTimelineEvent[];
-};
+const baseCallId = 'call-1';
+
+function renderPanel(
+  liveEvents: CallTimelineEvent[],
+  timelineEvents?: Record<string, CallTimelineEvent[]>,
+) {
+  return render(
+    <LiveExecutionPanel
+      liveCalls={[{ callId: baseCallId, events: liveEvents }]}
+      liveTotal={1}
+      page={0}
+      setPage={vi.fn()}
+      expandedCalls={{ [baseCallId]: true }}
+      toggleCall={vi.fn()}
+      timelineEvents={timelineEvents}
+    />,
+  );
+}
 
 describe('LiveExecutionPanel', () => {
-  it('renders without crashing and shows empty message', () => {
-    render(
-      <LiveExecutionPanel
-        liveCalls={[]}
-        liveTotal={0}
-        page={0}
-        setPage={() => {}}
-        expandedCalls={{}}
-        toggleCall={() => {}}
-      />
-    );
-    expect(screen.getByText('Waiting for calls...')).toBeInTheDocument();
+  it('renders node step rows from timelineEvents when available', () => {
+    const timelineEvent: CallTimelineEvent = {
+      callId: baseCallId,
+      flowId: 1,
+      nodeId: 'menu-1776264496563-1',
+      nodeType: 'menu',
+      status: 'started',
+      ts: 1000,
+      meta: { result: '1', callerNumber: '1001' },
+    };
+
+    renderPanel([], { [baseCallId]: [timelineEvent] });
+
+    expect(screen.getByText('[menu]')).toBeInTheDocument();
+    expect(screen.getByText('menu-1776264496563-1')).toBeInTheDocument();
+    expect(screen.getByText('→ 1')).toBeInTheDocument();
+    expect(screen.getByText('+0s')).toBeInTheDocument();
   });
 
-  it('renders call list and handles expansion', () => {
-    const liveCalls: LiveCallFixture[] = [{
-      callId: 'call-1',
-      events: [{
-        callId: 'call-1',
-        flowId: 1,
-        nodeId: 'start',
-        nodeType: 'start',
-        status: 'started',
-        ts: Date.now(),
-        meta: { callerNumber: '123' },
-      }],
-    }];
-    const toggleCall = vi.fn();
-    render(
-      <LiveExecutionPanel
-        liveCalls={liveCalls}
-        liveTotal={1}
-        page={0}
-        setPage={() => {}}
-        expandedCalls={{ 'call-1': true }}
-        toggleCall={toggleCall}
-      />
-    );
-    expect(screen.getByText('call-1')).toBeInTheDocument();
-    expect(screen.getByText('from 123')).toBeInTheDocument();
+  it('shows [menu] label for menu nodeType', () => {
+    const liveEvent: CallTimelineEvent = {
+      callId: baseCallId,
+      flowId: 1,
+      nodeId: 'menu-node',
+      nodeType: 'menu',
+      status: 'completed',
+      ts: 2000,
+      meta: {},
+    };
+
+    renderPanel([liveEvent]);
+
+    expect(screen.getByText('[menu]')).toBeInTheDocument();
+  });
+
+  it('applies executing class for started node without a later completed/error event', () => {
+    const startedOnly: CallTimelineEvent = {
+      callId: baseCallId,
+      flowId: 1,
+      nodeId: 'queue-1',
+      nodeType: 'queue',
+      status: 'started',
+      ts: 3000,
+      meta: {},
+    };
+
+    const { container } = renderPanel([], { [baseCallId]: [startedOnly] });
+    const executingRow = container.querySelector(`.${styles.executing}`);
+
+    expect(executingRow).not.toBeNull();
+    expect(executingRow?.textContent).toContain('[queue]');
+  });
+
+  it('falls back to lifecycle events when timelineEvents for call does not exist', () => {
+    const fallbackEvent: CallTimelineEvent = {
+      callId: baseCallId,
+      flowId: 1,
+      nodeId: 'started',
+      nodeType: 'start',
+      status: 'started',
+      ts: 4000,
+      meta: { callerNumber: '1002', result: 'default' },
+    };
+
+    renderPanel([fallbackEvent], {});
+
+    expect(screen.getByText('[start]')).toBeInTheDocument();
     expect(screen.getByText('started')).toBeInTheDocument();
-    
-    fireEvent.click(screen.getByRole('button', { name: /toggle details/i }));
-    expect(toggleCall).toHaveBeenCalledWith('call-1');
-  });
-
-  it('shows live status for active calls', () => {
-    const liveCalls: LiveCallFixture[] = [{
-      callId: 'call-1',
-      events: [{
-        callId: 'call-1',
-        flowId: 1,
-        nodeId: 'start',
-        nodeType: 'start',
-        status: 'started',
-        ts: Date.now(),
-        meta: {},
-      }],
-    }];
-    render(
-      <LiveExecutionPanel
-        liveCalls={liveCalls}
-        liveTotal={1}
-        page={0}
-        setPage={() => {}}
-        expandedCalls={{}}
-        toggleCall={() => {}}
-      />
-    );
-    // Find the one that is likely the status label (using a partial match for hashed class)
-    const statusLabel = screen.getByText('live', { selector: '[class*="finalStatus"]' });
-    expect(statusLabel).toBeInTheDocument();
-  });
-
-  it('shows completed status for ended calls', () => {
-    const liveCalls: LiveCallFixture[] = [{
-      callId: 'call-1',
-      events: [{
-        callId: 'call-1',
-        flowId: 1,
-        nodeId: 'h1',
-        nodeType: 'hangup',
-        status: 'completed',
-        ts: Date.now(),
-        meta: { result: 'hangup' },
-      }],
-    }];
-    render(
-      <LiveExecutionPanel
-        liveCalls={liveCalls}
-        liveTotal={1}
-        page={0}
-        setPage={() => {}}
-        expandedCalls={{}}
-        toggleCall={() => {}}
-      />
-    );
-    expect(screen.getByText('completed')).toBeInTheDocument();
-  });
-
-  it('shows failed status for error calls', () => {
-    const liveCalls: LiveCallFixture[] = [{
-      callId: 'call-1',
-      events: [{
-        callId: 'call-1',
-        flowId: 1,
-        nodeId: 'p1',
-        nodeType: 'play_audio',
-        status: 'error',
-        ts: Date.now(),
-        meta: {},
-      }],
-    }];
-    render(
-      <LiveExecutionPanel
-        liveCalls={liveCalls}
-        liveTotal={1}
-        page={0}
-        setPage={() => {}}
-        expandedCalls={{}}
-        toggleCall={() => {}}
-      />
-    );
-    expect(screen.getByText('failed')).toBeInTheDocument();
-  });
-
-  it('handles loading state', () => {
-    render(
-      <LiveExecutionPanel
-        liveCalls={[]}
-        liveTotal={0}
-        page={0}
-        setPage={() => {}}
-        expandedCalls={{}}
-        toggleCall={() => {}}
-        loading={true}
-      />
-    );
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 });

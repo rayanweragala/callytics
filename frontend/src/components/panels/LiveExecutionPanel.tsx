@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { LiveDot } from '../LiveDot';
 import { Loading } from '../common/Loading';
 import { formatRelativeTime } from '../../lib/time';
@@ -6,6 +5,7 @@ import type { CallTimelineEvent } from '../../types';
 import styles from './LiveExecutionPanel.module.css';
 
 const PAGE_SIZE = 10;
+const MAX_STEPS = 50;
 
 interface LiveExecutionItem {
   callId: string;
@@ -19,16 +19,8 @@ interface LiveExecutionPanelProps {
   setPage: (page: number) => void;
   expandedCalls: Record<string, boolean>;
   toggleCall: (callId: string) => void;
+  timelineEvents?: Record<string, CallTimelineEvent[]>;
   loading?: boolean;
-}
-
-function nodeTone(event: CallTimelineEvent): string {
-  if (event.status === 'error') return styles.toneError;
-  if (event.nodeType === 'start') return styles.toneActive;
-  if (event.nodeType === 'play_audio') return styles.toneInfo;
-  if (event.nodeType === 'get_digits') return styles.toneWarning;
-  if (event.status === 'completed') return styles.toneCompleted;
-  return styles.toneDefault;
 }
 
 function hasEnded(events: CallTimelineEvent[]): boolean {
@@ -59,7 +51,80 @@ function finalStatus(events: CallTimelineEvent[]): string {
   return hasEnded(events) ? 'completed' : 'live';
 }
 
-export function LiveExecutionPanel({ liveCalls, liveTotal, page, setPage, expandedCalls, toggleCall, loading }: LiveExecutionPanelProps) {
+function nodeTypeLabel(nodeType: string): string {
+  switch (nodeType) {
+    case 'menu':
+      return '[menu]';
+    case 'play_audio':
+      return '[play]';
+    case 'queue':
+      return '[queue]';
+    case 'hunt':
+      return '[hunt]';
+    case 'transfer':
+      return '[transfer]';
+    case 'hangup':
+      return '[hangup]';
+    case 'start':
+      return '[start]';
+    case 'webhook':
+      return '[webhook]';
+    case 'voicemail':
+      return '[voicemail]';
+    case 'business_hours':
+      return '[business_hours]';
+    default:
+      return '[node]';
+  }
+}
+
+function truncateNodeId(nodeId: string): string {
+  if (nodeId.length <= 24) {
+    return nodeId;
+  }
+  return `${nodeId.slice(0, 21)}...`;
+}
+
+function relativeElapsed(eventTs: number, baseTs: number): string {
+  const deltaSeconds = Math.max(0, Math.floor((eventTs - baseTs) / 1000));
+  return `+${deltaSeconds}s`;
+}
+
+function isExecutingEvent(events: CallTimelineEvent[], index: number): boolean {
+  const event = events[index];
+  if (!event || event.status !== 'started') {
+    return false;
+  }
+
+  for (let cursor = index + 1; cursor < events.length; cursor += 1) {
+    const next = events[cursor];
+    if (!next) {
+      continue;
+    }
+    if (next.nodeId === event.nodeId && (next.status === 'completed' || next.status === 'error')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function statusToneClass(status: CallTimelineEvent['status']): string {
+  if (status === 'started') return styles.toneWarning;
+  if (status === 'completed') return styles.toneSuccess;
+  return styles.toneError;
+}
+
+export function LiveExecutionPanel({
+  liveCalls,
+  liveTotal,
+  page,
+  setPage,
+  expandedCalls,
+  toggleCall,
+  timelineEvents,
+  loading,
+}: LiveExecutionPanelProps) {
   const liveTotalPages = Math.max(1, Math.ceil(liveTotal / PAGE_SIZE));
 
   return (
@@ -82,6 +147,12 @@ export function LiveExecutionPanel({ liveCalls, liveTotal, page, setPage, expand
               const lastEvent = events[events.length - 1];
               const caller = String(lastEvent?.meta.callerNumber || 'unknown');
 
+              const realtimeTimeline = timelineEvents?.[callId] ?? [];
+              const sourceEvents = realtimeTimeline.length > 0 ? realtimeTimeline : events;
+              const sortedSourceEvents = [...sourceEvents].sort((left, right) => left.ts - right.ts);
+              const stepEvents = sortedSourceEvents.slice(-MAX_STEPS);
+              const baseTs = sortedSourceEvents[0]?.ts ?? lastEvent?.ts ?? Date.now();
+
               return (
                 <div className={styles.callCard} key={callId}>
                   <button className={styles.callHeader} onClick={() => toggleCall(callId)} type="button" aria-label={`Toggle details for call ${callId}`}>
@@ -103,18 +174,23 @@ export function LiveExecutionPanel({ liveCalls, liveTotal, page, setPage, expand
 
                   {expanded ? (
                     <div className={styles.rail}>
-                      {events.map((event) => (
-                        <div className={styles.entry} key={`${event.callId}-${event.nodeId}-${event.status}-${event.ts}`}>
-                          <div className={`${styles.marker} ${nodeTone(event)}`} />
-                          <div className={styles.content}>
-                            <div className={styles.node}>{event.nodeType}</div>
-                            <div className={styles.status}>{event.status}</div>
+                      {stepEvents.map((event, index) => {
+                        const result = typeof event.meta.result === 'string' ? event.meta.result : '';
+                        const showResult = Boolean(result && result !== 'default');
+                        const executing = isExecutingEvent(stepEvents, index);
+
+                        return (
+                          <div className={`${styles.entry} ${executing ? styles.executing : ''}`} key={`${event.callId}-${event.nodeId}-${event.status}-${event.ts}`}>
+                            <div className={`${styles.marker} ${statusToneClass(event.status)}`} />
+                            <div className={styles.content}>
+                              <div className={styles.nodeType}>{nodeTypeLabel(event.nodeType)}</div>
+                              <div className={styles.nodeKey} title={event.nodeId}>{truncateNodeId(event.nodeId)}</div>
+                              {showResult ? <div className={styles.resultTag}>→ {result}</div> : null}
+                            </div>
+                            <div className={styles.elapsedTime} title={new Date(event.ts).toISOString()}>{relativeElapsed(event.ts, baseTs)}</div>
                           </div>
-                          <div className={styles.time} title={new Date(event.ts).toISOString()}>
-                            {formatRelativeTime(event.ts)}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : null}
                 </div>

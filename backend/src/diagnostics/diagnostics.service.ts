@@ -10,6 +10,7 @@ import { DiagnosticsGateway } from './diagnostics.gateway';
 import type {
   AmiRegistrationDetail,
   CallEvent,
+  CallTimelineEvent,
   DiagnosticsSystemHealth,
   SipTrafficEvent,
   SipMessage,
@@ -18,6 +19,7 @@ import type {
 
 const REDIS_SIP_TRAFFIC_CHANNEL = 'callytics:sip-traffic';
 const REDIS_CALL_EVENTS_CHANNEL = 'callytics:call-events';
+const REDIS_CALL_TIMELINE_CHANNEL = 'callytics:call-timeline';
 
 type TrunkDiagnosticsStatus = TrunkDiagnosticsResult['status'];
 
@@ -448,6 +450,18 @@ export class DiagnosticsService implements OnModuleInit {
         this.gateway?.broadcastCallEvent(payload);
       } catch (error) {
         this.logger.warn(`Failed to parse call event payload: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    await this.redisSubscriber.subscribe(REDIS_CALL_TIMELINE_CHANNEL, async (message) => {
+      try {
+        const payload = JSON.parse(message) as CallTimelineEvent;
+        if (!payload || typeof payload.callId !== 'string' || !payload.callId || typeof payload.nodeType !== 'string' || !payload.nodeType) {
+          return;
+        }
+        this.gateway?.broadcastCallTimelineEvent(payload);
+      } catch (error) {
+        this.logger.warn(`Failed to parse call timeline payload: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
   }

@@ -47,7 +47,13 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const redisPort = Number(process.env.REDIS_PORT || 6379);
+    const redisPortRaw = process.env.REDIS_PORT;
+    if (!redisPortRaw) {
+      this.logger.warn('REDIS_PORT not set — CallLogsListener not started');
+      return;
+    }
+
+    const redisPort = Number(redisPortRaw);
     if (!Number.isFinite(redisPort) || redisPort <= 0) {
       this.logger.warn('Redis port not configured — CallLogsListener not started');
       return;
@@ -64,7 +70,12 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`CallLogsListener Redis error: ${error instanceof Error ? error.message : String(error)}`);
     });
 
-    await this.subscriber.connect();
+    try {
+      await this.subscriber.connect();
+    } catch (error) {
+      this.logger.warn(`CallLogsListener Redis connect failed: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
 
     await this.subscriber.subscribe(REDIS_CALL_EVENTS_CHANNEL, async (message) => {
       try {

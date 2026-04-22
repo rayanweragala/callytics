@@ -1,13 +1,14 @@
 import {
   MessageBody,
   OnGatewayConnection,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { DiagnosticsService } from './diagnostics.service';
-import type { SipTrafficEvent, CallEvent } from './diagnostics.types';
+import type { SipTrafficEvent, CallEvent, CallTimelineEvent } from './diagnostics.types';
 
 const SIP_TRAFFIC_ROOM = 'sip-traffic';
 const CALL_EVENTS_ROOM = 'call-events';
@@ -17,11 +18,13 @@ const CALL_EVENTS_ROOM = 'call-events';
     origin: '*',
   },
 })
-export class DiagnosticsGateway implements OnGatewayConnection {
+export class DiagnosticsGateway implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly diagnosticsService: DiagnosticsService) {
+  constructor(private readonly diagnosticsService: DiagnosticsService) {}
+
+  afterInit(): void {
     this.diagnosticsService.setGateway(this);
   }
 
@@ -60,5 +63,9 @@ export class DiagnosticsGateway implements OnGatewayConnection {
 
   broadcastCallEvent(event: CallEvent): void {
     this.server.to(CALL_EVENTS_ROOM).emit('call:event', event);
+  }
+
+  broadcastCallTimelineEvent(event: CallTimelineEvent): void {
+    this.server.to(CALL_EVENTS_ROOM).emit('call:timeline', event);
   }
 }

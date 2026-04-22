@@ -95,6 +95,16 @@ export interface CallEvent {
   durationSeconds?: number;
 }
 
+export interface CallTimelineEvent {
+  callId: string;
+  flowId: number;
+  nodeId: string;
+  nodeType: string;
+  status: 'started' | 'completed' | 'error';
+  ts: number;
+  meta: Record<string, unknown>;
+}
+
 export interface AmiRegistrationDetail {
   endpoint: string;
   aor: string;

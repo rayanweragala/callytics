@@ -71,12 +71,18 @@
 .live,
 .liveCall,
 .callId,
-.time,
-.status,
 .finalStatus,
 .expandIndicator,
-.caller {
+.caller,
+.nodeType,
+.resultTag {
   font-family: 'Space Mono', monospace;
+}
+
+.time,
+.nodeKey,
+.elapsedTime {
+  font-family: 'Geist', sans-serif;
 }
 
 .live,
@@ -98,7 +104,6 @@
 
 .callCard {
   border: 1px solid var(--border-default);
-  border-top: 1px solid var(--border-default);
   border-radius: 8px;
   overflow: hidden;
   background: var(--bg-surface);
@@ -167,6 +172,12 @@
   letter-spacing: 0.08em;
 }
 
+.time {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
 .expandIndicator {
   color: var(--text-primary);
   font-size: 14px;
@@ -197,15 +208,14 @@
   display: grid;
   grid-template-columns: 12px 1fr auto;
   gap: 12px;
-  align-items: start;
-  margin-bottom: 16px;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .marker {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  margin-top: 6px;
   position: relative;
   z-index: 1;
 }
@@ -213,31 +223,63 @@
 .content {
   display: flex;
   gap: 8px;
-  align-items: baseline;
-  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
 }
 
-.node {
+.nodeType {
   color: var(--text-primary);
-  font-size: 13px;
-  text-transform: lowercase;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
-.status {
+.nodeKey {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultTag {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 11px;
+  padding: 2px 6px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.elapsedTime {
   color: var(--text-secondary);
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.time {
-  color: var(--text-muted);
-  font-size: 11px;
   text-align: right;
+  white-space: nowrap;
 }
 
-.toneActive { background: var(--color-active); }
-.toneInfo { background: var(--color-info); }
 .toneWarning { background: var(--color-warning); }
+.toneSuccess { background: var(--color-success); }
 .toneError { background: var(--color-error); }
-.toneCompleted, .toneDefault { background: var(--text-muted); }
+
+.executing .marker {
+  animation: executingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes executingPulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.35);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
