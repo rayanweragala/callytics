@@ -341,6 +341,7 @@ export interface OperatorItem {
   extension?: ExtensionItem;
   contactNumber?: ContactNumber;
   hasPIN: boolean;
+  pin?: string | null;
   createdAt: string;
 }
 

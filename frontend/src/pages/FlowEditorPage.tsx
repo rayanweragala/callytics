@@ -185,7 +185,7 @@ export function FlowEditorPage() {
   // Fetch routing resources on mount for NodeConfigPanel
   useEffect(() => {
     let active = true;
-    Promise.all([listQueues(), listExtensions(200, 0), getContactNumbers(), listTrunks(200, 0)])
+    Promise.all([listQueues(1, 200), listExtensions(200, 0), getContactNumbers(1, 200), listTrunks(200, 0)])
       .then(([queuesRes, extensionsRes, contactsRes, trunksRes]) => {
         if (!active) return;
         setQueueItems(queuesRes.data);

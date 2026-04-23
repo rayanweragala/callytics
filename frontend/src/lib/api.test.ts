@@ -316,12 +316,15 @@ describe('api library', () => {
     (axios.get as any).mockResolvedValueOnce({
       data: {
         data: [{ id: 1, name: 'op', extension: { id: 7, transportType: '' }, contactNumber: null }],
+        total: 1,
+        page: 1,
+        limit: 10,
       },
     });
     (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
     (axios.put as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
     (axios.delete as any).mockResolvedValueOnce({ data: {} });
-    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [], total: 0, page: 1, limit: 10 } });
     (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1 } } });
     (axios.delete as any).mockResolvedValueOnce({ data: {} });
     (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
@@ -340,13 +343,14 @@ describe('api library', () => {
     await api.deleteQueue(1);
 
     expect(operators.data[0]?.extension?.transportType).toBe('sip');
+    expect(axios.get).toHaveBeenCalledWith('/operators', { params: { page: 1, limit: 10 } });
     expect(axios.post).toHaveBeenCalledWith('/operators', { name: 'op', extension_id: 1 });
     expect(axios.put).toHaveBeenCalledWith('/operators/1', { name: 'op2' });
     expect(axios.delete).toHaveBeenCalledWith('/operators/1');
-    expect(axios.get).toHaveBeenCalledWith('/contact-numbers');
+    expect(axios.get).toHaveBeenCalledWith('/contact-numbers', { params: { page: 1, limit: 10 } });
     expect(axios.post).toHaveBeenCalledWith('/contact-numbers', { label: 'sales', number: '123' });
     expect(axios.delete).toHaveBeenCalledWith('/contact-numbers/1');
-    expect(axios.get).toHaveBeenCalledWith('/queues');
+    expect(axios.get).toHaveBeenCalledWith('/queues', { params: { page: 1, limit: 10 } });
     expect(axios.post).toHaveBeenCalledWith('/queues', { name: 'q1' });
     expect(axios.delete).toHaveBeenCalledWith('/queues/1');
   });

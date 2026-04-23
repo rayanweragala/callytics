@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDateTime, formatRelativeTime, formatUptime } from './time';
+import { formatDateTime, formatRelativeTime, formatUptime,formatPacketTimestamp } from './time';
 
 describe('time utilities', () => {
   describe('formatDateTime', () => {
@@ -46,5 +46,30 @@ describe('time utilities', () => {
     it('formats seconds to HH:MM:SS', () => {
       expect(formatUptime(3661)).toBe('01:01:01');
     });
+  });
+});
+
+describe('formatPacketTimestamp', () => {
+  it('returns a string in HH:MM:SS format', () => {
+    const result = formatPacketTimestamp('03:56:19.510');
+    expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+  });
+
+  it('returns the original string if time part is invalid', () => {
+    expect(formatPacketTimestamp('not-a-time')).toBe('not-a-time');
+  });
+
+  it('returns the original string if format has no dot separator', () => {
+    expect(formatPacketTimestamp('ab:cd:ef')).toBe('ab:cd:ef');
+  });
+
+  it('handles midnight UTC without throwing', () => {
+    const result = formatPacketTimestamp('00:00:00.000');
+    expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+  });
+
+  it('handles end of day UTC without throwing', () => {
+    const result = formatPacketTimestamp('23:59:59.999');
+    expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
   });
 });

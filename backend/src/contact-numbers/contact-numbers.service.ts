@@ -27,9 +27,16 @@ export class ContactNumbersService {
     await runSqlMigrations(this.dataSource);
   }
 
-  async list(): Promise<{ data: ContactNumberResponse[] }> {
-    const items = await this.contactNumbersRepository.find({ order: { label: 'ASC' } });
-    return { data: items.map((item) => this.toResponse(item)) };
+  async findAll(page = 1, limit = 10): Promise<{ data: ContactNumberResponse[]; total: number; page: number; limit: number }> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const offset = (safePage - 1) * safeLimit;
+    const [items, total] = await this.contactNumbersRepository.findAndCount({
+      order: { label: 'ASC' },
+      take: safeLimit,
+      skip: offset,
+    });
+    return { data: items.map((item) => this.toResponse(item)), total, page: safePage, limit: safeLimit };
   }
 
   async create(dto: CreateContactNumberDto): Promise<{ data: ContactNumberResponse }> {

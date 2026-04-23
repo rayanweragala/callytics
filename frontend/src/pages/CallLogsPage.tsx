@@ -327,7 +327,8 @@ export function CallLogsPage() {
               <span>Flow name</span>
               <span>Duration</span>
               <span>Quality</span>
-              <span>Start time</span>
+              <span>START TIME</span>
+              <span>END TIME</span>
               <span>End reason</span>
               <span>Trace</span>
             </div>
@@ -356,7 +357,8 @@ export function CallLogsPage() {
                       <span className={styles.missingQuality}>—</span>
                     )}
                   </span>
-                  <span>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
+                  <span className={styles.mono}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
+                  <span className={styles.mono}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</span>
                   <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
                   <span className={styles.traceIcon}>
                     <button

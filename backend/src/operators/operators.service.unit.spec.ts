@@ -129,18 +129,23 @@ describe('OperatorsService', () => {
   });
 
   it('update hashes provided PIN and list includes structured extension and contactNumber objects when linked', async () => {
-    mockRepo.find.mockResolvedValue([
-      {
-        id: 55,
-        name: 'Dana',
-        pinHash: 'hashed',
-        extensionId: 301,
-        contactNumberId: 401,
-        createdAt: new Date('2026-04-20T09:00:00.000Z'),
-      },
-    ]);
-
     mockDataSource.query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql.includes('SELECT COUNT(*)::int AS total FROM operators')) {
+        return [{ total: 1 }];
+      }
+      if (sql.includes('FROM operators') && sql.includes('ORDER BY name ASC')) {
+        return [
+          {
+            id: 55,
+            name: 'Dana',
+            pin_hash: 'hashed',
+            extension_id: 301,
+            contact_number_id: 401,
+            created_at: '2026-04-20T09:00:00.000Z',
+            updated_at: '2026-04-20T09:00:00.000Z',
+          },
+        ];
+      }
       if (sql.includes('FROM sip_extensions WHERE id = $1')) {
         if (Number(params[0]) === 301) {
           return [{ id: 301, username: '2002' }];
@@ -174,7 +179,7 @@ describe('OperatorsService', () => {
     await service.update(55, { pin: '123456' });
     expect((bcrypt.hash as jest.Mock)).toHaveBeenCalledWith('123456', 10);
 
-    const result = await service.list();
+    const result = await service.findAll();
 
     expect(result.data).toEqual([
       expect.objectContaining({

@@ -84,10 +84,39 @@ export class QueuesService {
     };
   }
 
-  async list(): Promise<{ data: QueueResponse[] }> {
-    const items = await this.queuesRepository.find({ order: { name: 'ASC' } });
+  async findAll(page = 1, limit = 10): Promise<{ data: QueueResponse[]; total: number; page: number; limit: number }> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const offset = (safePage - 1) * safeLimit;
+    const totalRows = await this.dataSource.query('SELECT COUNT(*)::int AS total FROM queues');
+    const total = Number(totalRows[0]?.total ?? 0);
+    const rows = await this.dataSource.query(
+      `SELECT
+        id,
+        name,
+        slug,
+        wait_audio_file_id,
+        max_wait_seconds,
+        pin_retry_attempts,
+        created_at,
+        updated_at
+      FROM queues
+      ORDER BY name ASC
+      LIMIT $1 OFFSET $2`,
+      [safeLimit, offset],
+    );
+    const items = rows.map((row: Record<string, unknown>) => this.queuesRepository.create({
+      id: Number(row.id),
+      name: String(row.name),
+      slug: String(row.slug),
+      waitAudioFileId: row.wait_audio_file_id === null ? null : Number(row.wait_audio_file_id),
+      maxWaitSeconds: Number(row.max_wait_seconds),
+      pinRetryAttempts: Number(row.pin_retry_attempts),
+      createdAt: new Date(String(row.created_at)),
+      updatedAt: new Date(String(row.updated_at)),
+    }));
     const responses = await Promise.all(items.map((item) => this.toResponse(item)));
-    return { data: responses };
+    return { data: responses, total, page: safePage, limit: safeLimit };
   }
 
   async create(dto: CreateQueueDto): Promise<{ data: QueueResponse }> {

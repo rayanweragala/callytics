@@ -7,7 +7,7 @@ import { ContactNumberEntity } from './entities/contact-number.entity';
 describe('ContactNumbersService', () => {
   let service: ContactNumbersService;
   let repo: {
-    find: jest.Mock;
+    findAndCount: jest.Mock;
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
@@ -15,7 +15,7 @@ describe('ContactNumbersService', () => {
   };
 
   const mockRepo = {
-    find: jest.fn(),
+    findAndCount: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
@@ -83,7 +83,7 @@ describe('ContactNumbersService', () => {
 
   it('findAll/list returns array and preserves trunk mapping when trunk_id exists', async () => {
     const now = new Date('2026-04-20T12:00:00.000Z');
-    repo.find.mockResolvedValue([
+    repo.findAndCount.mockResolvedValue([[
       {
         id: 1,
         label: 'Sales Hotline',
@@ -92,11 +92,15 @@ describe('ContactNumbersService', () => {
         notes: null,
         createdAt: now,
       },
-    ]);
+    ], 1]);
 
-    const result = await service.list();
+    const result = await service.findAll(1, 10);
 
-    expect(repo.find).toHaveBeenCalledWith({ order: { label: 'ASC' } });
+    expect(repo.findAndCount).toHaveBeenCalledWith({
+      order: { label: 'ASC' },
+      take: 10,
+      skip: 0,
+    });
     expect(result.data).toEqual([
       {
         id: 1,
@@ -107,6 +111,9 @@ describe('ContactNumbersService', () => {
         createdAt: now.toISOString(),
       },
     ]);
+    expect(result.total).toBe(1);
+    expect(result.page).toBe(1);
+    expect(result.limit).toBe(10);
   });
 
   it('update changes label, number, trunk_id, and notes and returns updated row', async () => {

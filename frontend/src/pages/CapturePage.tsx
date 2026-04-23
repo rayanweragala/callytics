@@ -5,7 +5,7 @@ import { PageLayout } from '../components/common/PageLayout';
 import { DialogDetail } from '../components/capture/DialogDetail';
 import { PacketStream, type PacketStreamFilters } from '../components/capture/PacketStream';
 import { SipHeadersAccordion } from '../components/capture/SipHeadersAccordion';
-import { exportCaptureBulk } from '../lib/api';
+import { exportCaptureBulk, getCapturePackets } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { diagnosticsSocket } from '../lib/socket';
 import type { SipPacket } from '../types';
@@ -42,6 +42,7 @@ export function CapturePage() {
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [exportingBulk, setExportingBulk] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [infoBanner, setInfoBanner] = useState<string | null>(null);
   const [leftPanelWidth, setLeftPanelWidth] = useState(38);
   const splitLayoutRef = useRef<HTMLDivElement | null>(null);
   const resizingRef = useRef(false);
@@ -49,11 +50,35 @@ export function CapturePage() {
   useEffect(() => {
     const callIdParam = searchParams.get('callId');
     if (!callIdParam) {
+      setInfoBanner(null);
       return;
     }
 
-    setFilters((prev) => ({ ...prev, callId: callIdParam }));
-    setSelectedCallId(callIdParam);
+    let active = true;
+
+    const loadHistorical = async () => {
+      const historicalPackets = await getCapturePackets(callIdParam);
+      if (!active) {
+        return;
+      }
+
+      if (historicalPackets.length > 0) {
+        const sipCallId = historicalPackets[0]?.callId ?? '';
+        setPackets(historicalPackets);
+        setPaused(true);
+        setFilters((prev) => ({ ...prev, callId: sipCallId }));
+        setSelectedCallId(sipCallId);
+        setInfoBanner(`Showing ${historicalPackets.length} historical packets for call ${callIdParam}. Live capture paused.`);
+        return;
+      }
+
+      setInfoBanner(`Showing 0 historical packets for call ${callIdParam}. Live capture paused.`);
+    };
+
+    void loadHistorical();
+    return () => {
+      active = false;
+    };
   }, [searchParams]);
 
   useEffect(() => {
@@ -179,6 +204,7 @@ export function CapturePage() {
     <PageLayout actions={actions} subtitle="monitor" title="Capture">
       <div className={styles.page}>
         {pageError ? <div className={styles.errorText}>{pageError}</div> : null}
+        {infoBanner ? <div className={styles.statusLine}>{infoBanner}</div> : null}
         <div className={styles.statusLine}>{statusText}</div>
 
         <div

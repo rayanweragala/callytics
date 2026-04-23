@@ -116,11 +116,63 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
   }
 
   async findPacketsByCallId(callId: string): Promise<SipPacketDto[]> {
-    const normalizedCallId = callId.trim();
-    if (!normalizedCallId) {
+    const normalized = callId.trim();
+    if (!normalized) {
       return [];
     }
 
+    const direct = await this.dataSource.query(
+      `
+      SELECT packet_data AS "packetData"
+      FROM sip_packets
+      WHERE call_id = $1
+      ORDER BY captured_at ASC
+      `,
+      [normalized],
+    );
+
+    if (direct.length > 0) {
+      return direct
+        .map((row: { packetData?: SipPacketDto }) => row.packetData)
+        .filter((packet): packet is SipPacketDto => Boolean(packet));
+    }
+
+    const msgRows = await this.dataSource.query(
+      `
+      SELECT created_at
+      FROM sip_messages
+      WHERE call_id = $1
+      ORDER BY created_at ASC
+      LIMIT 1
+      `,
+      [normalized],
+    );
+    if (!msgRows.length) {
+      return [];
+    }
+
+    const callStart = new Date(msgRows[0].created_at);
+    if (Number.isNaN(callStart.getTime())) {
+      return [];
+    }
+
+    const sipCallIdRows = await this.dataSource.query(
+      `
+      SELECT DISTINCT call_id
+      FROM sip_packets
+      WHERE captured_at BETWEEN $1::timestamptz - INTERVAL '5 seconds'
+                            AND $1::timestamptz + INTERVAL '120 seconds'
+        AND call_id IS NOT NULL
+        AND call_id NOT LIKE 'test-%'
+      ORDER BY call_id
+      `,
+      [callStart.toISOString()],
+    );
+    if (!sipCallIdRows.length) {
+      return [];
+    }
+
+    const sipCallId = sipCallIdRows[0].call_id;
     const rows = await this.dataSource.query(
       `
       SELECT packet_data AS "packetData"
@@ -128,10 +180,11 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
       WHERE call_id = $1
       ORDER BY captured_at ASC
       `,
-      [normalizedCallId],
+      [sipCallId],
     );
-
-    return rows.map((row: { packetData?: SipPacketDto }) => row.packetData).filter((packet): packet is SipPacketDto => Boolean(packet));
+    return rows
+      .map((row: { packetData?: SipPacketDto }) => row.packetData)
+      .filter((packet): packet is SipPacketDto => Boolean(packet));
   }
 
   async getDialogPackets(callId: string): Promise<SipPacketDto[]> {

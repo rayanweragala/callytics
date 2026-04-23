@@ -452,10 +452,14 @@ export async function getCallQuality(callId: string): Promise<CallQuality | null
   }
 }
 
-export async function listOperators(): Promise<ListResponse<OperatorItem>> {
-  const response = await api.get<ListResponse<OperatorItem>>('/operators');
+export async function listOperators(page = 1, limit = 10): Promise<PaginatedResponse<OperatorItem>> {
+  const response = await api.get<{ data: OperatorItem[]; total: number; page: number; limit: number }>('/operators', {
+    params: { page, limit },
+  });
+  const totalPages = Math.max(1, Math.ceil(response.data.total / response.data.limit));
   return {
     ...response.data,
+    totalPages,
     data: response.data.data.map((item) => ({
       ...item,
       extension: item.extension
@@ -486,9 +490,14 @@ export async function updateOperator(id: number, payload: {
   return response.data;
 }
 
-export async function getContactNumbers(): Promise<ListResponse<ContactNumber>> {
-  const response = await api.get<ListResponse<ContactNumber>>('/contact-numbers');
-  return response.data;
+export async function getContactNumbers(page = 1, limit = 10): Promise<PaginatedResponse<ContactNumber>> {
+  const response = await api.get<{ data: ContactNumber[]; total: number; page: number; limit: number }>('/contact-numbers', {
+    params: { page, limit },
+  });
+  return {
+    ...response.data,
+    totalPages: Math.max(1, Math.ceil(response.data.total / response.data.limit)),
+  };
 }
 
 export async function createContactNumber(data: {
@@ -520,9 +529,14 @@ export async function deleteOperator(id: number): Promise<void> {
   await api.delete(`/operators/${id}`);
 }
 
-export async function listQueues(): Promise<ListResponse<QueueItem>> {
-  const response = await api.get<ListResponse<QueueItem>>('/queues');
-  return response.data;
+export async function listQueues(page = 1, limit = 10): Promise<PaginatedResponse<QueueItem>> {
+  const response = await api.get<{ data: QueueItem[]; total: number; page: number; limit: number }>('/queues', {
+    params: { page, limit },
+  });
+  return {
+    ...response.data,
+    totalPages: Math.max(1, Math.ceil(response.data.total / response.data.limit)),
+  };
 }
 
 export async function createQueue(payload: {
@@ -550,4 +564,3 @@ export async function updateQueue(id: number, payload: {
 export async function deleteQueue(id: number): Promise<void> {
   await api.delete(`/queues/${id}`);
 }
-

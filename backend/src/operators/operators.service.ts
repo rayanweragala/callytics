@@ -35,6 +35,7 @@ export interface OperatorResponse {
   extension: OperatorExtensionResponse | null;
   contactNumber: OperatorContactNumberResponse | null;
   hasPIN: boolean;
+  pin: string | null;
   createdAt: string;
 }
 
@@ -44,6 +45,7 @@ const BCRYPT_SALT_ROUNDS = 10;
 export class OperatorsService {
   private readonly logger = new Logger(OperatorsService.name);
   private redisClient: RedisClientType | null = null;
+  private pinColumnAvailable: boolean | null = null;
 
   constructor(
     @InjectRepository(OperatorEntity)
@@ -93,10 +95,37 @@ export class OperatorsService {
     }
   }
 
-  async list(): Promise<{ data: OperatorResponse[] }> {
-    const items = await this.operatorsRepository.find({ order: { name: 'ASC' } });
+  async findAll(page = 1, limit = 10): Promise<{ data: OperatorResponse[]; total: number; page: number; limit: number }> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const offset = (safePage - 1) * safeLimit;
+    const totalRows = await this.dataSource.query('SELECT COUNT(*)::int AS total FROM operators');
+    const total = Number(totalRows[0]?.total ?? 0);
+    const rows = await this.dataSource.query(
+      `SELECT
+        id,
+        name,
+        pin_hash,
+        extension_id,
+        contact_number_id,
+        created_at,
+        updated_at
+      FROM operators
+      ORDER BY name ASC
+      LIMIT $1 OFFSET $2`,
+      [safeLimit, offset],
+    );
+    const items = rows.map((row: Record<string, unknown>) => this.operatorsRepository.create({
+      id: Number(row.id),
+      name: String(row.name),
+      pinHash: String(row.pin_hash),
+      extensionId: row.extension_id === null ? null : Number(row.extension_id),
+      contactNumberId: row.contact_number_id === null ? null : Number(row.contact_number_id),
+      createdAt: new Date(String(row.created_at)),
+      updatedAt: new Date(String(row.updated_at)),
+    }));
     const responses = await Promise.all(items.map(async (item) => this.toResponse(item)));
-    return { data: responses };
+    return { data: responses, total, page: safePage, limit: safeLimit };
   }
 
   async create(dto: CreateOperatorDto): Promise<{ data: OperatorResponse }> {
@@ -117,7 +146,8 @@ export class OperatorsService {
     });
 
     const saved = await this.operatorsRepository.save(entity);
-    return { data: await this.toResponse(saved) };
+    await this.storePlainPinIfSupported(saved.id, pin);
+    return { data: await this.toResponse(saved, pin) };
   }
 
   async update(id: number, dto: UpdateOperatorDto): Promise<{ data: OperatorResponse }> {
@@ -143,6 +173,9 @@ export class OperatorsService {
     }
 
     const saved = await this.operatorsRepository.save(entity);
+    if (dto.pin !== undefined) {
+      await this.storePlainPinIfSupported(saved.id, dto.pin.trim());
+    }
     return { data: await this.toResponse(saved) };
   }
 
@@ -196,8 +229,30 @@ export class OperatorsService {
     }
   }
 
-  private async toResponse(item: OperatorEntity): Promise<OperatorResponse> {
+  private async hasPinColumn(): Promise<boolean> {
+    if (this.pinColumnAvailable !== null) {
+      return this.pinColumnAvailable;
+    }
+    const rows = await this.dataSource.query(
+      `SELECT 1
+       FROM information_schema.columns
+       WHERE table_name = 'operators'
+         AND column_name = 'pin'
+       LIMIT 1`,
+    );
+    this.pinColumnAvailable = rows.length > 0;
+    return this.pinColumnAvailable;
+  }
+
+  private async storePlainPinIfSupported(operatorId: number, pin: string): Promise<void> {
+    const available = await this.hasPinColumn();
+    if (!available) return;
+    await this.dataSource.query('UPDATE operators SET pin = $1 WHERE id = $2', [pin, operatorId]);
+  }
+
+  private async toResponse(item: OperatorEntity, pin: string | null = null): Promise<OperatorResponse> {
     const status = await this.getOperatorStatus(item.id);
+    const includePin = await this.hasPinColumn();
     const rows = await this.dataSource.query(
       `SELECT
         e.id AS extension_id,
@@ -206,7 +261,7 @@ export class OperatorsService {
         c.id AS contact_id,
         c.label AS contact_label,
         c.number AS contact_number,
-        c.trunk_id AS contact_trunk_id
+        c.trunk_id AS contact_trunk_id${includePin ? ', o.pin AS operator_pin' : ''}
       FROM operators o
       LEFT JOIN sip_extensions e ON e.id = o.extension_id
       LEFT JOIN contact_numbers c ON c.id = o.contact_number_id
@@ -216,6 +271,7 @@ export class OperatorsService {
     );
 
     const row = rows[0] || {};
+    console.log('[operators] includePin=', includePin, 'row.operator_pin=', row?.operator_pin);
 
     return {
       id: item.id,
@@ -237,6 +293,7 @@ export class OperatorsService {
           }
         : null,
       hasPIN: Boolean(item.pinHash),
+      pin: pin ?? (includePin ? (row.operator_pin ? String(row.operator_pin) : null) : null),
       createdAt: item.createdAt.toISOString(),
     };
   }

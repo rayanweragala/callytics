@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { CreateContactNumberDto } from './dto/create-contact-number.dto';
 import { UpdateContactNumberDto } from './dto/update-contact-number.dto';
 import { ContactNumbersService } from './contact-numbers.service';
@@ -8,8 +8,11 @@ export class ContactNumbersController {
   constructor(private readonly contactNumbersService: ContactNumbersService) {}
 
   @Get()
-  list() {
-    return this.contactNumbersService.list();
+  list(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.contactNumbersService.findAll(page, limit);
   }
 
   @Post()

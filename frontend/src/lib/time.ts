@@ -25,3 +25,22 @@ export function formatDateTime(value: string | Date): string {
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${day} ${month} ${year}, ${hh}:${mm}`;
 }
+
+
+/**
+ * Converts a tshark UTC packet timestamp "HH:MM:SS.mmm" to local time "HH:MM:SS".
+ * Tshark always emits UTC - this converts to the browser's local timezone
+ */
+export function formatPacketTimestamp(utcTime: string): string {
+  const [timePart] = utcTime.split('.');
+  const [hh, mm, ss] = (timePart ?? '').split(':').map(Number);
+  if ([hh, mm, ss].some(Number.isNaN)) return utcTime;
+  const d = new Date();
+  d.setUTCHours(hh, mm, ss, 0);
+  return d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+}

@@ -41,7 +41,7 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 90px 110px 170px 120px 48px;
+  grid-template-columns: 1fr 1fr 1fr 90px 110px 170px 170px 120px 48px;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
@@ -72,6 +72,7 @@
 .mono {
   font-family: 'Space Mono', monospace;
   font-size: 12px;
+  font-weight: 400;
 }
 
 .badge {
@@ -165,9 +166,11 @@
   .head span:nth-child(6),
   .head span:nth-child(7),
   .head span:nth-child(8),
+  .head span:nth-child(9),
   .row span:nth-child(6),
   .row span:nth-child(7),
-  .row span:nth-child(8) {
+  .row span:nth-child(8),
+  .row span:nth-child(9) {
     display: none;
   }
 }

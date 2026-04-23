@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
+import { Pagination } from '../components/common/Pagination';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import {
   createContactNumber,
@@ -23,11 +24,14 @@ interface ContactForm {
 }
 
 const EMPTY_FORM: ContactForm = { label: '', number: '', trunkId: '', notes: '' };
+const PAGE_LIMIT = 10;
 
 export function ContactNumbersPage() {
   const [items, setItems] = useState<ContactNumber[]>([]);
   const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -44,11 +48,13 @@ export function ContactNumbersPage() {
   );
 
   const trunkMap = useMemo(() => new Map(trunks.map((trunk) => [trunk.id, trunk.name])), [trunks]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
-  const load = async () => {
+  const load = async (nextPage = page) => {
     try {
-      const [contactsRes, trunksRes] = await Promise.all([getContactNumbers(), listTrunks(200, 0)]);
+      const [contactsRes, trunksRes] = await Promise.all([getContactNumbers(nextPage, PAGE_LIMIT), listTrunks(200, 0)]);
       setItems(contactsRes.data);
+      setTotal(contactsRes.total);
       setTrunks(trunksRes.data);
     } catch (err) {
       setError(getApiError(err, 'Failed to load contacts'));
@@ -57,8 +63,8 @@ export function ContactNumbersPage() {
 
   useEffect(() => {
     setLoading(true);
-    void load().finally(() => setLoading(false));
-  }, []);
+    void load(page).finally(() => setLoading(false));
+  }, [page]);
 
   const submitCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -71,13 +77,14 @@ export function ContactNumbersPage() {
     setCreating(true);
     setError(null);
     try {
-      const res = await createContactNumber({
+      await createContactNumber({
         label,
         number,
         trunk_id: form.trunkId ? Number(form.trunkId) : undefined,
         notes: form.notes.trim() || undefined,
       });
-      setItems((prev) => [res.data, ...prev]);
+      await load(1);
+      setPage(1);
       setCreateOpen(false);
       setForm(EMPTY_FORM);
     } catch (err) {
@@ -124,7 +131,10 @@ export function ContactNumbersPage() {
     setError(null);
     try {
       await deleteContactNumber(id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      const nextTotal = Math.max(0, total - 1);
+      const nextPage = Math.min(page, Math.max(1, Math.ceil(nextTotal / PAGE_LIMIT)));
+      await load(nextPage);
+      if (nextPage !== page) setPage(nextPage);
       setConfirmDeleteId(null);
       if (editingId === id) {
         setEditingId(null);
@@ -240,6 +250,11 @@ export function ContactNumbersPage() {
               ) : null}
             </div>
           ))}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </section>
       </div>
     </PageLayout>

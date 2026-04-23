@@ -3,6 +3,8 @@ import { Pagination } from '../common/Pagination';
 import { SearchableSelect } from '../common/SearchableSelect';
 import type { SipPacket } from '../../types';
 import styles from './PacketStream.module.css';
+import { formatPacketTimestamp } from '../../lib/time';
+
 
 const PAGE_SIZE = 15;
 
@@ -171,7 +173,7 @@ export function PacketStream({ packets, selectedCallId, onSelectCallId, filters,
               onClick={() => onSelectCallId(packet.callId)}
               type="button"
             >
-              <span className={styles.timeCell}>{packet.timestamp}</span>
+              <span className={styles.timeCell}>{formatPacketTimestamp(packet.timestamp)}</span>
               <span className={packet.method === 'INVITE' ? styles.methodInvite : packet.method === 'BYE' ? styles.methodBye : styles.methodDefault}>{packet.method}</span>
               <span>{packet.from}</span>
               <span>{packet.to}</span>

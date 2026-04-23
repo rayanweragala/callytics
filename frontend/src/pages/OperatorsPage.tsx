@@ -1,6 +1,7 @@
 import { Fragment, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
+import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import {
@@ -17,6 +18,7 @@ import type { ContactNumber, ExtensionItem, OperatorItem } from '../types';
 import styles from './OperatorsPage.module.css';
 
 const OPERATOR_DESTINATION_REQUIRED = 'An operator must have at least an extension or a PSTN contact assigned.';
+const PAGE_LIMIT = 10;
 
 function StatusBadge({ status }: { status: OperatorItem['status'] }) {
   const cls =
@@ -39,9 +41,13 @@ const emptyForm: OperatorFormState = { name: '', extensionId: '', contactNumberI
 
 export function OperatorsPage() {
   const [operators, setOperators] = useState<OperatorItem[]>([]);
+  const [revealedPins, setRevealedPins] = useState<Set<number>>(new Set());
+  const [newOperatorPin, setNewOperatorPin] = useState<string | null>(null);
   const [extensions, setExtensions] = useState<ExtensionItem[]>([]);
   const [contactNumbers, setContactNumbers] = useState<ContactNumber[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<OperatorFormState>(emptyForm);
   const [creating, setCreating] = useState(false);
@@ -60,26 +66,33 @@ export function OperatorsPage() {
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
   };
 
-  const load = useCallback(async () => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+
+  const load = useCallback(async (nextPage = page) => {
     try {
-      const [opRes, extRes, contactsRes] = await Promise.all([listOperators(), listExtensions(200, 0), getContactNumbers()]);
+      const [opRes, extRes, contactsRes] = await Promise.all([
+        listOperators(nextPage, PAGE_LIMIT),
+        listExtensions(200, 0),
+        getContactNumbers(1, 200),
+      ]);
       setOperators(opRes.data);
+      setTotal(opRes.total);
       setExtensions(extRes.data);
       setContactNumbers(contactsRes.data);
     } catch {
       // keep stale data
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     setLoading(true);
-    load().finally(() => setLoading(false));
-    pollTimer.current = setInterval(() => { void load(); }, 10_000);
+    load(page).finally(() => setLoading(false));
+    pollTimer.current = setInterval(() => { void load(page); }, 10_000);
     return () => {
       if (pollTimer.current) clearInterval(pollTimer.current);
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
-  }, [load]);
+  }, [load, page]);
 
   const extensionOptions = extensions.map((ext) => ({
     value: String(ext.id),
@@ -112,7 +125,9 @@ export function OperatorsPage() {
         pin: createForm.pin.trim() || undefined,
       });
       const created = res.data;
-      setOperators((prev) => [...prev, created]);
+      await load(1);
+      setPage(1);
+      setNewOperatorPin(created.pin ?? (createForm.pin.trim() || null));
       setCreateForm(emptyForm);
       setCreateOpen(false);
     } catch (err) {
@@ -151,7 +166,7 @@ export function OperatorsPage() {
         contact_number_id: editForm.contactNumberId ? Number(editForm.contactNumberId) : undefined,
         pin: editForm.pin.trim() || undefined,
       });
-      setOperators((prev) => prev.map((op) => (op.id === editingId ? { ...op, ...res.data } : op)));
+      await load(page);
       setEditingId(null);
       setEditForm(emptyForm);
     } catch (err) {
@@ -167,7 +182,15 @@ export function OperatorsPage() {
     try {
       await deleteOperator(id);
       setConfirmDeleteId(null);
-      setOperators((prev) => prev.filter((op) => op.id !== id));
+      const nextTotal = Math.max(0, total - 1);
+      const nextPage = Math.min(page, Math.max(1, Math.ceil(nextTotal / PAGE_LIMIT)));
+      await load(nextPage);
+      if (nextPage !== page) setPage(nextPage);
+      setRevealedPins((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       if (editingId === id) {
         setEditingId(null);
       }
@@ -176,6 +199,15 @@ export function OperatorsPage() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const togglePinVisibility = (id: number) => {
+    setRevealedPins((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   return (
@@ -255,11 +287,29 @@ export function OperatorsPage() {
           </section>
         ) : null}
 
+        {newOperatorPin ? (
+          <div className={styles.pinBanner} role="status" aria-live="polite">
+            <div className={styles.pinBannerText}>
+              <span>Operator created. PIN: </span>
+              <span className={styles.pinValue}>{newOperatorPin}</span>
+              <span> — save this now, it will be masked after you close this message.</span>
+            </div>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => setNewOperatorPin(null)}
+            >
+              Got it
+            </button>
+          </div>
+        ) : null}
+
         <section className={styles.tablePanel}>
           <div className={styles.tableHead}>
             <div>name</div>
             <div>extension</div>
             <div>pstn fallback</div>
+            <div>pin</div>
             <div>status</div>
             <div>created</div>
             <div className={styles.actionsHeader}>actions</div>
@@ -271,6 +321,7 @@ export function OperatorsPage() {
                   { width: '180px' },
                   { width: '160px' },
                   { width: '160px' },
+                  { width: '140px' },
                   { width: '80px' },
                   { width: '140px' },
                   { width: '200px' },
@@ -287,6 +338,19 @@ export function OperatorsPage() {
                     <div className={styles.dataMono}>{op.name}</div>
                     <div className={styles.dataMono}>{op.extension?.username || '—'}</div>
                     <div className={styles.dataMono}>{op.contactNumber?.label || '—'}</div>
+                    <div className={styles.pinCell}>
+                      <span className={`${styles.dataMono} ${revealedPins.has(op.id) ? styles.pinRevealedValue : ''}`}>
+                        {revealedPins.has(op.id) ? op.pin || '••••••' : '••••••'}
+                      </span>
+                      <button
+                        className={styles.pinToggle}
+                        type="button"
+                        onClick={() => togglePinVisibility(op.id)}
+                        aria-label={revealedPins.has(op.id) ? `Hide PIN for ${op.name}` : `Show PIN for ${op.name}`}
+                      >
+                        {revealedPins.has(op.id) ? '[hide]' : '[show]'}
+                      </button>
+                    </div>
                     <StatusBadge status={op.status} />
                     <div className={styles.createdAt}>{formatDateTime(op.createdAt)}</div>
                     <div className={styles.actions}>
@@ -363,6 +427,11 @@ export function OperatorsPage() {
               ))}
             </div>
           )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
           {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
         </section>
       </div>

@@ -1,6 +1,7 @@
 import { FormEvent, Fragment, useCallback, useEffect, useState } from 'react';
 import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
+import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
@@ -16,6 +17,8 @@ import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { AudioFileItem, OperatorItem, QueueItem } from '../types';
 import styles from './QueuesPage.module.css';
+
+const PAGE_LIMIT = 10;
 
 interface EditState {
   queueId: number;
@@ -83,6 +86,8 @@ export function QueuesPage() {
   const [operators, setOperators] = useState<OperatorItem[]>([]);
   const [audioItems, setAudioItems] = useState<AudioFileItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -99,21 +104,28 @@ export function QueuesPage() {
 
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+
+  const load = useCallback(async (nextPage = page) => {
     try {
-      const [qRes, oRes, aRes] = await Promise.all([listQueues(), listOperators(), listAllAudio()]);
+      const [qRes, oRes, aRes] = await Promise.all([
+        listQueues(nextPage, PAGE_LIMIT),
+        listOperators(1, 200),
+        listAllAudio(),
+      ]);
       setQueues(qRes.data);
+      setTotal(qRes.total);
       setOperators(oRes.data);
       setAudioItems(aRes.data);
     } catch {
       // Leave stale data
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     setLoading(true);
-    load().finally(() => setLoading(false));
-  }, [load]);
+    load(page).finally(() => setLoading(false));
+  }, [load, page]);
 
   const audioOptions = audioItems.map((a) => ({
     value: String(a.id),
@@ -138,7 +150,8 @@ export function QueuesPage() {
         pin_retry_attempts: createPinRetries,
         operator_ids: createOperatorIds,
       });
-      setQueues((prev) => [...prev, res.data]);
+      await load(1);
+      setPage(1);
       setCreateName('');
       setCreateWaitAudioId(null);
       setCreateMaxWait(300);
@@ -188,7 +201,7 @@ export function QueuesPage() {
         pin_retry_attempts: editState.pinRetryAttempts,
         operator_ids: editState.operatorIds,
       });
-      setQueues((prev) => prev.map((q) => q.id === editState.queueId ? res.data : q));
+      await load(page);
       setEditState(null);
     } catch (err: unknown) {
       setErrorText(getApiError(err, 'Save failed'));
@@ -202,7 +215,10 @@ export function QueuesPage() {
     setErrorText(null);
     try {
       await deleteQueue(id);
-      setQueues((prev) => prev.filter((q) => q.id !== id));
+      const nextTotal = Math.max(0, total - 1);
+      const nextPage = Math.min(page, Math.max(1, Math.ceil(nextTotal / PAGE_LIMIT)));
+      await load(nextPage);
+      if (nextPage !== page) setPage(nextPage);
       setConfirmDeleteId(null);
       if (editState?.queueId === id) setEditState(null);
     } catch (err: unknown) {
@@ -454,6 +470,11 @@ export function QueuesPage() {
               ))}
             </div>
           )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
           {!createOpen && errorText && editState === null ? <ErrorMessage message={errorText} /> : null}
         </div>
       </div>

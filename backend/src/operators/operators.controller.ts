@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
 import { CreateOperatorDto } from './dto/create-operator.dto';
 import { UpdateOperatorDto } from './dto/update-operator.dto';
 import { OperatorsService } from './operators.service';
@@ -8,8 +8,11 @@ export class OperatorsController {
   constructor(private readonly operatorsService: OperatorsService) {}
 
   @Get()
-  list() {
-    return this.operatorsService.list();
+  list(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.operatorsService.findAll(page, limit);
   }
 
   @Post()

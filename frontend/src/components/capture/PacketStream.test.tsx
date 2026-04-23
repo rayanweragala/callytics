@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { SipPacket } from '../../types';
 import { PacketStream } from './PacketStream';
@@ -103,7 +103,9 @@ describe('PacketStream', () => {
       />,
     );
 
-    expect(screen.getByText('10:00:00.000')).toHaveClass(styles.timeCell);
+    const inviteRow = screen.getByRole('button', { name: /10:00:00\.000 INVITE 1001 1002 call-invite/i });
+    const [inviteTimeCell] = within(inviteRow).getAllByText(/\d{2}:\d{2}:\d{2}/);
+    expect(inviteTimeCell).toHaveClass(styles.timeCell);
     expect(screen.getByText('INVITE')).toHaveClass(styles.methodInvite);
     expect(screen.getByText('BYE')).toHaveClass(styles.methodBye);
 
