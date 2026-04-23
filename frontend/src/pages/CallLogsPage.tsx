@@ -276,7 +276,7 @@ export function CallLogsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   return (
-    <PageLayout subtitle="call history & live execution" title="Call Logs">
+    <PageLayout subtitle="monitor" title="Call Logs">
       <div className={styles.page}>
         <StatBar metrics={metrics} />
 
@@ -321,14 +321,14 @@ export function CallLogsPage() {
           <ErrorMessage message={errorText} />
 
           <div className={styles.table}>
-            <div className={styles.head}>
+            <div className={styles.tableHead}>
               <span>Caller number</span>
               <span>Destination</span>
               <span>Flow name</span>
               <span>Duration</span>
               <span>Quality</span>
-              <span>START TIME</span>
-              <span>END TIME</span>
+              <span>Start time</span>
+              <span>End time</span>
               <span>End reason</span>
               <span>Trace</span>
             </div>
@@ -341,7 +341,7 @@ export function CallLogsPage() {
                 <div className={styles.row} key={`${item.id}-${item.callUuid}`}>
                   <span className={styles.mono}>{item.callerNumber || '—'}</span>
                   <span className={styles.mono}>{item.calleeNumber || '—'}</span>
-                  <span>{item.flowName || '—'}</span>
+                  <span className={styles.flowName}>{item.flowName || '—'}</span>
                   <span className={styles.mono}>{formatDuration(item.durationSeconds)}</span>
                   <span>
                     {quality ? (
@@ -357,11 +357,12 @@ export function CallLogsPage() {
                       <span className={styles.missingQuality}>—</span>
                     )}
                   </span>
-                  <span className={styles.mono}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
-                  <span className={styles.mono}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</span>
+                  <span className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
+                  <span className={styles.timestamp}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</span>
                   <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
                   <span className={styles.traceIcon}>
                     <button
+                      className={styles.traceButton}
                       onClick={(event) => {
                         event.stopPropagation();
                         setTraceCallUuid(item.callUuid);

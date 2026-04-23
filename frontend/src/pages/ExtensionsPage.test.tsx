@@ -34,7 +34,7 @@ describe('ExtensionsPage coverage boost', () => {
 
     await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
     
-    fireEvent.click(screen.getByText(/\+ add extension/i));
+    fireEvent.click(screen.getByRole('button', { name: /add extension/i }));
     expect(screen.getByText('new extension')).toBeInTheDocument();
   });
 });

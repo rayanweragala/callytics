@@ -96,17 +96,9 @@ export function RecordingsPage() {
   };
 
   return (
-    <PageLayout title="Recordings" subtitle="Browse and download call recordings">
+    <PageLayout title="Recordings" subtitle="monitor">
       <div className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <div className={styles.sectionLabel}>monitor</div>
-          <h1 className={styles.title}>recordings</h1>
-        </div>
-      </div>
-
       <section className={styles.libraryPanel}>
-        <div className={styles.panelTitle}>recordings</div>
         <div className={styles.tableHead}>
           <div>name</div>
           <div>source</div>

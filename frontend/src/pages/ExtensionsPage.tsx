@@ -193,26 +193,23 @@ export function ExtensionsPage() {
     }
   };
 
+  const pageActions = (
+    <button
+      className={styles.primaryButton}
+      onClick={() => {
+        resetMessages();
+        setEditingId(null);
+        setCreateOpen((current) => !current);
+      }}
+      type="button"
+    >
+      {createOpen ? 'cancel' : 'add extension'}
+    </button>
+  );
+
   return (
-    <PageLayout title="Extensions" subtitle="Manage SIP extensions and device provisioning">
+    <PageLayout actions={pageActions} title="Extensions" subtitle="configure">
       <div className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <div className={styles.sectionLabel}>configure</div>
-          <h1 className={styles.title}>extensions</h1>
-        </div>
-        <button
-          className={styles.primaryButton}
-          onClick={() => {
-            resetMessages();
-            setEditingId(null);
-            setCreateOpen((current) => !current);
-          }}
-          type="button"
-        >
-          {createOpen ? 'cancel' : '+ add extension'}
-        </button>
-      </div>
 
       {createOpen ? (
         <section className={styles.formPanel}>

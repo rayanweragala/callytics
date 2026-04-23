@@ -210,27 +210,24 @@ export function OperatorsPage() {
     });
   };
 
+  const pageActions = (
+    <button
+      className={styles.primaryButton}
+      type="button"
+      onClick={() => {
+        showError(null);
+        setEditingId(null);
+        setConfirmDeleteId(null);
+        setCreateOpen((current) => !current);
+      }}
+    >
+      {createOpen ? 'cancel' : 'add operator'}
+    </button>
+  );
+
   return (
-    <PageLayout title="Operators" subtitle="Manage call center operators and queue assignments">
+    <PageLayout actions={pageActions} title="Operators" subtitle="configure">
       <div className={styles.page}>
-        <div className={styles.header}>
-          <div>
-            <div className={styles.sectionLabel}>Call Center</div>
-            <h1 className={styles.title}>operators</h1>
-          </div>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onClick={() => {
-              showError(null);
-              setEditingId(null);
-              setConfirmDeleteId(null);
-              setCreateOpen((current) => !current);
-            }}
-          >
-            {createOpen ? 'cancel' : '+ add operator'}
-          </button>
-        </div>
 
         {createOpen ? (
           <section className={styles.formPanel}>

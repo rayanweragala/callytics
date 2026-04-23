@@ -81,7 +81,7 @@ describe('ContactNumbersPage', () => {
 
     await waitFor(() => expect(screen.getByText('No contacts yet.')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /\+ add contact/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add contact/i }));
 
     const createButton = screen.getByRole('button', { name: /create contact/i });
     const form = createButton.closest('form');
@@ -147,7 +147,7 @@ describe('ContactNumbersPage', () => {
 
     await waitFor(() => expect(screen.getByText('No contacts yet.')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /\+ add contact/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add contact/i }));
     const createButton = screen.getByRole('button', { name: /create contact/i });
     const form = createButton.closest('form');
     const textboxes = within(form as HTMLFormElement).getAllByRole('textbox');

@@ -295,7 +295,6 @@ export function AudioPage() {
       </div>
 
       <section className={styles.libraryPanel}>
-        <div className={styles.panelTitle}>audio library</div>
         <div className={styles.tableHead}>
           <div>name</div>
           <div>source</div>

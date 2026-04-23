@@ -19,6 +19,7 @@ import type {
   CallLogItem,
   CallQuality,
   CallTraceResponse,
+  AsteriskLogsResponse,
   ContactNumber,
   SipMessage,
   SipPacket,
@@ -437,6 +438,16 @@ export async function listCallLogs(params: {
 
 export async function getCallTrace(callUuid: string): Promise<CallTraceResponse> {
   const response = await api.get<CallTraceResponse>(`/call-logs/${encodeURIComponent(callUuid)}/trace`);
+  return response.data;
+}
+
+export async function listAsteriskLogs(params: {
+  level?: 'all' | 'error' | 'warning' | 'notice' | 'verbose';
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AsteriskLogsResponse> {
+  const response = await api.get<AsteriskLogsResponse>('/asterisk/logs', { params });
   return response.data;
 }
 

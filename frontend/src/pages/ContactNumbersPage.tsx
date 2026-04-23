@@ -146,18 +146,15 @@ export function ContactNumbersPage() {
     }
   };
 
+  const pageActions = (
+    <button className={styles.primaryButton} type="button" onClick={() => setCreateOpen((v) => !v)}>
+      {createOpen ? 'cancel' : 'add contact'}
+    </button>
+  );
+
   return (
-    <PageLayout title="Contacts" subtitle="Manage PSTN dial targets and optional trunk mapping">
+    <PageLayout actions={pageActions} title="Contacts" subtitle="configure">
       <div className={styles.page}>
-        <div className={styles.header}>
-          <div>
-            <div className={styles.sectionLabel}>Configure</div>
-            <h1 className={styles.title}>contacts</h1>
-          </div>
-          <button className={styles.primaryButton} type="button" onClick={() => setCreateOpen((v) => !v)}>
-            {createOpen ? 'cancel' : '+ add contact'}
-          </button>
-        </div>
 
         {createOpen ? (
           <form className={styles.formPanel} onSubmit={(event) => void submitCreate(event)}>

@@ -30,7 +30,7 @@ describe('TrunksPage coverage boost', () => {
 
     await waitFor(() => expect(screen.getByText('Main Trunk')).toBeInTheDocument());
     
-    fireEvent.click(screen.getByText(/\+ add trunk/i));
+    fireEvent.click(screen.getByRole('button', { name: /add trunk/i }));
     expect(screen.getByText('new trunk')).toBeInTheDocument();
   });
 });

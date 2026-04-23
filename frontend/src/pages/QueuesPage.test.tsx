@@ -57,7 +57,7 @@ describe('QueuesPage', () => {
 
     await waitFor(() => expect(screen.getByText('Support Queue')).toBeInTheDocument());
     
-    fireEvent.click(screen.getByText(/\+ add queue/i));
+    fireEvent.click(screen.getByRole('button', { name: /add queue/i }));
     expect(screen.getByText('new queue')).toBeInTheDocument();
   });
 });

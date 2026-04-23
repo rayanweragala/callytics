@@ -36,7 +36,7 @@ describe('InboundRoutesPage coverage boost', () => {
 
     await waitFor(() => expect(screen.getByText('123456')).toBeInTheDocument());
     
-    fireEvent.click(screen.getByText(/\+ add route/i));
+    fireEvent.click(screen.getByRole('button', { name: /add route/i }));
     expect(screen.getByText('new route')).toBeInTheDocument();
   });
 });

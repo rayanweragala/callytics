@@ -335,18 +335,15 @@ export function TrunksPage() {
     return <div className={`${styles.testBadge} ${badgeClassName}`}>{result.message}</div>;
   };
 
+  const pageActions = (
+    <button className={styles.primaryButton} onClick={openCreate} type="button">
+      {createOpen ? 'cancel' : 'add trunk'}
+    </button>
+  );
+
   return (
-    <PageLayout title="SIP trunks" subtitle="Configure outbound and inbound SIP trunks">
+    <PageLayout actions={pageActions} title="SIP trunks" subtitle="configure">
       <div className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <div className={styles.sectionLabel}>configure</div>
-          <h1 className={styles.title}>SIP Trunks</h1>
-        </div>
-        <button className={styles.primaryButton} onClick={openCreate} type="button">
-          {createOpen ? 'cancel' : '+ add trunk'}
-        </button>
-      </div>
 
       {createOpen ? (
         <section className={styles.formPanel}>

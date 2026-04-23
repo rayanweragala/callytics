@@ -81,9 +81,10 @@
 
 .tablePanel {
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-surface);
-  padding: 18px;
+  padding: 0 20px 16px;
+  overflow: hidden;
 }
 
 .tableHead,
@@ -95,7 +96,7 @@
 }
 
 .tableHead {
-  padding-bottom: 12px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
   color: var(--text-secondary);
   font-size: 10px;
@@ -108,7 +109,7 @@
 }
 
 .rowWrap:last-child {
-  border-bottom: 0;
+  border-bottom: none;
 }
 
 .row {

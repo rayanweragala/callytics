@@ -17,6 +17,7 @@ import { OperatorsPage } from './pages/OperatorsPage';
 import { QueuesPage } from './pages/QueuesPage';
 import { ContactNumbersPage } from './pages/ContactNumbersPage';
 import { CapturePage } from './pages/CapturePage';
+import { AsteriskLogsPage } from './pages/AsteriskLogsPage/AsteriskLogsPage';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
       <main className={styles.contentArea}>
         <Routes>
           <Route path="/" element={<DiagnosticsPage />} />
+          <Route path="/logs" element={<AsteriskLogsPage />} />
           <Route path="/capture" element={<CapturePage />} />
           <Route path="/audio" element={<AudioPage />} />
           <Route path="/extensions" element={<ExtensionsPage />} />

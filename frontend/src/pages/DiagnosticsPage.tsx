@@ -299,7 +299,7 @@ export function DiagnosticsPage() {
   }
 
   return (
-    <PageLayout actions={actions} subtitle="network diagnostics" title="Diagnostics">
+    <PageLayout actions={actions} subtitle="monitor" title="Diagnostics">
       <div className={styles.page}>
         <ErrorMessage message={pageError} />
         {successText ? <div className={styles.successText}>{successText}</div> : null}

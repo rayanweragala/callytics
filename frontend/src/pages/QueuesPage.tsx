@@ -70,7 +70,7 @@ function OperatorPickerRow({
           }}
           style={{ marginTop: selectedIds.length > 0 ? 8 : 0 }}
         >
-          <option value="">+ add operator</option>
+          <option value="">add operator</option>
           {unselected.map((op) => (
             <option key={op.id} value={op.id}>{op.name}</option>
           ))}
@@ -228,27 +228,24 @@ export function QueuesPage() {
     }
   };
 
+  const pageActions = (
+    <button
+      className={styles.primaryButton}
+      type="button"
+      onClick={() => {
+        setErrorText(null);
+        setEditState(null);
+        setConfirmDeleteId(null);
+        setCreateOpen((c) => !c);
+      }}
+    >
+      {createOpen ? 'cancel' : 'add queue'}
+    </button>
+  );
+
   return (
-    <PageLayout title="Queues" subtitle="Manage call queues and wait behavior">
+    <PageLayout actions={pageActions} title="Queues" subtitle="configure">
       <div className={styles.page}>
-        <div className={styles.header}>
-          <div>
-            <div className={styles.sectionLabel}>Call Center</div>
-            <h1 className={styles.title}>queues</h1>
-          </div>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onClick={() => {
-              setErrorText(null);
-              setEditState(null);
-              setConfirmDeleteId(null);
-              setCreateOpen((c) => !c);
-            }}
-          >
-            {createOpen ? 'cancel' : '+ add queue'}
-          </button>
-        </div>
 
         {/* Create form */}
         {createOpen ? (
@@ -329,7 +326,6 @@ export function QueuesPage() {
 
         {/* Table */}
         <div className={styles.tablePanel}>
-          <div className={styles.panelTitle}>queues</div>
           {loading && queues.length === 0 ? (
             <>
               {Array.from({ length: 3 }, (_, i) => (

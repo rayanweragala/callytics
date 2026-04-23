@@ -437,6 +437,24 @@ export interface CallLogItem {
   flowName: string | null;
 }
 
+export type AsteriskLogLevel = 'ERROR' | 'WARNING' | 'NOTICE' | 'VERBOSE' | 'DEBUG' | 'UNKNOWN';
+
+export interface AsteriskLogEntry {
+  timestamp: string;
+  level: AsteriskLogLevel;
+  channel: string;
+  module: string;
+  raw: string;
+  message: string;
+  translation?: string;
+}
+
+export interface AsteriskLogsResponse {
+  entries: AsteriskLogEntry[];
+  total: number;
+  fileExists?: boolean;
+}
+
 export interface CallQuality {
   callId: string;
   mos: number;

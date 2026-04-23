@@ -11,6 +11,7 @@ describe('SidebarNav', () => {
       </MemoryRouter>
     );
     expect(screen.getByText('diagnostics')).toBeInTheDocument();
+    expect(screen.getByText('logs')).toBeInTheDocument();
     expect(screen.getByText('flow builder')).toBeInTheDocument();
     expect(screen.getByText('extensions')).toBeInTheDocument();
   });

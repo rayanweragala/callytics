@@ -39,6 +39,7 @@ services:
       TSHARK_PORT: "5080"
     volumes:
       - ./asterisk/base:/etc/asterisk
+      - ./asterisk/logs:/var/log/asterisk
       - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics
       - ./storage/voicemail:/var/spool/asterisk/voicemail
       - asterisk_recordings:/var/lib/asterisk/recording
@@ -58,6 +59,7 @@ services:
     network_mode: "host"
     volumes:
       - ./asterisk/base:/etc/asterisk
+      - ./asterisk/logs:/var/log/asterisk:ro
       - ./storage/audio/originals:/app/storage/audio/originals
       - ./storage/audio/converted:/app/storage/audio/converted
       - ./storage/audio/previews:/app/storage/audio/previews

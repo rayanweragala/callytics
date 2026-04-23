@@ -13,14 +13,15 @@
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-surface);
-  padding: 16px;
+  padding: 0 20px 16px;
+  overflow: hidden;
 }
 
 .filters {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 170px 170px 180px;
   gap: 8px;
-  margin-bottom: 12px;
+  margin: 16px 0 12px;
 }
 
 .input {
@@ -33,36 +34,37 @@
 }
 
 .table {
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
-.head,
+.tableHead,
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 90px 110px 170px 170px 120px 48px;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 14px;
+  min-width: 1120px;
 }
 
-.head {
-  background: var(--bg-elevated);
+.tableHead {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-default);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .row {
-  border: 0;
+  padding: 16px 0;
   width: 100%;
   text-align: left;
   background: transparent;
   color: var(--text-primary);
-  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .row:hover {
@@ -73,6 +75,18 @@
   font-family: 'Space Mono', monospace;
   font-size: 12px;
   font-weight: 400;
+}
+
+.flowName {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.timestamp {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
 }
 
 .badge {
@@ -94,6 +108,7 @@
   background: var(--bg-base);
   font-family: 'Space Mono', monospace;
   font-size: 11px;
+  font-weight: 400;
   line-height: 1;
   padding: 6px 8px;
   cursor: pointer;
@@ -131,12 +146,29 @@
 
 .traceIcon {
   font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 400;
   color: var(--text-secondary);
 }
 
+.traceButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  width: 32px;
+  height: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .empty {
-  padding: 18px 14px;
+  padding-top: 16px;
   color: var(--text-muted);
+  font-size: 12px;
 }
 
 .paginationWrap {
@@ -158,19 +190,9 @@
     grid-template-columns: 1fr;
   }
 
-  .head,
+  .tableHead,
   .row {
-    grid-template-columns: 1.2fr 1fr 1fr 90px 100px;
-  }
-
-  .head span:nth-child(6),
-  .head span:nth-child(7),
-  .head span:nth-child(8),
-  .head span:nth-child(9),
-  .row span:nth-child(6),
-  .row span:nth-child(7),
-  .row span:nth-child(8),
-  .row span:nth-child(9) {
-    display: none;
+    grid-template-columns: 1fr;
+    min-width: 0;
   }
 }

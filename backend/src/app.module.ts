@@ -30,6 +30,7 @@ import { ContactNumberEntity } from './contact-numbers/entities/contact-number.e
 import { ContactNumbersModule } from './contact-numbers/contact-numbers.module';
 import { CaptureModule } from './capture/capture.module';
 import { QualityModule } from './quality/quality.module';
+import { AsteriskLogsModule } from './asterisk-logs/asterisk-logs.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { QualityModule } from './quality/quality.module';
     QueuesModule,
     ContactNumbersModule,
     QualityModule,
+    AsteriskLogsModule,
   ],
   controllers: [HealthController],
 })

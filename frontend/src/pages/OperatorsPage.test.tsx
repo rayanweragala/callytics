@@ -46,7 +46,7 @@ describe('OperatorsPage', () => {
     );
 
     await waitFor(() => expect(screen.getByText('No operators yet. Add one above.')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /\+ add operator/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add operator/i }));
     expect(screen.getByText('new operator')).toBeInTheDocument();
   }
 

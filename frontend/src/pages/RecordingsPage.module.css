@@ -28,7 +28,8 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: 8px;
-  padding: 20px;
+  padding: 0 20px 16px;
+  overflow: hidden;
 }
 
 .panelTitle {
@@ -52,7 +53,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  padding-bottom: 12px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
 }
 

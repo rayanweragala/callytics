@@ -166,26 +166,23 @@ export function InboundRoutesPage() {
     }
   };
 
+  const pageActions = (
+    <button
+      className={styles.primaryButton}
+      onClick={() => {
+        resetMessages();
+        setEditingId(null);
+        setCreateOpen((current) => !current);
+      }}
+      type="button"
+    >
+      {createOpen ? 'cancel' : 'add route'}
+    </button>
+  );
+
   return (
-    <PageLayout title="Inbound Routes" subtitle="Route incoming calls to specific flows based on DID">
+    <PageLayout actions={pageActions} title="Inbound Routes" subtitle="configure">
       <div className={styles.page}>
-        <div className={styles.header}>
-          <div>
-            <div className={styles.sectionLabel}>monitor</div>
-            <h1 className={styles.title}>inbound routes</h1>
-          </div>
-          <button
-            className={styles.primaryButton}
-            onClick={() => {
-              resetMessages();
-              setEditingId(null);
-              setCreateOpen((current) => !current);
-            }}
-            type="button"
-          >
-            {createOpen ? 'cancel' : '+ add route'}
-          </button>
-        </div>
 
         {createOpen ? (
           <section className={styles.formPanel}>

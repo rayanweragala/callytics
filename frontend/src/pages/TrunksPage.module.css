@@ -39,8 +39,13 @@
 .tablePanel {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 18px;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.tablePanel {
+  padding: 0 20px 16px;
+  overflow-x: auto;
 }
 
 .panelTitle {
@@ -151,10 +156,11 @@
   grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(200px, 1.3fr) 72px 72px 132px 108px minmax(220px, 1.1fr);
   gap: 14px;
   align-items: start;
+  min-width: 1180px;
 }
 
 .tableHead {
-  padding-bottom: 12px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
   color: var(--text-secondary);
   font-size: 10px;
@@ -168,7 +174,10 @@
 }
 
 .rowValue {
+  font-family: 'Space Mono', monospace;
   color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .rowMuted {
@@ -205,6 +214,10 @@
   justify-content: flex-end;
   gap: 8px;
   align-items: center;
+}
+
+.actions {
+  flex-wrap: wrap;
 }
 
 .confirmBox {
@@ -325,6 +338,7 @@
   .tableHead,
   .row {
     grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .formGrid,

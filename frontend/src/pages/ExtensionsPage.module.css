@@ -30,12 +30,17 @@
 .modal {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .formPanel,
 .tablePanel {
-  padding: 18px;
+  padding: 20px;
+}
+
+.tablePanel {
+  padding: 0 20px 16px;
+  overflow: hidden;
 }
 
 .panelTitle,
@@ -129,7 +134,7 @@
 }
 
 .tableHead {
-  padding-bottom: 12px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
   color: var(--text-secondary);
   font-size: 10px;
@@ -143,7 +148,7 @@
 }
 
 .row:last-of-type {
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: none;
 }
 
 .actionsHeader {
