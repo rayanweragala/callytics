@@ -21,14 +21,17 @@ import type {
   CallTraceResponse,
   ContactNumber,
   SipMessage,
+  SipPacket,
   SipRegistrationItem,
   SipTrunkItem,
   TrunkDiagnosticsResult,
   TrunkTestResult,
 } from '../types';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
+  baseURL: API_BASE,
 });
 
 export interface PaginatedResponse<T> {
@@ -375,6 +378,18 @@ export async function getDiagnosticsSipMessages(page = 1, limit = 50, callId?: s
 export async function getDiagnosticsSipMessagesByCallId(callId: string): Promise<SipMessage[]> {
   const response = await api.get<SipMessage[]>(`/diagnostics/sip-messages/${encodeURIComponent(callId)}`);
   return response.data;
+}
+
+export async function getCapturePackets(callId: string): Promise<SipPacket[]> {
+  try {
+    const res = await fetch(`${API_BASE}/capture/packets/${encodeURIComponent(callId)}`);
+    if (!res.ok) {
+      return [];
+    }
+    return await res.json() as SipPacket[];
+  } catch {
+    return [];
+  }
 }
 
 export async function exportCaptureDialog(callId: string): Promise<Blob> {

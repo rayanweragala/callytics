@@ -6,3 +6,9 @@
   border-radius: 8px;
   margin: 0.5rem 0;
 }
+
+.info {
+  color: var(--color-info);
+  background: var(--bg-surface);
+  border-color: var(--color-info);
+}

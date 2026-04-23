@@ -1,5 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
+import { DataSource } from 'typeorm';
+import { runSqlMigrations } from '../db/run-sql-migrations';
 import type { SipPacketDto } from './dto/sip-packet.dto';
 
 const pcapHeaders: {
@@ -15,7 +18,11 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CaptureService.name);
   private redis: RedisClientType | null = null;
 
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+
   async onModuleInit(): Promise<void> {
+    await runSqlMigrations(this.dataSource);
+    await this.cleanupOldPackets();
     await this.ensureRedis();
   }
 
@@ -80,6 +87,51 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
     packet.id = id;
 
     await this.redis.xTrim(SIP_CAPTURE_STREAM, 'MAXLEN', SIP_CAPTURE_MAXLEN);
+  }
+
+  async persistPacket(packet: SipPacketDto): Promise<void> {
+    const normalizedCallId = packet.callId?.trim() ? packet.callId.trim() : null;
+    const capturedAt = this.toIsoTimestamp(packet.timestamp);
+
+    if (capturedAt) {
+      console.log('[capture] persisting packet callId=', packet.callId);
+      await this.dataSource.query(
+        `
+        INSERT INTO sip_packets (call_id, packet_data, captured_at)
+        VALUES ($1, $2::jsonb, $3::timestamptz)
+        `,
+        [normalizedCallId, JSON.stringify(packet), capturedAt],
+      );
+      return;
+    }
+
+    console.log('[capture] persisting packet callId=', packet.callId);
+    await this.dataSource.query(
+      `
+      INSERT INTO sip_packets (call_id, packet_data, captured_at)
+      VALUES ($1, $2::jsonb, NOW())
+      `,
+      [normalizedCallId, JSON.stringify(packet)],
+    );
+  }
+
+  async findPacketsByCallId(callId: string): Promise<SipPacketDto[]> {
+    const normalizedCallId = callId.trim();
+    if (!normalizedCallId) {
+      return [];
+    }
+
+    const rows = await this.dataSource.query(
+      `
+      SELECT packet_data AS "packetData"
+      FROM sip_packets
+      WHERE call_id = $1
+      ORDER BY captured_at ASC
+      `,
+      [normalizedCallId],
+    );
+
+    return rows.map((row: { packetData?: SipPacketDto }) => row.packetData).filter((packet): packet is SipPacketDto => Boolean(packet));
   }
 
   async getDialogPackets(callId: string): Promise<SipPacketDto[]> {
@@ -172,6 +224,34 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
     }
 
     return Buffer.concat(chunks);
+  }
+
+  private async cleanupOldPackets(): Promise<void> {
+    await this.dataSource.query(`
+      DELETE FROM sip_packets
+      WHERE created_at < NOW() - INTERVAL '30 days'
+    `);
+  }
+
+  private toIsoTimestamp(raw: string | null | undefined): string | null {
+    if (!raw) {
+      return null;
+    }
+
+    const directDate = new Date(raw);
+    if (!Number.isNaN(directDate.getTime())) {
+      return directDate.toISOString();
+    }
+
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) {
+      const epochDate = new Date(numeric * 1000);
+      if (!Number.isNaN(epochDate.getTime())) {
+        return epochDate.toISOString();
+      }
+    }
+
+    return null;
   }
 
   private async ensureRedis(): Promise<void> {

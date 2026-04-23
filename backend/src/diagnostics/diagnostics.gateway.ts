@@ -10,6 +10,7 @@ import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
 import { Server, Socket } from 'socket.io';
 import { DiagnosticsService } from './diagnostics.service';
+import { CaptureService } from '../capture/capture.service';
 import type { SipTrafficEvent, CallEvent, CallTimelineEvent } from './diagnostics.types';
 import type { SipPacketDto } from '../capture/dto/sip-packet.dto';
 
@@ -32,7 +33,10 @@ export class DiagnosticsGateway implements OnGatewayInit, OnGatewayConnection, O
   private captureLoopRunning = false;
   private captureLastId = '$';
 
-  constructor(private readonly diagnosticsService: DiagnosticsService) {}
+  constructor(
+    private readonly diagnosticsService: DiagnosticsService,
+    private readonly captureService: CaptureService,
+  ) {}
 
   afterInit(): void {
     this.diagnosticsService.setGateway(this);
@@ -166,6 +170,11 @@ export class DiagnosticsGateway implements OnGatewayInit, OnGatewayConnection, O
             const packet = this.mapCaptureMessage(message.id, message.message as Record<string, string>);
             if (packet) {
               this.broadcastSipPacket(packet);
+              try {
+                await this.captureService.persistPacket(packet);
+              } catch (error) {
+                this.logger.warn(`capture packet persist failed: ${error instanceof Error ? error.message : String(error)}`);
+              }
             }
           }
         }
@@ -180,9 +189,6 @@ export class DiagnosticsGateway implements OnGatewayInit, OnGatewayConnection, O
 
   private mapCaptureMessage(id: string, message: Record<string, string>): SipPacketDto | null {
     const callId = message.callId || '';
-    if (!callId) {
-      return null;
-    }
 
     const statusCode = Number.parseInt(message.statusCode || '', 10);
     return {

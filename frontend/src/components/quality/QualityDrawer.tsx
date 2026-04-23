@@ -109,7 +109,7 @@ export function QualityDrawer({ callId, onClose }: QualityDrawerProps) {
             onClick={() => {
               if (!callId) return;
               onClose();
-              navigate(`/capture?callId=${encodeURIComponent(callId)}`);
+              navigate('/capture');
             }}
             type="button"
           >

@@ -400,6 +400,16 @@ NestJS serves audio files through `/media/audio/...` with the current storage pa
 
 ## Capture
 
+### `GET /capture/packets/:callId`
+
+- What it does:
+  Returns historical SIP packets for one Call-ID from PostgreSQL persistence (`sip_packets`)
+- Input:
+  Path param: `callId`
+- Returns:
+  `SipPacket[]` ordered ascending by packet capture time (`captured_at`)
+  - Empty array when no packets exist (never 404)
+
 ### `GET /capture/export/dialog/:callId`
 
 - What it does:

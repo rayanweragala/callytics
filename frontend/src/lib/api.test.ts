@@ -278,6 +278,20 @@ describe('api library', () => {
     expect(axios.get).toHaveBeenCalledWith('/diagnostics/sip-messages/call%2F1');
   });
 
+  it('getCapturePackets returns parsed packets on success and [] on failures', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch' as any)
+      .mockResolvedValueOnce({ ok: true, json: vi.fn().mockResolvedValue([{ id: '1-0', callId: 'abc' }]) } as any)
+      .mockResolvedValueOnce({ ok: false } as any)
+      .mockRejectedValueOnce(new Error('network'));
+
+    await expect(api.getCapturePackets('abc/123')).resolves.toEqual([{ id: '1-0', callId: 'abc' }]);
+    await expect(api.getCapturePackets('abc/123')).resolves.toEqual([]);
+    await expect(api.getCapturePackets('abc/123')).resolves.toEqual([]);
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3001/capture/packets/abc%2F123');
+    fetchMock.mockRestore();
+  });
+
   it('template and call-log helpers call correct endpoints', async () => {
     (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
     (axios.post as any).mockResolvedValueOnce({ data: { data: { id: 1, name: 'x' } } });

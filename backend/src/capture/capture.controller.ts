@@ -6,6 +6,12 @@ import { CaptureService } from './capture.service';
 export class CaptureController {
   constructor(private readonly captureService: CaptureService) {}
 
+  @Get('packets/:callId')
+  async getPackets(@Param('callId') callId: string) {
+    const packets = await this.captureService.findPacketsByCallId(callId);
+    return packets;
+  }
+
   @Get('export/dialog/:callId')
   async exportDialog(@Param('callId') callId: string, @Res() res: Response): Promise<void> {
     const buffer = await this.captureService.exportDialogPcap(callId);

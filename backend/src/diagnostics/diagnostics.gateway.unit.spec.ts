@@ -3,7 +3,8 @@ import { DiagnosticsGateway } from './diagnostics.gateway';
 describe('DiagnosticsGateway capture relay', () => {
   it('broadcastSipPacket emits sip:packet to capture-room', () => {
     const diagnosticsService = { setGateway: jest.fn() } as any;
-    const gateway = new DiagnosticsGateway(diagnosticsService);
+    const captureService = { persistPacket: jest.fn().mockResolvedValue(undefined) } as any;
+    const gateway = new DiagnosticsGateway(diagnosticsService, captureService);
     const emit = jest.fn();
     (gateway as any).server = { to: jest.fn(() => ({ emit })) };
 
@@ -24,7 +25,8 @@ describe('DiagnosticsGateway capture relay', () => {
 
   it('replays last packets on capture subscribe', async () => {
     const diagnosticsService = { setGateway: jest.fn() } as any;
-    const gateway = new DiagnosticsGateway(diagnosticsService);
+    const captureService = { persistPacket: jest.fn().mockResolvedValue(undefined) } as any;
+    const gateway = new DiagnosticsGateway(diagnosticsService, captureService);
     (gateway as any).captureRedis = {
       isOpen: true,
       xRevRange: jest.fn().mockResolvedValue([

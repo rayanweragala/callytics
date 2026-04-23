@@ -48,11 +48,13 @@ export function CapturePage() {
 
   useEffect(() => {
     const callIdParam = searchParams.get('callId');
-    if (callIdParam) {
-      setFilters((prev) => ({ ...prev, callId: callIdParam }));
-      setSelectedCallId(callIdParam);
+    if (!callIdParam) {
+      return;
     }
-  }, []);
+
+    setFilters((prev) => ({ ...prev, callId: callIdParam }));
+    setSelectedCallId(callIdParam);
+  }, [searchParams]);
 
   useEffect(() => {
     const onPacket = (packet: SipPacket) => {

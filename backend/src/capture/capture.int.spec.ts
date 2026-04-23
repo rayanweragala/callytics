@@ -7,6 +7,7 @@ import { CaptureService } from './capture.service';
 describe('CaptureController', () => {
   let app: INestApplication;
   const mockService = {
+    findPacketsByCallId: jest.fn(),
     exportDialogPcap: jest.fn(),
     exportBulkPcap: jest.fn(),
   };
@@ -27,8 +28,19 @@ describe('CaptureController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockService.findPacketsByCallId.mockResolvedValue([]);
     mockService.exportDialogPcap.mockResolvedValue(Buffer.from('dialog-pcap'));
     mockService.exportBulkPcap.mockResolvedValue(Buffer.from('bulk-pcap'));
+  });
+
+  it('GET /capture/packets/:callId returns packet array', async () => {
+    mockService.findPacketsByCallId.mockResolvedValue([{ id: '1-0', callId: 'call-123', method: 'INVITE' }]);
+
+    const response = await request(app.getHttpServer()).get('/capture/packets/call-123');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([{ id: '1-0', callId: 'call-123', method: 'INVITE' }]);
+    expect(mockService.findPacketsByCallId).toHaveBeenCalledWith('call-123');
   });
 
   it('GET /capture/export/dialog/:callId returns pcap attachment', async () => {

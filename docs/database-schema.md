@@ -164,6 +164,24 @@ Indexes:
 - `idx_sip_messages_call_id` on `(call_id)`
 - `idx_sip_messages_timestamp` on `(timestamp)`
 
+## sip_packets
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| call_id | varchar(255) | nullable, pulled from capture packet `callId` |
+| packet_data | jsonb | full SIP packet payload as stored JSON |
+| captured_at | timestamptz | parsed from packet `timestamp`, falls back to `NOW()` |
+| created_at | timestamptz | default now() |
+
+Indexes:
+- `idx_sip_packets_call_id` on `(call_id)`
+- `idx_sip_packets_captured_at` on `(captured_at)`
+
+Retention:
+- CaptureService runs startup cleanup: deletes rows older than 30 days by `created_at`
+
+**Migration file:** `backend/migrations/021_phase23b.sql`
+
 ## call_quality
 
 Stores per-call RTP quality metrics computed from RTCP events at call end.

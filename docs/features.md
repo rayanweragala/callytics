@@ -136,6 +136,8 @@ Dial multiple SIP destinations with configurable strategy.
 - Recent call failures panel with flow and destination resolution
 - Dedicated `/capture` page (MONITOR → Capture) for packet-level SIP troubleshooting
   - Live packet stream with method/Call-ID/trunk/time filters
+  - Historical packet restore for completed calls via `?callId=` deep link and `GET /capture/packets/:callId`
+  - Historical-call info banner when stored packets are loaded (live capture auto-paused)
   - Rule-based verdict banner (offline, no API dependency)
   - Inline SIP ladder and packet header accordion
   - `.pcap` export for selected dialog or current filtered view

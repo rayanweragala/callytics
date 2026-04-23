@@ -1,17 +1,20 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SipPacket } from '../types';
 import { CapturePage } from './CapturePage';
 
 const apiMocks = vi.hoisted(() => ({
   exportCaptureBulk: vi.fn(),
   exportCaptureDialog: vi.fn(),
-  getDiagnosticsSipMessagesByCallId: vi.fn(async () => []),
+  getCapturePackets: vi.fn<(callId: string) => Promise<SipPacket[]>>(async () => []),
+  getDiagnosticsSipMessagesByCallId: vi.fn<(callId: string) => Promise<unknown[]>>(async () => []),
 }));
 
 vi.mock('../lib/api', () => ({
   exportCaptureBulk: apiMocks.exportCaptureBulk,
   exportCaptureDialog: apiMocks.exportCaptureDialog,
+  getCapturePackets: apiMocks.getCapturePackets,
   getDiagnosticsSipMessagesByCallId: apiMocks.getDiagnosticsSipMessagesByCallId,
 }));
 
@@ -36,6 +39,7 @@ describe('CapturePage', () => {
     Object.keys(socketMocks.handlers).forEach((key) => delete socketMocks.handlers[key]);
     apiMocks.exportCaptureBulk.mockResolvedValue(new Blob(['bulk']));
     apiMocks.exportCaptureDialog.mockResolvedValue(new Blob(['dialog']));
+    apiMocks.getCapturePackets.mockResolvedValue([]);
   });
 
   it('renders empty state before packet selection', () => {
@@ -47,6 +51,42 @@ describe('CapturePage', () => {
 
     expect(screen.getByText('Select a packet to inspect')).toBeInTheDocument();
     expect(socketMocks.diagnosticsSocket.emit).toHaveBeenCalledWith('capture:subscribe');
+  });
+
+  it('fetches historical packets on mount when callId query param exists', async () => {
+    apiMocks.getCapturePackets.mockResolvedValue([
+      {
+        id: 'h-1',
+        timestamp: '10:00:00.000',
+        method: 'INVITE',
+        from: 'a',
+        to: 'b',
+        callId: 'call-123',
+        direction: 'in',
+        rawJson: '{}',
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/capture?callId=call-123']}>
+        <CapturePage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiMocks.getCapturePackets).toHaveBeenCalledWith('call-123');
+      expect(screen.getByText(/Showing 1 historical packets for call call-123\. Live capture paused\./i)).toBeInTheDocument();
+    });
+  });
+
+  it('does not fetch historical packets without callId query param', () => {
+    render(
+      <MemoryRouter initialEntries={['/capture']}>
+        <CapturePage />
+      </MemoryRouter>,
+    );
+
+    expect(apiMocks.getCapturePackets).not.toHaveBeenCalled();
   });
 
   it('renders live packet row and verdict after selecting a packet', async () => {

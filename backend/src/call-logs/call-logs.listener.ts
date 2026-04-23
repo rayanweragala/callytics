@@ -8,6 +8,7 @@ interface CallStartedEvent {
   timestamp: string;
   type: 'started';
   caller: string;
+  destination?: string;
   flowId?: number;
   flowVersionId?: number;
   entryNodeKey?: string;
@@ -27,6 +28,7 @@ interface CallFailedEvent {
   timestamp: string;
   type: 'failed';
   caller: string;
+  destination?: string;
   flowId?: number;
   flowVersionId?: number;
   failedNode?: string;
@@ -119,12 +121,13 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
             flow_version_id,
             entry_node_key
           )
-          VALUES ($1, 'inbound', $2, NULL, $3::timestamptz, $4, $5, $6)
+          VALUES ($1, 'inbound', $2, $3, $4::timestamptz, $5, $6, $7)
           ON CONFLICT (call_uuid) DO NOTHING
         `,
         [
           event.callId,
           event.caller || null,
+          event.destination || null,
           event.timestamp,
           event.flowId ?? null,
           event.flowVersionId ?? null,
@@ -190,7 +193,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
             flow_version_id,
             exit_node_key
           )
-          VALUES ($1, 'inbound', $2, NULL, $3::timestamptz, $3::timestamptz, 'failed', $4, $5, $6)
+          VALUES ($1, 'inbound', $2, $3, $4::timestamptz, $4::timestamptz, 'failed', $5, $6, $7)
           ON CONFLICT (call_uuid) DO UPDATE
             SET ended_at     = EXCLUDED.ended_at,
                 end_reason   = 'failed',
@@ -200,6 +203,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
         [
           event.callId,
           event.caller || null,
+          event.destination || null,
           event.timestamp,
           event.flowId ?? null,
           event.flowVersionId ?? null,
