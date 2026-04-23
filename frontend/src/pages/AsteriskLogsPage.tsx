@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ErrorMessage } from '../../components/common/ErrorMessage';
-import { Loading } from '../../components/common/Loading';
-import { PageLayout } from '../../components/common/PageLayout';
-import { Pagination } from '../../components/common/Pagination';
-import { listAsteriskLogs } from '../../lib/api';
-import { getApiError } from '../../lib/apiError';
-import { formatDateTime } from '../../lib/time';
-import type { AsteriskLogEntry, AsteriskLogLevel } from '../../types';
+import { ErrorMessage } from '../components/common/ErrorMessage';
+import { Loading } from '../components/common/Loading';
+import { PageLayout } from '../components/common/PageLayout';
+import { Pagination } from '../components/common/Pagination';
+import { listAsteriskLogs } from '../lib/api';
+import { getApiError } from '../lib/apiError';
+import { formatDateTime } from '../lib/time';
+import type { AsteriskLogEntry, AsteriskLogLevel } from '../types';
 import styles from './AsteriskLogsPage.module.css';
 
 type LevelFilter = 'all' | 'error' | 'warning' | 'notice' | 'verbose';

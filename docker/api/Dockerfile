@@ -11,7 +11,7 @@ ENV NPM_CONFIG_AUDIT=false \
     NPM_CONFIG_FETCH_TIMEOUT=180000
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg \
+    && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg iproute2 \
     && pip3 install --break-system-packages piper-tts==1.4.2 \
     && rm -rf /var/lib/apt/lists/*
 

@@ -66,6 +66,8 @@ services:
       - ./storage/audio/tts:/app/storage/audio/tts
       - asterisk_recordings:/var/lib/asterisk/recording
     environment:
+      ARI_URL: http://127.0.0.1:8088
+      ARI_PASSWORD: callytics
       AMI_HOST: 127.0.0.1
       AMI_PORT: 5038
       AMI_USER: callytics

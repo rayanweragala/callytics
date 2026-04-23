@@ -27,6 +27,7 @@ import type {
   SipTrunkItem,
   TrunkDiagnosticsResult,
   TrunkTestResult,
+  PreflightRun,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -378,6 +379,16 @@ export async function getDiagnosticsSipMessages(page = 1, limit = 50, callId?: s
 
 export async function getDiagnosticsSipMessagesByCallId(callId: string): Promise<SipMessage[]> {
   const response = await api.get<SipMessage[]>(`/diagnostics/sip-messages/${encodeURIComponent(callId)}`);
+  return response.data;
+}
+
+export async function runPreflightChecks(): Promise<PreflightRun> {
+  const response = await api.post<PreflightRun>('/preflight/run');
+  return response.data;
+}
+
+export async function getPreflightHistory(): Promise<PreflightRun[]> {
+  const response = await api.get<PreflightRun[]>('/preflight/history');
   return response.data;
 }
 

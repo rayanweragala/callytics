@@ -31,6 +31,7 @@ import { ContactNumbersModule } from './contact-numbers/contact-numbers.module';
 import { CaptureModule } from './capture/capture.module';
 import { QualityModule } from './quality/quality.module';
 import { AsteriskLogsModule } from './asterisk-logs/asterisk-logs.module';
+import { PreflightModule } from './preflight/preflight.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { AsteriskLogsModule } from './asterisk-logs/asterisk-logs.module';
     ContactNumbersModule,
     QualityModule,
     AsteriskLogsModule,
+    PreflightModule,
   ],
   controllers: [HealthController],
 })

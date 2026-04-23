@@ -2,6 +2,8 @@ import { NavLink } from 'react-router-dom';
 import styles from './SidebarNav.module.css';
 
 export function SidebarNav() {
+  const appVersion = import.meta.env.VITE_APP_VERSION ?? 'dev';
+
   return (
     <aside className={styles.sidebar}>
       <div>
@@ -58,13 +60,16 @@ export function SidebarNav() {
           </div>
           <div className={styles.group}>
             <div className={styles.groupLabel}>SYSTEM</div>
+            <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              preflight
+            </NavLink>
             <NavLink to="/settings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               settings
             </NavLink>
           </div>
         </nav>
       </div>
-      <div className={styles.version}>v0.8.0-dev</div>
+      <div className={styles.version}>v{appVersion}</div>
     </aside>
   );
 }

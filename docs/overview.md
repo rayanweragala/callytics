@@ -34,3 +34,15 @@ Current implementation note:
 - Phase 8 adds a working audio management slice: a frontend audio library page, upload and offline TTS generation, browser preview playback, and backend-managed conversion/storage.
 - Offline TTS is now bundled and functional inside the backend container rather than remaining a future plan.
 - NestJS now serves generated and uploaded media from `/media/audio/...` so the browser can preview the same assets that back the telephony runtime.
+- Phase 25 adds a System "preflight wizard" page (`/preflight`) to run install-time network and service checks before live calls.
+  - New state:
+    - Sidebar SYSTEM now shows `preflight` above `settings`.
+    - Backend exposes `POST /preflight/run` and `GET /preflight/history`.
+    - New SQL migration `backend/migrations/025_phase25.sql` creates `preflight_runs` (`id`, `ran_at`, `summary`, `checks`).
+    - Each run stores all 12 check outcomes in JSON and history is capped to the newest 10 rows.
+    - Frontend run panel supports manual runs, pass/warn/fail banner, and 30-second auto re-check while summary is warn/fail.
+    - Frontend history panel shows timestamped summaries with expandable per-check details.
+  - Old state:
+    - No preflight route, no preflight API endpoints, and no persisted preflight history table.
+  - Why changed:
+    - Users need a single post-install preflight to validate ARI/AMI/SIP/RTP, Redis/Postgres, external IP/NAT/STUN, disk capacity, and SIP ALG advisory before handling production calls.

@@ -2,9 +2,9 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AsteriskLogsPage } from './AsteriskLogsPage';
-import * as api from '../../lib/api';
+import * as api from '../lib/api';
 
-vi.mock('../../lib/api', () => ({
+vi.mock('../lib/api', () => ({
   listAsteriskLogs: vi.fn(),
 }));
 

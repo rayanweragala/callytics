@@ -17,7 +17,8 @@ import { OperatorsPage } from './pages/OperatorsPage';
 import { QueuesPage } from './pages/QueuesPage';
 import { ContactNumbersPage } from './pages/ContactNumbersPage';
 import { CapturePage } from './pages/CapturePage';
-import { AsteriskLogsPage } from './pages/AsteriskLogsPage/AsteriskLogsPage';
+import { AsteriskLogsPage } from './pages/AsteriskLogsPage';
+import { PreflightPage } from './pages/PreflightPage';
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/inbound" element={<InboundRoutesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/call-logs" element={<CallLogsPage />} />
+          <Route path="/preflight" element={<PreflightPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/operators" element={<OperatorsPage />} />
           <Route path="/queues" element={<QueuesPage />} />

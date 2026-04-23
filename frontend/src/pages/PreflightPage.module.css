@@ -1,0 +1,229 @@
+.tableCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 0 20px 16px;
+}
+
+.tableHead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 16px 0;
+  align-items: center;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.headMeta {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 40px minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 16px;
+  padding: 16px 0;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  text-transform: lowercase;
+  transition: background 150ms ease, border-color 150ms ease;
+  cursor: pointer;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.summaryBanner {
+  margin-top: 12px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.summaryPass {
+  background: var(--color-success);
+  color: var(--text-primary);
+}
+
+.summaryWarn {
+  background: var(--color-warning);
+  color: var(--text-inverse);
+}
+
+.summaryFail {
+  background: var(--color-error);
+  color: var(--text-primary);
+}
+
+.statusIcon {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+}
+
+.iconPass {
+  color: var(--color-success);
+}
+
+.iconWarn {
+  color: var(--color-warning);
+}
+
+.iconFail {
+  color: var(--color-error);
+}
+
+.iconIdle {
+  color: var(--text-muted);
+}
+
+.checkLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.checkMessage {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.checkDetail {
+  margin-top: 4px;
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  color: var(--text-secondary);
+}
+
+.autoRefreshLine {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.inlineLink {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.historyHead,
+.historyRow {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  gap: 16px;
+  padding: 16px 0;
+  align-items: center;
+}
+
+.historyHead {
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.historyRow {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.timestamp {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+}
+
+.summaryBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  width: fit-content;
+  color: var(--text-primary);
+}
+
+.summaryBadgePass {
+  background: var(--color-success);
+}
+
+.summaryBadgeWarn {
+  background: var(--color-warning);
+  color: var(--text-inverse);
+}
+
+.summaryBadgeFail {
+  background: var(--color-error);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.historyDetails {
+  margin-bottom: 8px;
+}
+
+.empty {
+  padding: 24px 0;
+  color: var(--text-muted);
+}
+
+.pulse {
+  animation: pulseOpacity 1s ease-in-out infinite;
+}
+
+@keyframes pulseOpacity {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}

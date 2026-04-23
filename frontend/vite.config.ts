@@ -28,6 +28,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
   },
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version ?? 'dev'),
+  },
   test: {
     globals: true,
     environment: 'jsdom',

@@ -91,6 +91,23 @@ export interface SipPacket {
   rawJson: string;
 }
 
+export type PreflightStatus = 'pass' | 'warn' | 'fail';
+
+export interface PreflightCheckResult {
+  id: string;
+  label: string;
+  status: PreflightStatus;
+  message: string;
+  detail: string;
+}
+
+export interface PreflightRun {
+  id: number;
+  ranAt: string;
+  summary: PreflightStatus;
+  checks: PreflightCheckResult[];
+}
+
 export interface SipVerdict {
   message: string;
   cause: string;
