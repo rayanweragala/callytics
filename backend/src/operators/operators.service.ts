@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -42,7 +43,7 @@ export interface OperatorResponse {
 const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
-export class OperatorsService {
+export class OperatorsService implements OnModuleDestroy {
   private readonly logger = new Logger(OperatorsService.name);
   private redisClient: RedisClientType | null = null;
   private pinColumnAvailable: boolean | null = null;
@@ -56,6 +57,15 @@ export class OperatorsService {
   async onModuleInit(): Promise<void> {
     await runSqlMigrations(this.dataSource);
     await this.getRedisClient();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (!this.redisClient) {
+      return;
+    }
+
+    await this.redisClient.disconnect().catch(() => undefined);
+    this.redisClient = null;
   }
 
   private async getRedisClient(): Promise<RedisClientType> {

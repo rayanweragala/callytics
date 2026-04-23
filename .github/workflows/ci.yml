@@ -94,7 +94,7 @@ jobs:
         ports:
           - ${{ vars.CI_POSTGRES_PORT }}:${{ vars.CI_POSTGRES_PORT }}
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U ${{ vars.CI_POSTGRES_USER }} -d ${{ vars.CI_POSTGRES_DB }}"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

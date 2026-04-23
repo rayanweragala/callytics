@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import * as net from 'node:net';
@@ -24,7 +24,7 @@ const REDIS_CALL_TIMELINE_CHANNEL = 'callytics:call-timeline';
 type TrunkDiagnosticsStatus = TrunkDiagnosticsResult['status'];
 
 @Injectable()
-export class DiagnosticsService implements OnModuleInit {
+export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DiagnosticsService.name);
   private readonly ariUrl = process.env.ARI_URL || 'http://127.0.0.1:8088';
   private readonly ariUser = process.env.ARI_USER || 'callytics';
@@ -47,6 +47,15 @@ export class DiagnosticsService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await runSqlMigrations(this.dataSource);
     await this.initializeSipTrafficRelay();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (!this.redisSubscriber) {
+      return;
+    }
+
+    await this.redisSubscriber.disconnect().catch(() => undefined);
+    this.redisSubscriber = null;
   }
 
   setGateway(gateway: DiagnosticsGateway): void {
