@@ -36,4 +36,30 @@ export class TrunksController {
   test(@Param('id', ParseIntPipe) id: number) {
     return this.trunksService.test(id);
   }
+
+  @Post(':id/test-outbound')
+  @HttpCode(200)
+  testOutbound(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { number?: string; audioFileId?: number | null },
+  ) {
+    return this.trunksService.testOutbound(id, {
+      number: String(body.number || ''),
+      audioFileId: body.audioFileId,
+    });
+  }
+
+  @Post(':id/test-inbound')
+  @HttpCode(200)
+  testInbound(@Param('id', ParseIntPipe) id: number) {
+    return this.trunksService.testInbound(id);
+  }
+
+  @Get(':id/test-call/:testCallId/status')
+  getTestCallStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('testCallId') testCallId: string,
+  ) {
+    return this.trunksService.getTestCallStatus(id, testCallId);
+  }
 }

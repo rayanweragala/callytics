@@ -252,6 +252,27 @@ describe('api library', () => {
     expect(axios.post).toHaveBeenCalledWith('/trunks/1/test');
   });
 
+  it('testTrunkOutbound calls correct endpoint', async () => {
+    (axios.post as any).mockResolvedValue({ data: { testCallId: 't-1' } });
+    await api.testTrunkOutbound(7, '+94771234567', 3);
+    expect(axios.post).toHaveBeenCalledWith('/trunks/7/test-outbound', {
+      number: '+94771234567',
+      audioFileId: 3,
+    });
+  });
+
+  it('testTrunkInbound calls correct endpoint', async () => {
+    (axios.post as any).mockResolvedValue({ data: { testCallId: 't-2' } });
+    await api.testTrunkInbound(8);
+    expect(axios.post).toHaveBeenCalledWith('/trunks/8/test-inbound');
+  });
+
+  it('getTrunkTestStatus calls correct endpoint', async () => {
+    (axios.get as any).mockResolvedValue({ data: { status: 'dialing', reason: null } });
+    await api.getTrunkTestStatus(8, 'test-id-3');
+    expect(axios.get).toHaveBeenCalledWith('/trunks/8/test-call/test-id-3/status');
+  });
+
   it('diagnostics API helpers call correct endpoints', async () => {
     (axios.get as any).mockResolvedValueOnce({ data: { ari: { connected: true } } });
     (axios.post as any).mockResolvedValueOnce({ data: { trunkId: 1 } });

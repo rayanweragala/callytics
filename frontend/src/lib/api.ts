@@ -347,6 +347,29 @@ export async function testTrunk(id: number): Promise<TrunkTestResult> {
   return response.data;
 }
 
+export async function testTrunkOutbound(trunkId: number, number: string, audioFileId?: number | null): Promise<{ testCallId: string }> {
+  const response = await api.post<{ testCallId: string }>(`/trunks/${trunkId}/test-outbound`, {
+    number,
+    audioFileId: audioFileId ?? null,
+  });
+  return response.data;
+}
+
+export async function testTrunkInbound(trunkId: number): Promise<{ testCallId: string }> {
+  const response = await api.post<{ testCallId: string }>(`/trunks/${trunkId}/test-inbound`);
+  return response.data;
+}
+
+export async function getTrunkTestStatus(
+  trunkId: number,
+  testCallId: string,
+): Promise<{ status: 'dialing' | 'answered' | 'completed' | 'failed'; reason: string | null }> {
+  const response = await api.get<{ status: 'dialing' | 'answered' | 'completed' | 'failed'; reason: string | null }>(
+    `/trunks/${trunkId}/test-call/${encodeURIComponent(testCallId)}/status`,
+  );
+  return response.data;
+}
+
 export async function getDiagnosticsHealth(): Promise<DiagnosticsSystemHealth> {
   const response = await api.get<DiagnosticsSystemHealth>('/diagnostics/health');
   return response.data;

@@ -4,10 +4,20 @@ import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
-import { createTrunk, deleteTrunk, listTrunks, testTrunk, updateTrunk } from '../lib/api';
+import {
+  createTrunk,
+  deleteTrunk,
+  getTrunkTestStatus,
+  listAllAudio,
+  listTrunks,
+  testTrunk,
+  testTrunkInbound,
+  testTrunkOutbound,
+  updateTrunk,
+} from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
-import type { SipTrunkItem, TrunkTestResult } from '../types';
+import type { AudioFileItem, SipTrunkItem, TrunkTestResult } from '../types';
 import styles from './TrunksPage.module.css';
 
 function SignalIcon() {
@@ -16,6 +26,26 @@ function SignalIcon() {
       <path d="M3 11.5a5 5 0 0 1 10 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
       <path d="M5 11.5a3 3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
       <path d="M7 11.5a1 1 0 0 1 2 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function OutboundIcon() {
+  return (
+    <svg aria-hidden="true" className={styles.signalIcon} viewBox="0 0 16 16">
+      <path d="M3.5 12.5h5.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+      <path d="M7.8 9.1 12.5 4.4" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+      <path d="M8.9 4.4h3.6v3.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function InboundIcon() {
+  return (
+    <svg aria-hidden="true" className={styles.signalIcon} viewBox="0 0 16 16">
+      <path d="M12.5 3.5h-5.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+      <path d="M8.2 6.9 3.5 11.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+      <path d="M7.1 11.6H3.5V8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -64,6 +94,30 @@ interface TrunkFormState {
   fromUser: string;
 }
 
+type TestCallStatus = 'dialing' | 'answered' | 'completed' | 'failed';
+
+interface OutboundTestState {
+  number: string;
+  country: string;
+  audioFileId: string;
+  testCallId: string | null;
+  status: TestCallStatus | null;
+  reason: string | null;
+  isSubmitting: boolean;
+}
+
+interface InboundTestState {
+  testCallId: string | null;
+  status: TestCallStatus | null;
+  reason: string | null;
+  isSubmitting: boolean;
+}
+
+interface ActiveTestPanel {
+  trunkId: number;
+  type: 'outbound' | 'inbound';
+}
+
 const emptyForm: TrunkFormState = {
   name: '',
   providerPreset: 'generic',
@@ -73,6 +127,32 @@ const emptyForm: TrunkFormState = {
   password: '',
   fromDomain: '',
   fromUser: '',
+};
+
+const COUNTRY_OPTIONS = [
+  { code: 'US', label: 'United States (+1)' },
+  { code: 'GB', label: 'United Kingdom (+44)' },
+  { code: 'LK', label: 'Sri Lanka (+94)' },
+  { code: 'IN', label: 'India (+91)' },
+  { code: 'AU', label: 'Australia (+61)' },
+  { code: 'SG', label: 'Singapore (+65)' },
+  { code: 'CA', label: 'Canada (+1)' },
+  { code: 'DE', label: 'Germany (+49)' },
+  { code: 'FR', label: 'France (+33)' },
+  { code: 'AE', label: 'UAE (+971)' },
+];
+
+const COUNTRY_DIAL_PREFIX: Record<string, string> = {
+  US: '+1',
+  GB: '+44',
+  LK: '+94',
+  IN: '+91',
+  AU: '+61',
+  SG: '+65',
+  CA: '+1',
+  DE: '+49',
+  FR: '+33',
+  AE: '+971',
 };
 
 function toForm(item: SipTrunkItem | null): TrunkFormState {
@@ -104,10 +184,30 @@ export function TrunksPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [testResults, setTestResults] = useState<Record<number, TrunkTestResult>>({});
+  const [audioOptions, setAudioOptions] = useState<SearchableSelectOption[]>([]);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [activeTestPanel, setActiveTestPanel] = useState<ActiveTestPanel | null>(null);
+  const [outboundTest, setOutboundTest] = useState<OutboundTestState>({
+    number: '',
+    country: 'US',
+    audioFileId: '',
+    testCallId: null,
+    status: null,
+    reason: null,
+    isSubmitting: false,
+  });
+  const [inboundTest, setInboundTest] = useState<InboundTestState>({
+    testCallId: null,
+    status: null,
+    reason: null,
+    isSubmitting: false,
+  });
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const badgeTimersRef = useRef<Record<number, number>>({});
+  const outboundPollRef = useRef<number | null>(null);
+  const inboundPollRef = useRef<number | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -117,6 +217,10 @@ export function TrunksPage() {
   const presetOptions = useMemo<SearchableSelectOption[]>(() => (
     Object.entries(PROVIDER_PRESETS).map(([value, preset]) => ({ value, label: preset.label }))
   ), []);
+  const countryOptions = useMemo<SearchableSelectOption[]>(
+    () => COUNTRY_OPTIONS.map((item) => ({ value: item.code, label: `${item.code} — ${item.label}` })),
+    [],
+  );
 
   const load = async (nextLimit = limit, nextOffset = offset) => {
     setIsLoading(true);
@@ -140,6 +244,36 @@ export function TrunksPage() {
   useEffect(() => () => {
     Object.values(badgeTimersRef.current).forEach((timer) => window.clearTimeout(timer));
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (outboundPollRef.current) window.clearInterval(outboundPollRef.current);
+    if (inboundPollRef.current) window.clearInterval(inboundPollRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (openMenuId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest('[data-trunk-menu-root="true"]')) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [openMenuId]);
+
+  useEffect(() => {
+    void listAllAudio()
+      .then((response) => {
+        const options = response.data.map((file: AudioFileItem) => ({
+          value: String(file.id),
+          label: file.name,
+        }));
+        setAudioOptions(options);
+      })
+      .catch(() => {
+        setAudioOptions([]);
+      });
   }, []);
 
   const showError = (msg: string | null) => {
@@ -167,6 +301,8 @@ export function TrunksPage() {
   const openCreate = () => {
     resetMessages();
     hideEdit();
+    setActiveTestPanel(null);
+    setOpenMenuId(null);
     setCreateOpen((current) => {
       const next = !current;
       setCreateForm(next ? emptyForm : emptyForm);
@@ -178,6 +314,8 @@ export function TrunksPage() {
     resetMessages();
     setCreateOpen(false);
     setConfirmDeleteId(null);
+    setActiveTestPanel(null);
+    setOpenMenuId(null);
     setEditingId(item.id);
     setEditForm(toForm(item));
   };
@@ -335,6 +473,200 @@ export function TrunksPage() {
     return <div className={`${styles.testBadge} ${badgeClassName}`}>{result.message}</div>;
   };
 
+  const resetOutboundTest = () => {
+    if (outboundPollRef.current) {
+      window.clearInterval(outboundPollRef.current);
+      outboundPollRef.current = null;
+    }
+    setOutboundTest({
+      number: '',
+      country: 'US',
+      audioFileId: '',
+      testCallId: null,
+      status: null,
+      reason: null,
+      isSubmitting: false,
+    });
+  };
+
+  const resetInboundTest = () => {
+    if (inboundPollRef.current) {
+      window.clearInterval(inboundPollRef.current);
+      inboundPollRef.current = null;
+    }
+    setInboundTest({
+      testCallId: null,
+      status: null,
+      reason: null,
+      isSubmitting: false,
+    });
+  };
+
+  const toggleTestPanel = (trunkId: number, type: 'outbound' | 'inbound') => {
+    setEditingId(null);
+    setConfirmDeleteId(null);
+    setOpenMenuId(null);
+    if (activeTestPanel?.trunkId === trunkId && activeTestPanel.type === type) {
+      setActiveTestPanel(null);
+      if (type === 'outbound') {
+        resetOutboundTest();
+      } else {
+        resetInboundTest();
+      }
+      return;
+    }
+
+    setActiveTestPanel({ trunkId, type });
+    if (type === 'outbound') {
+      resetInboundTest();
+      resetOutboundTest();
+    } else {
+      resetOutboundTest();
+      resetInboundTest();
+    }
+  };
+
+  const pollOutboundStatus = (trunkId: number, testCallId: string) => {
+    if (outboundPollRef.current) {
+      window.clearInterval(outboundPollRef.current);
+      outboundPollRef.current = null;
+    }
+    outboundPollRef.current = window.setInterval(() => {
+      void getTrunkTestStatus(trunkId, testCallId)
+        .then((result) => {
+          setOutboundTest((current) => ({
+            ...current,
+            status: result.status,
+            reason: result.reason,
+            isSubmitting: result.status === 'dialing',
+          }));
+          if (result.status === 'completed' || result.status === 'failed') {
+            if (outboundPollRef.current) {
+              window.clearInterval(outboundPollRef.current);
+              outboundPollRef.current = null;
+            }
+          }
+        })
+        .catch((error) => {
+          setOutboundTest((current) => ({
+            ...current,
+            status: 'failed',
+            reason: getApiError(error, 'failed to fetch test status'),
+            isSubmitting: false,
+          }));
+          if (outboundPollRef.current) {
+            window.clearInterval(outboundPollRef.current);
+            outboundPollRef.current = null;
+          }
+        });
+    }, 2000);
+  };
+
+  const pollInboundStatus = (trunkId: number, testCallId: string) => {
+    if (inboundPollRef.current) {
+      window.clearInterval(inboundPollRef.current);
+      inboundPollRef.current = null;
+    }
+    inboundPollRef.current = window.setInterval(() => {
+      void getTrunkTestStatus(trunkId, testCallId)
+        .then((result) => {
+          setInboundTest((current) => ({
+            ...current,
+            status: result.status,
+            reason: result.reason,
+            isSubmitting: result.status === 'dialing',
+          }));
+          if (result.status === 'completed' || result.status === 'failed') {
+            if (inboundPollRef.current) {
+              window.clearInterval(inboundPollRef.current);
+              inboundPollRef.current = null;
+            }
+          }
+        })
+        .catch((error) => {
+          setInboundTest((current) => ({
+            ...current,
+            status: 'failed',
+            reason: getApiError(error, 'failed to fetch test status'),
+            isSubmitting: false,
+          }));
+          if (inboundPollRef.current) {
+            window.clearInterval(inboundPollRef.current);
+            inboundPollRef.current = null;
+          }
+        });
+    }, 2000);
+  };
+
+  const formatE164OnBlur = (rawNumber: string, country: string): string => {
+    const compact = rawNumber.trim().replace(/[^\d+]/g, '');
+    if (!compact) {
+      return '';
+    }
+    if (compact.startsWith('+')) {
+      return `+${compact.slice(1).replace(/\D/g, '')}`;
+    }
+    const dialCode = COUNTRY_DIAL_PREFIX[country] || '+1';
+    return `${dialCode}${compact.replace(/\D/g, '')}`;
+  };
+
+  const handleStartOutboundTest = async () => {
+    if (!activeTestPanel || activeTestPanel.type !== 'outbound') return;
+    const number = outboundTest.number.trim();
+    if (!number) {
+      setOutboundTest((current) => ({ ...current, status: 'failed', reason: 'number is required' }));
+      return;
+    }
+
+    setOutboundTest((current) => ({ ...current, isSubmitting: true, status: 'dialing', reason: null }));
+    try {
+      const response = await testTrunkOutbound(
+        activeTestPanel.trunkId,
+        number,
+        outboundTest.audioFileId ? Number(outboundTest.audioFileId) : null,
+      );
+      setOutboundTest((current) => ({
+        ...current,
+        testCallId: response.testCallId,
+      }));
+      pollOutboundStatus(activeTestPanel.trunkId, response.testCallId);
+    } catch (error) {
+      setOutboundTest((current) => ({
+        ...current,
+        status: 'failed',
+        reason: getApiError(error, 'failed to start outbound test'),
+        isSubmitting: false,
+      }));
+    }
+  };
+
+  const handleStartInboundTest = async () => {
+    if (!activeTestPanel || activeTestPanel.type !== 'inbound') return;
+    setInboundTest((current) => ({ ...current, isSubmitting: true, status: 'dialing', reason: null }));
+    try {
+      const response = await testTrunkInbound(activeTestPanel.trunkId);
+      setInboundTest((current) => ({
+        ...current,
+        testCallId: response.testCallId,
+      }));
+      pollInboundStatus(activeTestPanel.trunkId, response.testCallId);
+    } catch (error) {
+      setInboundTest((current) => ({
+        ...current,
+        status: 'failed',
+        reason: getApiError(error, 'failed to start inbound test'),
+        isSubmitting: false,
+      }));
+    }
+  };
+
+  const formatStatusLine = (status: TestCallStatus, reason: string | null): string => {
+    if (status === 'dialing') return 'Dialing...';
+    if (status === 'answered') return 'Answered';
+    if (status === 'completed') return 'Completed';
+    return reason ? `Failed: ${reason}` : 'Failed';
+  };
+
   const pageActions = (
     <button className={styles.primaryButton} onClick={openCreate} type="button">
       {createOpen ? 'cancel' : 'add trunk'}
@@ -415,17 +747,6 @@ export function TrunksPage() {
       ) : null}
 
       <section className={styles.tablePanel}>
-        <div className={styles.tableHead}>
-          <div>Name</div>
-          <div>Provider</div>
-          <div>Host</div>
-          <div>Port</div>
-          <div>Auth</div>
-          <div>Status</div>
-          <div>Created</div>
-          <div className={styles.actionsHeader}>Actions</div>
-        </div>
-
         {isLoading ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (
@@ -447,122 +768,256 @@ export function TrunksPage() {
           <div className={styles.empty}>No trunks configured. Add your first SIP trunk.</div>
         ) : (
           <div className="fadeIn">
-            {sortedItems.map((item) => {
-              const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
-              return (
-                <Fragment key={item.id}>
-                  <div className={styles.row}>
-                <div className={styles.rowValue}>{item.name}</div>
-                <div className={styles.rowMuted}>{presetLabel}</div>
-                <div className={styles.dataMono}>{item.host}</div>
-                <div className={styles.dataMono}>{item.port}</div>
-                <div className={styles.rowMuted}>{item.username ? 'Yes' : 'No'}</div>
-                <div>
-                  <button className={`${styles.toggleButton} ${item.enabled ? styles.toggleOn : styles.toggleOff}`} onClick={() => void handleToggleEnabled(item)} type="button">
-                    {busyKey === `toggle-${item.id}` ? <span className={styles.spinner} /> : <span className={styles.toggleKnob} />}
-                    <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
-                  </button>
-                </div>
-                <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
-                <div className={styles.actionsCell}>
-                  <div className={styles.actions}>
-                    {confirmDeleteId === item.id ? (
-                      <div className={styles.confirmBox}>
-                        <div className={styles.confirmText}>Delete this trunk?</div>
-                        <div className={styles.confirmActions}>
-                          <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
-                          <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
-                            {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
+            <table className={styles.table}>
+              <thead>
+                <tr className={styles.tableHead}>
+                  <th>Name</th>
+                  <th>Provider</th>
+                  <th>Host</th>
+                  <th>Port</th>
+                  <th>Auth</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th className={styles.actionsHeader}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedItems.map((item) => {
+                  const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
+                  return (
+                    <Fragment key={item.id}>
+                      <tr className={styles.row}>
+                        <td className={styles.rowValue}>{item.name}</td>
+                        <td className={styles.rowMuted}>{presetLabel}</td>
+                        <td className={styles.dataMono}>{item.host}</td>
+                        <td className={styles.dataMono}>{item.port}</td>
+                        <td className={styles.rowMuted}>{item.username ? 'Yes' : 'No'}</td>
+                        <td>
+                          <button className={`${styles.toggleButton} ${item.enabled ? styles.toggleOn : styles.toggleOff}`} onClick={() => void handleToggleEnabled(item)} type="button">
+                            {busyKey === `toggle-${item.id}` ? <span className={styles.spinner} /> : <span className={styles.toggleKnob} />}
+                            <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
                           </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <button className={styles.secondaryButton} onClick={() => void handleTest(item)} type="button">
-                          {busyKey === `test-${item.id}` ? <span className={styles.spinner} /> : <SignalIcon />}
-                          <span>Test</span>
-                        </button>
-                        <button className={styles.secondaryButton} onClick={() => openEdit(item)} type="button">Edit</button>
-                        <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(item.id)} type="button">Delete</button>
-                      </>
-                    )}
-                  </div>
-                  {renderTestBadge(item.id)}
-                </div>
-              </div>
-              {editingId === item.id ? (
-                <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>trunk name</span>
-                    <input className={styles.input} required value={editForm.name} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, name: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>provider preset</span>
-                    <SearchableSelect options={presetOptions} placeholder="select provider" value={editForm.providerPreset} onChange={(value) => applyPreset(value, 'edit')} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>host</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(editForm.providerPreset)} required value={editForm.host} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, host: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>port</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={editForm.port} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, port: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>username</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, username: event.target.value }));
-                    }} />
-                    <span className={styles.helper}>Leave blank for providers that don't require SIP registration (some local carriers).</span>
-                  </label>
-                  {editForm.username.trim() ? (
-                    <label className={styles.field}>
-                      <span className={styles.fieldLabel}>password</span>
-                      <input className={`${styles.input} ${styles.dataMono}`} type="password" value={editForm.password} onChange={(event) => {
-                        resetMessages();
-                        setEditForm((current) => ({ ...current, password: event.target.value }));
-                      }} />
-                    </label>
-                  ) : null}
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>from domain</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={editForm.fromDomain} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, fromDomain: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>from user</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.fromUser} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, fromUser: event.target.value }));
-                    }} />
-                  </label>
-                  <div className={styles.formActions}>
-                    <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
-                    <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
-                  </div>
-                </form>
-              ) : null}
-            </Fragment>
-          );
-        })}
+                        </td>
+                        <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
+                        <td className={styles.actionsCell}>
+                          {confirmDeleteId === item.id ? (
+                            <div className={styles.confirmBox}>
+                              <div className={styles.confirmText}>Delete this trunk?</div>
+                              <div className={styles.confirmActions}>
+                                <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
+                                <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
+                                  {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={styles.actions} data-trunk-menu-root="true">
+                              <button className={styles.secondaryButton} type="button" onClick={() => openEdit(item)}>edit</button>
+                              <button
+                                className={`${styles.secondaryButton} ${styles.rowDeleteButton}`}
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setEditingId(null);
+                                  setActiveTestPanel(null);
+                                  setConfirmDeleteId(item.id);
+                                }}
+                              >
+                                delete
+                              </button>
+                              <div className={styles.menuWrap}>
+                                <button
+                                  className={styles.menuButton}
+                                  type="button"
+                                  onClick={() => setOpenMenuId((current) => (current === item.id ? null : item.id))}
+                                >
+                                  ···
+                                </button>
+                                {openMenuId === item.id ? (
+                                  <div className={styles.menuDropdown}>
+                                    <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); toggleTestPanel(item.id, 'outbound'); }}>
+                                      <OutboundIcon />
+                                      <span>Test Outbound</span>
+                                    </button>
+                                    <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); toggleTestPanel(item.id, 'inbound'); }}>
+                                      <InboundIcon />
+                                      <span>Test Inbound</span>
+                                    </button>
+                                    <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); void handleTest(item); }}>
+                                      <SignalIcon />
+                                      <span>Quick Test</span>
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          )}
+                          {renderTestBadge(item.id)}
+                        </td>
+                      </tr>
+                      {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'outbound' ? (
+                        <tr className={styles.expandedRow}>
+                          <td className={styles.expandedCell} colSpan={8}>
+                            <div className={styles.expandedPanel}>
+                              <div className={styles.expandedPanelTitle}>Test Outbound Call — {item.name}</div>
+                              <div className={styles.expandedFieldsRow}>
+                                <label className={`${styles.field} ${styles.expandedFieldCountry}`}>
+                                  <span className={styles.fieldLabel}>country</span>
+                                  <SearchableSelect
+                                    options={countryOptions}
+                                    value={outboundTest.country}
+                                    onChange={(value) => setOutboundTest((current) => ({ ...current, country: value || 'US' }))}
+                                    placeholder="select country"
+                                    disabled={outboundTest.isSubmitting}
+                                  />
+                                </label>
+                                <label className={`${styles.field} ${styles.expandedFieldNumber}`}>
+                                  <span className={styles.fieldLabel}>number</span>
+                                  <input
+                                    className={`${styles.input} ${styles.dataMono}`}
+                                    value={outboundTest.number}
+                                    onChange={(event) => setOutboundTest((current) => ({ ...current, number: event.target.value }))}
+                                    onBlur={() => setOutboundTest((current) => ({
+                                      ...current,
+                                      number: formatE164OnBlur(current.number, current.country),
+                                    }))}
+                                    placeholder="+94771234567"
+                                    disabled={outboundTest.isSubmitting}
+                                  />
+                                </label>
+                                <label className={`${styles.field} ${styles.expandedFieldAudio}`}>
+                                  <span className={styles.fieldLabel}>play audio (optional)</span>
+                                  <SearchableSelect
+                                    options={audioOptions}
+                                    value={outboundTest.audioFileId || null}
+                                    onChange={(value) => setOutboundTest((current) => ({ ...current, audioFileId: value || '' }))}
+                                    placeholder="No audio — play beep"
+                                    disabled={outboundTest.isSubmitting}
+                                  />
+                                </label>
+                                <button
+                                  className={styles.primaryButton}
+                                  type="button"
+                                  onClick={() => void handleStartOutboundTest()}
+                                  disabled={outboundTest.isSubmitting}
+                                >
+                                  {outboundTest.isSubmitting ? 'Dialing...' : 'Start Test Call'}
+                                </button>
+                              </div>
+                              {outboundTest.status ? (
+                                <div className={`${styles.expandedStatusLine} ${outboundTest.status === 'completed' ? styles.expandedStatusSuccess : outboundTest.status === 'failed' ? styles.expandedStatusFailed : styles.expandedStatusMuted}`}>
+                                  {formatStatusLine(outboundTest.status, outboundTest.reason)}
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'inbound' ? (
+                        <tr className={styles.expandedRow}>
+                          <td className={styles.expandedCell} colSpan={8}>
+                            <div className={styles.expandedPanel}>
+                              <div className={styles.expandedPanelTitle}>Test Inbound Call — {item.name}</div>
+                              <div className={styles.expandedInboundRow}>
+                                <div className={styles.expandedDescription}>Generates a synthetic inbound call through this trunk into your inbound routing.</div>
+                                <button
+                                  className={styles.primaryButton}
+                                  type="button"
+                                  onClick={() => void handleStartInboundTest()}
+                                  disabled={inboundTest.isSubmitting}
+                                >
+                                  {inboundTest.isSubmitting ? 'Dialing...' : 'Start Test'}
+                                </button>
+                              </div>
+                              {inboundTest.status ? (
+                                <div className={`${styles.expandedStatusLine} ${inboundTest.status === 'completed' ? styles.expandedStatusSuccess : inboundTest.status === 'failed' ? styles.expandedStatusFailed : styles.expandedStatusMuted}`}>
+                                  {formatStatusLine(inboundTest.status, inboundTest.reason)}
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {editingId === item.id ? (
+                        <tr className={styles.expandedRow}>
+                          <td className={styles.expandedCell} colSpan={8}>
+                            <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>trunk name</span>
+                                <input className={styles.input} required value={editForm.name} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, name: event.target.value }));
+                                }} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>provider preset</span>
+                                <SearchableSelect options={presetOptions} placeholder="select provider" value={editForm.providerPreset} onChange={(value) => applyPreset(value, 'edit')} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>host</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(editForm.providerPreset)} required value={editForm.host} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, host: event.target.value }));
+                                }} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>port</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={editForm.port} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, port: event.target.value }));
+                                }} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>username</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, username: event.target.value }));
+                                }} />
+                                <span className={styles.helper}>Leave blank for providers that don't require SIP registration (some local carriers).</span>
+                              </label>
+                              {editForm.username.trim() ? (
+                                <label className={styles.field}>
+                                  <span className={styles.fieldLabel}>password</span>
+                                  <input className={`${styles.input} ${styles.dataMono}`} type="password" value={editForm.password} onChange={(event) => {
+                                    resetMessages();
+                                    setEditForm((current) => ({ ...current, password: event.target.value }));
+                                  }} />
+                                </label>
+                              ) : null}
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>from domain</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={editForm.fromDomain} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, fromDomain: event.target.value }));
+                                }} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>from user</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} value={editForm.fromUser} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, fromUser: event.target.value }));
+                                }} />
+                              </label>
+                              <div className={styles.formActions}>
+                                <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
+                                <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
         <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </section>
+
       </div>
     </PageLayout>
   );

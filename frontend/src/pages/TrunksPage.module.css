@@ -17,7 +17,9 @@
 .testBadge,
 .failedText,
 .helper,
-.createdAt {
+.createdAt,
+.expandedStatusLine,
+.expandedPanelTitle {
   font-family: 'Space Mono', monospace;
 }
 
@@ -46,6 +48,12 @@
 .tablePanel {
   padding: 0 20px 16px;
   overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: collapse;
 }
 
 .panelTitle {
@@ -150,17 +158,7 @@
   text-transform: lowercase;
 }
 
-.tableHead,
-.row {
-  display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) minmax(200px, 1.3fr) 72px 72px 132px 108px minmax(220px, 1.1fr);
-  gap: 14px;
-  align-items: start;
-  min-width: 1180px;
-}
-
 .tableHead {
-  padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
   color: var(--text-secondary);
   font-size: 10px;
@@ -169,8 +167,37 @@
 }
 
 .row {
-  padding: 16px 0;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.tableHead th,
+.row td {
+  padding: 16px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tableHead th:nth-child(1),
+.row td:nth-child(1) { width: 18%; }
+.tableHead th:nth-child(2),
+.row td:nth-child(2) { width: 13%; }
+.tableHead th:nth-child(3),
+.row td:nth-child(3) { width: 20%; }
+.tableHead th:nth-child(4),
+.row td:nth-child(4) { width: 6%; }
+.tableHead th:nth-child(5),
+.row td:nth-child(5) { width: 6%; }
+.tableHead th:nth-child(6),
+.row td:nth-child(6) { width: 13%; }
+.tableHead th:nth-child(7),
+.row td:nth-child(7) {
+  width: 140px;
+  min-width: 140px;
+}
+.tableHead th:nth-child(8),
+.row td:nth-child(8) {
+  width: 180px;
+  min-width: 180px;
 }
 
 .rowValue {
@@ -205,6 +232,7 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
+  position: relative;
 }
 
 .actions,
@@ -217,7 +245,9 @@
 }
 
 .actions {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .confirmBox {
@@ -245,6 +275,150 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.rowDeleteButton:hover {
+  color: var(--color-error);
+}
+
+.menuWrap {
+  position: relative;
+}
+
+.menuButton {
+  min-width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menuButton:hover {
+  border-color: var(--border-strong);
+}
+
+.menuDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 180px;
+  border: 1px solid var(--border-color, var(--border-default));
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  padding: 4px 0;
+  z-index: 20;
+}
+
+.menuItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.menuItem:hover {
+  background: var(--bg-secondary, var(--bg-elevated));
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--border-color, var(--border-default));
+  margin: 4px 0;
+}
+
+.menuItemDelete:hover {
+  color: var(--color-error);
+}
+
+.expandedRow td {
+  padding: 0;
+}
+
+.expandedCell {
+  padding: 0;
+}
+
+.expandedPanel {
+  width: 100%;
+  padding: 20px 24px;
+  background: var(--bg-secondary, var(--bg-elevated));
+  border-top: 1px solid var(--border-color, var(--border-default));
+}
+
+.expandedPanelTitle {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.expandedFieldsRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.expandedFieldCountry {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
+.expandedFieldNumber {
+  width: 200px;
+  flex: 0 0 200px;
+}
+
+.expandedFieldAudio {
+  width: 240px;
+  flex: 0 0 240px;
+}
+
+.expandedInboundRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.expandedDescription {
+  color: var(--text-muted);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.expandedStatusLine {
+  font-size: 12px;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+.expandedStatusMuted {
+  color: var(--text-muted);
+}
+
+.expandedStatusSuccess {
+  color: var(--color-active);
+}
+
+.expandedStatusFailed {
+  color: var(--color-error);
 }
 
 .failedText {
@@ -336,9 +510,7 @@
 }
 
 @media (max-width: 1280px) {
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
+  .table {
     min-width: 0;
   }
 
@@ -355,5 +527,18 @@
     align-items: flex-start;
     justify-content: flex-start;
     text-align: left;
+  }
+
+  .expandedFieldsRow,
+  .expandedInboundRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .expandedFieldCountry,
+  .expandedFieldNumber,
+  .expandedFieldAudio {
+    width: 100%;
+    flex: 1 1 auto;
   }
 }

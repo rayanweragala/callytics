@@ -7,6 +7,34 @@ Backend:  220 passed  (+10 from Phase 23)
 Frontend: 255 passed  (+15 from Phase 23)
 CI:       all green
 
+## Phase 27 added tests (trunk testing tools)
+
+backend/src/trunks/trunks.service.unit.spec.ts
+  - `testOutbound` publishes `trunk:test:outbound` with trunkId/number/audioFileId/testCallId
+  - `testInbound` publishes `trunk:test:inbound` with trunkId/testCallId
+  - `getTestCallStatus` returns parsed JSON status payload from Redis
+
+stasis/src/trunk-test.util.unit.spec.ts
+  - Valid inbound Redis payload parsing (`{ trunkId, testCallId }`)
+  - Invalid payload rejection (non-JSON, missing fields, invalid trunkId)
+  - Inbound originate body builder shape (Local endpoint, context/exten, app/appArgs, variables)
+
+frontend/src/lib/api.test.ts
+  - `testTrunkOutbound` endpoint/body mapping
+  - `testTrunkInbound` endpoint mapping
+  - `getTrunkTestStatus` endpoint mapping
+
+frontend/src/pages/TrunksPage.test.tsx
+  - Row action buttons render as `[edit] [delete] [···]`
+  - Overflow menu opens and `Quick Test` triggers `testTrunk(id)`
+
+Run only the new/updated specs:
+```bash
+npm run test:unit --workspace backend -- src/trunks/trunks.service.unit.spec.ts
+npm run test --workspace stasis -- src/trunk-test.util.unit.spec.ts
+npm run test --workspace frontend -- src/lib/api.test.ts src/pages/TrunksPage.test.tsx
+```
+
 ## Phase 23 test files
 
 stasis/src/lib/mosScore.test.ts

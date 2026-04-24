@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as net from 'net';
+import { createClient, type RedisClientType } from 'redis';
 import { DataSource, Repository } from 'typeorm';
 import { AsteriskConfigService, type AmiQualifyResult } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
@@ -22,9 +24,17 @@ export interface TrunkResponse {
   createdAt: string;
 }
 
+type TrunkTestStatus = 'dialing' | 'answered' | 'completed' | 'failed';
+
+interface TrunkTestStatusResponse {
+  status: TrunkTestStatus;
+  reason: string | null;
+}
+
 @Injectable()
-export class TrunksService implements OnModuleInit {
+export class TrunksService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TrunksService.name);
+  private redisPublisher: RedisClientType | null = null;
 
   constructor(
     @InjectRepository(SipTrunkEntity)
@@ -35,6 +45,13 @@ export class TrunksService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await runSqlMigrations(this.dataSource);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.redisPublisher) {
+      await this.redisPublisher.disconnect().catch(() => undefined);
+      this.redisPublisher = null;
+    }
   }
 
   async list(limit = 20, offset = 0): Promise<{ data: TrunkResponse[]; total: number }> {
@@ -138,10 +155,7 @@ export class TrunksService implements OnModuleInit {
   }
 
   async test(id: number): Promise<AmiQualifyResult> {
-    const entity = await this.trunksRepository.findOne({ where: { id } });
-    if (!entity) {
-      throw new NotFoundException(`Trunk ${id} not found`);
-    }
+    const entity = await this.requireTrunk(id);
 
     this.logger.log(`Testing trunk id=${entity.id} host=${entity.host} port=${entity.port}`);
     this.logger.log(`Attempting TCP connect to ${entity.host}:${entity.port} timeout=4000ms`);
@@ -167,6 +181,109 @@ export class TrunksService implements OnModuleInit {
     };
     this.logger.log(`Trunk test result id=${entity.id} status=${result.status} rtt_ms=${result.rtt_ms}`);
     return result;
+  }
+
+  async testOutbound(id: number, payload: { number: string; audioFileId?: number | null }): Promise<{ testCallId: string }> {
+    await this.requireTrunk(id);
+
+    const number = String(payload.number || '').trim();
+    if (!number) {
+      throw new BadRequestException('number is required');
+    }
+
+    const audioFileId = payload.audioFileId === undefined || payload.audioFileId === null
+      ? null
+      : Number(payload.audioFileId);
+
+    if (audioFileId !== null && (!Number.isFinite(audioFileId) || audioFileId <= 0)) {
+      throw new BadRequestException('audioFileId must be a positive number');
+    }
+
+    const testCallId = randomUUID();
+    await this.publishRedis('trunk:test:outbound', {
+      trunkId: id,
+      number,
+      audioFileId,
+      testCallId,
+    });
+    return { testCallId };
+  }
+
+  async testInbound(id: number): Promise<{ testCallId: string }> {
+    await this.requireTrunk(id);
+    const testCallId = randomUUID();
+    await this.publishRedis('trunk:test:inbound', {
+      trunkId: id,
+      testCallId,
+    });
+    return { testCallId };
+  }
+
+  async getTestCallStatus(id: number, testCallId: string): Promise<TrunkTestStatusResponse> {
+    await this.requireTrunk(id);
+    const normalizedTestCallId = String(testCallId || '').trim();
+    if (!normalizedTestCallId) {
+      throw new BadRequestException('testCallId is required');
+    }
+
+    const redis = await this.getRedisPublisher();
+    const value = await redis.get(`trunk:test:${normalizedTestCallId}:status`);
+    if (!value) {
+      return { status: 'failed', reason: 'status unavailable or expired' };
+    }
+
+    try {
+      const parsed = JSON.parse(value) as Partial<TrunkTestStatusResponse>;
+      if (
+        parsed.status === 'dialing'
+        || parsed.status === 'answered'
+        || parsed.status === 'completed'
+        || parsed.status === 'failed'
+      ) {
+        return {
+          status: parsed.status,
+          reason: parsed.reason ? String(parsed.reason) : null,
+        };
+      }
+    } catch {
+      // fallback below
+    }
+
+    if (value === 'dialing' || value === 'answered' || value === 'completed' || value === 'failed') {
+      return { status: value, reason: null };
+    }
+
+    return { status: 'failed', reason: 'invalid status payload' };
+  }
+
+  private async publishRedis(channel: string, payload: unknown): Promise<void> {
+    const redis = await this.getRedisPublisher();
+    await redis.publish(channel, JSON.stringify(payload));
+  }
+
+  private async getRedisPublisher(): Promise<RedisClientType> {
+    if (!this.redisPublisher) {
+      const redisPort = Number(process.env.REDIS_PORT || 6379);
+      this.redisPublisher = createClient({
+        socket: {
+          host: process.env.REDIS_HOST || '127.0.0.1',
+          port: redisPort,
+        },
+      });
+      this.redisPublisher.on('error', (error) => {
+        this.logger.warn(`trunk redis publisher error: ${error instanceof Error ? error.message : String(error)}`);
+      });
+      await this.redisPublisher.connect();
+    }
+    return this.redisPublisher;
+  }
+
+  private async requireTrunk(id: number): Promise<SipTrunkEntity> {
+    const entity = await this.trunksRepository.findOne({ where: { id } });
+    if (!entity) {
+      throw new NotFoundException(`Trunk ${id} not found`);
+    }
+    return entity;
   }
 
   private toResponse(item: SipTrunkEntity): TrunkResponse {

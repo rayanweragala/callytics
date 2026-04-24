@@ -21,7 +21,9 @@ import {
 } from "./telemetry";
 import { resolveTransferWaiter, rejectTransferWaiter } from "./transferManager";
 import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManager";
-import { getPublisher } from "./redis";
+import { resolveAudioMediaPath } from "./audioResolver";
+import { getPublisher, getSubscriber } from "./redis";
+import { buildInboundOriginateBody, parseInboundTestMessage } from "./trunk-test.util";
 import { accumulator as rtcpAmiAccumulator } from "./handlers/rtcp-ami.handler";
 import { CampaignExecutor } from "./campaign-executor";
 
@@ -31,8 +33,26 @@ const ARI_PASS = process.env.ARI_PASS || "callytics";
 const ARI_APP = process.env.ARI_APP || "callytics";
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:3001";
 const RECORDINGS_INTERNAL_TOKEN = process.env.RECORDINGS_INTERNAL_TOKEN || "";
+const TEST_STATUS_TTL_SECONDS = 300;
 
 const failedCalls = new Set<string>();
+const testCallStates = new Map<
+  string,
+  { testCallId: string; type: "outbound" | "inbound"; answered: boolean }
+>();
+
+interface TrunkTestOutboundEvent {
+  trunkId: number;
+  number: string;
+  audioFileId: number | null;
+  testCallId: string;
+}
+
+interface TestPlaybackChannel {
+  id: string;
+  play: (opts: { media: string }, playback: { id: string }) => Promise<void>;
+  hangup: () => Promise<void>;
+}
 
 function buildAriUrl(path: string, query?: Record<string, string>): string {
   const trimmedBase = ARI_URL.replace(/\/+$/, "");
@@ -57,6 +77,58 @@ async function ariRequest(
       ...(options.headers || {}),
     },
   });
+}
+
+async function setTrunkTestStatus(
+  redis: { set: (key: string, value: string, options?: { EX?: number }) => Promise<unknown> },
+  testCallId: string,
+  status: "dialing" | "answered" | "completed" | "failed",
+  reason: string | null = null,
+): Promise<void> {
+  await redis.set(
+    `trunk:test:${testCallId}:status`,
+    JSON.stringify({ status, reason }),
+    { EX: TEST_STATUS_TTL_SECONDS },
+  );
+}
+
+function waitForPlaybackFinished(
+  ariClient: {
+    on: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
+    removeListener: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
+  },
+  playbackId: string,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const onFinished = (event: { playback?: { id?: string } }) => {
+      if (event.playback?.id !== playbackId) {
+        return;
+      }
+      ariClient.removeListener("PlaybackFinished", onFinished);
+      resolve();
+    };
+    ariClient.on("PlaybackFinished", onFinished);
+  });
+}
+
+async function runOutboundTestPlayback(
+  channel: TestPlaybackChannel,
+  ariClient: {
+    Playback: () => { id: string };
+    on: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
+    removeListener: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
+  },
+  audioFileId: number | null,
+): Promise<void> {
+  const mediaPath = audioFileId && audioFileId > 0
+    ? await resolveAudioMediaPath({ audio_file_id: audioFileId }, "audio_file_id", "audio_file_path")
+    : null;
+
+  const playback = ariClient.Playback();
+  const media = mediaPath ? `sound:${mediaPath}` : "sound:beep";
+  await channel.play({ media }, playback);
+  await waitForPlaybackFinished(ariClient, playback.id);
+  await channel.hangup().catch(() => undefined);
 }
 
 async function resolveInboundRoute(
@@ -277,6 +349,7 @@ async function start(): Promise<void> {
   await seed();
 
   const redis = await getPublisher();
+  const redisSubscriber = await getSubscriber();
   const campaignExecutor = new CampaignExecutor();
   await campaignExecutor.start();
 
@@ -288,6 +361,108 @@ async function start(): Promise<void> {
   try {
     const client = await ari.connect(ARI_URL, ARI_USER, ARI_PASS);
     console.log("Stasis app connected to ARI");
+
+    await redisSubscriber.subscribe("trunk:test:outbound", async (message) => {
+      let payload: TrunkTestOutboundEvent | null = null;
+      try {
+        payload = JSON.parse(message) as TrunkTestOutboundEvent;
+      } catch (error) {
+        console.error("[trunk-test] invalid outbound payload:", error);
+        return;
+      }
+
+      const trunkId = Number(payload.trunkId || 0);
+      const testCallId = String(payload.testCallId || "").trim();
+      const number = String(payload.number || "").trim();
+      const audioFileId = payload.audioFileId === null || payload.audioFileId === undefined
+        ? null
+        : Number(payload.audioFileId);
+      if (!trunkId || !testCallId || !number) {
+        console.error("[trunk-test] outbound payload missing required fields");
+        return;
+      }
+
+      await setTrunkTestStatus(redis, testCallId, "dialing");
+
+      try {
+        const response = await ariRequest("/channels", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            endpoint: `PJSIP/${number}@trunk-${trunkId}`,
+            app: ARI_APP,
+            appArgs: `trunk-test-outbound,${testCallId},${audioFileId ?? ""}`,
+            variables: {
+              CALLYTICS_TEST_CALL_ID: testCallId,
+              CALLYTICS_AUDIO_FILE_ID: audioFileId ? String(audioFileId) : "",
+              CALLYTICS_TEST_TYPE: "outbound",
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`originate_failed status=${response.status} body=${body}`);
+        }
+
+        const result = (await response.json()) as { id?: string };
+        const channelId = String(result.id || "").trim();
+        if (!channelId) {
+          throw new Error("originate did not return channel id");
+        }
+        testCallStates.set(channelId, { testCallId, type: "outbound", answered: false });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "originate failed";
+        console.error("[trunk-test] outbound originate failed:", error);
+        await setTrunkTestStatus(redis, testCallId, "failed", reason);
+      }
+    });
+
+    await redisSubscriber.subscribe("trunk:test:inbound", async (message) => {
+      const parsedPayload = parseInboundTestMessage(message);
+      console.log("[trunk:test:inbound] received", JSON.stringify(parsedPayload ?? message));
+      if (!parsedPayload) {
+        console.error("[trunk-test] invalid inbound payload: expected { trunkId, testCallId }");
+        return;
+      }
+      const { testCallId } = parsedPayload;
+
+      await setTrunkTestStatus(redis, testCallId, "dialing");
+
+      try {
+        const response = await ariRequest("/channels", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(buildInboundOriginateBody(ARI_APP, testCallId)),
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`originate_failed status=${response.status} body=${body}`);
+        }
+
+        const result = (await response.json()) as { id?: string };
+        const channelId = String(result.id || "").trim();
+        if (!channelId) {
+          throw new Error("originate did not return channel id");
+        }
+        testCallStates.set(channelId, { testCallId, type: "inbound", answered: false });
+      } catch (error) {
+        console.error("[trunk:test:inbound] originate failed", error);
+        await redis.set(
+          `trunk:test:${testCallId}:status`,
+          JSON.stringify({
+            status: "failed",
+            reason: String((error as { message?: string } | undefined)?.message || error),
+          }),
+          { EX: TEST_STATUS_TTL_SECONDS },
+        );
+      }
+    });
 
     client.on(
       "StasisStart",
@@ -303,6 +478,10 @@ async function start(): Promise<void> {
         channel: {
           id: string;
           answer: () => Promise<void>;
+          play: (
+            opts: { media: string },
+            playback: { id: string },
+          ) => Promise<void>;
           hangup: () => Promise<void>;
         },
       ) => {
@@ -334,6 +513,68 @@ async function start(): Promise<void> {
             `Hunt leg entered Stasis: ${channel.id} token=${token}`,
           );
           return;
+        }
+
+        if (event.args?.[0] === "trunk-test-outbound" && event.args[1]) {
+          const testCallId = String(event.args[1]).trim();
+          const audioFileIdRaw = String(event.args[2] || "").trim();
+          const audioFileId = audioFileIdRaw ? Number(audioFileIdRaw) : null;
+          const state = testCallStates.get(channel.id) || {
+            testCallId,
+            type: "outbound" as const,
+            answered: false,
+          };
+          state.answered = true;
+          testCallStates.set(channel.id, state);
+          await setTrunkTestStatus(redis, testCallId, "answered");
+          try {
+            await publishCallEvent({
+              callId: channel.id,
+              timestamp: new Date().toISOString(),
+              type: "started",
+              caller: "trunk-test",
+              destination: "outbound-test",
+              direction: "outbound",
+            });
+          } catch (error) {
+            console.error("[trunk-test] publish outbound started failed:", error);
+          }
+          try {
+            await runOutboundTestPlayback(channel, client, Number.isFinite(audioFileId || 0) ? audioFileId : null);
+            await setTrunkTestStatus(redis, testCallId, "completed");
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : "playback failed";
+            await setTrunkTestStatus(redis, testCallId, "failed", reason);
+            await publishCallEvent({
+              callId: channel.id,
+              timestamp: new Date().toISOString(),
+              type: "failed",
+              caller: "trunk-test",
+              destination: "outbound-test",
+              direction: "outbound",
+              failureReason: reason,
+            }).catch((eventError) => {
+              console.error("[trunk-test] publish outbound playback failure failed:", eventError);
+            });
+            await channel.hangup().catch(() => undefined);
+            testCallStates.delete(channel.id);
+          }
+          return;
+        }
+
+        if (
+          (event.args?.[0] === "trunk-test-inbound" || event.args?.[0] === "test-inbound")
+          && event.args[1]
+        ) {
+          const testCallId = String(event.args[1]).trim();
+          const state = testCallStates.get(channel.id) || {
+            testCallId,
+            type: "inbound" as const,
+            answered: false,
+          };
+          state.answered = true;
+          testCallStates.set(channel.id, state);
+          await setTrunkTestStatus(redis, testCallId, "answered");
         }
 
         const channelContext = String(event.channel?.dialplan?.context || "");
@@ -512,6 +753,47 @@ async function start(): Promise<void> {
         if (await campaignExecutor.handleChannelEnd(channelId)) {
           return;
         }
+        const testState = testCallStates.get(channelId);
+        if (testState) {
+          if (testState.type === "inbound") {
+            await setTrunkTestStatus(
+              redis,
+              testState.testCallId,
+              testState.answered ? "completed" : "failed",
+              testState.answered ? null : "call ended before answer",
+            );
+            testCallStates.delete(channelId);
+            if (!getSession(channelId)) {
+              return;
+            }
+          } else if (!testState.answered) {
+            await setTrunkTestStatus(redis, testState.testCallId, "failed", "call ended before answer");
+            await publishCallEvent({
+              callId: channelId,
+              timestamp: new Date().toISOString(),
+              type: "failed",
+              caller: "trunk-test",
+              destination: "outbound-test",
+              direction: "outbound",
+              failureReason: "call ended before answer",
+            }).catch((error) => {
+              console.error("[trunk-test] publish outbound failed completion failed:", error);
+            });
+          } else {
+            await publishCallEvent({
+              callId: channelId,
+              timestamp: new Date().toISOString(),
+              type: "ended",
+              caller: "trunk-test",
+              destination: "outbound-test",
+              direction: "outbound",
+            }).catch((error) => {
+              console.error("[trunk-test] publish outbound ended failed:", error);
+            });
+            testCallStates.delete(channelId);
+            return;
+          }
+        }
         rejectHuntWaiter(channelId, "destroyed");
         rejectTransferWaiter(channelId, "destroyed");
         rtcpAmiAccumulator.delete(channelId);
@@ -602,6 +884,54 @@ async function start(): Promise<void> {
           await campaignExecutor.handleChannelEnd(channel.id, event.cause_txt)
         ) {
           return;
+        }
+        const testState = testCallStates.get(channel.id);
+        if (testState) {
+          if (testState.type === "inbound") {
+            const failureReason = String(event.cause_txt || "channel destroyed");
+            await setTrunkTestStatus(
+              redis,
+              testState.testCallId,
+              testState.answered ? "completed" : "failed",
+              testState.answered ? null : failureReason,
+            );
+            testCallStates.delete(channel.id);
+            if (!getSession(channel.id)) {
+              return;
+            }
+          } else if (!testState.answered) {
+            const failureReason = String(event.cause_txt || "channel destroyed");
+            await setTrunkTestStatus(
+              redis,
+              testState.testCallId,
+              "failed",
+              failureReason,
+            );
+            await publishCallEvent({
+              callId: channel.id,
+              timestamp: new Date().toISOString(),
+              type: "failed",
+              caller: "trunk-test",
+              destination: "outbound-test",
+              direction: "outbound",
+              failureReason,
+            }).catch((error) => {
+              console.error("[trunk-test] publish outbound destroy failed:", error);
+            });
+          } else {
+            await publishCallEvent({
+              callId: channel.id,
+              timestamp: new Date().toISOString(),
+              type: "ended",
+              caller: "trunk-test",
+              destination: "outbound-test",
+              direction: "outbound",
+            }).catch((error) => {
+              console.error("[trunk-test] publish outbound destroy ended failed:", error);
+            });
+            testCallStates.delete(channel.id);
+            return;
+          }
         }
         rejectHuntWaiter(channel.id, "destroyed");
         rejectTransferWaiter(channel.id, "destroyed");

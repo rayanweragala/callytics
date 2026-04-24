@@ -5,13 +5,24 @@ import { TrunksService } from './trunks.service';
 import { SipTrunkEntity } from './entities/sip-trunk.entity';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
 import * as net from 'net';
+import { createClient } from 'redis';
 
 jest.mock('net');
+jest.mock('redis', () => ({
+  createClient: jest.fn(),
+}));
 
 describe('TrunksService', () => {
   let service: TrunksService;
   let trunksRepo: any;
   let asteriskConfigService: any;
+  const mockRedisClient = {
+    on: jest.fn(),
+    connect: jest.fn().mockResolvedValue(undefined),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    publish: jest.fn().mockResolvedValue(1),
+    get: jest.fn().mockResolvedValue(null),
+  };
 
   const mockRepo = {
     findAndCount: jest.fn(),
@@ -31,6 +42,7 @@ describe('TrunksService', () => {
   };
 
   beforeEach(async () => {
+    (createClient as jest.Mock).mockReturnValue(mockRedisClient);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TrunksService,
@@ -171,6 +183,66 @@ describe('TrunksService', () => {
       const result = await service.test(1);
 
       expect(result.status).toBe('unreachable');
+    });
+  });
+
+  describe('trunk test call helpers', () => {
+    it('testOutbound publishes redis event and returns testCallId', async () => {
+      trunksRepo.findOne.mockResolvedValue({ id: 7, name: 'T7' });
+
+      const result = await service.testOutbound(7, {
+        number: '+94771234567',
+        audioFileId: 3,
+      });
+
+      expect(result.testCallId).toMatch(/[0-9a-f-]{36}/i);
+      expect(mockRedisClient.publish).toHaveBeenCalledWith(
+        'trunk:test:outbound',
+        expect.stringContaining('"trunkId":7'),
+      );
+      expect(mockRedisClient.publish).toHaveBeenCalledWith(
+        'trunk:test:outbound',
+        expect.stringContaining('"number":"+94771234567"'),
+      );
+      expect(mockRedisClient.publish).toHaveBeenCalledWith(
+        'trunk:test:outbound',
+        expect.stringContaining('"audioFileId":3'),
+      );
+      expect(mockRedisClient.publish).toHaveBeenCalledWith(
+        'trunk:test:outbound',
+        expect.stringContaining('"testCallId"'),
+      );
+    });
+
+    it('testInbound publishes redis event and returns testCallId', async () => {
+      trunksRepo.findOne.mockResolvedValue({ id: 9, name: 'T9' });
+
+      const result = await service.testInbound(9);
+
+      expect(result.testCallId).toMatch(/[0-9a-f-]{36}/i);
+      expect(mockRedisClient.publish).toHaveBeenCalledWith(
+        'trunk:test:inbound',
+        expect.stringContaining('"trunkId":9'),
+      );
+      expect(mockRedisClient.publish).toHaveBeenCalledWith(
+        'trunk:test:inbound',
+        expect.stringContaining('"testCallId"'),
+      );
+    });
+
+    it('getTestCallStatus returns parsed redis JSON status payload', async () => {
+      trunksRepo.findOne.mockResolvedValue({ id: 4, name: 'T4' });
+      mockRedisClient.get.mockResolvedValueOnce(JSON.stringify({
+        status: 'failed',
+        reason: 'originate_failed',
+      }));
+
+      const result = await service.getTestCallStatus(4, 'abc-123');
+
+      expect(result).toEqual({
+        status: 'failed',
+        reason: 'originate_failed',
+      });
     });
   });
 });
