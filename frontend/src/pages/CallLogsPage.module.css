@@ -60,10 +60,10 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 90px 110px 170px 170px 120px 48px;
+  grid-template-columns: 1fr 1fr 1fr 1fr 90px 110px 170px 170px 120px 72px 48px;
   align-items: center;
   gap: 14px;
-  min-width: 1240px;
+  min-width: 1320px;
 }
 
 .tableHead {
@@ -183,6 +183,16 @@
   height: 28px;
   line-height: 1;
   cursor: pointer;
+}
+
+.logsButton {
+  width: auto;
+  padding: 0 10px;
+}
+
+.traceButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .empty {

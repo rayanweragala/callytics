@@ -546,6 +546,10 @@ export async function getCallTrace(callUuid: string): Promise<CallTraceResponse>
 export async function listAsteriskLogs(params: {
   level?: 'all' | 'error' | 'warning' | 'notice' | 'verbose';
   search?: string;
+  hideNoise?: boolean;
+  uniqueid?: string;
+  from?: string;
+  to?: string;
   limit?: number;
   offset?: number;
 }): Promise<AsteriskLogsResponse> {

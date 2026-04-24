@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
@@ -28,8 +29,20 @@ function levelBadgeClass(level: AsteriskLogLevel): string {
   return styles.levelUnknown;
 }
 
+function rowHighlightClass(level: AsteriskLogLevel): string {
+  if (level === 'ERROR') return styles.rowError;
+  if (level === 'WARNING') return styles.rowWarning;
+  return '';
+}
+
+function normalizeChannel(value: string): string {
+  return value.trim();
+}
+
 export function AsteriskLogsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [level, setLevel] = useState<LevelFilter>('all');
+  const [hideNoise, setHideNoise] = useState(true);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
@@ -40,6 +53,11 @@ export function AsteriskLogsPage() {
   const [fileExists, setFileExists] = useState(true);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  const uniqueidFilter = searchParams.get('uniqueid')?.trim() || '';
+  const fromFilter = searchParams.get('from')?.trim() || '';
+  const toFilter = searchParams.get('to')?.trim() || '';
+  const hasCallDrillDown = uniqueidFilter.length > 0 || fromFilter.length > 0 || toFilter.length > 0;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -60,6 +78,10 @@ export function AsteriskLogsPage() {
         const response = await listAsteriskLogs({
           level,
           search,
+          hideNoise,
+          uniqueid: uniqueidFilter || undefined,
+          from: fromFilter || undefined,
+          to: toFilter || undefined,
           limit: PAGE_SIZE,
           offset,
         });
@@ -84,7 +106,7 @@ export function AsteriskLogsPage() {
     return () => {
       active = false;
     };
-  }, [level, search, offset, refreshKey]);
+  }, [level, search, hideNoise, uniqueidFilter, fromFilter, toFilter, offset, refreshKey]);
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -96,9 +118,46 @@ export function AsteriskLogsPage() {
     return 'No log entries match the current filter.';
   }, [fileExists]);
 
+  const channelGroupByValue = useMemo(() => {
+    const map = new Map<string, string>();
+    let useFirstGroup = true;
+
+    for (const entry of entries) {
+      const channel = normalizeChannel(entry.channel);
+      if (!channel || map.has(channel)) {
+        continue;
+      }
+      map.set(channel, useFirstGroup ? styles.channelGroupA : styles.channelGroupB);
+      useFirstGroup = !useFirstGroup;
+    }
+
+    return map;
+  }, [entries]);
+
+  const clearDrillDownFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('uniqueid');
+    next.delete('from');
+    next.delete('to');
+    setSearchParams(next);
+    setLevel('all');
+    setSearchInput('');
+    setSearch('');
+    setOffset(0);
+  };
+
   return (
     <PageLayout title="Asterisk Logs" subtitle="monitor">
       <div className={styles.page}>
+        {hasCallDrillDown ? (
+          <div className={styles.callFilterBanner}>
+            <span>Showing logs for call {uniqueidFilter || 'unknown'}</span>
+            <button type="button" className={styles.clearFilterLink} onClick={clearDrillDownFilter}>
+              Clear filter
+            </button>
+          </div>
+        ) : null}
+
         <div className={styles.header}>
           <div className={styles.levelFilters}>
             {LEVEL_OPTIONS.map((option) => (
@@ -116,6 +175,16 @@ export function AsteriskLogsPage() {
             ))}
           </div>
           <div className={styles.actions}>
+            <button
+              type="button"
+              className={`${styles.levelPill} ${hideNoise ? styles.levelPillActive : ''}`.trim()}
+              onClick={() => {
+                setHideNoise((current) => !current);
+                setOffset(0);
+              }}
+            >
+              Hide noise
+            </button>
             <input
               className={styles.searchInput}
               type="text"
@@ -139,6 +208,7 @@ export function AsteriskLogsPage() {
           <div className={styles.tableHead}>
             <div>timestamp</div>
             <div>level</div>
+            <div>channel</div>
             <div>module</div>
             <div>message</div>
           </div>
@@ -150,19 +220,24 @@ export function AsteriskLogsPage() {
             <div className={styles.empty}>{emptyText}</div>
           ) : null}
 
-          {!loading && !errorText && entries.map((entry, index) => (
-            <div className={styles.row} key={`${entry.timestamp}-${entry.module}-${index}`}>
-              <div className={styles.timestamp}>{formatDateTime(entry.timestamp)}</div>
-              <div>
-                <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
+          {!loading && !errorText && entries.map((entry, index) => {
+            const normalizedChannel = normalizeChannel(entry.channel);
+            const channelGroupClass = normalizedChannel ? channelGroupByValue.get(normalizedChannel) ?? '' : '';
+            return (
+              <div className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)}`.trim()} key={`${entry.timestamp}-${entry.module}-${index}`}>
+                <div className={styles.timestamp}>{formatDateTime(entry.timestamp)}</div>
+                <div>
+                  <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
+                </div>
+                <div className={styles.channel} title={normalizedChannel || '—'}>{normalizedChannel || '—'}</div>
+                <div className={styles.module} title={entry.module}>{entry.module}</div>
+                <div className={styles.messageCell}>
+                  <span className={styles.rawMessage}>{entry.message}</span>
+                  {entry.translation ? <span className={styles.translation}>{entry.translation}</span> : null}
+                </div>
               </div>
-              <div className={styles.module} title={entry.module}>{entry.module}</div>
-              <div className={styles.messageCell}>
-                <span className={styles.rawMessage}>{entry.message}</span>
-                {entry.translation ? <span className={styles.translation}>{entry.translation}</span> : null}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * PAGE_SIZE)} />
         </div>

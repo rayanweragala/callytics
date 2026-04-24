@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
@@ -23,6 +23,17 @@ function formatDuration(value: number | null): string {
   const mins = Math.floor(value / 60);
   const secs = value % 60;
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function shiftIso(value: string | null, deltaMs: number): string | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+  return new Date(parsed + deltaMs).toISOString();
 }
 
 function endReasonClass(reason: string | null): string {
@@ -54,6 +65,7 @@ function MosBadge({
 }
 
 export function CallLogsPage() {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState({ activeCalls: 0, registeredEndpoints: 0, flows: 0, uptimeSeconds: 0 });
   const [sipStatuses, setSipStatuses] = useState<SipEndpointStatus[]>([]);
   const [sipPage, setSipPage] = useState(0);
@@ -343,6 +355,7 @@ export function CallLogsPage() {
               <span>Start time</span>
               <span>End time</span>
               <span>End reason</span>
+              <span>Logs</span>
               <span>Trace</span>
             </div>
 
@@ -350,6 +363,9 @@ export function CallLogsPage() {
             {!loading && data.length === 0 ? <div className={styles.empty}>No call logs found.</div> : null}
             {!loading && data.map((item) => {
               const quality = qualityByCall[item.callUuid];
+              const from = shiftIso(item.startedAt, -2000);
+              const to = shiftIso(item.endedAt ?? item.startedAt, 2000);
+              const hasLogsDrillDown = Boolean(item.callUuid && from && to);
               return (
                 <div className={styles.row} key={`${item.id}-${item.callUuid}`}>
                   <span className={styles.mono}>{item.callerNumber || '—'}</span>
@@ -374,6 +390,22 @@ export function CallLogsPage() {
                   <span className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
                   <span className={styles.timestamp}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</span>
                   <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
+                  <span className={styles.traceIcon}>
+                    <button
+                      className={`${styles.traceButton} ${styles.logsButton}`}
+                      disabled={!hasLogsDrillDown}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (!hasLogsDrillDown || !from || !to) {
+                          return;
+                        }
+                        navigate(`/logs?uniqueid=${encodeURIComponent(item.callUuid)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                      }}
+                      type="button"
+                    >
+                      Logs
+                    </button>
+                  </span>
                   <span className={styles.traceIcon}>
                     <button
                       className={styles.traceButton}

@@ -4,6 +4,29 @@
   gap: 24px;
 }
 
+.callFilterBanner {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.clearFilterLink {
+  border: none;
+  background: transparent;
+  color: var(--color-primary, var(--color-active));
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 12px;
+  padding: 0;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -22,7 +45,12 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: minmax(230px, 1.15fr) minmax(96px, 0.55fr) minmax(190px, 0.9fr) minmax(360px, 1.8fr);
+  grid-template-columns:
+    minmax(230px, 1.15fr)
+    minmax(96px, 0.55fr)
+    minmax(180px, 0.8fr)
+    minmax(190px, 0.9fr)
+    minmax(360px, 1.8fr);
   gap: 16px;
   padding: 16px 0;
   align-items: center;
@@ -38,6 +66,26 @@
 
 .row {
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.channelGroupA {
+  background: var(--color-surface-1, var(--bg-base));
+}
+
+.channelGroupB {
+  background: var(--color-surface-2, var(--bg-surface));
+}
+
+.rowError {
+  border-left: 2px solid var(--color-error);
+  padding-left: 10px;
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+.rowWarning {
+  border-left: 2px solid var(--color-warning);
+  padding-left: 10px;
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
 }
 
 .row:last-child {
@@ -95,6 +143,7 @@
 }
 
 .timestamp,
+.channel,
 .module {
   font-family: 'Space Mono', monospace;
   font-size: 12px;
@@ -105,6 +154,7 @@
   white-space: nowrap;
 }
 
+.channel,
 .module {
   text-overflow: ellipsis;
   overflow: hidden;
@@ -174,6 +224,11 @@
 }
 
 @media (max-width: 1240px) {
+  .callFilterBanner {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
   .header {
     flex-wrap: wrap;
     align-items: stretch;
@@ -194,7 +249,7 @@
 
   .tableHead,
   .row {
-    min-width: 980px;
+    min-width: 1160px;
   }
 }
 
