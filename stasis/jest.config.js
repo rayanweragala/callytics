@@ -9,12 +9,12 @@ module.exports = {
     'flowLoader.ts',
     'executors/menu.executor.ts',
     'nodes/hunt.executor.ts',
-    'src/sipTrafficMonitor.ts',
-    'src/executors/business_hours.executor.ts',
-    'src/executors/voicemail.executor.ts',
-    'src/executors/webhook.executor.ts',
-    'src/executors/queue.executor.ts',
-    'src/engine/queueManager.ts',
+    'sipTrafficMonitor.ts',
+    'executors/business_hours.executor.ts',
+    'executors/voicemail.executor.ts',
+    'executors/webhook.executor.ts',
+    'executors/queue.executor.ts',
+    'engine/queueManager.ts',
   ],
   coverageThreshold: {
     global: {

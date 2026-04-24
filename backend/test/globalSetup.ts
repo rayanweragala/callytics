@@ -16,7 +16,28 @@ function buildAdminConfig() {
 }
 
 async function runSqlFiles(pool: Pool): Promise<void> {
-  const migrationsDir = join(__dirname, '..', 'src', 'db', 'migrations');
+  const candidates = [
+    join(__dirname, '..', 'migrations'),
+    join(__dirname, '..', 'src', 'db', 'migrations'),
+  ];
+
+  let migrationsDir: string | null = null;
+  for (const candidate of candidates) {
+    try {
+      const stat = await fs.stat(candidate);
+      if (stat.isDirectory()) {
+        migrationsDir = candidate;
+        break;
+      }
+    } catch {
+      // Keep scanning candidates.
+    }
+  }
+
+  if (!migrationsDir) {
+    throw new Error(`No migrations directory found. Checked: ${candidates.join(', ')}`);
+  }
+
   const files = (await fs.readdir(migrationsDir))
     .filter((file) => file.endsWith('.sql'))
     .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
