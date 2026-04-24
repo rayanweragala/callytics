@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ContactNumbersService } from './contact-numbers.service';
 import { ContactNumberEntity } from './entities/contact-number.entity';
 
@@ -79,6 +79,43 @@ describe('ContactNumbersService', () => {
       notes: 'After hours',
       createdAt: now.toISOString(),
     });
+  });
+
+  it('valid number normalizes to E.164 on save', async () => {
+    const now = new Date('2026-04-20T12:00:00.000Z');
+    const entity = {
+      id: 12,
+      label: 'Local Mobile',
+      number: '+94714008762',
+      trunkId: null,
+      notes: null,
+      createdAt: now,
+    };
+
+    repo.create.mockReturnValue(entity);
+    repo.save.mockResolvedValue(entity);
+
+    await service.create({
+      label: 'Local Mobile',
+      number: '071 400 8762',
+      country: 'LK',
+    } as any);
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        number: '+94714008762',
+      }),
+    );
+  });
+
+  it('invalid number throws validation error', async () => {
+    await expect(
+      service.create({
+        label: 'Invalid',
+        number: 'not-a-phone-number',
+        country: 'US',
+      } as any),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('findAll/list returns array and preserves trunk mapping when trunk_id exists', async () => {

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { parsePhoneNumber, type CountryCode } from 'libphonenumber-js';
 import { runSqlMigrations } from '../db/run-sql-migrations';
 import { CreateContactNumberDto } from './dto/create-contact-number.dto';
 import { UpdateContactNumberDto } from './dto/update-contact-number.dto';
@@ -39,10 +40,17 @@ export class ContactNumbersService {
     return { data: items.map((item) => this.toResponse(item)), total, page: safePage, limit: safeLimit };
   }
 
+  async findOne(id: number): Promise<{ data: ContactNumberResponse }> {
+    const item = await this.contactNumbersRepository.findOne({ where: { id } });
+    if (!item) throw new NotFoundException(`Contact number ${id} not found`);
+    return { data: this.toResponse(item) };
+  }
+
   async create(dto: CreateContactNumberDto): Promise<{ data: ContactNumberResponse }> {
+    const country = this.normalizeCountryCode(dto.country);
     const entity = this.contactNumbersRepository.create({
       label: this.normalizeRequired(dto.label, 'label'),
-      number: this.normalizeRequired(dto.number, 'number'),
+      number: this.normalizePhoneNumber(this.normalizeRequired(dto.number, 'number'), country),
       trunkId: dto.trunk_id ?? null,
       notes: this.normalizeOptional(dto.notes),
     });
@@ -56,7 +64,10 @@ export class ContactNumbersService {
     if (!entity) throw new NotFoundException(`Contact number ${id} not found`);
 
     if (dto.label !== undefined) entity.label = this.normalizeRequired(dto.label, 'label');
-    if (dto.number !== undefined) entity.number = this.normalizeRequired(dto.number, 'number');
+    if (dto.number !== undefined) {
+      const country = this.normalizeCountryCode(dto.country);
+      entity.number = this.normalizePhoneNumber(this.normalizeRequired(dto.number, 'number'), country);
+    }
     if (dto.trunk_id !== undefined) entity.trunkId = dto.trunk_id ?? null;
     if (dto.notes !== undefined) entity.notes = this.normalizeOptional(dto.notes);
 
@@ -91,5 +102,34 @@ export class ContactNumbersService {
   private normalizeOptional(value?: string): string | null {
     const normalized = value?.trim();
     return normalized ? normalized : null;
+  }
+
+  private normalizeCountryCode(value?: string): CountryCode {
+    const normalized = (value || 'US').trim().toUpperCase();
+    if (!normalized) {
+      return 'US';
+    }
+    return normalized as CountryCode;
+  }
+
+  private normalizePhoneNumber(value: string, country: CountryCode): string {
+    const raw = value.trim();
+    let parsed: ReturnType<typeof parsePhoneNumber> | undefined;
+
+    try {
+      parsed = parsePhoneNumber(raw);
+    } catch {
+      try {
+        parsed = parsePhoneNumber(raw, country);
+      } catch {
+        throw new BadRequestException(`number "${value}" is not a valid phone number for country ${country}`);
+      }
+    }
+
+    if (!parsed || !parsed.isValid()) {
+      throw new BadRequestException(`number "${value}" is not a valid phone number for country ${country}`);
+    }
+
+    return parsed.format('E.164');
   }
 }

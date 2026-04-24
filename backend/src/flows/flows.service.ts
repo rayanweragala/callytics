@@ -184,12 +184,6 @@ export function validateNodeConfig(node: FlowNodeInput): void {
       throw new BadRequestException(`Node ${node.nodeKey}: target_value is required`);
     }
     validateTransferTargetValue(node.nodeKey, targetType, targetValue);
-    if (targetType === 'pstn') {
-      const trunkId = Number(node.config?.trunk_id || 0);
-      if (!Number.isInteger(trunkId) || trunkId <= 0) {
-        throw new BadRequestException(`Node ${node.nodeKey}: trunk_id is required for pstn target_type`);
-      }
-    }
 
   }
 
@@ -209,12 +203,6 @@ export function validateNodeConfig(node: FlowNodeInput): void {
         throw new BadRequestException(`Node ${node.nodeKey}: hunt destination target_value is required`);
       }
       validateHuntTargetValue(node.nodeKey, targetType, targetValue);
-      if (targetType === 'pstn') {
-        const trunkId = Number(entry.trunk_id || 0);
-        if (!Number.isInteger(trunkId) || trunkId <= 0) {
-          throw new BadRequestException(`Node ${node.nodeKey}: hunt destination trunk_id is required for pstn target_type`);
-        }
-      }
     }
   }
   if (node.type === 'menu') {

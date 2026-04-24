@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AudioModule } from './audio/audio.module';
 import { AsteriskModule } from './asterisk/asterisk.module';
@@ -32,12 +33,14 @@ import { CaptureModule } from './capture/capture.module';
 import { QualityModule } from './quality/quality.module';
 import { AsteriskLogsModule } from './asterisk-logs/asterisk-logs.module';
 import { PreflightModule } from './preflight/preflight.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -86,6 +89,7 @@ import { PreflightModule } from './preflight/preflight.module';
     QualityModule,
     AsteriskLogsModule,
     PreflightModule,
+    CampaignsModule,
   ],
   controllers: [HealthController],
 })

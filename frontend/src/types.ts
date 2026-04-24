@@ -180,6 +180,9 @@ export interface TransferNodeConfig {
   target_value: string;
   trunk_id?: number;
   timeout_ms?: number;
+  on_no_answer?: string;
+  waiting_sound_id?: number | null;
+  no_answer_sound_id?: number | null;
 }
 
 export interface HuntDestination {
@@ -452,6 +455,62 @@ export interface CallLogItem {
   entryNodeKey: string | null;
   exitNodeKey: string | null;
   flowName: string | null;
+  campaignName: string | null;
+}
+
+export interface CampaignItem {
+  id: number;
+  name: string;
+  status: 'draft' | 'scheduled' | 'running' | 'cancelling' | 'completed' | 'cancelled' | 'failed';
+  flowId: number | null;
+  trunkId: number | null;
+  callerId: string | null;
+  defaultCountry: string;
+  flowName: string | null;
+  trunkName: string | null;
+  scheduledAt: string | null;
+  maxConcurrent: number;
+  maxRetries: number;
+  retryIntervalMinutes: number;
+  totalContacts: number;
+  dialedCount: number;
+  answeredCount: number;
+  failedCount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface CampaignContactItem {
+  id: number;
+  campaignId: number;
+  phoneNumber: string;
+  name: string | null;
+  status: 'pending' | 'dialing' | 'answered' | 'completed' | 'no_answer' | 'busy' | 'failed';
+  attempts: number;
+  lastAttemptAt: string | null;
+  nextRetryAt: string | null;
+  createdAt: string | null;
+}
+
+export interface CampaignContactAttemptItem {
+  id: number;
+  campaignId: number;
+  contactId: number;
+  phoneNumber: string;
+  attemptNumber: number;
+  outcome: string;
+  callLogId: number | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  duration: number | null;
+  endReason: string | null;
+}
+
+export interface CampaignContactsUploadResult {
+  imported: number;
+  skipped: number;
+  total: number;
+  skippedReasons: string[];
 }
 
 export type AsteriskLogLevel = 'ERROR' | 'WARNING' | 'NOTICE' | 'VERBOSE' | 'DEBUG' | 'UNKNOWN';

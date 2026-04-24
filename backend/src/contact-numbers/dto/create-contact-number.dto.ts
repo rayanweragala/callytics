@@ -15,5 +15,9 @@ export class CreateContactNumberDto {
 
   @IsOptional()
   @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
   notes?: string;
 }

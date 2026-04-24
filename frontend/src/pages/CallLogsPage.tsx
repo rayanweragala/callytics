@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
@@ -70,11 +71,14 @@ export function CallLogsPage() {
   const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
   const [qualityDrawerCallId, setQualityDrawerCallId] = useState<string | null>(null);
 
+  const [searchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [endReason, setEndReason] = useState('');
+  const [direction, setDirection] = useState<'all' | 'inbound' | 'outbound'>('all');
+  const callLogIdParam = Number(searchParams.get('callLogId') || 0) || undefined;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -86,7 +90,7 @@ export function CallLogsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [dateFrom, dateTo, endReason]);
+  }, [dateFrom, dateTo, endReason, direction]);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +105,8 @@ export function CallLogsPage() {
           endReason: endReason || undefined,
           dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00.000Z`).toISOString() : undefined,
           dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : undefined,
+          direction: direction === 'all' ? undefined : direction,
+          callLogId: callLogIdParam,
         });
 
         if (!active) return;
@@ -118,7 +124,7 @@ export function CallLogsPage() {
     return () => {
       active = false;
     };
-  }, [page, search, dateFrom, dateTo, endReason]);
+  }, [page, search, dateFrom, dateTo, endReason, direction, callLogIdParam]);
 
   useEffect(() => {
     let active = true;
@@ -318,6 +324,12 @@ export function CallLogsPage() {
             </select>
           </div>
 
+          <div className={styles.filterPills}>
+            <button className={`${styles.filterPill} ${direction === 'all' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('all')}>All</button>
+            <button className={`${styles.filterPill} ${direction === 'inbound' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('inbound')}>Inbound</button>
+            <button className={`${styles.filterPill} ${direction === 'outbound' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('outbound')}>Outbound</button>
+          </div>
+
           <ErrorMessage message={errorText} />
 
           <div className={styles.table}>
@@ -325,6 +337,7 @@ export function CallLogsPage() {
               <span>Caller number</span>
               <span>Destination</span>
               <span>Flow name</span>
+              <span>Campaign</span>
               <span>Duration</span>
               <span>Quality</span>
               <span>Start time</span>
@@ -342,6 +355,7 @@ export function CallLogsPage() {
                   <span className={styles.mono}>{item.callerNumber || '—'}</span>
                   <span className={styles.mono}>{item.calleeNumber || '—'}</span>
                   <span className={styles.flowName}>{item.flowName || '—'}</span>
+                  <span className={styles.flowName}>{item.campaignName || '—'}</span>
                   <span className={styles.mono}>{formatDuration(item.durationSeconds)}</span>
                   <span>
                     {quality ? (

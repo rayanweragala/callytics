@@ -59,6 +59,10 @@
   font-family: var(--font-data);
 }
 
+.select {
+  appearance: none;
+}
+
 .actions {
   display: flex;
   align-items: center;

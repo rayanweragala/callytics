@@ -108,6 +108,8 @@ export function NodeConfigPanel({
 
   const playAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.audio_file_id));
   const getDigitsAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
+  const transferWaitingAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.waiting_sound_id));
+  const transferNoAnswerAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.no_answer_sound_id));
 
   const edgeConditionOptions = (() => {
     if (!selectedEdge || !selectedEdgeSourceNode) return [] as Array<{ value: string; label: string }>;
@@ -259,6 +261,7 @@ export function NodeConfigPanel({
               nodeOptions={nodeOptions}
               extensionOptions={extensionOptions}
               contactOptions={contactOptions}
+              contacts={contactNumbers}
               onConfigReplace={onConfigReplace}
             />
           ) : null}
@@ -303,7 +306,12 @@ export function NodeConfigPanel({
                       <SearchableSelect
                         options={contactOptions}
                         value={targetValue || null}
-                        onChange={(value) => onConfigValueChange('target_value', value || '')}
+                        onChange={(value) => {
+                          onConfigValueChange('target_type', 'pstn');
+                          onConfigValueChange('target_value', value || '');
+                          const matchedContact = contactNumbers.find((item) => item.number === value);
+                          onConfigValueChange('trunk_id', matchedContact?.trunkId ? Number(matchedContact.trunkId) : undefined);
+                        }}
                         placeholder="select PSTN contact"
                       />
                     </label>
@@ -348,6 +356,32 @@ export function NodeConfigPanel({
                     <span className={styles.inlineError}>Timeout must be between 1000 and 120000 ms</span>
                   ) : null}
                 </label>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>WAITING_SOUND</span>
+                  <SearchableSelect
+                    options={audioOptions}
+                    value={transferConfig.waiting_sound_id ? String(transferConfig.waiting_sound_id) : null}
+                    onChange={(value) => onConfigValueChange('waiting_sound_id', value ? Number(value) : null)}
+                    placeholder="None (silence)"
+                  />
+                </label>
+                {(() => {
+                  const srcPath = transferWaitingAudioItem?.previewUrl || transferWaitingAudioItem?.originalUrl;
+                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`transfer-waiting-${transferWaitingAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                })()}
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>NO_ANSWER_SOUND</span>
+                  <SearchableSelect
+                    options={audioOptions}
+                    value={transferConfig.no_answer_sound_id ? String(transferConfig.no_answer_sound_id) : null}
+                    onChange={(value) => onConfigValueChange('no_answer_sound_id', value ? Number(value) : null)}
+                    placeholder="None (hangup silently)"
+                  />
+                </label>
+                {(() => {
+                  const srcPath = transferNoAnswerAudioItem?.previewUrl || transferNoAnswerAudioItem?.originalUrl;
+                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`transfer-no-answer-${transferNoAnswerAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                })()}
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>on_no_answer</span>
                   <SearchableSelect

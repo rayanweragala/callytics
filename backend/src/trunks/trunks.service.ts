@@ -61,7 +61,7 @@ export class TrunksService implements OnModuleInit {
       username: this.normalizeOptional(dto.username),
       password: this.normalizeOptional(dto.password),
       fromDomain: this.normalizeOptional(dto.fromDomain),
-      fromUser: this.normalizeOptional(dto.fromUser),
+      fromUser: this.normalizePhone(dto.fromUser),
       enabled: dto.enabled ?? true,
     });
 
@@ -111,7 +111,7 @@ export class TrunksService implements OnModuleInit {
     }
 
     if (dto.fromUser !== undefined) {
-      entity.fromUser = this.normalizeOptional(dto.fromUser);
+      entity.fromUser = this.normalizePhone(dto.fromUser);
     }
 
     if (dto.enabled !== undefined) {
@@ -201,6 +201,11 @@ export class TrunksService implements OnModuleInit {
   private normalizePreset(value?: string): string {
     const normalized = value?.trim();
     return normalized || 'generic';
+  }
+
+  private normalizePhone(value?: string): string | null {
+    const normalized = value?.trim().replace(/\s+/g, '');
+    return normalized ? normalized : null;
   }
 
   private validateAuth(username: string | null, password: string | null): void {

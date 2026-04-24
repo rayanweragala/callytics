@@ -15,5 +15,9 @@ export class UpdateContactNumberDto {
 
   @IsOptional()
   @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
   notes?: string;
 }

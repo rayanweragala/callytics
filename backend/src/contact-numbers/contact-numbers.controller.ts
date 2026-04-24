@@ -15,6 +15,11 @@ export class ContactNumbersController {
     return this.contactNumbersService.findAll(page, limit);
   }
 
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.contactNumbersService.findOne(id);
+  }
+
   @Post()
   create(@Body() dto: CreateContactNumberDto) {
     return this.contactNumbersService.create(dto);

@@ -19,11 +19,25 @@ import styles from './ContactNumbersPage.module.css';
 interface ContactForm {
   label: string;
   number: string;
+  country: string;
   trunkId: string;
   notes: string;
 }
 
-const EMPTY_FORM: ContactForm = { label: '', number: '', trunkId: '', notes: '' };
+const COUNTRY_OPTIONS = [
+  { code: 'US', label: 'United States (+1)' },
+  { code: 'GB', label: 'United Kingdom (+44)' },
+  { code: 'LK', label: 'Sri Lanka (+94)' },
+  { code: 'IN', label: 'India (+91)' },
+  { code: 'AU', label: 'Australia (+61)' },
+  { code: 'SG', label: 'Singapore (+65)' },
+  { code: 'CA', label: 'Canada (+1)' },
+  { code: 'DE', label: 'Germany (+49)' },
+  { code: 'FR', label: 'France (+33)' },
+  { code: 'AE', label: 'UAE (+971)' },
+];
+
+const EMPTY_FORM: ContactForm = { label: '', number: '', country: 'US', trunkId: '', notes: '' };
 const PAGE_LIMIT = 10;
 
 export function ContactNumbersPage() {
@@ -80,6 +94,7 @@ export function ContactNumbersPage() {
       await createContactNumber({
         label,
         number,
+        country: form.country || 'US',
         trunk_id: form.trunkId ? Number(form.trunkId) : undefined,
         notes: form.notes.trim() || undefined,
       });
@@ -99,6 +114,7 @@ export function ContactNumbersPage() {
     setEditForm({
       label: item.label,
       number: item.number,
+      country: 'US',
       trunkId: item.trunkId ? String(item.trunkId) : '',
       notes: item.notes || '',
     });
@@ -113,6 +129,7 @@ export function ContactNumbersPage() {
       const res = await updateContactNumber(editingId, {
         label: editForm.label.trim(),
         number: editForm.number.trim(),
+        country: editForm.country || 'US',
         trunk_id: editForm.trunkId ? Number(editForm.trunkId) : null,
         notes: editForm.notes.trim() || undefined,
       });
@@ -165,6 +182,14 @@ export function ContactNumbersPage() {
             <label className={styles.field}>
               <span className={styles.fieldLabel}>number</span>
               <input className={styles.input} placeholder="+94714008762" value={form.number} onChange={(event) => setForm((prev) => ({ ...prev, number: event.target.value }))} />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>country</span>
+              <select className={`${styles.input} ${styles.select}`} value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}>
+                {COUNTRY_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
+                ))}
+              </select>
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>trunk</span>
@@ -230,6 +255,14 @@ export function ContactNumbersPage() {
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>number</span>
                     <input className={styles.input} value={editForm.number} onChange={(event) => setEditForm((prev) => ({ ...prev, number: event.target.value }))} />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>country</span>
+                    <select className={`${styles.input} ${styles.select}`} value={editForm.country} onChange={(event) => setEditForm((prev) => ({ ...prev, country: event.target.value }))}>
+                      {COUNTRY_OPTIONS.map((option) => (
+                        <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
+                      ))}
+                    </select>
                   </label>
                   <label className={styles.field}>
                     <span className={styles.fieldLabel}>trunk</span>

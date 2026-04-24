@@ -9,6 +9,7 @@ interface CallStartedEvent {
   type: 'started';
   caller: string;
   destination?: string;
+  direction?: 'inbound' | 'outbound';
   flowId?: number;
   flowVersionId?: number;
   entryNodeKey?: string;
@@ -29,6 +30,7 @@ interface CallFailedEvent {
   type: 'failed';
   caller: string;
   destination?: string;
+  direction?: 'inbound' | 'outbound';
   flowId?: number;
   flowVersionId?: number;
   failedNode?: string;
@@ -121,7 +123,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
             flow_version_id,
             entry_node_key
           )
-          VALUES ($1, 'inbound', $2, $3, $4::timestamptz, $5, $6, $7)
+          VALUES ($1, $8, $2, $3, $4::timestamptz, $5, $6, $7)
           ON CONFLICT (call_uuid) DO NOTHING
         `,
         [
@@ -132,6 +134,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
           event.flowId ?? null,
           event.flowVersionId ?? null,
           event.entryNodeKey ?? null,
+          event.direction || 'inbound',
         ],
       );
       this.logger.debug(`call_logs INSERT for ${event.callId}`);
@@ -193,7 +196,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
             flow_version_id,
             exit_node_key
           )
-          VALUES ($1, 'inbound', $2, $3, $4::timestamptz, $4::timestamptz, 'failed', $5, $6, $7)
+          VALUES ($1, $8, $2, $3, $4::timestamptz, $4::timestamptz, 'failed', $5, $6, $7)
           ON CONFLICT (call_uuid) DO UPDATE
             SET ended_at     = EXCLUDED.ended_at,
                 end_reason   = 'failed',
@@ -208,6 +211,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
           event.flowId ?? null,
           event.flowVersionId ?? null,
           event.failedNode ?? null,
+          event.direction || 'inbound',
         ],
       );
       this.logger.debug(`call_logs UPSERT (failed) for ${event.callId}`);

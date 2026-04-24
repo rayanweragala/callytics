@@ -9,6 +9,8 @@ interface ListCallLogsParams {
   endReason?: string;
   dateFrom?: string;
   dateTo?: string;
+  direction?: string;
+  callLogId?: string;
 }
 
 interface TraceNode {
@@ -54,6 +56,19 @@ export class CallLogsService {
       whereParts.push(`cl.started_at <= $${queryParams.length}::timestamptz`);
     }
 
+    if (params.direction?.trim()) {
+      queryParams.push(params.direction.trim());
+      whereParts.push(`cl.direction = $${queryParams.length}`);
+    }
+
+    if (params.callLogId?.trim()) {
+      const callLogId = Number(params.callLogId);
+      if (Number.isFinite(callLogId)) {
+        queryParams.push(callLogId);
+        whereParts.push(`cl.id = $${queryParams.length}`);
+      }
+    }
+
     const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
 
     const countRows = await this.dataSource.query(
@@ -86,9 +101,18 @@ export class CallLogsService {
           cl.flow_version_id AS "flowVersionId",
           cl.entry_node_key AS "entryNodeKey",
           cl.exit_node_key AS "exitNodeKey",
-          cf.name AS "flowName"
+          cf.name AS "flowName",
+          camp.name AS "campaignName"
         FROM call_logs cl
         LEFT JOIN call_flows cf ON cf.id = cl.flow_id
+        LEFT JOIN LATERAL (
+          SELECT c.name
+          FROM campaign_contact_attempts cca
+          LEFT JOIN campaigns c ON c.id = cca.campaign_id
+          WHERE cca.call_log_id = cl.id
+          ORDER BY cca.id DESC
+          LIMIT 1
+        ) camp ON true
         ${whereSql}
         ORDER BY cl.started_at DESC
         LIMIT $${queryParams.length - 1}
@@ -115,6 +139,7 @@ export class CallLogsService {
         entryNodeKey: row.entryNodeKey ? String(row.entryNodeKey) : null,
         exitNodeKey: row.exitNodeKey ? String(row.exitNodeKey) : null,
         flowName: row.flowName ? String(row.flowName) : null,
+        campaignName: row.campaignName ? String(row.campaignName) : null,
       })),
       total: Number(countRows[0]?.total || 0),
       page,

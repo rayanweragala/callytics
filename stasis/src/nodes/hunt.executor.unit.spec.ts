@@ -8,16 +8,19 @@ jest.mock('../telemetry', () => ({
 
 jest.mock('../huntManager', () => ({
   registerHuntWaiter: jest.fn(),
+  rejectHuntWaiter: jest.fn(),
 }));
 
 import { executeHunt } from './hunt.executor';
 import { resolveAudioMediaPath } from '../audioResolver';
-import { registerHuntWaiter } from '../huntManager';
+import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 
 const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<typeof resolveAudioMediaPath>;
 const registerHuntWaiterMock = registerHuntWaiter as jest.MockedFunction<typeof registerHuntWaiter>;
+const rejectHuntWaiterMock = rejectHuntWaiter as jest.MockedFunction<typeof rejectHuntWaiter>;
+const huntWaiters = new Map<string, (result: { answered: false; reason: 'failed' | 'destroyed' }) => void>();
 
 function createSession(): CallSession {
   return {
@@ -82,6 +85,20 @@ describe('hunt executor — additional coverage', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    registerHuntWaiterMock.mockReset();
+    rejectHuntWaiterMock.mockReset();
+    huntWaiters.clear();
+    registerHuntWaiterMock.mockImplementation(
+      (token: string) => new Promise((resolve) => {
+        huntWaiters.set(token, resolve as (result: { answered: false; reason: 'failed' | 'destroyed' }) => void);
+      }),
+    );
+    rejectHuntWaiterMock.mockImplementation((token, reason = 'failed') => {
+      const resolve = huntWaiters.get(token);
+      if (!resolve) return;
+      huntWaiters.delete(token);
+      resolve({ answered: false, reason });
+    });
     resolveAudioMediaPathMock.mockResolvedValue(null);
   });
 
@@ -93,9 +110,12 @@ describe('hunt executor — additional coverage', () => {
   it('sequential strategy retries next destination after first attempt timeout', async () => {
     const ariClient = createAriClient();
     const second = { id: 'hunt-2', hangup: jest.fn().mockResolvedValue(undefined) };
+    registerHuntWaiterMock.mockReset();
     registerHuntWaiterMock
-      .mockReturnValueOnce(new Promise<never>(() => { }))
-      .mockReturnValueOnce(Promise.resolve(second));
+      .mockImplementationOnce((token: string) => new Promise((resolve) => {
+        huntWaiters.set(token, resolve as (result: { answered: false; reason: 'failed' | 'destroyed' }) => void);
+      }))
+      .mockReturnValueOnce(Promise.resolve({ answered: true, channel: second }));
 
     const node: FlowNode = {
       nodeKey: 'hunt-1',
@@ -150,7 +170,9 @@ describe('hunt executor — additional coverage', () => {
   it('bridges immediately when outbound leg reaches Stasis', async () => {
     const ariClient = createAriClient();
     const answered = { id: 'hunt-up-1', hangup: jest.fn().mockResolvedValue(undefined) };
-    registerHuntWaiterMock.mockReturnValue(Promise.resolve(answered));
+    registerHuntWaiterMock.mockReturnValue(
+      Promise.resolve({ answered: true, channel: answered }),
+    );
 
     const node: FlowNode = {
       nodeKey: 'hunt-1',
@@ -214,7 +236,12 @@ describe('hunt executor — additional coverage', () => {
     // The waiter never resolves, so we simulate inbound hangup while the dial
     // attempt is in-flight and verify the executor exits as hangup (not fallback).
     const ariClient = createAriClient();
-    registerHuntWaiterMock.mockReturnValue(new Promise<never>(() => { }));
+    registerHuntWaiterMock.mockReset();
+    registerHuntWaiterMock.mockImplementation(
+      (token: string) => new Promise((resolve) => {
+        huntWaiters.set(token, resolve as (result: { answered: false; reason: 'failed' | 'destroyed' }) => void);
+      }),
+    );
 
     const node: FlowNode = {
       nodeKey: 'hunt-1',
@@ -257,7 +284,9 @@ describe('hunt executor — additional coverage', () => {
       id: 'agent-channel-1',
       hangup: jest.fn().mockResolvedValue(undefined)
     };
-    registerHuntWaiterMock.mockReturnValue(Promise.resolve(agentChannel));
+    registerHuntWaiterMock.mockReturnValue(
+      Promise.resolve({ answered: true, channel: agentChannel }),
+    );
 
     const session = createSession();
     session.recording = {

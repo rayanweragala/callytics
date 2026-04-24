@@ -77,8 +77,6 @@ export class AsteriskLogsService {
 
     const content = fs.readFileSync(LOG_FILE_PATH, 'utf8');
     const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-    console.log('total raw lines:', lines.length);
-
     const parsedEntries = lines
       .map((line) => this.parseLine(line))
       .filter((entry): entry is AsteriskLogEntry => entry !== null);
@@ -106,6 +104,10 @@ export class AsteriskLogsService {
 
   private parseLine(rawLine: string): AsteriskLogEntry | null {
     const match = rawLine.match(/^\[([^\]]+)\]\s+([A-Z]+)(\[[^\]]+\])?(?:\[[^\]]+\])?\s+([^:]+):\s*(.*)$/);
+    if (!match) {
+      return null;
+    }
+
     const timestampRaw = match?.[1]?.trim() ?? '';
     const parsedDate = this.parseTimestamp(timestampRaw);
 

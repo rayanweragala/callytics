@@ -46,3 +46,14 @@ Current implementation note:
     - No preflight route, no preflight API endpoints, and no persisted preflight history table.
   - Why changed:
     - Users need a single post-install preflight to validate ARI/AMI/SIP/RTP, Redis/Postgres, external IP/NAT/STUN, disk capacity, and SIP ALG advisory before handling production calls.
+- Phase 26: COMPLETE
+  - Outbound call campaigns (create, CSV upload, schedule, sliding window dialer)
+  - Campaign contacts with retry logic
+  - Call logs direction filter and campaign name column
+  - Contact numbers E.164 normalization
+  - Trunk from_user space stripping
+  - Hunt node: attempt channel force-hangup on timeout, orphan leg guard
+  - Transfer node: waiting sound loop, no-answer sound, caller-disconnect cleanup
+  - Hunt/transfer waiter architecture (event-driven, no timers)
+  - Migration consolidation: all SQL migrations now in root migrations/ folder
+  - call_logs table migration added (023_phase_call_logs.sql)

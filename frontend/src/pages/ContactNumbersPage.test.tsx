@@ -97,6 +97,7 @@ describe('ContactNumbersPage', () => {
       expect(api.createContactNumber).toHaveBeenCalledWith({
         label: 'Owner Mobile',
         number: '+94770000000',
+        country: 'US',
         trunk_id: undefined,
         notes: undefined,
       });

@@ -236,7 +236,8 @@
 }
 
 .formActions {
-  align-self: flex-end;
+  width: 100%;
+  justify-content: flex-end;
 }
 
 .secondaryButton {

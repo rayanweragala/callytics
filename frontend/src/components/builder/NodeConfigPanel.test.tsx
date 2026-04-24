@@ -62,6 +62,25 @@ describe('NodeConfigPanel', () => {
     expect(screen.getByText('Timeout must be between 1000 and 120000 ms')).toBeInTheDocument();
   });
 
+  it('renders transfer waiting/no-answer sound selectors', () => {
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '2001', timeout_ms: 30000, waiting_sound_id: 1, no_answer_sound_id: 2 });
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+    expect(screen.getByText('WAITING_SOUND')).toBeInTheDocument();
+    expect(screen.getByText('NO_ANSWER_SOUND')).toBeInTheDocument();
+  });
+
+  it('transfer node shows waiting_sound_id field', () => {
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '2001', timeout_ms: 30000 });
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+    expect(screen.getByText('WAITING_SOUND')).toBeInTheDocument();
+  });
+
+  it('transfer node shows no_answer_sound_id field', () => {
+    const node = mockNode('transfer', { target_type: 'extension', target_value: '2001', timeout_ms: 30000 });
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+    expect(screen.getByText('NO_ANSWER_SOUND')).toBeInTheDocument();
+  });
+
   it('renders error for menu node with missing prompt_audio_file_id when save attempted', () => {
     const node = mockNode('menu', { prompt_audio_file_id: '', timeout_ms: 5000, branches: ['1', '2'] });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={true} />);

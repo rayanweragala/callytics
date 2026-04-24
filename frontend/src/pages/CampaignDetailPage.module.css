@@ -1,0 +1,186 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summaryCard,
+.contactsCard {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  padding: 16px;
+}
+
+.summaryTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.campaignStatusBadge {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 3px 8px;
+  text-transform: lowercase;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  font-family: 'Space Mono', monospace;
+}
+
+.secondaryButton,
+.stopButton,
+.historyButton,
+.filterPill {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  text-transform: lowercase;
+}
+
+.stopButton {
+  color: var(--color-error);
+}
+
+.confirmInline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.summaryGrid div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summaryGrid span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.summaryGrid strong,
+.mono {
+  font-family: 'Space Mono', monospace;
+}
+
+.statsRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 10px;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressTrack {
+  width: 220px;
+  height: 6px;
+  background: var(--color-surface-3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.filterPillActive {
+  border-color: var(--color-primary);
+}
+
+.tableHead,
+.row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 140px 90px 180px 90px;
+  gap: 10px;
+  align-items: center;
+}
+
+.tableHead {
+  border-bottom: 1px solid var(--border-default);
+  padding: 12px 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+
+.row {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 0;
+  font-size: 12px;
+}
+
+.statusBadge {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 3px 8px;
+  text-transform: lowercase;
+  font-size: 10px;
+}
+
+.historyPanel {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.historyRow {
+  display: grid;
+  grid-template-columns: 120px 100px 90px 190px 40px;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+}
+
+.empty {
+  color: var(--text-muted);
+  padding: 16px 0;
+}

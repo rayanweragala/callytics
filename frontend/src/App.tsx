@@ -19,6 +19,8 @@ import { ContactNumbersPage } from './pages/ContactNumbersPage';
 import { CapturePage } from './pages/CapturePage';
 import { AsteriskLogsPage } from './pages/AsteriskLogsPage';
 import { PreflightPage } from './pages/PreflightPage';
+import { CampaignsPage } from './pages/CampaignsPage';
+import { CampaignDetailPage } from './pages/CampaignDetailPage';
 
 export default function App() {
   return (
@@ -40,6 +42,8 @@ export default function App() {
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/call-logs" element={<CallLogsPage />} />
           <Route path="/preflight" element={<PreflightPage />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/operators" element={<OperatorsPage />} />
           <Route path="/queues" element={<QueuesPage />} />

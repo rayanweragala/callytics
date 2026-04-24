@@ -489,14 +489,20 @@ export function FlowEditorPage() {
       setFlow(response.data);
       if (isDraft) setRootFlowId(response.data.id);
       setCurrentFlowId(response.data.id); setIsDraft(false);
-      const panelWidth = canvasPanelRef.current?.clientWidth || 900;
-      const mappedNodes = mapFlowToNodes(response.data);
-      const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
-      const nextNodes = decorateEditorNodes(arrangedNodes, null);
-      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, handleDeleteEdgeWithUserTracking);
-      setNodes(nextNodes); setEdges(nextEdges); setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+      const shouldRefreshCanvasFromServer = !options?.auto || isDraft;
+      if (shouldRefreshCanvasFromServer) {
+        const panelWidth = canvasPanelRef.current?.clientWidth || 900;
+        const mappedNodes = mapFlowToNodes(response.data);
+        const arrangedNodes = applyAutoLayout(mappedNodes, panelWidth);
+        const nextNodes = decorateEditorNodes(arrangedNodes, null);
+        const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, handleDeleteEdgeWithUserTracking);
+        setNodes(nextNodes); setEdges(nextEdges); setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+        window.setTimeout(() => { void rfInstance?.fitView({ padding: 0.2, duration: 300 }); }, 150);
+      } else {
+        // Preserve current selection/panel state during debounced autosave.
+        setSavedSnapshot(buildEditorSnapshot(response.data, nodes, edges));
+      }
       userEditedRef.current = false;
-      window.setTimeout(() => { void rfInstance?.fitView({ padding: 0.2, duration: 300 }); }, 150);
       if (!options?.auto) {
         setSelectedNodeId(null);
         setSelectedNodeIds([]);

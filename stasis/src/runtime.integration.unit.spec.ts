@@ -160,7 +160,9 @@ describe('runtime integration — menu to submenu hunt', () => {
   it('accepts DTMF during menu prompt and bridges already-up hunt leg, then cleans up answered leg on caller end', async () => {
     const ariClient = createAriClient();
     const answeredLeg = { id: 'hunt-leg-1', state: 'Up', hangup: jest.fn().mockResolvedValue(undefined) };
-    registerHuntWaiterMock.mockReturnValue(Promise.resolve(answeredLeg));
+    registerHuntWaiterMock.mockReturnValue(
+      Promise.resolve({ answered: true, channel: answeredLeg }),
+    );
 
     const session = createSession();
     const channel = {

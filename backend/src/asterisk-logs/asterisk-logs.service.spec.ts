@@ -87,6 +87,23 @@ describe('AsteriskLogsService', () => {
     expect(result.entries[0].message).toBe('Asterisk Ready');
   });
 
+  it('skips non-asterisk lines instead of emitting epoch timestamps', () => {
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue([
+      '[Apr 23 09:19:00] NOTICE[3311] logger.c: Asterisk Ready',
+      'SIP/2.0 200 OK',
+      'Date: Thu, 23 Apr 2026 17:20:37 GMT',
+      'Content-Length:  0',
+    ].join('\n'));
+
+    const result = service.getLogs('all', '', 100, 0);
+
+    expect(result.total).toBe(1);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].timestamp).not.toBe('1970-01-01T00:00:00.000Z');
+    expect(result.entries[0].message).toBe('Asterisk Ready');
+  });
+
   it('returns empty result when log file does not exist', () => {
     existsSyncMock.mockReturnValue(false);
 

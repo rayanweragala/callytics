@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { SipLadderPanel } from '../diagnostics/SipLadderPanel';
 import { getSipVerdict } from '../../lib/sipVerdict';
 import type { SipMessage, SipPacket } from '../../types';
@@ -22,7 +22,6 @@ function verdictIcon(colour: 'green' | 'amber' | 'red'): string {
 
 export function DialogDetail({ selectedCallId, selectedDialogPackets, children }: DialogDetailProps) {
   const [activeTab, setActiveTab] = useState<'headers' | 'ladder'>('headers');
-  const headersTabRef = useRef<HTMLDivElement | null>(null);
 
   const ladderMessages = useMemo<SipMessage[]>(() => selectedDialogPackets.map((packet, index) => {
     const numericId = Number.parseInt(packet.id, 10);
@@ -79,22 +78,10 @@ export function DialogDetail({ selectedCallId, selectedDialogPackets, children }
             Ladder
           </button>
         </div>
-        <button
-          className={styles.exportButton}
-          onClick={() => {
-            const exportButton = headersTabRef.current?.querySelector('button');
-            if (exportButton instanceof HTMLButtonElement) {
-              exportButton.click();
-            }
-          }}
-          type="button"
-        >
-          Export .pcap ↓
-        </button>
       </div>
 
       <div className={styles.tabContent}>
-        <div className={`${styles.tabPane} ${styles.headersTabPane} ${activeTab === 'headers' ? styles.tabPaneActive : ''}`} ref={headersTabRef}>
+        <div className={`${styles.tabPane} ${styles.headersTabPane} ${activeTab === 'headers' ? styles.tabPaneActive : ''}`}>
           {children}
         </div>
         <div className={`${styles.tabPane} ${styles.ladderTabPane} ${activeTab === 'ladder' ? styles.tabPaneActive : ''}`}>

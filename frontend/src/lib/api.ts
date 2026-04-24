@@ -28,6 +28,10 @@ import type {
   TrunkDiagnosticsResult,
   TrunkTestResult,
   PreflightRun,
+  CampaignItem,
+  CampaignContactItem,
+  CampaignContactAttemptItem,
+  CampaignContactsUploadResult,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -435,6 +439,91 @@ export async function importTemplate(id: number): Promise<DetailResponse<{ id: n
   return response.data;
 }
 
+export async function listCampaigns(limit = 25, offset = 0): Promise<{ campaigns: CampaignItem[]; total: number }> {
+  const response = await api.get<{ campaigns: CampaignItem[]; total: number }>('/campaigns', { params: { limit, offset } });
+  return response.data;
+}
+
+export async function getCampaign(id: number): Promise<CampaignItem> {
+  const response = await api.get<CampaignItem>(`/campaigns/${id}`);
+  return response.data;
+}
+
+export async function createCampaign(payload: {
+  name: string;
+  flowId?: number | null;
+  trunkId?: number | null;
+  callerId?: string | null;
+  defaultCountry?: string;
+  scheduledAt?: string | null;
+  maxConcurrent: number;
+  maxRetries: number;
+  retryIntervalMinutes: number;
+}): Promise<CampaignItem> {
+  const response = await api.post<CampaignItem>('/campaigns', payload);
+  return response.data;
+}
+
+export async function updateCampaign(id: number, payload: {
+  name?: string;
+  flowId?: number | null;
+  trunkId?: number | null;
+  callerId?: string | null;
+  defaultCountry?: string;
+  scheduledAt?: string | null;
+  maxConcurrent?: number;
+  maxRetries?: number;
+  retryIntervalMinutes?: number;
+}): Promise<CampaignItem> {
+  const response = await api.patch<CampaignItem>(`/campaigns/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteCampaign(id: number): Promise<{ ok: true }> {
+  const response = await api.delete<{ ok: true }>(`/campaigns/${id}`);
+  return response.data;
+}
+
+export async function scheduleCampaign(id: number): Promise<CampaignItem> {
+  const response = await api.post<CampaignItem>(`/campaigns/${id}/schedule`);
+  return response.data;
+}
+
+export async function stopCampaign(id: number): Promise<CampaignItem> {
+  const response = await api.post<CampaignItem>(`/campaigns/${id}/stop`);
+  return response.data;
+}
+
+export async function uploadCampaignContacts(id: number, file: File): Promise<CampaignContactsUploadResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await api.post<CampaignContactsUploadResult>(`/campaigns/${id}/contacts/upload`, form);
+  return response.data;
+}
+
+export async function listCampaignContacts(id: number, params: { limit?: number; offset?: number; status?: string }): Promise<{ contacts: CampaignContactItem[]; total: number }> {
+  const response = await api.get<{ contacts: CampaignContactItem[]; total: number }>(`/campaigns/${id}/contacts`, { params });
+  return response.data;
+}
+
+export async function listCampaignContactAttempts(campaignId: number, contactId: number): Promise<CampaignContactAttemptItem[]> {
+  const response = await api.get<CampaignContactAttemptItem[]>(`/campaigns/${campaignId}/contacts/${contactId}/attempts`);
+  return response.data;
+}
+
+export async function getCampaignProgress(id: number): Promise<{
+  status: string;
+  totalContacts: number;
+  dialedCount: number;
+  answeredCount: number;
+  failedCount: number;
+  pendingCount: number;
+  activeCallCount: number;
+}> {
+  const response = await api.get(`/campaigns/${id}/progress`);
+  return response.data;
+}
+
 export async function listCallLogs(params: {
   page?: number;
   limit?: number;
@@ -442,6 +531,8 @@ export async function listCallLogs(params: {
   endReason?: string;
   dateFrom?: string;
   dateTo?: string;
+  direction?: string;
+  callLogId?: number;
 }): Promise<PaginatedResponse<CallLogItem>> {
   const response = await api.get<PaginatedResponse<CallLogItem>>('/call-logs', { params });
   return response.data;
@@ -525,6 +616,7 @@ export async function getContactNumbers(page = 1, limit = 10): Promise<Paginated
 export async function createContactNumber(data: {
   label: string;
   number: string;
+  country?: string;
   trunk_id?: number;
   notes?: string;
 }): Promise<DetailResponse<ContactNumber>> {
@@ -535,6 +627,7 @@ export async function createContactNumber(data: {
 export async function updateContactNumber(id: number, data: {
   label?: string;
   number?: string;
+  country?: string;
   trunk_id?: number | null;
   notes?: string;
 }): Promise<DetailResponse<ContactNumber>> {

@@ -24,6 +24,26 @@
   margin: 16px 0 12px;
 }
 
+.filterPills {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filterPill {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  text-transform: lowercase;
+}
+
+.filterPillActive {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .input {
   border: 1px solid var(--border-default);
   border-radius: 8px;
@@ -40,10 +60,10 @@
 .tableHead,
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 90px 110px 170px 170px 120px 48px;
+  grid-template-columns: 1fr 1fr 1fr 1fr 90px 110px 170px 170px 120px 48px;
   align-items: center;
   gap: 14px;
-  min-width: 1120px;
+  min-width: 1240px;
 }
 
 .tableHead {

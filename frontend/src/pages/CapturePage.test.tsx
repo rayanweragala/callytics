@@ -174,7 +174,7 @@ describe('CapturePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /10:00:00.000/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /^Export \.pcap$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^Export \.pcap ↓$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Export this dialog \.pcap$/i }));
 
     await waitFor(() => {
       expect(apiMocks.exportCaptureBulk).toHaveBeenCalled();

@@ -13,8 +13,10 @@ export class CallLogsController {
     @Query('endReason') endReason?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('direction') direction?: string,
+    @Query('callLogId') callLogId?: string,
   ) {
-    return this.callLogsService.list({ page, limit, search, endReason, dateFrom, dateTo });
+    return this.callLogsService.list({ page, limit, search, endReason, dateFrom, dateTo, direction, callLogId });
   }
 
   @Get(':callUuid/trace')

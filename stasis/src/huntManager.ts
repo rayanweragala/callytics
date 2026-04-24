@@ -4,35 +4,36 @@ export interface HuntOutboundChannel {
   state?: string;
 }
 
+export type HuntWaiterResult =
+  | { answered: true; channel: HuntOutboundChannel }
+  | { answered: false; reason: 'failed' | 'destroyed' };
+
 interface HuntWaiter {
-  resolve: (channel: HuntOutboundChannel) => void;
-  reject: (error: Error) => void;
+  resolve: (result: HuntWaiterResult) => void;
 }
 
 const waiters = new Map<string, HuntWaiter>();
 
-export function registerHuntWaiter(token: string): Promise<HuntOutboundChannel> {
-  return new Promise((resolve, reject) => {
-    waiters.set(token, { resolve, reject });
+export function hasHuntWaiter(token: string): boolean {
+  return waiters.has(token);
+}
+
+export function registerHuntWaiter(token: string): Promise<HuntWaiterResult> {
+  return new Promise((resolve) => {
+    waiters.set(token, { resolve });
   });
 }
 
 export function resolveHuntWaiter(token: string, channel: HuntOutboundChannel): void {
   const waiter = waiters.get(token);
-  if (!waiter) {
-    return;
-  }
-
+  if (!waiter) return;
   waiters.delete(token);
-  waiter.resolve(channel);
+  waiter.resolve({ answered: true, channel });
 }
 
-export function rejectHuntWaiter(token: string, error: Error): void {
+export function rejectHuntWaiter(token: string, reason: 'failed' | 'destroyed' = 'failed'): void {
   const waiter = waiters.get(token);
-  if (!waiter) {
-    return;
-  }
-
+  if (!waiter) return;
   waiters.delete(token);
-  waiter.reject(error);
+  waiter.resolve({ answered: false, reason });
 }

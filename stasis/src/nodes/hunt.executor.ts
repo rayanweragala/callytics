@@ -1,8 +1,8 @@
+import { parsePhoneNumber, type CountryCode } from 'libphonenumber-js';
 import { CallSession } from '../callSession';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { FlowNode } from '../flowLoader';
-import { registerHuntWaiter } from '../huntManager';
-import { query } from '../db';
+import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 
 interface HuntExecutorChannel {
   id: string;
@@ -15,7 +15,8 @@ interface AriLike {
   on: (event: string, listener: (event: { channel?: { id?: string; state?: string }; playback?: { id?: string } }) => void) => void;
   removeListener: (event: string, listener: (event: { channel?: { id?: string; state?: string }; playback?: { id?: string } }) => void) => void;
   channels: {
-    originate: (params: { endpoint: string; app: string; appArgs: string; callerId: string; timeout: number }) => Promise<void>;
+    originate: (params: { endpoint: string; app: string; appArgs: string; callerId: string; timeout: number; channelId?: string }) => Promise<void>;
+    hangup: (params: { channelId: string }) => Promise<void>;
   };
   bridges: {
     addChannel: (params: { bridgeId: string; channel: string }) => Promise<void>;
@@ -30,6 +31,18 @@ interface HoldLoopController {
 interface GroupWaitResult {
   status: 'answered' | 'failed' | 'timeout' | 'hangup';
   channelId: string | null;
+}
+
+interface HuntAttemptResult {
+  status: 'answered' | 'timeout' | 'failed' | 'hangup';
+  channel: HuntExecutorChannel | null;
+  attemptChannelId: string;
+}
+
+const activeHuntTokens = new Set<string>();
+
+export function isHuntWaiterActive(token: string): boolean {
+  return activeHuntTokens.has(token);
 }
 
 function getSessionBridgeId(session: CallSession): string | null {
@@ -137,22 +150,86 @@ async function captureOriginatedChannel(
   inboundChannelId: string,
   callerId: string,
   timeoutMs: number,
-): Promise<HuntExecutorChannel | null> {
+): Promise<HuntAttemptResult> {
   const token = `${inboundChannelId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const attemptChannelId = `hunt-leg-${token}-${Date.now()}`;
   const appName = process.env.ARI_APP || 'callytics';
   const waiter = registerHuntWaiter(token);
-  await ariClient.channels.originate({
-    endpoint: destination,
-    app: appName,
-    appArgs: `hunt-outbound,${token}`,
-    callerId,
-    timeout: Math.max(1, Math.ceil(timeoutMs / 1000)),
-  });
+  activeHuntTokens.add(token);
+  let timeoutHandle: NodeJS.Timeout | null = null;
+  let timedOut = false;
+  let inboundTerminated = false;
 
-  return await Promise.race([
-    waiter,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), Math.min(timeoutMs, 5000))),
-  ]);
+  const onInboundTerminal = (event: { channel?: { id?: string } }) => {
+    if (event.channel?.id !== inboundChannelId) {
+      return;
+    }
+    inboundTerminated = true;
+    rejectHuntWaiter(token, 'destroyed');
+  };
+
+  const cleanup = () => {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
+    ariClient.removeListener('StasisEnd', onInboundTerminal);
+    ariClient.removeListener('ChannelDestroyed', onInboundTerminal);
+    activeHuntTokens.delete(token);
+  };
+
+  ariClient.on('StasisEnd', onInboundTerminal);
+  ariClient.on('ChannelDestroyed', onInboundTerminal);
+
+  try {
+    await ariClient.channels.originate({
+      endpoint: destination,
+      app: appName,
+      appArgs: `hunt-outbound,${token}`,
+      callerId,
+      timeout: Math.max(1, Math.ceil(timeoutMs / 1000)),
+      channelId: attemptChannelId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[hunt] originate threw exception destination=${destination}: ${message}`);
+    rejectHuntWaiter(token, 'failed');
+    cleanup();
+    return {
+      status: inboundTerminated ? 'hangup' : 'failed',
+      channel: null,
+      attemptChannelId,
+    };
+  }
+
+  timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    rejectHuntWaiter(token, 'failed');
+  }, timeoutMs);
+
+  const result = await waiter;
+  cleanup();
+  if (inboundTerminated) {
+    return {
+      status: 'hangup',
+      channel: null,
+      attemptChannelId,
+    };
+  }
+
+  if (result.answered) {
+    return {
+      status: 'answered',
+      channel: result.channel,
+      attemptChannelId,
+    };
+  }
+
+  return {
+    status: timedOut ? 'timeout' : 'failed',
+    channel: null,
+    attemptChannelId,
+  };
 }
 
 function waitForFirstAnswerOrAllDone(
@@ -248,6 +325,14 @@ async function hangupChannels(channels: HuntExecutorChannel[], keepChannelId?: s
   );
 }
 
+async function hangupAttemptChannel(ariClient: AriLike, channelId: string): Promise<void> {
+  try {
+    await ariClient.channels.hangup({ channelId });
+  } catch {
+    // Channel might already be gone.
+  }
+}
+
 interface HuntDestinationConfig {
   target_type: 'extension' | 'pstn';
   target_value: string;
@@ -288,8 +373,7 @@ function nextRandomDestination(destinations: HuntDestinationConfig[], lastDestin
   const options = destinations.filter((destination) =>
     !lastDestination
       || destination.target_type !== lastDestination.target_type
-      || destination.target_value !== lastDestination.target_value
-      || destination.trunk_id !== lastDestination.trunk_id,
+      || destination.target_value !== lastDestination.target_value,
   );
   return options[Math.floor(Math.random() * options.length)] || destinations[0];
 }
@@ -299,53 +383,129 @@ function noAnswerResult(config: Record<string, unknown>): string {
   return nodeKey ? `route:${nodeKey}` : 'hangup';
 }
 
-type HuntTrunk = { id: number; username: string };
-
-async function getTrunksById(trunkIds: number[]): Promise<Map<number, HuntTrunk>> {
-  if (!trunkIds.length) {
-    return new Map<number, HuntTrunk>();
+async function fetchContactNumber(contactId: number): Promise<{ number: string; trunkId: number | null } | null> {
+  try {
+    const res = await fetch(`http://localhost:3001/contact-numbers/${contactId}`);
+    if (!res.ok) {
+      return null;
+    }
+    const payload = await res.json() as { data?: { number?: string; trunkId?: number | null }; number?: string; trunkId?: number | null };
+    const contact = payload?.data || payload;
+    return {
+      number: String(contact?.number || '').trim(),
+      trunkId: contact?.trunkId === null || contact?.trunkId === undefined ? null : Number(contact.trunkId),
+    };
+  } catch {
+    return null;
   }
-
-  const rows = await query(
-    'SELECT id, username FROM sip_trunks WHERE id = ANY($1::int[])',
-    [trunkIds],
-  ) as Array<{ id: number; username: string | null }>;
-
-  const trunksById = new Map<number, HuntTrunk>();
-  for (const row of rows) {
-    trunksById.set(row.id, { id: row.id, username: String(row.username || '').trim() });
-  }
-
-  return trunksById;
 }
 
-function resolveHuntDialString(destination: HuntDestinationConfig, trunksById: Map<number, HuntTrunk>): string {
+async function fetchContactNumberByPhone(
+  phoneNumber: string,
+): Promise<{ number: string; trunkId: number | null } | null> {
+  try {
+    const url = new URL('http://localhost:3001/contact-numbers');
+    url.searchParams.set('page', '1');
+    url.searchParams.set('limit', '1000');
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      return null;
+    }
+    const payload = await res.json() as {
+      data?: Array<{ number?: string; trunkId?: number | null }>;
+    };
+    const contact = (payload.data || []).find((item) =>
+      String(item.number || '').trim() === phoneNumber,
+    );
+    if (!contact) {
+      return null;
+    }
+    return {
+      number: String(contact.number || '').trim(),
+      trunkId: contact.trunkId === null || contact.trunkId === undefined
+        ? null
+        : Number(contact.trunkId),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const DEV_FALLBACK_COUNTRY: CountryCode = 'LK';
+const PSTN_TARGET_PATTERN = /^\+?[0-9]{4,20}$/;
+
+function normalizeDialNumber(rawNumber: string): string {
+  let dialNumber = String(rawNumber || '').trim();
+
+  try {
+    let parsed: ReturnType<typeof parsePhoneNumber> | undefined;
+    try {
+      parsed = parsePhoneNumber(dialNumber);
+    } catch {
+      // TODO: derive default country from contact's trunk region/provider metadata instead of hardcoded fallback.
+      parsed = parsePhoneNumber(dialNumber, DEV_FALLBACK_COUNTRY);
+    }
+
+    if (parsed && parsed.isValid()) {
+      dialNumber = parsed.format('E.164');
+    } else {
+      console.warn(`[hunt] could not normalize number ${dialNumber} — dialing as-is`);
+    }
+  } catch {
+    console.warn(`[hunt] number parse failed for ${dialNumber} — dialing as-is`);
+  }
+
+  return dialNumber;
+}
+
+async function resolveHuntDialString(destination: HuntDestinationConfig): Promise<string> {
   if (destination.target_type === 'extension') {
     return `PJSIP/${destination.target_value}`;
   }
 
   if (destination.target_type === 'pstn') {
-    const trunkId = Number(destination.trunk_id || 0);
-    if (!Number.isInteger(trunkId) || trunkId <= 0) return '';
-    const trunk = trunksById.get(trunkId);
-    if (!trunk || !trunk.username) return '';
-    return `PJSIP/${destination.target_value}@${trunk.username}`;
+    if (destination.trunk_id && PSTN_TARGET_PATTERN.test(destination.target_value)) {
+      const dialNumber = normalizeDialNumber(destination.target_value);
+      return `PJSIP/${dialNumber}@trunk-${destination.trunk_id}`;
+    }
+
+    if (PSTN_TARGET_PATTERN.test(destination.target_value)) {
+      const contactByNumber = await fetchContactNumberByPhone(destination.target_value);
+      if (contactByNumber?.trunkId) {
+        const dialNumber = normalizeDialNumber(contactByNumber.number);
+        return `PJSIP/${dialNumber}@trunk-${contactByNumber.trunkId}`;
+      }
+    }
+
+    // Legacy fallback: target_value as contact id.
+    const contactId = parseInt(destination.target_value, 10);
+    if (isNaN(contactId)) {
+      console.warn(`[hunt] target_value "${destination.target_value}" is not a valid contact id — skipping`);
+      return '';
+    }
+
+    const contact = await fetchContactNumber(contactId);
+    if (!contact) {
+      console.warn(`[hunt] contact id=${contactId} not found — skipping`);
+      return '';
+    }
+
+    if (!contact.trunkId) {
+      console.warn(`[hunt] contact id=${contactId} has no trunk configured — skipping`);
+      return '';
+    }
+
+    const dialNumber = normalizeDialNumber(contact.number);
+    return `PJSIP/${dialNumber}@trunk-${contact.trunkId}`;
   }
 
   return '';
 }
 
 async function resolveDestinations(destinations: HuntDestinationConfig[]): Promise<Array<{ raw: HuntDestinationConfig; dial: string }>> {
-  const trunkIds = Array.from(
-    new Set(
-      destinations
-        .filter((destination) => destination.target_type === 'pstn')
-        .map((destination) => Number(destination.trunk_id || 0))
-        .filter((trunkId) => Number.isInteger(trunkId) && trunkId > 0),
-    ),
+  const resolved = await Promise.all(
+    destinations.map(async (raw) => ({ raw, dial: await resolveHuntDialString(raw) })),
   );
-  const trunksById = await getTrunksById(trunkIds);
-  const resolved = destinations.map((raw) => ({ raw, dial: resolveHuntDialString(raw, trunksById) }));
   return resolved.filter((item) => Boolean(item.dial));
 }
 
@@ -438,7 +598,7 @@ export async function executeHunt(
       );
 
       pendingChannels = createResults
-        .flatMap((result) => (result.status === 'fulfilled' && result.value ? [result.value] : []));
+        .flatMap((result) => (result.status === 'fulfilled' && result.value.channel ? [result.value.channel] : []));
 
       if (pendingChannels.length === 0) {
         await stopHold();
@@ -493,35 +653,44 @@ export async function executeHunt(
         : destinationConfigs[sequentialIndex % destinationConfigs.length] || { target_type: 'extension', target_value: '' };
       sequentialIndex += 1;
       lastDestination = destinationEntry;
-      const destination = destinations.find((item) => item.raw.target_type === destinationEntry.target_type && item.raw.target_value === destinationEntry.target_value && item.raw.trunk_id === destinationEntry.trunk_id)?.dial || '';
+      const destination = destinations.find((item) => item.raw.target_type === destinationEntry.target_type && item.raw.target_value === destinationEntry.target_value)?.dial || '';
       if (!destination) {
         continue;
       }
       const dialTimeoutMs = Math.min(attemptTimeoutMs, remainingMs);
 
       startHold();
+      console.log(`[hunt] dialing ${destination}`);
       console.log(`[hunt] originate strategy=${strategy} destination=${destination} attempt_timeout_ms=${dialTimeoutMs} remaining_ms=${remainingMs}`);
 
-      let outboundChannel: HuntExecutorChannel | null = null;
+      let attemptResult: HuntAttemptResult | null = null;
       try {
-        outboundChannel = await captureOriginatedChannel(client, destination, channel.id, session.callerNumber, dialTimeoutMs);
+        attemptResult = await captureOriginatedChannel(client, destination, channel.id, session.callerNumber, dialTimeoutMs);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.log(`[hunt] failed attempt destination=${destination} error=${message}`);
-        outboundChannel = null;
+        attemptResult = null;
       }
 
-      if (!outboundChannel) {
+      if (!attemptResult || !attemptResult.channel || attemptResult.status !== 'answered') {
+        const attemptChannelId = attemptResult?.attemptChannelId;
+        await stopHold();
+        if (attemptChannelId) {
+          await hangupAttemptChannel(client, attemptChannelId);
+        }
+        if (attemptResult?.status === 'hangup' || inboundEnded) {
+          return 'hangup';
+        }
         console.log(`[hunt] originate failed destination=${destination}`);
       } else {
-        pendingChannels = [outboundChannel];
+        pendingChannels = [attemptResult.channel];
         console.log(
-          `[hunt] outbound leg entered stasis destination=${destination} channel=${outboundChannel.id} state=${String(outboundChannel.state || 'unknown')}`,
+          `[hunt] outbound leg entered stasis destination=${destination} channel=${attemptResult.channel.id} state=${String(attemptResult.channel.state || 'unknown')}`,
         );
         // In this call flow, outbound legs only enter the hunt-outbound Stasis app once the
         // destination has effectively answered. Bridge immediately to avoid missing late/absent
         // ChannelStateChange events and trapping caller on hold.
-        return await finalizeAnswer(outboundChannel);
+        return await finalizeAnswer(attemptResult.channel);
       }
 
       const remainingAfterAttempt = totalTimeoutMs - (Date.now() - startTime);

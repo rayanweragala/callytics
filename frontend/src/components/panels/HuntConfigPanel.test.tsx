@@ -27,6 +27,7 @@ const extensionOptions = [
   { value: '102', label: '102 — Agent 102' },
 ];
 const contactOptions = [{ value: '+947****8762', label: 'Mobile — +947****8762' }];
+const contacts = [{ id: 1, label: 'Mobile', number: '+947****8762', trunkId: 3, notes: '', createdAt: '' }];
 
 const baseConfig = {
   strategy: 'sequential',
@@ -51,6 +52,7 @@ describe('HuntConfigPanel coverage boost', () => {
         nodeOptions={nodeOptions}
         extensionOptions={extensionOptions}
         contactOptions={contactOptions}
+        contacts={contacts}
         onConfigReplace={onConfigReplace}
       />
     );
@@ -79,6 +81,7 @@ describe('HuntConfigPanel coverage boost', () => {
           nodeOptions={nodeOptions}
           extensionOptions={extensionOptions}
           contactOptions={contactOptions}
+          contacts={contacts}
           onConfigReplace={handleConfigReplace}
         />
       );

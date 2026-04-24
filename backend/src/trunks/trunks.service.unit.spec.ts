@@ -81,6 +81,30 @@ describe('TrunksService', () => {
     it('should throw BadRequestException if name is missing', async () => {
       await expect(service.create({ name: '', host: 'localhost' } as any)).rejects.toThrow(BadRequestException);
     });
+
+    it('from_user with spaces gets spaces stripped before save', async () => {
+      const dto = { name: 'Trunk 2', host: 'sip.example.com', providerPreset: 'generic', fromUser: ' +1 415 555 0100 ' };
+      const entity = {
+        id: 2,
+        name: 'Trunk 2',
+        host: 'sip.example.com',
+        providerPreset: 'generic',
+        fromUser: '+14155550100',
+        port: 5060,
+        enabled: true,
+        createdAt: new Date(),
+      };
+      trunksRepo.create.mockReturnValue(entity);
+      trunksRepo.save.mockResolvedValue(entity);
+
+      await service.create(dto as any);
+
+      expect(trunksRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromUser: '+14155550100',
+        }),
+      );
+    });
   });
 
   describe('update', () => {

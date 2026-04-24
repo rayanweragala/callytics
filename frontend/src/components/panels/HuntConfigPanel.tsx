@@ -1,6 +1,6 @@
 import { SearchableSelect, type SearchableSelectOption } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
-import type { AudioFileItem, HuntDestination } from '../../types';
+import type { AudioFileItem, ContactNumber, HuntDestination } from '../../types';
 import styles from './HuntConfigPanel.module.css';
 
 interface HuntConfigPanelProps {
@@ -11,6 +11,7 @@ interface HuntConfigPanelProps {
   nodeOptions: SearchableSelectOption[];
   extensionOptions: SearchableSelectOption[];
   contactOptions: SearchableSelectOption[];
+  contacts: ContactNumber[];
   onConfigReplace: (nextConfig: Record<string, unknown>) => void;
 }
 
@@ -51,6 +52,7 @@ export function HuntConfigPanel({
   nodeOptions,
   extensionOptions,
   contactOptions,
+  contacts,
   onConfigReplace,
 }: HuntConfigPanelProps) {
   const strategy = String(config.strategy || 'sequential');
@@ -133,7 +135,15 @@ export function HuntConfigPanel({
                     <SearchableSelect
                       options={contactOptions}
                       value={destination.target_value || null}
-                      onChange={(value) => updateDestination(index, { ...destination, target_type: 'pstn', target_value: value || '', trunk_id: undefined })}
+                      onChange={(value) => {
+                        const matchedContact = contacts.find((item) => item.number === value);
+                        updateDestination(index, {
+                          ...destination,
+                          target_type: 'pstn',
+                          target_value: value || '',
+                          trunk_id: matchedContact?.trunkId ? Number(matchedContact.trunkId) : undefined,
+                        });
+                      }}
                       placeholder="select contact"
                     />
                   )}

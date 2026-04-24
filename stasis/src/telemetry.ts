@@ -36,6 +36,7 @@ export interface CallEvent {
   timestamp: string;
   type: 'started' | 'failed' | 'ended';
   caller: string;
+  direction?: 'inbound' | 'outbound';
   destination?: string;
   flowId?: number;
   flowVersionId?: number;

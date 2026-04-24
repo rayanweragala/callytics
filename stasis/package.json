@@ -15,6 +15,7 @@
     "ari-client": "^2.2.0",
     "bcrypt": "^6.0.0",
     "dotenv": "^16.0.0",
+    "libphonenumber-js": "^1.12.42",
     "pg": "^8.11.0",
     "redis": "^4.7.0"
   },
