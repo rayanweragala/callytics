@@ -107,18 +107,20 @@ export function QueuesPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   const load = useCallback(async (nextPage = page) => {
-    try {
-      const [qRes, oRes, aRes] = await Promise.all([
-        listQueues(nextPage, PAGE_LIMIT),
-        listOperators(1, 200),
-        listAllAudio(),
-      ]);
-      setQueues(qRes.data);
-      setTotal(qRes.total);
-      setOperators(oRes.data);
-      setAudioItems(aRes.data);
-    } catch {
-      // Leave stale data
+    const [qRes, oRes, aRes] = await Promise.allSettled([
+      listQueues(nextPage, PAGE_LIMIT),
+      listOperators(1, 200),
+      listAllAudio(),
+    ]);
+    if (qRes.status === 'fulfilled') {
+      setQueues(qRes.value.data);
+      setTotal(qRes.value.total);
+    }
+    if (oRes.status === 'fulfilled') {
+      setOperators(oRes.value.data);
+    }
+    if (aRes.status === 'fulfilled') {
+      setAudioItems(aRes.value.data);
     }
   }, [page]);
 

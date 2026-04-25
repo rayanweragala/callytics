@@ -1,5 +1,5 @@
 import type { Edge, Node } from 'reactflow';
-import type { AudioFileItem, BuilderNodeType, ContactNumber, ExtensionItem, FlowNodeData, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
+import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
@@ -60,6 +60,7 @@ export interface NodeConfigPanelProps {
   flowDefaultTimeout?: number;
   queueItems?: QueueItem[];
   extensions?: ExtensionItem[];
+  operators?: OperatorItem[];
   contactNumbers?: ContactNumber[];
   trunks?: SipTrunkItem[];
   saveAttempted?: boolean;
@@ -81,6 +82,7 @@ export function NodeConfigPanel({
   flowDefaultTimeout = 10000,
   queueItems,
   extensions = [],
+  operators = [],
   contactNumbers = [],
   trunks = [],
   saveAttempted = false,
@@ -101,6 +103,10 @@ export function NodeConfigPanel({
     { value: 'pstn', label: 'PSTN Number' },
     { value: 'sip_uri', label: 'SIP URI' },
   ];
+  const callbackDestinationTypeOptions = [
+    { value: 'extension', label: 'Extension' },
+    { value: 'pstn', label: 'PSTN Number' },
+  ];
   const conditionOptions = conditionValues.map((value) => ({ value, label: value }));
   const selectedVoicemailAudio = selectedConfig.prompt_audio_file_id
     ? audioItems.find((item) => item.id === Number(selectedConfig.prompt_audio_file_id))
@@ -110,6 +116,8 @@ export function NodeConfigPanel({
   const getDigitsAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
   const transferWaitingAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.waiting_sound_id));
   const transferNoAnswerAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.no_answer_sound_id));
+  const callbackDtmfPromptAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.dtmf_prompt_audio_id));
+  const callbackConfirmationAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.confirmation_audio_id));
 
   const edgeConditionOptions = (() => {
     if (!selectedEdge || !selectedEdgeSourceNode) return [] as Array<{ value: string; label: string }>;
@@ -463,6 +471,155 @@ export function NodeConfigPanel({
               </div>
             </>
           ) : null}
+
+          {selectedNode.data.type === 'callback' ? (() => {
+            const callbackConfig = selectedConfig as CallbackNodeConfig & Record<string, unknown>;
+            const numberSource = callbackConfig.number_source || 'ani';
+            const destinationType = callbackConfig.destination_type === 'pstn' ? 'pstn' : 'extension';
+            return (
+              <>
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>number source</span>
+                  <SearchableSelect
+                    options={[
+                      { value: 'ani', label: 'ANI' },
+                      { value: 'dtmf', label: 'DTMF' },
+                    ]}
+                    value={numberSource}
+                    onChange={(value) => {
+                      const nextSource = value === 'dtmf' ? 'dtmf' : 'ani';
+                      onConfigValueChange('number_source', nextSource);
+                      if (
+                        nextSource === 'dtmf'
+                        && (callbackConfig.timeout_ms === null || callbackConfig.timeout_ms === undefined)
+                      ) {
+                        onConfigValueChange('timeout_ms', 20000);
+                      }
+                    }}
+                    placeholder="select source"
+                  />
+                </label>
+                {numberSource === 'dtmf' ? (
+                  <>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>dtmf prompt audio</span>
+                      <SearchableSelect
+                        options={audioOptions}
+                        value={callbackConfig.dtmf_prompt_audio_id ? String(callbackConfig.dtmf_prompt_audio_id) : null}
+                        onChange={(value) => onConfigValueChange('dtmf_prompt_audio_id', value ? Number(value) : null)}
+                        placeholder="optional dtmf prompt"
+                      />
+                    </label>
+                    {(() => {
+                      const srcPath = callbackDtmfPromptAudioItem?.previewUrl || callbackDtmfPromptAudioItem?.originalUrl;
+                      return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`callback-dtmf-${callbackDtmfPromptAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                    })()}
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>dtmf max digits</span>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={String(callbackConfig.dtmf_max_digits || 11)}
+                        onChange={(event) => onConfigValueChange('dtmf_max_digits', Number.parseInt(event.target.value, 10) || 11)}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>timeout_ms</span>
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min={1000}
+                        max={120000}
+                        step={1000}
+                        value={String(callbackConfig.timeout_ms ?? 20000)}
+                        onChange={(event) => onConfigValueChange('timeout_ms', event.target.value ? Number.parseInt(event.target.value, 10) : 20000)}
+                      />
+                      {saveAttempted && callbackConfig.timeout_ms !== null && callbackConfig.timeout_ms !== undefined && (Number(callbackConfig.timeout_ms) < 1000 || Number(callbackConfig.timeout_ms) > 120000) ? (
+                        <span className={styles.inlineError}>Timeout must be between 1000 and 120000 ms</span>
+                      ) : null}
+                    </label>
+                  </>
+                ) : null}
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>destination type</span>
+                  <SearchableSelect
+                    options={callbackDestinationTypeOptions}
+                    value={destinationType}
+                    onChange={(value) => {
+                      const resolvedType = value === 'pstn' ? 'pstn' : 'extension';
+                      onConfigValueChange('destination_type', resolvedType);
+                      onConfigValueChange('destination_value', null);
+                      onConfigValueChange('destination_trunk_id', null);
+                      onConfigValueChange('operator_id', null);
+                    }}
+                    placeholder="select destination type"
+                  />
+                </label>
+                {destinationType === 'extension' ? (
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>extension</span>
+                    <SearchableSelect
+                      options={extensionOptions}
+                      value={callbackConfig.destination_value ? String(callbackConfig.destination_value) : null}
+                      onChange={(value) => {
+                        onConfigValueChange('destination_type', 'extension');
+                        onConfigValueChange('destination_value', value || null);
+                        onConfigValueChange('destination_trunk_id', null);
+                        onConfigValueChange('operator_id', null);
+                      }}
+                      placeholder="select extension"
+                    />
+                  </label>
+                ) : null}
+                {destinationType === 'pstn' ? (
+                  <>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>pstn number</span>
+                      <SearchableSelect
+                        options={contactOptions}
+                        value={callbackConfig.destination_value ? String(callbackConfig.destination_value) : null}
+                        onChange={(value) => {
+                          onConfigValueChange('destination_type', 'pstn');
+                          onConfigValueChange('destination_value', value || null);
+                          const matchedContact = contactNumbers.find((item) => item.number === value);
+                          onConfigValueChange('destination_trunk_id', matchedContact?.trunkId ? Number(matchedContact.trunkId) : null);
+                          onConfigValueChange('operator_id', null);
+                        }}
+                        placeholder="select PSTN contact"
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>trunk</span>
+                      <SearchableSelect
+                        options={trunkOptions}
+                        value={callbackConfig.destination_trunk_id ? String(callbackConfig.destination_trunk_id) : null}
+                        onChange={(value) => onConfigValueChange('destination_trunk_id', value ? Number(value) : null)}
+                        placeholder="select trunk"
+                      />
+                    </label>
+                  </>
+                ) : null}
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>confirmation audio</span>
+                  <SearchableSelect
+                    options={audioOptions}
+                    value={callbackConfig.confirmation_audio_id ? String(callbackConfig.confirmation_audio_id) : null}
+                    onChange={(value) => onConfigValueChange('confirmation_audio_id', value ? Number(value) : null)}
+                    placeholder="select confirmation audio"
+                  />
+                  {saveAttempted && Number(callbackConfig.confirmation_audio_id || 0) <= 0 ? (
+                    <span className={styles.inlineError}>Confirmation audio is required</span>
+                  ) : null}
+                </label>
+                {(() => {
+                  const srcPath = callbackConfirmationAudioItem?.previewUrl || callbackConfirmationAudioItem?.originalUrl;
+                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`callback-confirm-${callbackConfirmationAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                })()}
+              </>
+            );
+          })() : null}
 
           {selectedNode.data.type === 'voicemail' ? (
             <>

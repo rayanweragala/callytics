@@ -2,20 +2,21 @@ import { formatUptime } from '../lib/time';
 import styles from './StatBar.module.css';
 
 interface StatBarProps {
-  metrics: {
+  metrics?: {
     activeCalls: number;
     registeredEndpoints: number;
     flows: number;
     uptimeSeconds: number;
   };
+  cells?: Array<{ label: string; value: string }>;
 }
 
-export function StatBar({ metrics }: StatBarProps) {
-  const cells = [
-    { label: 'ACTIVE CALLS', value: String(metrics.activeCalls) },
-    { label: 'REGISTERED ENDPOINTS', value: String(metrics.registeredEndpoints) },
-    { label: 'FLOWS', value: String(metrics.flows) },
-    { label: 'UPTIME', value: formatUptime(metrics.uptimeSeconds) },
+export function StatBar({ metrics, cells: customCells }: StatBarProps) {
+  const cells = customCells || [
+    { label: 'ACTIVE CALLS', value: String(metrics?.activeCalls ?? 0) },
+    { label: 'REGISTERED ENDPOINTS', value: String(metrics?.registeredEndpoints ?? 0) },
+    { label: 'FLOWS', value: String(metrics?.flows ?? 0) },
+    { label: 'UPTIME', value: formatUptime(metrics?.uptimeSeconds ?? 0) },
   ];
 
   return (

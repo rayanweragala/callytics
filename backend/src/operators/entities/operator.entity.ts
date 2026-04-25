@@ -17,6 +17,12 @@ export class OperatorEntity {
   @Column({ name: 'contact_number_id', type: 'integer', nullable: true })
   contactNumberId!: number | null;
 
+  @Column({ name: 'callback_number', type: 'text', nullable: true })
+  callbackNumber!: string | null;
+
+  @Column({ name: 'callback_trunk_id', type: 'integer', nullable: true })
+  callbackTrunkId!: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

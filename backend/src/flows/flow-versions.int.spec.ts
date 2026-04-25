@@ -14,6 +14,29 @@ function createFlowPayload(name = 'Test Flow') {
   };
 }
 
+function createMenuFlowPayload(name = 'Menu Flow') {
+  return {
+    name,
+    description: 'Integration test flow with menu group',
+    nodes: [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      {
+        nodeKey: 'menu-1',
+        type: 'menu',
+        label: 'Main Menu',
+        positionX: 120,
+        positionY: 0,
+        config: {
+          timeout_ms: 5000,
+          branches: ['1', 'timeout', 'invalid'],
+          prompt_audio_file_id: 1,
+        },
+      },
+    ],
+    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null }],
+  };
+}
+
 describe('Flow Versions API', () => {
   afterAll(async () => {
     await closeApp();
@@ -163,6 +186,73 @@ describe('Flow Versions API', () => {
     expect(fetched.body.data.nodes).toEqual(expect.arrayContaining([
       expect.objectContaining({ nodeKey: 'start' }),
       expect.objectContaining({ nodeKey: 'hangup' }),
+    ]));
+  });
+
+  it('restoring root version also rolls subflow current version back to snapshot state', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createMenuFlowPayload('Root With Subflow'));
+    expect(created.status).toBe(201);
+
+    const rootFlowId = created.body.data.id as number;
+    const menuNode = created.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-1');
+    const subflowId = Number(menuNode?.subflowId || 0);
+    expect(subflowId).toBeGreaterThan(0);
+
+    const subflowFetched = await request(app.getHttpServer()).get(`/flows/${subflowId}`);
+    expect(subflowFetched.status).toBe(200);
+
+    const updateSubflowToA = await request(app.getHttpServer())
+      .put(`/flows/${subflowId}`)
+      .send({
+        name: subflowFetched.body.data.name,
+        description: 'A',
+        slug: subflowFetched.body.data.slug,
+        parentFlowId: subflowFetched.body.data.parentFlowId,
+        parentNodeKey: subflowFetched.body.data.parentNodeKey,
+        nodes: [
+          { nodeKey: 'start', type: 'start', label: 'Start A', positionX: 0, positionY: 0, config: {} },
+          { nodeKey: 'hangup', type: 'hangup', label: 'Hangup A', positionX: 200, positionY: 0, config: {} },
+        ],
+        edges: [{ sourceNodeKey: 'start', targetNodeKey: 'hangup', branchKey: 'default', condition: null }],
+      });
+    expect(updateSubflowToA.status).toBe(200);
+
+    const versionsAfterA = await request(app.getHttpServer()).get(`/flows/${rootFlowId}/versions`);
+    expect(versionsAfterA.status).toBe(200);
+    const rootVersionAfterA = versionsAfterA.body.data.find((item: { versionNum: number }) => item.versionNum === 2);
+    expect(rootVersionAfterA).toBeDefined();
+
+    const updateSubflowToB = await request(app.getHttpServer())
+      .put(`/flows/${subflowId}`)
+      .send({
+        name: subflowFetched.body.data.name,
+        description: 'B',
+        slug: subflowFetched.body.data.slug,
+        parentFlowId: subflowFetched.body.data.parentFlowId,
+        parentNodeKey: subflowFetched.body.data.parentNodeKey,
+        nodes: [
+          { nodeKey: 'start', type: 'start', label: 'Start B', positionX: 0, positionY: 0, config: {} },
+          { nodeKey: 'hangup', type: 'hangup', label: 'Hangup B', positionX: 200, positionY: 0, config: {} },
+        ],
+        edges: [{ sourceNodeKey: 'start', targetNodeKey: 'hangup', branchKey: 'default', condition: null }],
+      });
+    expect(updateSubflowToB.status).toBe(200);
+
+    const restore = await request(app.getHttpServer())
+      .post(`/flows/${rootFlowId}/versions/${rootVersionAfterA.id}/restore`)
+      .send({});
+    expect(restore.status).toBe(201);
+
+    const subflowAfterRestore = await request(app.getHttpServer()).get(`/flows/${subflowId}`);
+    expect(subflowAfterRestore.status).toBe(200);
+    expect(subflowAfterRestore.body.data.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nodeKey: 'start', label: 'Start A' }),
+      expect.objectContaining({ nodeKey: 'hangup', label: 'Hangup A' }),
+    ]));
+    expect(subflowAfterRestore.body.data.nodes).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: 'Start B' }),
+      expect.objectContaining({ label: 'Hangup B' }),
     ]));
   });
 

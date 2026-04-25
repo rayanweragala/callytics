@@ -132,4 +132,32 @@ describe('NodeConfigPanel', () => {
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
     expect(screen.getByText('prompt audio')).toBeInTheDocument();
   });
+
+  it('callback destination labels follow destination type', () => {
+    const extensionNode = mockNode('callback', { destination_type: 'extension', destination_value: null });
+    const { rerender } = render(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedNode={extensionNode}
+        extensions={[{ id: 1, username: '2001', password: 'x', displayName: 'Desk 2001', transportType: 'sip', createdAt: '2024-01-01' }]}
+        contactNumbers={[{ id: 1, label: 'Main PSTN', number: '+94112223344', trunkId: 2, createdAt: '2024-01-01' }]}
+      />,
+    );
+
+    expect(screen.getByText('destination type')).toBeInTheDocument();
+    expect(screen.getByText('extension')).toBeInTheDocument();
+    expect(screen.queryByText('pstn number')).not.toBeInTheDocument();
+
+    const pstnNode = mockNode('callback', { destination_type: 'pstn', destination_value: null });
+    rerender(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedNode={pstnNode}
+        extensions={[{ id: 1, username: '2001', password: 'x', displayName: 'Desk 2001', transportType: 'sip', createdAt: '2024-01-01' }]}
+        contactNumbers={[{ id: 1, label: 'Main PSTN', number: '+94112223344', trunkId: 2, createdAt: '2024-01-01' }]}
+      />,
+    );
+
+    expect(screen.getByText('pstn number')).toBeInTheDocument();
+  });
 });

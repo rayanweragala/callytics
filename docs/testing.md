@@ -35,6 +35,30 @@ npm run test --workspace stasis -- src/trunk-test.util.unit.spec.ts
 npm run test --workspace frontend -- src/lib/api.test.ts src/pages/TrunksPage.test.tsx
 ```
 
+## Phase 28 callback node test checklist
+
+### Flow builder callback node
+- Add a `callback` node in Flow Builder and configure `number_source=ani`.
+- Set required `confirmation_audio_id`, save flow, and place a test inbound call.
+- Verify call hangs up after confirmation playback and callback record is created with `status=pending`.
+
+### DTMF capture mode
+- Set `number_source=dtmf` with `dtmf_prompt_audio_id` and `dtmf_max_digits`.
+- Call flow and enter digits before timeout.
+- Verify callback record stores normalized customer number and `status=pending`.
+- Repeat without entering digits for 10s.
+- Verify callback record is created with `status=failed` and `fail_reason=dtmf_timeout`.
+
+### Callback execution from UI
+- Open `Callbacks` page and confirm pending row appears.
+- Click `Call Now`.
+- Verify status progression: `dialing_operator` -> `dialing_customer` -> `bridged` -> `completed` (or `failed` with reason).
+- Click `Cancel` on a pending row and confirm inline confirmation updates row to `cancelled`.
+
+### Call log verification
+- For callback capture call, verify inbound call logs still show flow path including callback node.
+- For execute flow, verify operator-first originate then customer originate, then bridge and completion status update.
+
 ## Phase 23 test files
 
 stasis/src/lib/mosScore.test.ts

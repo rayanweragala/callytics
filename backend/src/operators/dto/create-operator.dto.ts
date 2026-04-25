@@ -1,8 +1,7 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateOperatorDto {
   @IsString()
-  @IsNotEmpty()
   name!: string;
 
   @IsOptional()
@@ -17,4 +16,12 @@ export class CreateOperatorDto {
   @IsOptional()
   @IsInt()
   contact_number_id?: number;
+
+  @IsOptional()
+  @IsString()
+  callback_number?: string;
+
+  @IsOptional()
+  @IsInt()
+  callback_trunk_id?: number;
 }

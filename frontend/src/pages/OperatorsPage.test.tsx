@@ -8,6 +8,7 @@ vi.mock('../lib/api', () => ({
   listOperators: vi.fn(),
   listExtensions: vi.fn(),
   getContactNumbers: vi.fn(),
+  listTrunks: vi.fn(),
   createOperator: vi.fn(),
   deleteOperator: vi.fn(),
   updateOperator: vi.fn(),
@@ -23,6 +24,10 @@ describe('OperatorsPage', () => {
     });
     (api.getContactNumbers as any).mockResolvedValue({
       data: [{ id: 201, label: 'Owner Mobile', number: '+94770000000', trunkId: null, notes: null, createdAt: new Date().toISOString() }],
+      total: 1,
+    });
+    (api.listTrunks as any).mockResolvedValue({
+      data: [{ id: 1, name: 'Main Trunk', providerPreset: 'generic', host: '', port: 5060, username: null, password: null, fromDomain: null, fromUser: null, enabled: true, createdAt: new Date().toISOString() }],
       total: 1,
     });
     (api.createOperator as any).mockResolvedValue({
@@ -84,11 +89,11 @@ describe('OperatorsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^add operator$/i }));
 
     await waitFor(() => {
-      expect(api.createOperator).toHaveBeenCalledWith({
+      expect(api.createOperator).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Extension Only',
         extension_id: 101,
         contact_number_id: undefined,
-      });
+      }));
     });
   });
 
@@ -102,11 +107,11 @@ describe('OperatorsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^add operator$/i }));
 
     await waitFor(() => {
-      expect(api.createOperator).toHaveBeenCalledWith({
+      expect(api.createOperator).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Contact Only',
         extension_id: undefined,
         contact_number_id: 201,
-      });
+      }));
     });
   });
 });

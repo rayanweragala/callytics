@@ -10,11 +10,12 @@ import {
   getContactNumbers,
   listExtensions,
   listOperators,
+  listTrunks,
   updateOperator,
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
-import type { ContactNumber, ExtensionItem, OperatorItem } from '../types';
+import type { ContactNumber, ExtensionItem, OperatorItem, SipTrunkItem } from '../types';
 import styles from './OperatorsPage.module.css';
 
 const OPERATOR_DESTINATION_REQUIRED = 'An operator must have at least an extension or a PSTN contact assigned.';
@@ -34,10 +35,12 @@ interface OperatorFormState {
   name: string;
   extensionId: string;
   contactNumberId: string;
+  callbackNumber: string;
+  callbackTrunkId: string;
   pin: string;
 }
 
-const emptyForm: OperatorFormState = { name: '', extensionId: '', contactNumberId: '', pin: '' };
+const emptyForm: OperatorFormState = { name: '', extensionId: '', contactNumberId: '', callbackNumber: '', callbackTrunkId: '', pin: '' };
 
 export function OperatorsPage() {
   const [operators, setOperators] = useState<OperatorItem[]>([]);
@@ -45,6 +48,7 @@ export function OperatorsPage() {
   const [newOperatorPin, setNewOperatorPin] = useState<string | null>(null);
   const [extensions, setExtensions] = useState<ExtensionItem[]>([]);
   const [contactNumbers, setContactNumbers] = useState<ContactNumber[]>([]);
+  const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -70,15 +74,17 @@ export function OperatorsPage() {
 
   const load = useCallback(async (nextPage = page) => {
     try {
-      const [opRes, extRes, contactsRes] = await Promise.all([
+      const [opRes, extRes, contactsRes, trunksRes] = await Promise.all([
         listOperators(nextPage, PAGE_LIMIT),
         listExtensions(200, 0),
         getContactNumbers(1, 200),
+        listTrunks(200, 0),
       ]);
       setOperators(opRes.data);
       setTotal(opRes.total);
       setExtensions(extRes.data);
       setContactNumbers(contactsRes.data);
+      setTrunks(trunksRes.data);
     } catch {
       // keep stale data
     }
@@ -103,6 +109,10 @@ export function OperatorsPage() {
     value: String(item.id),
     label: `${item.label} — ${item.number}`,
   }));
+  const trunkOptions = trunks.map((item) => ({
+    value: String(item.id),
+    label: item.name,
+  }));
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -122,6 +132,8 @@ export function OperatorsPage() {
         name,
         extension_id: createForm.extensionId ? Number(createForm.extensionId) : undefined,
         contact_number_id: createForm.contactNumberId ? Number(createForm.contactNumberId) : undefined,
+        callback_number: createForm.callbackNumber.trim() || undefined,
+        callback_trunk_id: createForm.callbackTrunkId ? Number(createForm.callbackTrunkId) : undefined,
         pin: createForm.pin.trim() || undefined,
       });
       const created = res.data;
@@ -146,6 +158,8 @@ export function OperatorsPage() {
       name: op.name,
       extensionId: op.extension?.id ? String(op.extension.id) : '',
       contactNumberId: op.contactNumber?.id ? String(op.contactNumber.id) : '',
+      callbackNumber: op.callbackNumber || '',
+      callbackTrunkId: op.callbackTrunkId ? String(op.callbackTrunkId) : '',
       pin: '',
     });
   };
@@ -164,6 +178,8 @@ export function OperatorsPage() {
         name: editForm.name.trim(),
         extension_id: editForm.extensionId ? Number(editForm.extensionId) : undefined,
         contact_number_id: editForm.contactNumberId ? Number(editForm.contactNumberId) : undefined,
+        callback_number: editForm.callbackNumber.trim() || undefined,
+        callback_trunk_id: editForm.callbackTrunkId ? Number(editForm.callbackTrunkId) : undefined,
         pin: editForm.pin.trim() || undefined,
       });
       await load(page);
@@ -272,6 +288,25 @@ export function OperatorsPage() {
                   disabled={creating}
                 />
                 <span className={styles.inlineHint}>Optional — a random PIN will be generated if omitted.</span>
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Callback Number (PSTN)</span>
+                <input
+                  className={styles.input}
+                  placeholder="+94771234567"
+                  value={createForm.callbackNumber}
+                  onChange={(e) => { showError(null); setCreateForm((f) => ({ ...f, callbackNumber: e.target.value })); }}
+                  disabled={creating}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Callback Trunk</span>
+                <SearchableSelect
+                  options={trunkOptions}
+                  value={createForm.callbackTrunkId || null}
+                  onChange={(v) => { showError(null); setCreateForm((f) => ({ ...f, callbackTrunkId: v || '' })); }}
+                  placeholder="No callback trunk"
+                />
               </label>
               <div className={styles.formActions}>
                 <button className={styles.primaryButton} type="submit" disabled={creating}>
@@ -409,6 +444,25 @@ export function OperatorsPage() {
                           disabled={saving}
                         />
                         <span className={styles.inlineHint}>{op.hasPIN ? 'Leave blank to keep the current PIN hash.' : 'Optional — a random PIN will be generated if omitted.'}</span>
+                      </label>
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>Callback Number (PSTN)</span>
+                        <input
+                          className={styles.input}
+                          placeholder="+94771234567"
+                          value={editForm.callbackNumber}
+                          onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, callbackNumber: e.target.value })); }}
+                          disabled={saving}
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        <span className={styles.fieldLabel}>Callback Trunk</span>
+                        <SearchableSelect
+                          options={trunkOptions}
+                          value={editForm.callbackTrunkId || null}
+                          onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, callbackTrunkId: v || '' })); }}
+                          placeholder="No callback trunk"
+                        />
                       </label>
                       <div className={styles.formActions}>
                         <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>

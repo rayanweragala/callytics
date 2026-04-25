@@ -3,10 +3,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { isValidPhoneNumber, parsePhoneNumber } from 'libphonenumber-js';
 import { createClient, RedisClientType } from 'redis';
 import { DataSource, Repository } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
@@ -37,16 +39,19 @@ export interface OperatorResponse {
   contactNumber: OperatorContactNumberResponse | null;
   hasPIN: boolean;
   pin: string | null;
+  callbackNumber: string | null;
+  callbackTrunkId: number | null;
   createdAt: string;
 }
 
 const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
-export class OperatorsService implements OnModuleDestroy {
+export class OperatorsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OperatorsService.name);
   private redisClient: RedisClientType | null = null;
   private pinColumnAvailable: boolean | null = null;
+  private callbackColumnsAvailable: boolean | null = null;
 
   constructor(
     @InjectRepository(OperatorEntity)
@@ -109,6 +114,12 @@ export class OperatorsService implements OnModuleDestroy {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const offset = (safePage - 1) * safeLimit;
+    const includeCallbackColumns = await this.hasCallbackColumns();
+    const callbackColumnSelect = includeCallbackColumns
+      ? `,
+        callback_number,
+        callback_trunk_id`
+      : '';
     const totalRows = await this.dataSource.query('SELECT COUNT(*)::int AS total FROM operators');
     const total = Number(totalRows[0]?.total ?? 0);
     const rows = await this.dataSource.query(
@@ -117,7 +128,7 @@ export class OperatorsService implements OnModuleDestroy {
         name,
         pin_hash,
         extension_id,
-        contact_number_id,
+        contact_number_id${callbackColumnSelect},
         created_at,
         updated_at
       FROM operators
@@ -131,6 +142,8 @@ export class OperatorsService implements OnModuleDestroy {
       pinHash: String(row.pin_hash),
       extensionId: row.extension_id === null ? null : Number(row.extension_id),
       contactNumberId: row.contact_number_id === null ? null : Number(row.contact_number_id),
+      callbackNumber: includeCallbackColumns && row.callback_number ? String(row.callback_number) : null,
+      callbackTrunkId: includeCallbackColumns && row.callback_trunk_id !== null ? Number(row.callback_trunk_id) : null,
       createdAt: new Date(String(row.created_at)),
       updatedAt: new Date(String(row.updated_at)),
     }));
@@ -148,11 +161,19 @@ export class OperatorsService implements OnModuleDestroy {
     const pin = dto.pin?.trim() || this.generatePin();
     const pinHash = await bcrypt.hash(pin, BCRYPT_SALT_ROUNDS);
 
+    const callbackNumber = this.normalizeCallbackNumber(dto.callback_number);
+    const callbackTrunkId = dto.callback_trunk_id ?? null;
+    if (callbackNumber && !callbackTrunkId) {
+      throw new BadRequestException('callback_trunk_id is required when callback_number is set');
+    }
+
     const entity = this.operatorsRepository.create({
       name,
       pinHash,
       extensionId,
       contactNumberId,
+      callbackNumber,
+      callbackTrunkId,
     });
 
     const saved = await this.operatorsRepository.save(entity);
@@ -174,6 +195,16 @@ export class OperatorsService implements OnModuleDestroy {
     }
     if (dto.contact_number_id !== undefined) {
       entity.contactNumberId = dto.contact_number_id ?? null;
+    }
+    if (dto.callback_number !== undefined) {
+      entity.callbackNumber = this.normalizeCallbackNumber(dto.callback_number);
+    }
+    if (dto.callback_trunk_id !== undefined) {
+      entity.callbackTrunkId = dto.callback_trunk_id ?? null;
+    }
+
+    if (entity.callbackNumber && !entity.callbackTrunkId) {
+      throw new BadRequestException('callback_trunk_id is required when callback_number is set');
     }
 
     await this.ensureOperatorLinks(entity.extensionId, entity.contactNumberId);
@@ -246,12 +277,34 @@ export class OperatorsService implements OnModuleDestroy {
     const rows = await this.dataSource.query(
       `SELECT 1
        FROM information_schema.columns
-       WHERE table_name = 'operators'
+       WHERE table_schema = 'public'
+         AND table_name = 'operators'
          AND column_name = 'pin'
        LIMIT 1`,
     );
     this.pinColumnAvailable = rows.length > 0;
     return this.pinColumnAvailable;
+  }
+
+  private async hasCallbackColumns(): Promise<boolean> {
+    if (this.callbackColumnsAvailable !== null) {
+      return this.callbackColumnsAvailable;
+    }
+    const rows = await this.dataSource.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'operators'
+         AND column_name IN ('callback_number', 'callback_trunk_id')`,
+    );
+    const names = new Set(
+      rows
+        .map((row: Record<string, unknown>) => String(row.column_name || ''))
+        .filter(Boolean),
+    );
+    this.callbackColumnsAvailable =
+      names.has('callback_number') && names.has('callback_trunk_id');
+    return this.callbackColumnsAvailable;
   }
 
   private async storePlainPinIfSupported(operatorId: number, pin: string): Promise<void> {
@@ -262,26 +315,51 @@ export class OperatorsService implements OnModuleDestroy {
 
   private async toResponse(item: OperatorEntity, pin: string | null = null): Promise<OperatorResponse> {
     const status = await this.getOperatorStatus(item.id);
-    const includePin = await this.hasPinColumn();
-    const rows = await this.dataSource.query(
-      `SELECT
-        e.id AS extension_id,
-        e.username AS extension_username,
-        e.transport_type AS extension_transport_type,
-        c.id AS contact_id,
-        c.label AS contact_label,
-        c.number AS contact_number,
-        c.trunk_id AS contact_trunk_id${includePin ? ', o.pin AS operator_pin' : ''}
-      FROM operators o
-      LEFT JOIN sip_extensions e ON e.id = o.extension_id
-      LEFT JOIN contact_numbers c ON c.id = o.contact_number_id
-      WHERE o.id = $1
-      LIMIT 1`,
-      [item.id],
-    );
+    let includePin = await this.hasPinColumn();
+    let rows: Record<string, unknown>[] = [];
+    try {
+      rows = await this.dataSource.query(
+        `SELECT
+          e.id AS extension_id,
+          e.username AS extension_username,
+          e.transport_type AS extension_transport_type,
+          c.id AS contact_id,
+          c.label AS contact_label,
+          c.number AS contact_number,
+          c.trunk_id AS contact_trunk_id${includePin ? ', o.pin AS operator_pin' : ''}
+        FROM operators o
+        LEFT JOIN sip_extensions e ON e.id = o.extension_id
+        LEFT JOIN contact_numbers c ON c.id = o.contact_number_id
+        WHERE o.id = $1
+        LIMIT 1`,
+        [item.id],
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!includePin || !message.includes('column o.pin does not exist')) {
+        throw error;
+      }
+      this.pinColumnAvailable = false;
+      includePin = false;
+      rows = await this.dataSource.query(
+        `SELECT
+          e.id AS extension_id,
+          e.username AS extension_username,
+          e.transport_type AS extension_transport_type,
+          c.id AS contact_id,
+          c.label AS contact_label,
+          c.number AS contact_number,
+          c.trunk_id AS contact_trunk_id
+        FROM operators o
+        LEFT JOIN sip_extensions e ON e.id = o.extension_id
+        LEFT JOIN contact_numbers c ON c.id = o.contact_number_id
+        WHERE o.id = $1
+        LIMIT 1`,
+        [item.id],
+      );
+    }
 
     const row = rows[0] || {};
-    console.log('[operators] includePin=', includePin, 'row.operator_pin=', row?.operator_pin);
 
     return {
       id: item.id,
@@ -304,8 +382,25 @@ export class OperatorsService implements OnModuleDestroy {
         : null,
       hasPIN: Boolean(item.pinHash),
       pin: pin ?? (includePin ? (row.operator_pin ? String(row.operator_pin) : null) : null),
+      callbackNumber: item.callbackNumber || null,
+      callbackTrunkId: item.callbackTrunkId ?? null,
       createdAt: item.createdAt.toISOString(),
     };
+  }
+
+  private normalizeCallbackNumber(value: string | undefined): string | null {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return null;
+    }
+    if (!isValidPhoneNumber(raw)) {
+      throw new BadRequestException('callback_number must be a valid E.164 number');
+    }
+    const parsed = parsePhoneNumber(raw);
+    if (!parsed || !parsed.isValid()) {
+      throw new BadRequestException('callback_number must be a valid E.164 number');
+    }
+    return parsed.format('E.164');
   }
 
   private normalizeRequired(value: string | undefined, field: string): string {

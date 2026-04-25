@@ -14,6 +14,7 @@ import { executeBusinessHours } from "../executors/business_hours.executor";
 import { executeVoicemail } from "../executors/voicemail.executor";
 import { executeQueueLogin } from "../executors/queue_login.executor";
 import { executeQueue } from "../executors/queue.executor";
+import { executeCallbackNode } from "./callback.executor";
 import { resolveNodeTimeoutMs } from "../timeoutResolver";
 
 type PlaybackTarget =
@@ -840,6 +841,7 @@ const executorMap: Record<string, NodeExecutor> = {
     executeSetVariable(node, session),
   queue_login: executeQueueLogin,
   queue: executeQueue,
+  callback: executeCallbackNode,
 };
 
 export async function executeNode(

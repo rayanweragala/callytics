@@ -34,6 +34,7 @@ import { QualityModule } from './quality/quality.module';
 import { AsteriskLogsModule } from './asterisk-logs/asterisk-logs.module';
 import { PreflightModule } from './preflight/preflight.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { CallbacksModule } from './callbacks/callbacks.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     AsteriskLogsModule,
     PreflightModule,
     CampaignsModule,
+    CallbacksModule,
   ],
   controllers: [HealthController],
 })

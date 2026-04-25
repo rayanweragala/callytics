@@ -142,6 +142,89 @@
   gap: 12px;
 }
 
+.paletteGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paletteGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paletteGroupToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.paletteGroupChevron {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.paletteGroupLabel {
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.paletteSearchWrap {
+  position: relative;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.paletteSearchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.paletteSearchIcon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.paletteSearchInput {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 7px 10px 7px 32px;
+}
+
+.paletteSearchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.paletteSearchInput:focus {
+  outline: 1px solid var(--border-strong);
+  outline-offset: 0;
+}
+
 .paletteItem {
   display: flex;
   gap: 12px;
@@ -171,6 +254,7 @@
 .barwebhook { background: var(--color-info); }
 .barqueuelogin { background: var(--color-warning); }
 .barqueue { background: var(--color-success); }
+.barcallback { background: var(--color-info); }
 
 .paletteIcon {
   width: 16px;

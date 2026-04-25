@@ -169,6 +169,17 @@ describe('buildCanvasNode', () => {
     expect(node.type).toBe('group');
     expect(node.style).toMatchObject({ width: 200, height: 150 });
   });
+
+  it('creates a callback node with callback defaults', () => {
+    const node = buildCanvasNode('callback', 0);
+    expect(node.type).toBe('flowNode');
+    expect(node.data.type).toBe('callback');
+    expect(node.data.label).toBe('Callback');
+    expect(node.data.config).toMatchObject({
+      number_source: 'ani',
+      confirmation_audio_id: null,
+    });
+  });
 });
 
 // ─── attachEdgeMetadata ───────────────────────────────────────────────────────

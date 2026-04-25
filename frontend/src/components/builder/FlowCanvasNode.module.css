@@ -91,6 +91,7 @@
 .webhook { color: var(--color-info); }
 .queueLogin { color: var(--color-warning); }
 .queue { color: var(--color-success); }
+.callback { color: var(--color-info); }
 
 .webhookSideEffect {
   border-style: dashed;

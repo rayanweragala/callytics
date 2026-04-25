@@ -60,4 +60,21 @@ describe('QueuesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /add queue/i }));
     expect(screen.getByText('new queue')).toBeInTheDocument();
   });
+
+  it('keeps queue list populated when operators lookup fails', async () => {
+    (api.listQueues as any).mockResolvedValue(mockQueues);
+    (api.listOperators as any).mockRejectedValue(new Error('operators failed'));
+    (api.listAllAudio as any).mockResolvedValue({
+      data: [{ id: 10, name: 'wait-audio', previewUrl: null, originalUrl: null, convertedUrl: null }],
+      total: 1,
+    });
+
+    render(
+      <MemoryRouter>
+        <QueuesPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('Support Queue')).toBeInTheDocument());
+  });
 });

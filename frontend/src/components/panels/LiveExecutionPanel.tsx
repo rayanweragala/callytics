@@ -73,6 +73,8 @@ function nodeTypeLabel(nodeType: string): string {
       return '[voicemail]';
     case 'business_hours':
       return '[business_hours]';
+    case 'callback':
+      return '[callback]';
     default:
       return '[node]';
   }

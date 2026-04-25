@@ -48,7 +48,7 @@ interface FlowSimulatorProps {
   onSubflowExit?: () => void;
 }
 
-const TERMINAL_NODE_TYPES = new Set(['hangup', 'transfer', 'voicemail', 'hunt', 'queue']);
+const TERMINAL_NODE_TYPES = new Set(['hangup', 'transfer', 'voicemail', 'hunt', 'queue', 'callback']);
 const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 const DAY_LABELS: Record<(typeof DAY_KEYS)[number], string> = {
   sunday: 'Sunday',
@@ -117,7 +117,7 @@ function resolveSubmenuTargetNodeId(
 
 function branchTone(type: string): string {
   if (type === 'transfer' || type === 'play_audio' || type === 'webhook') return styles.dotInfo;
-  if (type === 'queue_login' || type === 'voicemail') return styles.dotWarning;
+  if (type === 'queue_login' || type === 'voicemail' || type === 'callback') return styles.dotWarning;
   if (type === 'queue' || type === 'business_hours' || type === 'menu') return styles.dotAccent;
   if (type === 'hangup') return styles.dotMuted;
   return styles.dotDefault;
@@ -608,7 +608,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
           </div>
         ) : null}
 
-        {type === 'voicemail' || type === 'transfer' || type === 'hunt' || type === 'hangup' ? (
+        {type === 'voicemail' || type === 'transfer' || type === 'hunt' || type === 'hangup' || type === 'callback' ? (
           <div className={styles.branchList}>
             {branches.map((branch) => (
               <button key={branch} className={styles.branchButton} onClick={() => advanceToBranch(branch)} type="button"><strong>{branch}</strong></button>

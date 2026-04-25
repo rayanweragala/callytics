@@ -1,5 +1,5 @@
 import type { Edge, Node } from 'reactflow';
-import type { BuilderNodeType, FlowDetail, FlowNodeData, FlowSnapshot } from '../types';
+import type { BuilderNodeType, FlowDetail, FlowNodeData, FlowSnapshot, FlowSnapshotSubflow } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +37,7 @@ export const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'webhook', label: 'Webhook' },
   { type: 'queue_login', label: 'Queue Login' },
   { type: 'queue', label: 'Queue' },
+  { type: 'callback', label: 'Callback' },
   { type: 'hangup', label: 'hangup' },
 ];
 
@@ -128,6 +129,17 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
     input_timeout_ms: null,
   };
   if (type === 'queue') return { queue_id: null, prompt_audio_file_id: null };
+  if (type === 'callback') return {
+    number_source: 'ani',
+    dtmf_prompt_audio_id: null,
+    dtmf_max_digits: 11,
+    timeout_ms: 20000,
+    confirmation_audio_id: null,
+    destination_type: 'operator',
+    destination_value: null,
+    destination_trunk_id: null,
+    operator_id: null,
+  };
   return {};
 }
 
@@ -403,19 +415,65 @@ export function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
 // ─── Snapshot → canvas mapping ────────────────────────────────────────────────
 
 export function mapSnapshotToNodes(snapshot: FlowSnapshot): Array<Node<FlowNodeData>> {
+  const flattenSnapshot = (
+    input: FlowSnapshot | FlowSnapshotSubflow,
+    scope: string,
+  ): FlowSnapshot['nodes'] => {
+    const scopedNodes = input.nodes.map((node) => ({
+      ...node,
+      nodeKey: `${scope}::${node.nodeKey}`,
+      groupId: node.groupId ? `${scope}::${node.groupId}` : null,
+    }));
+    const nested = (input.subflows ?? []).flatMap((subflow) =>
+      flattenSnapshot(subflow, `${scope}/subflow-${subflow.flowId}`),
+    );
+    return [...scopedNodes, ...nested];
+  };
+
+  const flattenedNodes = flattenSnapshot(
+    snapshot,
+    `flow-${snapshot.flowId ?? 'root'}`,
+  );
   const flowLike: FlowDetail = {
     id: 0, name: '', description: null, slug: '', parentFlowId: null, parentNodeKey: null, createdAt: '', updatedAt: '', versionId: 0, versionNumber: 0,
-    nodes: snapshot.nodes.map((node, index) => ({ id: index + 1, nodeKey: node.nodeKey, type: node.type, label: node.label, positionX: node.positionX, positionY: node.positionY, config: node.config, groupId: node.groupId, subflowId: node.subflowId })),
+    nodes: flattenedNodes.map((node, index) => ({ id: index + 1, nodeKey: node.nodeKey, type: node.type, label: node.label, positionX: node.positionX, positionY: node.positionY, config: node.config, groupId: node.groupId, subflowId: node.subflowId })),
     edges: [],
   };
   return mapFlowToNodes(flowLike);
 }
 
 export function mapSnapshotToEdges(snapshot: FlowSnapshot): Edge<BuilderEdgeData>[] {
+  const flattenSnapshot = (
+    input: FlowSnapshot | FlowSnapshotSubflow,
+    scope: string,
+  ): { nodes: FlowSnapshot['nodes']; edges: FlowSnapshot['edges'] } => {
+    const scopedNodes = input.nodes.map((node) => ({
+      ...node,
+      nodeKey: `${scope}::${node.nodeKey}`,
+      groupId: node.groupId ? `${scope}::${node.groupId}` : null,
+    }));
+    const scopedEdges = input.edges.map((edge) => ({
+      ...edge,
+      sourceNodeKey: `${scope}::${edge.sourceNodeKey}`,
+      targetNodeKey: `${scope}::${edge.targetNodeKey}`,
+    }));
+    const nested = (input.subflows ?? []).map((subflow) =>
+      flattenSnapshot(subflow, `${scope}/subflow-${subflow.flowId}`),
+    );
+    return {
+      nodes: [...scopedNodes, ...nested.flatMap((item) => item.nodes)],
+      edges: [...scopedEdges, ...nested.flatMap((item) => item.edges)],
+    };
+  };
+
+  const flattened = flattenSnapshot(
+    snapshot,
+    `flow-${snapshot.flowId ?? 'root'}`,
+  );
   const flowLike: FlowDetail = {
     id: 0, name: '', description: null, slug: '', parentFlowId: null, parentNodeKey: null, createdAt: '', updatedAt: '', versionId: 0, versionNumber: 0,
-    nodes: snapshot.nodes.map((node, index) => ({ id: index + 1, nodeKey: node.nodeKey, type: node.type, label: node.label, positionX: node.positionX, positionY: node.positionY, config: node.config, groupId: node.groupId, subflowId: node.subflowId })),
-    edges: snapshot.edges.map((edge, index) => ({ id: index + 1, sourceNodeKey: edge.sourceNodeKey, targetNodeKey: edge.targetNodeKey, branchKey: edge.branchKey, condition: edge.condition })),
+    nodes: flattened.nodes.map((node, index) => ({ id: index + 1, nodeKey: node.nodeKey, type: node.type, label: node.label, positionX: node.positionX, positionY: node.positionY, config: node.config, groupId: node.groupId, subflowId: node.subflowId })),
+    edges: flattened.edges.map((edge, index) => ({ id: index + 1, sourceNodeKey: edge.sourceNodeKey, targetNodeKey: edge.targetNodeKey, branchKey: edge.branchKey, condition: edge.condition })),
   };
   return mapFlowToEdges(flowLike);
 }
@@ -502,6 +560,7 @@ export function minimapNodeColor(node: Node<FlowNodeData>): string {
     case 'webhook': return 'var(--color-info)';
     case 'queue_login': return 'var(--color-warning)';
     case 'queue': return 'var(--color-warning)';
+    case 'callback': return 'var(--color-info)';
     default: return 'var(--text-muted)';
   }
 }

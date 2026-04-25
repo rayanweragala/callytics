@@ -375,4 +375,28 @@ describe('api library', () => {
     expect(axios.post).toHaveBeenCalledWith('/queues', { name: 'q1' });
     expect(axios.delete).toHaveBeenCalledWith('/queues/1');
   });
+
+  it('callback helpers call correct endpoints', async () => {
+    (axios.get as any).mockResolvedValueOnce({
+      data: {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      },
+    });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: { id: 8 } } });
+    (axios.post as any).mockResolvedValueOnce({ data: { success: true } });
+    (axios.post as any).mockResolvedValueOnce({ data: { success: true } });
+
+    await api.listCallbacks({ page: 1, limit: 20, status: 'pending' });
+    await api.getCallback(8);
+    await api.executeCallback(8);
+    await api.cancelCallback(8);
+
+    expect(axios.get).toHaveBeenCalledWith('/callbacks', { params: { page: 1, limit: 20, status: 'pending' } });
+    expect(axios.get).toHaveBeenCalledWith('/callbacks/8');
+    expect(axios.post).toHaveBeenCalledWith('/callbacks/8/execute');
+    expect(axios.post).toHaveBeenCalledWith('/callbacks/8/cancel');
+  });
 });

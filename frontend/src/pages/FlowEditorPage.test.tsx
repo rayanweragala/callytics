@@ -11,6 +11,7 @@ vi.mock('../lib/api', () => ({
   listAudio: vi.fn(() => Promise.resolve({ data: [], total: 0 })),
   listQueues: vi.fn(() => Promise.resolve({ data: [] })),
   listExtensions: vi.fn(() => Promise.resolve({ data: [] })),
+  listOperators: vi.fn(() => Promise.resolve({ data: [] })),
   getContactNumbers: vi.fn(() => Promise.resolve({ data: [] })),
   listTrunks: vi.fn(() => Promise.resolve({ data: [] })),
   listFlowVersions: vi.fn(() => Promise.resolve({ data: [] })),

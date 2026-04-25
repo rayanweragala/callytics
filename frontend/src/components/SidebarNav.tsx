@@ -45,6 +45,9 @@ export function SidebarNav() {
             <NavLink to="/queues" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               queues
             </NavLink>
+            <NavLink to="/callbacks" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              callbacks
+            </NavLink>
             <NavLink to="/trunks" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               trunks
             </NavLink>

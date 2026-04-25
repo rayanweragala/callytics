@@ -32,6 +32,7 @@ import type {
   CampaignContactItem,
   CampaignContactAttemptItem,
   CampaignContactsUploadResult,
+  CallbackItem,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -615,6 +616,8 @@ export async function createOperator(payload: {
   extension_id?: number;
   contact_number_id?: number;
   pin?: string;
+  callback_number?: string;
+  callback_trunk_id?: number;
 }): Promise<DetailResponse<OperatorItem>> {
   const response = await api.post<DetailResponse<OperatorItem>>('/operators', payload);
   return response.data;
@@ -625,6 +628,8 @@ export async function updateOperator(id: number, payload: {
   extension_id?: number;
   contact_number_id?: number;
   pin?: string;
+  callback_number?: string;
+  callback_trunk_id?: number;
 }): Promise<DetailResponse<OperatorItem>> {
   const response = await api.put<DetailResponse<OperatorItem>>(`/operators/${id}`, payload);
   return response.data;
@@ -669,6 +674,33 @@ export async function deleteContactNumber(id: number): Promise<void> {
 
 export async function deleteOperator(id: number): Promise<void> {
   await api.delete(`/operators/${id}`);
+}
+
+export async function listCallbacks(params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}): Promise<PaginatedResponse<CallbackItem>> {
+  const response = await api.get<{ data: CallbackItem[]; total: number; page: number; limit: number }>('/callbacks', { params });
+  return {
+    ...response.data,
+    totalPages: Math.max(1, Math.ceil(response.data.total / response.data.limit)),
+  };
+}
+
+export async function getCallback(id: number): Promise<DetailResponse<CallbackItem>> {
+  const response = await api.get<DetailResponse<CallbackItem>>(`/callbacks/${id}`);
+  return response.data;
+}
+
+export async function executeCallback(id: number): Promise<{ success: true }> {
+  const response = await api.post<{ success: true }>(`/callbacks/${id}/execute`);
+  return response.data;
+}
+
+export async function cancelCallback(id: number): Promise<{ success: true }> {
+  const response = await api.post<{ success: true }>(`/callbacks/${id}/cancel`);
+  return response.data;
 }
 
 export async function listQueues(page = 1, limit = 10): Promise<PaginatedResponse<QueueItem>> {

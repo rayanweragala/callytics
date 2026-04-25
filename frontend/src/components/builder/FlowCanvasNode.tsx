@@ -24,6 +24,8 @@ function toneClass(type: FlowNodeData['type']): string {
       return styles.queueLogin;
     case 'queue':
       return styles.queue;
+    case 'callback':
+      return styles.callback;
     default:
       return '';
   }
@@ -54,6 +56,9 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
         {data.type === 'voicemail' ? (
           <div className={styles.meta}>{String(data.config.mailbox_name || 'main')}</div>
         ) : null}
+        {data.type === 'callback' ? (
+          <div className={styles.meta}>{String((data.config as Record<string, unknown>).number_source || 'ani')}</div>
+        ) : null}
       </div>
       {selected && data.type !== 'start' && data.onDelete ? (
         <button
@@ -67,7 +72,7 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
           ×
         </button>
       ) : null}
-      <Handle className={styles.handle} type="target" position={Position.Left} />
+      <Handle className={styles.handle} type="target" position={data.type === 'callback' ? Position.Top : Position.Left} />
       {data.type === 'business_hours' ? (
         <>
           <Handle
@@ -86,7 +91,7 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
           />
         </>
       ) : isWebhookNode ? null : (
-        <Handle className={styles.handle} id={data.type === 'voicemail' ? 'done' : undefined} type="source" position={Position.Right} />
+        <Handle className={styles.handle} id={data.type === 'voicemail' || data.type === 'callback' ? 'done' : undefined} type="source" position={data.type === 'callback' ? Position.Bottom : Position.Right} />
       )}
     </div>
   );

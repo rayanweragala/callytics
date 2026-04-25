@@ -211,9 +211,14 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
     { type: 'transfer', label: 'transfer' },
     { type: 'voicemail', label: 'Voicemail' },
     { type: 'hunt', label: 'Hunt Group' },
+    { type: 'webhook', label: 'Webhook' },
+    { type: 'queue_login', label: 'Queue Login' },
+    { type: 'queue', label: 'Queue' },
+    { type: 'callback', label: 'Callback' },
     { type: 'hangup', label: 'hangup' },
   ];
   function typeConfig(t: BuilderNodeType): Record<string, unknown> {
+    if (t === 'start') return { queue_login_default_input_timeout_ms: 10000 };
     if (t === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
     if (t === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
     if (t === 'menu') return {
@@ -250,6 +255,33 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       hold_audio_file_id: null,
       busy_audio_file_id: null,
       on_no_answer: '',
+    };
+    if (t === 'webhook') return {
+      url: '',
+      method: 'POST',
+      include_caller: false,
+      include_digits: false,
+      timeout_ms: 5000,
+      headers: [],
+    };
+    if (t === 'queue_login') return {
+      queue_id: null,
+      prompt_audio_file_id: null,
+      wrong_pin_audio_file_id: null,
+      login_success_audio_file_id: null,
+      use_flow_default_timeout: true,
+      input_timeout_ms: null,
+    };
+    if (t === 'queue') return { queue_id: null, prompt_audio_file_id: null };
+    if (t === 'callback') return {
+      number_source: 'ani',
+      dtmf_prompt_audio_id: null,
+      dtmf_max_digits: 11,
+      confirmation_audio_id: null,
+      destination_type: 'operator',
+      destination_value: null,
+      destination_trunk_id: null,
+      operator_id: null,
     };
     return {};
   }

@@ -1,0 +1,226 @@
+.page {
+  display: grid;
+  gap: 12px;
+}
+
+.tablePanel {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  padding: 0 20px 16px;
+  overflow-x: auto;
+}
+
+.filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.filterLabel {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.select {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  min-height: 34px;
+  padding: 0 10px;
+  font-family: 'Geist', sans-serif;
+}
+
+.table {
+  width: 100%;
+  min-width: 1060px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tableHead {
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.row {
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.tableHead th,
+.row td {
+  padding: 16px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tableHead th {
+  font-weight: 400;
+}
+
+.row td {
+  font-size: 12px;
+}
+
+.colId {
+  width: 60px;
+}
+
+.colCustomer {
+  width: 160px;
+}
+
+.colOperator {
+  width: 180px;
+}
+
+.colStatus {
+  width: 120px;
+}
+
+.colReceived {
+  width: 180px;
+}
+
+.colExecuted {
+  width: 180px;
+}
+
+.colActions {
+  width: 160px;
+  min-width: 160px;
+}
+
+.dataMono {
+  font-family: 'Space Mono', monospace;
+  color: var(--text-primary);
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.dashMuted {
+  color: var(--color-text-muted);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.statusPending {
+  color: var(--text-secondary);
+}
+
+.statusDialing {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.statusCompleted {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.statusFailed {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.statusCancelled {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.actionsCell {
+  text-align: center;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.tableHead th.actionsHeader {
+  text-align: right;
+}
+
+.statusHeader,
+.statusCell {
+  text-align: center;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border-radius: 8px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: 'Geist', sans-serif;
+  font-size: 12px;
+}
+
+.primaryButton {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.confirmInline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  justify-content: center;
+}
+
+.rowError {
+  padding: 0 12px 10px;
+  color: var(--color-error);
+  font-size: 12px;
+}
+
+.empty {
+  padding: 16px 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 1080px) {
+  .table {
+    min-width: 940px;
+  }
+}

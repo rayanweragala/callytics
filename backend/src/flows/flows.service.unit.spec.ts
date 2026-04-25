@@ -350,7 +350,7 @@ describe("FlowsService", () => {
       ],
     };
 
-    it("saving a subflow creates a new version on the root flow, not the subflow", async () => {
+    it("saving a subflow creates immutable versions for both subflow and root flow", async () => {
       const subflow = {
         id: 3,
         parentFlowId: 2,
@@ -392,6 +392,16 @@ describe("FlowsService", () => {
           nodes: [],
           edges: [],
           subflows: [],
+        },
+        createdAt: new Date(),
+      };
+      const savedSubflowVersion = {
+        id: 31,
+        flowId: 3,
+        versionNumber: 2,
+        snapshot: {
+          nodes: changedSubflowDto.nodes,
+          edges: changedSubflowDto.edges,
         },
         createdAt: new Date(),
       };
@@ -438,6 +448,9 @@ describe("FlowsService", () => {
         if (entity === FlowVersionEntity && options?.where?.id === 30) {
           return Promise.resolve(subflowVersion);
         }
+        if (entity === FlowVersionEntity && options?.where?.id === 31) {
+          return Promise.resolve(savedSubflowVersion);
+        }
         return Promise.resolve(savedRootVersion);
       });
 
@@ -467,29 +480,36 @@ describe("FlowsService", () => {
       jest
         .spyOn(service as any, "getLatestVersion")
         .mockResolvedValue(rootVersion as any);
-      const createStoredVersionSpy = jest
-        .spyOn(service as any, "createStoredVersion")
-        .mockResolvedValue(savedRootVersion as any);
+      const createStoredVersionSpy = jest.spyOn(service as any, "createStoredVersion");
+      createStoredVersionSpy
+        .mockResolvedValueOnce(savedSubflowVersion as any)
+        .mockResolvedValueOnce(savedRootVersion as any);
       jest
         .spyOn(service as any, "saveNodesAndEdges")
         .mockResolvedValue(undefined);
 
       await service.update(3, changedSubflowDto as any);
 
-      expect(createStoredVersionSpy).toHaveBeenCalledTimes(1);
+      expect(createStoredVersionSpy).toHaveBeenCalledTimes(2);
+      expect(createStoredVersionSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        3,
+        2,
+        expect.objectContaining({
+          nodes: expect.arrayContaining([
+            expect.objectContaining({
+              nodeKey: "menu",
+            }),
+          ]),
+        }),
+        undefined,
+      );
       expect(createStoredVersionSpy).toHaveBeenCalledWith(
         expect.anything(),
         1,
         5,
         expect.any(Object),
         undefined,
-      );
-      expect(createStoredVersionSpy).not.toHaveBeenCalledWith(
-        expect.anything(),
-        3,
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
       );
     });
 
@@ -720,9 +740,10 @@ describe("FlowsService", () => {
       jest
         .spyOn(service as any, "getLatestVersion")
         .mockResolvedValue(rootVersion as any);
-      const createStoredVersionSpy = jest
-        .spyOn(service as any, "createStoredVersion")
-        .mockResolvedValue({ id: 12, versionNumber: 5 } as any);
+      const createStoredVersionSpy = jest.spyOn(service as any, "createStoredVersion");
+      createStoredVersionSpy
+        .mockResolvedValueOnce({ id: 31, versionNumber: 2 } as any)
+        .mockResolvedValueOnce({ id: 12, versionNumber: 5 } as any);
       jest
         .spyOn(service as any, "saveNodesAndEdges")
         .mockResolvedValue(undefined);
@@ -734,7 +755,21 @@ describe("FlowsService", () => {
         edges: nextSubflowSnapshot.edges,
       } as any);
 
-      const snapshotArg = createStoredVersionSpy.mock.calls[0][3];
+      const snapshotArg = createStoredVersionSpy.mock.calls[1][3];
+      expect(createStoredVersionSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        3,
+        2,
+        expect.objectContaining({
+          nodes: expect.arrayContaining([
+            expect.objectContaining({
+              nodeKey: "menu",
+              config: expect.objectContaining({ branches: ["1", "2"] }),
+            }),
+          ]),
+        }),
+        undefined,
+      );
       expect(createStoredVersionSpy).toHaveBeenCalledWith(
         expect.anything(),
         1,
@@ -916,6 +951,76 @@ describe("FlowsService", () => {
       const result = await service.restoreVersion(1, 10);
 
       expect(result.data.success).toBe(true);
+    });
+
+    it("restoring a root version also restores nested subflow versions", async () => {
+      const flow = { id: 1, name: "Root Flow", updatedAt: new Date() };
+      const subflow = { id: 3, name: "Subflow A", currentVersionId: 30, updatedAt: new Date() };
+      const version = {
+        id: 10,
+        flowId: 1,
+        versionNumber: 1,
+        snapshot: {
+          flowId: 1,
+          name: "Root Flow Snapshot",
+          nodes: [{ nodeKey: "start", type: "start", label: "Start", positionX: 0, positionY: 0, config: {}, groupId: null, subflowId: null }],
+          edges: [],
+          subflows: [
+            {
+              flowId: 3,
+              name: "Subflow A Snapshot",
+              nodes: [{ nodeKey: "sub-start", type: "start", label: "Sub Start", positionX: 0, positionY: 0, config: {}, groupId: null, subflowId: null }],
+              edges: [],
+            },
+          ],
+        },
+      };
+
+      mockManager.findOne.mockImplementation((entity, options) => {
+        if (entity === CallFlowEntity && options?.where?.id === 1) return Promise.resolve(flow);
+        if (entity === CallFlowEntity && options?.where?.id === 3) return Promise.resolve(subflow);
+        if (entity === FlowVersionEntity && options?.where?.id === 10) return Promise.resolve(version);
+        if (entity === FlowVersionEntity && options?.where?.flowId === 1) return Promise.resolve({ id: 99, versionNumber: 2 });
+        if (entity === FlowVersionEntity && options?.where?.flowId === 3) return Promise.resolve({ id: 30, versionNumber: 4 });
+        return Promise.resolve(null);
+      });
+
+      const createStoredVersionSpy = jest.spyOn(service as any, "createStoredVersion");
+      createStoredVersionSpy
+        .mockResolvedValueOnce({ id: 100, versionNumber: 3 } as any)
+        .mockResolvedValueOnce({ id: 31, versionNumber: 5 } as any);
+      const saveNodesAndEdgesSpy = jest.spyOn(service as any, "saveNodesAndEdges").mockResolvedValue(undefined);
+      mockManager.save.mockResolvedValue({});
+
+      const result = await service.restoreVersion(1, 10);
+
+      expect(result.data.success).toBe(true);
+      expect(createStoredVersionSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        1,
+        3,
+        expect.any(Object),
+        "Restored from v1",
+      );
+      expect(createStoredVersionSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        3,
+        5,
+        expect.objectContaining({
+          nodes: expect.arrayContaining([
+            expect.objectContaining({ nodeKey: "sub-start" }),
+          ]),
+        }),
+        "Restored from root version",
+      );
+      expect(saveNodesAndEdgesSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        31,
+        expect.arrayContaining([
+          expect.objectContaining({ nodeKey: "sub-start" }),
+        ]),
+        [],
+      );
     });
 
     it("should throw NotFoundException if flow to restore does not exist", async () => {

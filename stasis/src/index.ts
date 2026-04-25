@@ -21,11 +21,13 @@ import {
 } from "./telemetry";
 import { resolveTransferWaiter, rejectTransferWaiter } from "./transferManager";
 import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManager";
+import { resolveCallbackWaiter, hasCallbackWaiter } from "./callbackManager";
 import { resolveAudioMediaPath } from "./audioResolver";
 import { getPublisher, getSubscriber } from "./redis";
 import { buildInboundOriginateBody, parseInboundTestMessage } from "./trunk-test.util";
 import { accumulator as rtcpAmiAccumulator } from "./handlers/rtcp-ami.handler";
 import { CampaignExecutor } from "./campaign-executor";
+import { executeCallback, type CallbackExecutePayload } from "./callback-execute";
 
 const ARI_URL = process.env.ARI_URL || "http://127.0.0.1:8088";
 const ARI_USER = process.env.ARI_USER || "callytics";
@@ -464,6 +466,25 @@ async function start(): Promise<void> {
       }
     });
 
+    await redisSubscriber.subscribe("callback:execute", async (message) => {
+      let payload: CallbackExecutePayload | null = null;
+      try {
+        payload = JSON.parse(message) as CallbackExecutePayload;
+      } catch (error) {
+        console.error("[callback] invalid execute payload:", error);
+        return;
+      }
+
+      const hasCustomerDialString = Boolean(String(payload?.customerDialString || '').trim());
+      const hasCustomerNumberAndTrunk = Boolean(payload?.customerNumber && payload?.customerTrunkId);
+      if (!payload?.callbackId || !payload.operatorDialString || !payload.callerIdNumber || (!hasCustomerDialString && !hasCustomerNumberAndTrunk)) {
+        console.error("[callback] execute payload missing required fields");
+        return;
+      }
+
+      await executeCallback(client, payload);
+    });
+
     client.on(
       "StasisStart",
       async (
@@ -512,6 +533,38 @@ async function start(): Promise<void> {
           console.log(
             `Hunt leg entered Stasis: ${channel.id} token=${token}`,
           );
+          return;
+        }
+
+        if (event.args?.[0] === "callback-operator" && event.args[1]) {
+          const callbackId = Number(event.args[1] || 0);
+          if (!callbackId || !hasCallbackWaiter(callbackId, "operator")) {
+            console.log(
+              `[callback] orphan operator leg callback_id=${String(event.args[1] || "")} — hanging up`,
+            );
+            try {
+              await client.channels.hangup({ channelId: channel.id });
+            } catch {}
+            return;
+          }
+          resolveCallbackWaiter(callbackId, "operator", channel);
+          console.log(`Callback operator leg entered Stasis: ${channel.id} callback=${callbackId}`);
+          return;
+        }
+
+        if (event.args?.[0] === "callback-customer" && event.args[1]) {
+          const callbackId = Number(event.args[1] || 0);
+          if (!callbackId || !hasCallbackWaiter(callbackId, "customer")) {
+            console.log(
+              `[callback] orphan customer leg callback_id=${String(event.args[1] || "")} — hanging up`,
+            );
+            try {
+              await client.channels.hangup({ channelId: channel.id });
+            } catch {}
+            return;
+          }
+          resolveCallbackWaiter(callbackId, "customer", channel);
+          console.log(`Callback customer leg entered Stasis: ${channel.id} callback=${callbackId}`);
           return;
         }
 

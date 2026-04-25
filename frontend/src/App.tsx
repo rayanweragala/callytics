@@ -21,6 +21,7 @@ import { AsteriskLogsPage } from './pages/AsteriskLogsPage';
 import { PreflightPage } from './pages/PreflightPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { CampaignDetailPage } from './pages/CampaignDetailPage';
+import { CallbacksPage } from './pages/CallbacksPage';
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/operators" element={<OperatorsPage />} />
           <Route path="/queues" element={<QueuesPage />} />
+          <Route path="/callbacks" element={<CallbacksPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

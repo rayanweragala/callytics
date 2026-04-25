@@ -18,4 +18,12 @@ export class UpdateOperatorDto {
   @IsOptional()
   @IsInt()
   contact_number_id?: number;
+
+  @IsOptional()
+  @IsString()
+  callback_number?: string;
+
+  @IsOptional()
+  @IsInt()
+  callback_trunk_id?: number;
 }

@@ -171,7 +171,8 @@ export type BuilderNodeType =
   | 'group'
   | 'webhook'
   | 'queue_login'
-  | 'queue';
+  | 'queue'
+  | 'callback';
 
 export type TransferTargetType = 'extension' | 'pstn' | 'sip_uri';
 
@@ -194,6 +195,18 @@ export interface HuntDestination {
 export interface HuntNodeConfig {
   destinations: HuntDestination[];
   ring_timeout_ms?: number;
+}
+
+export interface CallbackNodeConfig {
+  number_source: 'ani' | 'dtmf';
+  dtmf_prompt_audio_id?: number | null;
+  dtmf_max_digits?: number;
+  timeout_ms?: number | null;
+  confirmation_audio_id: number | null;
+  destination_type?: 'extension' | 'pstn' | 'operator' | 'caller';
+  destination_value?: string | null;
+  destination_trunk_id?: number | null;
+  operator_id?: number | null;
 }
 
 export interface FlowNodeData {
@@ -362,7 +375,27 @@ export interface OperatorItem {
   contactNumber?: ContactNumber;
   hasPIN: boolean;
   pin?: string | null;
+  callbackNumber?: string | null;
+  callbackTrunkId?: number | null;
   createdAt: string;
+}
+
+export interface CallbackItem {
+  id: number;
+  flowId: number | null;
+  trunkId: number | null;
+  customerNumber: string;
+  operatorId: number | null;
+  operatorName: string | null;
+  destinationType: 'extension' | 'pstn' | null;
+  destinationValue: string | null;
+  destinationTrunkId: number | null;
+  status: 'pending' | 'dialing_operator' | 'dialing_customer' | 'bridged' | 'completed' | 'failed' | 'cancelled';
+  failReason: string | null;
+  callLogId: number | null;
+  createdAt: string | null;
+  executedAt: string | null;
+  completedAt: string | null;
 }
 
 export interface QueueOperatorSummary {

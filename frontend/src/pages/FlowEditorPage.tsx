@@ -19,12 +19,13 @@ import {
   getFlow,
   getFlowBreadcrumb,
   listExtensions,
+  listOperators,
   listFlowVersions,
   listQueues,
   listTrunks,
   updateFlow,
 } from '../lib/api';
-import type { ContactNumber, ExtensionItem, FlowDetail, FlowNodeData, FlowVersionSummary, QueueItem, SipTrunkItem } from '../types';
+import type { BuilderNodeType, ContactNumber, ExtensionItem, FlowDetail, FlowNodeData, FlowVersionSummary, OperatorItem, QueueItem, SipTrunkItem } from '../types';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { FlowBreadcrumb } from '../components/FlowBreadcrumb';
 import { FlowTreePanel } from '../components/FlowTreePanel';
@@ -83,6 +84,36 @@ const edgeTypes = {
 };
 
 const AUTO_SAVE_DEBOUNCE_MS = 1200;
+const PALETTE_GROUP_STORAGE_KEY = 'callytics_palette_groups';
+
+interface PaletteGroupDefinition {
+  id: string;
+  label: string;
+  types: BuilderNodeType[];
+}
+
+interface PaletteGroupWithItems extends PaletteGroupDefinition {
+  items: typeof palette;
+}
+
+// Add future node types to the matching group here; unknown types fall back to OTHER.
+const PALETTE_GROUPS: PaletteGroupDefinition[] = [
+  {
+    id: 'call-flow',
+    label: 'CALL FLOW',
+    types: ['start', 'play_audio', 'get_digits', 'business_hours', 'hangup'],
+  },
+  {
+    id: 'routing',
+    label: 'ROUTING',
+    types: ['menu', 'transfer', 'hunt', 'queue', 'queue_login'],
+  },
+  {
+    id: 'caller-actions',
+    label: 'CALLER ACTIONS',
+    types: ['callback', 'voicemail', 'webhook'],
+  },
+];
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 type BuilderEdgeData = {
@@ -162,15 +193,33 @@ export function FlowEditorPage() {
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [pendingRestoreVersion, setPendingRestoreVersion] = useState<FlowVersionSummary | null>(null);
   const [compareVersion, setCompareVersion] = useState<import('../types').FlowVersionDetail | null>(null);
+  const [currentVersionDetail, setCurrentVersionDetail] = useState<import('../types').FlowVersionDetail | null>(null);
   const [submenuNodeOptionsLoading, setSubmenuNodeOptionsLoading] = useState(false);
   const [submenuStartNodeKey, setSubmenuStartNodeKey] = useState<string | null>(null);
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [extensions, setExtensions] = useState<ExtensionItem[]>([]);
+  const [operators, setOperators] = useState<OperatorItem[]>([]);
   const [contactNumbers, setContactNumbers] = useState<ContactNumber[]>([]);
   const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [timeoutWarningConfirmVisible, setTimeoutWarningConfirmVisible] = useState(false);
   const [timeoutWarningMessage, setTimeoutWarningMessage] = useState<string | null>(null);
+  const paletteSearchRef = useRef<HTMLInputElement | null>(null);
+  const [paletteSearchQuery, setPaletteSearchQuery] = useState('');
+  const [paletteGroupCollapsed, setPaletteGroupCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = window.localStorage.getItem(PALETTE_GROUP_STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.entries(parsed).map(([key, value]) => [key, value === true]),
+      );
+    } catch {
+      return {};
+    }
+  });
 
   // ── Toast helpers ────────────────────────────────────────────────────────────
   const editorNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -181,19 +230,39 @@ export function FlowEditorPage() {
   };
   useEffect(() => () => { if (editorNoticeTimerRef.current) clearTimeout(editorNoticeTimerRef.current); }, []);
   useEffect(() => () => { if (saveFeedbackTimer.current) window.clearTimeout(saveFeedbackTimer.current); if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); }, []);
+  useEffect(() => {
+    paletteSearchRef.current?.focus();
+  }, []);
 
   // Fetch routing resources on mount for NodeConfigPanel
   useEffect(() => {
     let active = true;
-    Promise.all([listQueues(1, 200), listExtensions(200, 0), getContactNumbers(1, 200), listTrunks(200, 0)])
-      .then(([queuesRes, extensionsRes, contactsRes, trunksRes]) => {
-        if (!active) return;
-        setQueueItems(queuesRes.data);
-        setExtensions(extensionsRes.data);
-        setContactNumbers(contactsRes.data);
-        setTrunks(trunksRes.data);
-      })
-      .catch(() => undefined);
+    const loadReferenceData = async () => {
+      const [queuesRes, extensionsRes, operatorsRes, contactsRes, trunksRes] = await Promise.allSettled([
+        listQueues(1, 200),
+        listExtensions(200, 0),
+        listOperators(1, 200),
+        getContactNumbers(1, 200),
+        listTrunks(200, 0),
+      ]);
+      if (!active) return;
+      if (queuesRes.status === 'fulfilled') {
+        setQueueItems(queuesRes.value.data);
+      }
+      if (extensionsRes.status === 'fulfilled') {
+        setExtensions(extensionsRes.value.data);
+      }
+      if (operatorsRes.status === 'fulfilled') {
+        setOperators(operatorsRes.value.data);
+      }
+      if (contactsRes.status === 'fulfilled') {
+        setContactNumbers(contactsRes.value.data);
+      }
+      if (trunksRes.status === 'fulfilled') {
+        setTrunks(trunksRes.value.data);
+      }
+    };
+    void loadReferenceData();
     return () => { active = false; };
   }, []);
 
@@ -210,6 +279,28 @@ export function FlowEditorPage() {
     loadFlowTree(rootFlowId).then((tree) => { if (active) setFlowTree(tree); });
     return () => { active = false; };
   }, [isDraftRoute, rootFlowId, treeRefreshKey, loadFlowTree, setFlowTree]);
+
+  useEffect(() => {
+    if (!flow || isDraft) {
+      setCurrentVersionDetail(null);
+      return;
+    }
+    let active = true;
+    loadVersionDetail(flow.id, flow.versionId)
+      .then((detail) => {
+        if (active) {
+          setCurrentVersionDetail(detail);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCurrentVersionDetail(null);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [flow?.id, flow?.versionId, isDraft, loadVersionDetail]);
 
   // ── Submenu options for selected menu node ──────────────────────────────────
   useEffect(() => {
@@ -380,6 +471,53 @@ export function FlowEditorPage() {
   }, [edges, flow, isDraft, isInitialized, nodes, savedSnapshot]);
 
   const isSubflow = breadcrumb.length > 1;
+  const paletteGroups = useMemo<PaletteGroupWithItems[]>(() => {
+    const grouped = PALETTE_GROUPS.map((group) => ({
+      ...group,
+      items: palette.filter((item) => group.types.includes(item.type)),
+    }));
+    const mappedTypes = new Set(grouped.flatMap((group) => group.items.map((item) => item.type)));
+    const otherItems = palette.filter((item) => !mappedTypes.has(item.type));
+    if (otherItems.length > 0) {
+      grouped.push({
+        id: 'other',
+        label: 'OTHER',
+        types: [],
+        items: otherItems,
+      });
+    }
+    return grouped;
+  }, []);
+  const normalizedPaletteSearchQuery = paletteSearchQuery.trim().toLowerCase();
+  const paletteSearchMatches = useMemo(
+    () =>
+      palette.filter((item) => (
+        item.type.toLowerCase().includes(normalizedPaletteSearchQuery)
+        || item.label.toLowerCase().includes(normalizedPaletteSearchQuery)
+      )),
+    [normalizedPaletteSearchQuery],
+  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        PALETTE_GROUP_STORAGE_KEY,
+        JSON.stringify(paletteGroupCollapsed),
+      );
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [paletteGroupCollapsed]);
+
+  const renderPaletteNodeCard = useCallback((item: (typeof palette)[number]) => (
+    <div className={styles.paletteItem} draggable={item.type !== 'start'} key={item.type} onDragStart={() => handleDragStart(item.type)} title={item.type === 'start' ? 'Seed flows already contain the required start node' : 'Drag onto canvas'}>
+      <span className={`${styles.paletteBar} ${styles[`bar${item.type.replace('_', '')}`]}`} />
+      {renderPaletteIcon(item.type)}
+      <div>
+        <div className={styles.paletteType}>{item.type}</div>
+        <div className={styles.paletteLabel}>{item.label}</div>
+      </div>
+    </div>
+  ), [handleDragStart]);
 
   // ── Versions panel load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -696,20 +834,42 @@ export function FlowEditorPage() {
   }, [edges, nodes]);
 
   // ── Diff overlay ─────────────────────────────────────────────────────────────
+  const currentSnapshot = currentVersionDetail?.snapshot ?? {
+    flowId: flow?.id ?? 0,
+    name: flow?.name ?? '',
+    nodes: nodes.map((node) => ({
+      nodeKey: node.id,
+      type: node.data.type,
+      label: node.data.label ?? null,
+      positionX: node.position.x,
+      positionY: node.position.y,
+      config: node.data.config,
+      groupId: node.parentId ?? null,
+      subflowId: node.data.subflowId ?? null,
+    })),
+    edges: edges.map((edge) => ({
+      sourceNodeKey: edge.source,
+      targetNodeKey: edge.target,
+      branchKey: String(edge.data?.branchKey || edge.data?.condition || 'default'),
+      condition: edge.data?.condition ?? null,
+    })),
+  };
   const compareSnapshotNodes = compareVersion ? mapSnapshotToNodes(compareVersion.snapshot) : [];
   const compareSnapshotEdges = compareVersion ? mapSnapshotToEdges(compareVersion.snapshot) : [];
-  const currentNodeIds = new Set(nodes.map((node) => node.id));
+  const currentSnapshotNodes = mapSnapshotToNodes(currentSnapshot);
+  const currentSnapshotEdges = mapSnapshotToEdges(currentSnapshot);
+  const currentNodeIds = new Set(currentSnapshotNodes.map((node) => node.id));
   const snapshotNodeIds = new Set(compareSnapshotNodes.map((node) => node.id));
-  const addedNodeIds = new Set(nodes.filter((node) => !snapshotNodeIds.has(node.id)).map((node) => node.id));
+  const addedNodeIds = new Set(currentSnapshotNodes.filter((node) => !snapshotNodeIds.has(node.id)).map((node) => node.id));
   const removedNodeIds = new Set(compareSnapshotNodes.filter((node) => !currentNodeIds.has(node.id)).map((node) => node.id));
-  const currentEdgeKeys = new Set(edges.map((edge) => makeVersionEdgeKey(edge)));
+  const currentEdgeKeys = new Set(currentSnapshotEdges.map((edge) => makeVersionEdgeKey(edge)));
   const snapshotEdgeKeys = new Set(compareSnapshotEdges.map((edge) => makeVersionEdgeKey(edge)));
   const changedEdgeKeys = new Set([...Array.from(currentEdgeKeys).filter((key) => !snapshotEdgeKeys.has(key)), ...Array.from(snapshotEdgeKeys).filter((key) => !currentEdgeKeys.has(key))]);
-  const currentDiffNodes = decorateDiffNodes(nodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--accent');
+  const currentDiffNodes = decorateDiffNodes(currentSnapshotNodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--accent');
   const versionDiffNodes = decorateDiffNodes(compareSnapshotNodes.map((node) => ({ ...node, selected: false })), removedNodeIds, '--color-error');
-  const currentDiffEdges = decorateDiffEdges(edges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
+  const currentDiffEdges = decorateDiffEdges(currentSnapshotEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
   const versionDiffEdges = decorateDiffEdges(compareSnapshotEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
-  const addedNodeLabels = nodes.filter((node) => addedNodeIds.has(node.id)).map((node) => node.data.type);
+  const addedNodeLabels = currentSnapshotNodes.filter((node) => addedNodeIds.has(node.id)).map((node) => node.data.type);
   const removedNodeLabels = compareSnapshotNodes.filter((node) => removedNodeIds.has(node.id)).map((node) => node.data.type);
   const changedEdgeLabels = Array.from(changedEdgeKeys).map((key) => { const [source, target] = key.split('|'); return `${source}→${target}`; });
 
@@ -772,18 +932,59 @@ export function FlowEditorPage() {
       <div className={styles.editorShell}>
         <section className={styles.leftPanel}>
           <div className={styles.panelTitle}>node palette</div>
-          <div className={styles.paletteList}>
-            {palette.map((item) => (
-              <div className={styles.paletteItem} draggable={item.type !== 'start'} key={item.type} onDragStart={() => handleDragStart(item.type)} title={item.type === 'start' ? 'Seed flows already contain the required start node' : 'Drag onto canvas'}>
-                <span className={`${styles.paletteBar} ${styles[`bar${item.type.replace('_', '')}`]}`} />
-                {renderPaletteIcon(item.type)}
-                <div>
-                  <div className={styles.paletteType}>{item.type}</div>
-                  <div className={styles.paletteLabel}>{item.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <label className={styles.paletteSearchWrap}>
+            <span className={styles.paletteSearchIcon} aria-hidden="true">
+              <svg viewBox="0 0 16 16" focusable="false">
+                <circle cx="7" cy="7" r="4.5" />
+                <path d="M10.5 10.5L14 14" />
+              </svg>
+            </span>
+            <input
+              ref={paletteSearchRef}
+              className={styles.paletteSearchInput}
+              placeholder="search nodes..."
+              value={paletteSearchQuery}
+              onChange={(event) => setPaletteSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setPaletteSearchQuery('');
+                }
+              }}
+            />
+          </label>
+          {normalizedPaletteSearchQuery ? (
+            <div className={styles.paletteList}>
+              {paletteSearchMatches.map((item) => renderPaletteNodeCard(item))}
+            </div>
+          ) : (
+            <div className={styles.paletteGroups}>
+              {paletteGroups.map((group) => {
+                const isCollapsed = paletteGroupCollapsed[group.id] === true;
+                return (
+                  <section className={styles.paletteGroup} key={group.id}>
+                    <button
+                      className={styles.paletteGroupToggle}
+                      onClick={() => {
+                        setPaletteGroupCollapsed((current) => ({
+                          ...current,
+                          [group.id]: !isCollapsed,
+                        }));
+                      }}
+                      type="button"
+                    >
+                      <span className={styles.paletteGroupChevron}>{isCollapsed ? '▶' : '▼'}</span>
+                      <span className={styles.paletteGroupLabel}>{group.label}</span>
+                    </button>
+                    {!isCollapsed ? (
+                      <div className={styles.paletteList}>
+                        {group.items.map((item) => renderPaletteNodeCard(item))}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+            </div>
+          )}
           <FlowTreePanel tree={flowTree} currentFlowId={currentFlowId} onNavigate={handleBreadcrumbNavigate} />
         </section>
 
@@ -839,6 +1040,7 @@ export function FlowEditorPage() {
             flowDefaultTimeout={flowDefaultTimeout ?? QUEUE_LOGIN_TIMEOUT_DEFAULT_MS}
             queueItems={queueItems}
             extensions={extensions}
+            operators={operators}
             contactNumbers={contactNumbers}
             trunks={trunks}
             saveAttempted={saveAttempted}

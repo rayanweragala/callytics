@@ -100,6 +100,9 @@ interface FlowVersionSubflowSnapshot {
   subflows?: FlowVersionSubflowSnapshot[];
 }
 
+type FlowVersionNodePayload = CreateFlowDto['nodes'][number];
+type FlowVersionEdgePayload = CreateFlowDto['edges'][number];
+
 interface FlowVersionSummaryResponse {
   id: number;
   flowId: number;
@@ -123,7 +126,7 @@ interface FlowNodeInput {
 
 const TIMEOUT_MIN_MS = 1000;
 const TIMEOUT_MAX_MS = 120000;
-const TIMEOUT_CAPABLE_NODE_TYPES = new Set(['get_digits', 'menu', 'transfer', 'webhook', 'queue_login']);
+const TIMEOUT_CAPABLE_NODE_TYPES = new Set(['get_digits', 'menu', 'transfer', 'webhook', 'queue_login', 'callback']);
 
 function parseTimeoutMs(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
@@ -224,6 +227,27 @@ export function validateNodeConfig(node: FlowNodeInput): void {
   if (node.type === 'queue') {
     if (!node.config?.queue_id) {
       throw new BadRequestException(`Node ${node.nodeKey}: queue is required`);
+    }
+  }
+  if (node.type === 'callback') {
+    const numberSource = String(node.config?.number_source || '').trim();
+    if (!['ani', 'dtmf'].includes(numberSource)) {
+      throw new BadRequestException(`Node ${node.nodeKey}: number_source must be ani or dtmf`);
+    }
+
+    const confirmationAudioId = Number(node.config?.confirmation_audio_id || 0);
+    if (!Number.isInteger(confirmationAudioId) || confirmationAudioId <= 0) {
+      throw new BadRequestException(`Node ${node.nodeKey}: confirmation_audio_id is required`);
+    }
+
+    if (numberSource === 'dtmf') {
+      const maxDigitsRaw = node.config?.dtmf_max_digits;
+      const maxDigits = maxDigitsRaw === null || maxDigitsRaw === undefined || maxDigitsRaw === ''
+        ? 11
+        : Number(maxDigitsRaw);
+      if (!Number.isInteger(maxDigits) || maxDigits < 1 || maxDigits > 20) {
+        throw new BadRequestException(`Node ${node.nodeKey}: dtmf_max_digits must be between 1 and 20`);
+      }
     }
   }
   if (node.type === 'webhook') {
@@ -505,13 +529,19 @@ export class FlowsService implements OnModuleInit {
         };
       }
 
-      await manager.delete(FlowNodeEntity, { flowVersionId: versionIdToUpdate });
-      await manager.delete(FlowEdgeEntity, { flowVersionId: versionIdToUpdate });
-      await this.saveNodesAndEdges(manager, versionIdToUpdate, normalizedNodes, dto.edges);
-
-      latestVersion.nodeCount = normalizedNodes.length;
-      latestVersion.snapshot = this.buildSnapshotFromPayload(normalizedNodes, dto.edges) as any;
-      await manager.save(FlowVersionEntity, latestVersion);
+      const nextSubflowVersionNumber = (latestVersion.versionNumber ?? 0) + 1;
+      const subflowSnapshot = this.buildSnapshotFromPayload(normalizedNodes, dto.edges);
+      const savedSubflowVersion = await this.createStoredVersion(
+        manager,
+        flow.id,
+        nextSubflowVersionNumber,
+        subflowSnapshot,
+        dto.versionMessage,
+      );
+      await this.saveNodesAndEdges(manager, savedSubflowVersion.id, normalizedNodes, dto.edges);
+      flow.currentVersionId = savedSubflowVersion.id;
+      flow.updatedAt = new Date();
+      await manager.save(CallFlowEntity, flow);
 
       const rootFlowId = await this.getRootFlowId(flow.id, manager);
       const fullSnapshot = await this.buildFullTreeSnapshot(rootFlowId, manager);
@@ -547,7 +577,7 @@ export class FlowsService implements OnModuleInit {
       }
 
       const persistedFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: flow.id } });
-      const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: versionIdToUpdate } });
+      const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: persistedFlow.currentVersionId ?? versionIdToUpdate } });
 
       return {
         data: await this.buildFlowDetail(persistedFlow, persistedVersion, manager),
@@ -655,7 +685,7 @@ export class FlowsService implements OnModuleInit {
       );
 
       flow.currentVersionId = savedVersion.id;
-      flow.name = flow.name.replace(/ Updated$/, '');
+      flow.name = snapshot.name ?? flow.name;
       flow.updatedAt = new Date();
       await manager.save(CallFlowEntity, flow);
 
@@ -679,6 +709,10 @@ export class FlowsService implements OnModuleInit {
           condition: edge.condition,
         })),
       );
+
+      if (snapshot.subflows && snapshot.subflows.length > 0) {
+        await this.restoreSubflowSnapshots(manager, snapshot.subflows);
+      }
 
       return { data: { success: true as const } };
     });
@@ -1122,6 +1156,76 @@ export class FlowsService implements OnModuleInit {
       });
     }
     return snapshots;
+  }
+
+  private mapSnapshotNodesToPayload(nodes: FlowVersionSnapshot['nodes']): FlowVersionNodePayload[] {
+    return nodes.map((node) => ({
+      nodeKey: node.nodeKey,
+      type: node.type,
+      label: node.label ?? undefined,
+      positionX: node.positionX,
+      positionY: node.positionY,
+      config: node.config,
+      groupId: node.groupId,
+      subflowId: node.subflowId,
+    }));
+  }
+
+  private mapSnapshotEdgesToPayload(edges: FlowVersionSnapshot['edges']): FlowVersionEdgePayload[] {
+    return edges.map((edge) => ({
+      sourceNodeKey: edge.sourceNodeKey,
+      targetNodeKey: edge.targetNodeKey,
+      branchKey: edge.branchKey,
+      condition: edge.condition,
+    }));
+  }
+
+  private async restoreSubflowSnapshots(
+    manager: DataSource['manager'],
+    snapshots: FlowVersionSubflowSnapshot[],
+  ): Promise<void> {
+    for (const snapshot of snapshots) {
+      const flowId = Number(snapshot.flowId || 0);
+      if (flowId <= 0) {
+        continue;
+      }
+
+      const subflow = await manager.findOne(CallFlowEntity, { where: { id: flowId } });
+      if (!subflow) {
+        throw new NotFoundException(`Flow ${flowId} not found`);
+      }
+
+      const previousVersion = await this.getLatestVersion(flowId, manager);
+      const nextVersionNumber = (previousVersion?.versionNumber ?? 0) + 1;
+      const nextSnapshot: FlowVersionSnapshot = {
+        flowId,
+        name: snapshot.name,
+        nodes: snapshot.nodes,
+        edges: snapshot.edges,
+      };
+      const savedVersion = await this.createStoredVersion(
+        manager,
+        flowId,
+        nextVersionNumber,
+        nextSnapshot,
+        `Restored from root version`,
+      );
+      await this.saveNodesAndEdges(
+        manager,
+        savedVersion.id,
+        this.mapSnapshotNodesToPayload(snapshot.nodes),
+        this.mapSnapshotEdgesToPayload(snapshot.edges),
+      );
+
+      subflow.currentVersionId = savedVersion.id;
+      subflow.name = snapshot.name ?? subflow.name;
+      subflow.updatedAt = new Date();
+      await manager.save(CallFlowEntity, subflow);
+
+      if (snapshot.subflows && snapshot.subflows.length > 0) {
+        await this.restoreSubflowSnapshots(manager, snapshot.subflows);
+      }
+    }
   }
 
   private async buildSnapshotFromVersionId(
