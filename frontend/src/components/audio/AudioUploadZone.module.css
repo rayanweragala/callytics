@@ -6,7 +6,7 @@
   width: 100%;
   min-height: 120px;
   border: 1px dashed var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   display: flex;
@@ -30,7 +30,7 @@
 }
 
 .fileName {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-primary);
 }

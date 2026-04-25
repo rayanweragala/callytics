@@ -6,10 +6,11 @@ export function SidebarNav() {
 
   return (
     <aside className={styles.sidebar}>
-      <div>
+      <div className={styles.brandArea}>
         <div className={styles.brand}>CALLYTICS</div>
         <div className={styles.label}>CONTROL ROOM</div>
-        <nav className={styles.nav} aria-label="Primary navigation">
+      </div>
+      <nav className={styles.nav} aria-label="Primary navigation">
           <div className={styles.group}>
             <div className={styles.groupLabel}>MONITOR</div>
             <NavLink to="/" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item} end>
@@ -77,7 +78,6 @@ export function SidebarNav() {
             </NavLink>
           </div>
         </nav>
-      </div>
       <div className={styles.version}>v{appVersion}</div>
     </aside>
   );

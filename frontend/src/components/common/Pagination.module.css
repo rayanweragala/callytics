@@ -8,14 +8,14 @@
 }
 
 .pageIndicator {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }
 
 .button {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 8px 12px;

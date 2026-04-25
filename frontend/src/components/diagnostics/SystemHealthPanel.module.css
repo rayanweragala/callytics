@@ -1,6 +1,6 @@
 .panel {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 16px;
 }
@@ -28,7 +28,7 @@
 
 .meta {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -40,7 +40,7 @@
 
 .card {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   min-height: 92px;
 }
@@ -76,6 +76,6 @@
 .detail {
   margin-top: 10px;
   color: var(--text-primary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
 }

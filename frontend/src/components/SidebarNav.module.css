@@ -1,96 +1,187 @@
 .sidebar {
-  width: 240px;
-  border-right: 1px solid var(--border-default);
-  padding: 24px;
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border-subtle);
   position: fixed;
   inset: 0 auto 0 0;
-  background: var(--bg-base);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  z-index: 100;
 }
 
-.brand,
-.version {
-  font-family: 'Space Mono', monospace;
+.brandArea {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .brand {
-  font-size: 18px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
   letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .label {
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
+  margin-top: 3px;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-top: 16px;
+  gap: 0;
+  padding: 8px 0;
+  flex: 1;
 }
 
 .group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .groupLabel {
-  font-size: 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  padding-left: 8px;
-  margin-top: 16px;
-  margin-bottom: 4px;
+  letter-spacing: 0.14em;
+  padding: 12px 16px 4px;
 }
 
 .item {
   appearance: none;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
+  border-left: 2px solid transparent;
   color: var(--text-secondary);
-  border-radius: 8px;
-  padding: 8px 12px;
+  padding: 6px 16px;
   text-align: left;
   text-transform: lowercase;
-  font-size: 13px;
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  transition: color 0.1s, background 0.1s, border-left-color 0.1s;
+  border-radius: 0;
 }
 
 .item:hover {
-  background: var(--bg-elevated);
-  border-color: var(--border-strong);
   color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: var(--border-default);
 }
 
 .itemActive {
+  color: var(--accent);
   background: var(--accent-dim);
-  border-color: transparent;
-  color: var(--color-active);
-  border-radius: 6px;
+  border-left-color: var(--accent);
+  font-weight: 500;
+}
+
+.itemActive:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .version {
+  font-family: var(--font-mono);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.04em;
-  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
+/* ── Tablet: slightly compact ── */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: var(--sidebar-width);
+  }
+  .item {
+    font-size: 11px;
+    padding: 5px 14px;
+  }
+}
+
+/* ── Mobile: horizontal top bar ── */
+@media (max-width: 768px) {
   .sidebar {
     position: static;
     width: 100%;
     height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--border-default);
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .brandArea {
+    padding: 10px 14px;
+    border-bottom: none;
+    border-right: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+  }
+
+  .label {
+    display: none;
+  }
+
+  .nav {
+    flex-direction: row;
+    padding: 0;
+    gap: 0;
+    overflow-x: auto;
+    align-items: stretch;
+  }
+
+  .group {
+    flex-direction: row;
+    margin-bottom: 0;
+    align-items: center;
+  }
+
+  .groupLabel {
+    display: none;
+  }
+
+  .item {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 12px;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  .item:hover {
+    border-left-color: transparent;
+    border-bottom-color: var(--border-default);
+  }
+
+  .itemActive {
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .version {
+    display: none;
   }
 }

@@ -3,7 +3,7 @@
   display: flex;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
 }
@@ -23,7 +23,7 @@
 }
 
 .type {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -38,7 +38,7 @@
 
 .meta {
   margin-top: 6px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -90,7 +90,7 @@
 .hangup { color: var(--text-muted); }
 .webhook { color: var(--color-info); }
 .queueLogin { color: var(--color-warning); }
-.queue { color: var(--color-success); }
+.queue { color: var(--color-active); }
 .callback { color: var(--color-info); }
 
 .webhookSideEffect {

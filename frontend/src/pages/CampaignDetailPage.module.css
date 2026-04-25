@@ -19,7 +19,7 @@
 .summaryCard,
 .contactsCard {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 16px;
 }
@@ -33,13 +33,13 @@
 
 .campaignStatusBadge {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 3px 8px;
   text-transform: lowercase;
   font-size: 10px;
   color: var(--text-muted);
   background: var(--bg-elevated);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .secondaryButton,
@@ -47,7 +47,7 @@
 .historyButton,
 .filterPill {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   padding: 8px 12px;
@@ -67,7 +67,7 @@
 
 .confirmText {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .summaryGrid {
@@ -91,14 +91,14 @@
 
 .summaryGrid strong,
 .mono {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .statsRow {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   margin-bottom: 10px;
 }
 
@@ -111,15 +111,15 @@
 .progressTrack {
   width: 220px;
   height: 6px;
-  background: var(--color-surface-3);
-  border-radius: 8px;
+  background: var(--bg-overlay);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .progressFill {
   display: block;
   height: 100%;
-  background: var(--color-success);
+  background: var(--color-active);
 }
 
 .filters {
@@ -130,7 +130,7 @@
 }
 
 .filterPillActive {
-  border-color: var(--color-primary);
+  border-color: var(--accent);
 }
 
 .tableHead,
@@ -147,7 +147,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-secondary);
+  color: var(--accent);
 }
 
 .row {
@@ -158,7 +158,7 @@
 
 .statusBadge {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 3px 8px;
   text-transform: lowercase;
   font-size: 10px;
@@ -177,7 +177,7 @@
   gap: 10px;
   font-size: 11px;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .empty {

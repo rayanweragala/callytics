@@ -34,7 +34,7 @@
 
 .closeButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   width: 30px;
@@ -44,7 +44,7 @@
 
 .callMeta {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: grid;
   gap: 8px;
@@ -59,7 +59,7 @@
 }
 
 .metaValue {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-primary);
 }
@@ -77,7 +77,7 @@
 
 .nodeCard {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px;
   display: grid;
   gap: 6px;
@@ -99,9 +99,9 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 3px 7px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .badgeStart { color: var(--accent); }
@@ -113,13 +113,13 @@
 .badgeDefault { color: var(--text-secondary); }
 
 .duration {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
 }
 
 .nodeKey {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
   font-size: 12px;
 }

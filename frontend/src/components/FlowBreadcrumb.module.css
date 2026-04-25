@@ -33,6 +33,6 @@
 
 .separator {
   color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }

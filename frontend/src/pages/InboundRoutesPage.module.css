@@ -29,7 +29,7 @@
 .tablePanel {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
 }
 
@@ -134,7 +134,7 @@
 .tableHead {
   padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -183,7 +183,7 @@
 .failedText,
 .dataMono,
 .createdAt {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .confirmText,

@@ -7,7 +7,7 @@
 
 .iconButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-secondary);
   padding: 8px 10px;
@@ -60,7 +60,7 @@
 }
 
 .time {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
 }

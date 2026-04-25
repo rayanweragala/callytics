@@ -28,7 +28,7 @@
   max-width: none;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   min-height: 280px;
   max-height: 300px;
@@ -74,7 +74,7 @@
 .title {
   margin: 0;
   color: var(--text-primary);
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 500;
 }
@@ -82,13 +82,13 @@
 .subtitle {
   margin: 6px 0 0;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .closeButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   width: 32px;
@@ -98,13 +98,13 @@
 
 .loading {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .svgWrap {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   padding: 8px;
   width: 100%;
@@ -114,11 +114,11 @@
 .errorBox {
   margin-top: 12px;
   border: 1px solid var(--color-error);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--color-error);
   background: var(--bg-base);
   padding: 10px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   white-space: pre-wrap;
 }

@@ -30,7 +30,7 @@
 .modal {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .formPanel,
@@ -136,7 +136,7 @@
 .tableHead {
   padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -185,7 +185,7 @@
 .uriText,
 .dataMono,
 .createdAt {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .confirmText,
@@ -206,7 +206,7 @@
   border: 1px solid var(--border-default);
   border-radius: 4px;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   text-align: center;
 }

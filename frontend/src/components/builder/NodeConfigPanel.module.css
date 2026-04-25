@@ -26,7 +26,7 @@
 .meta {
   font-size: 11px;
   color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .empty {
@@ -42,7 +42,7 @@
 .input {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   padding: 10px 12px;
   font-size: 15px;
@@ -82,7 +82,7 @@
 }
 
 .menuBranchLabel {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 

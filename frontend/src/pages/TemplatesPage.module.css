@@ -6,7 +6,7 @@
 
 .card {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 16px;
   display: flex;
@@ -15,7 +15,7 @@
 }
 
 .category {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 10px;
@@ -36,7 +36,7 @@
 }
 
 .meta {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -44,7 +44,7 @@
 .importButton {
   margin-top: auto;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   padding: 10px 12px;

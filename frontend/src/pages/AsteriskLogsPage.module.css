@@ -6,7 +6,7 @@
 
 .callFilterBanner {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 12px;
@@ -20,7 +20,7 @@
 .clearFilterLink {
   border: none;
   background: transparent;
-  color: var(--color-primary, var(--color-active));
+  color: var(--accent);
   cursor: pointer;
   text-decoration: underline;
   font-size: 12px;
@@ -37,7 +37,7 @@
 .tableCard {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   padding: 0 20px 16px;
 }
@@ -58,7 +58,7 @@
 
 .tableHead {
   border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -73,7 +73,7 @@
 }
 
 .channelGroupB {
-  background: var(--color-surface-2, var(--bg-surface));
+  background: var(--bg-elevated);
 }
 
 .rowError {
@@ -108,25 +108,25 @@
 
 .levelPill {
   border: 1px solid var(--border-default);
-  border-radius: 999px;
-  background: var(--color-surface-2, var(--bg-surface));
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   padding: 6px 10px;
   cursor: pointer;
 }
 
 .levelPillActive {
-  background: var(--color-primary, var(--color-active));
+  background: var(--accent);
   color: var(--text-inverse);
-  border-color: var(--color-primary, var(--color-active));
+  border-color: var(--accent);
 }
 
 .searchInput {
   width: 280px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   padding: 10px 12px;
@@ -136,7 +136,7 @@
   width: 36px;
   height: 36px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
@@ -145,7 +145,7 @@
 .timestamp,
 .channel,
 .module {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 400;
 }
@@ -166,7 +166,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   padding: 2px 8px;
@@ -184,17 +184,17 @@
 }
 
 .levelNotice {
-  background: var(--color-primary, var(--color-active));
+  background: var(--accent);
   color: var(--text-primary);
 }
 
 .levelVerbose {
-  background: var(--color-surface-3, var(--bg-elevated));
+  background: var(--bg-overlay);
   color: var(--color-text, var(--text-primary));
 }
 
 .levelUnknown {
-  background: var(--color-surface-2, var(--bg-surface));
+  background: var(--bg-elevated);
   color: var(--text-muted);
 }
 
@@ -204,7 +204,7 @@
 
 .rawMessage {
   display: block;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 400;
   line-height: 1.35;

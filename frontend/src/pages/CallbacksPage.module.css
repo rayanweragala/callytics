@@ -5,7 +5,7 @@
 
 .tablePanel {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 0 20px 16px;
   overflow-x: auto;
@@ -35,12 +35,12 @@
 
 .select {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   color: var(--text-primary);
   min-height: 34px;
   padding: 0 10px;
-  font-family: 'Geist', sans-serif;
+  font-family: var(--font-mono);
 }
 
 .table {
@@ -52,7 +52,7 @@
 
 .tableHead {
   border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -112,7 +112,7 @@
 }
 
 .dataMono {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
   font-size: 12px;
   word-break: break-word;
@@ -129,7 +129,7 @@
   min-height: 22px;
   padding: 0 8px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 11px;
   text-transform: lowercase;
 }
@@ -144,8 +144,8 @@
 }
 
 .statusCompleted {
-  color: var(--color-success);
-  border-color: var(--color-success);
+  color: var(--color-active);
+  border-color: var(--color-active);
 }
 
 .statusFailed {
@@ -184,13 +184,13 @@
 .primaryButton,
 .secondaryButton,
 .dangerButton {
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   min-height: 30px;
   padding: 0 10px;
   border: 1px solid var(--border-default);
   background: var(--bg-elevated);
   color: var(--text-primary);
-  font-family: 'Geist', sans-serif;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 

@@ -3,7 +3,7 @@
   display: flex;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   position: relative;
   color: var(--color-warning);
@@ -26,7 +26,7 @@
 .type,
 .meta,
 .badge {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .type {

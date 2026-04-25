@@ -8,7 +8,7 @@
 .editorNotice {
   padding: 12px 16px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--color-error);
 }
@@ -27,7 +27,7 @@
   gap: 12px;
   padding: 10px 14px;
   border: 1px solid var(--color-warning);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-warning) 10%, var(--bg-surface));
   color: var(--text-primary);
   font-size: 13px;
@@ -54,14 +54,14 @@
 .saveStatus {
   font-size: 12px;
   color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .flowNameInput,
 .input {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   padding: 10px 12px;
 }
@@ -79,7 +79,7 @@
 .primaryButton,
 .secondaryButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 14px;
@@ -110,7 +110,7 @@
 .rightPanel {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
 }
 
@@ -169,13 +169,13 @@
 }
 
 .paletteGroupChevron {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1;
 }
 
 .paletteGroupLabel {
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -210,7 +210,7 @@
   width: 100%;
   height: 34px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 7px 10px 7px 32px;
@@ -230,7 +230,7 @@
   gap: 12px;
   align-items: center;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   background: var(--bg-surface);
   transition: background 150ms ease, border-color 150ms ease;
@@ -239,7 +239,7 @@
 .paletteBar {
   width: 4px;
   align-self: stretch;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
 }
 
 .barstart { background: var(--color-active); }
@@ -253,7 +253,7 @@
 .barhangup { background: var(--text-muted); }
 .barwebhook { background: var(--color-info); }
 .barqueuelogin { background: var(--color-warning); }
-.barqueue { background: var(--color-success); }
+.barqueue { background: var(--color-active); }
 .barcallback { background: var(--color-info); }
 
 .paletteIcon {
@@ -274,7 +274,7 @@
 }
 
 .paletteType, .meta {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .paletteType {
@@ -336,7 +336,7 @@
 }
 
 .menuBranchLabel {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
@@ -358,7 +358,7 @@
 :global(.react-flow__controls) {
   box-shadow: none;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -414,7 +414,7 @@
 .versionsTitle,
 .compareTitle,
 .compareCanvasTitle {
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
@@ -431,7 +431,7 @@
 .versionNum,
 .compareSummaryBar,
 .compareListRow {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .versionsCommitRow {
@@ -459,7 +459,7 @@
 
 .versionItem {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -528,7 +528,7 @@
 .compareCanvas {
   min-height: 360px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--bg-surface);
 }
@@ -576,7 +576,7 @@
 
 .subflowDiffItem {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 8px 10px;
 }
@@ -584,7 +584,7 @@
 .subflowDiffSummary {
   cursor: pointer;
   color: var(--text-primary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 

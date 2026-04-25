@@ -1,7 +1,7 @@
 .panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   min-height: 420px;
 }
@@ -29,7 +29,7 @@
 .finalStatus,
 .expandIndicator,
 .caller {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .live,
@@ -51,7 +51,7 @@
 .callCard {
   border: 1px solid var(--border-default);
   border-top: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--bg-surface);
 }

@@ -10,14 +10,14 @@
 
 .statusLine {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .errorText {
   border: 1px solid var(--color-error);
-  border-radius: 8px;
-  background: var(--color-error-soft);
+  border-radius: var(--radius-lg);
+  background: var(--color-error-tint);
   color: var(--color-error);
   font-size: 12px;
   padding: 8px 10px;
@@ -40,7 +40,7 @@
 
 .actionButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
@@ -90,7 +90,7 @@
   flex-direction: column;
   min-width: 0;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   padding: 12px;
   max-height: calc(100vh - 140px);
@@ -198,7 +198,7 @@
 .select,
 .input {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
@@ -216,9 +216,9 @@
 .tableHead {
   border: 1px solid var(--border-default);
   border-bottom: 0;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--bg-elevated);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 12px;
   padding: 10px;
   text-transform: uppercase;
@@ -226,7 +226,7 @@
 
 .tableBody {
   border: 1px solid var(--border-default);
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   max-height: 440px;
   overflow-y: auto;
   margin-bottom: 12px;
@@ -239,7 +239,7 @@
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 10px;
   cursor: pointer;
@@ -255,7 +255,7 @@
 }
 
 .errorRow {
-  background: var(--color-error-soft);
+  background: var(--color-error-tint);
 }
 
 .timeCell {
@@ -283,24 +283,24 @@
 
 .verdictBanner {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px;
   margin-bottom: 12px;
 }
 
 .verdictGreen {
   border-color: var(--color-active);
-  background: var(--color-active-soft);
+  background: var(--color-active-tint);
 }
 
 .verdictAmber {
   border-color: var(--color-warning);
-  background: var(--color-warning-soft);
+  background: var(--color-warning-tint);
 }
 
 .verdictRed {
   border-color: var(--color-error);
-  background: var(--color-error-soft);
+  background: var(--color-error-tint);
 }
 
 .verdictMessage {
@@ -339,14 +339,14 @@
 
 .accordionItem {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
 }
 
 .accordionSummary {
   cursor: pointer;
   padding: 8px 10px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-primary);
 }
@@ -366,7 +366,7 @@
 
 .headerKey {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .headerValue {
@@ -377,7 +377,7 @@
 .sdpBlock {
   margin-top: 8px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px;
   font-size: 12px;
 }
@@ -386,7 +386,7 @@
 .rawJson {
   margin: 8px 0 0;
   white-space: pre-wrap;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -394,7 +394,7 @@
 .rawButton {
   margin-top: 8px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   font-size: 12px;

@@ -32,7 +32,7 @@
 }
 
 .versionsTitle {
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
   color: var(--text-primary);
   font-size: 15px;
 }
@@ -62,7 +62,7 @@
 
 .versionItem {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -79,7 +79,7 @@
 .versionNum {
   color: var(--accent);
   font-size: 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .versionMessage {
@@ -95,7 +95,7 @@
 .input {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   padding: 10px 12px;
 }
@@ -103,7 +103,7 @@
 .primaryButton,
 .secondaryButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 14px;
@@ -130,5 +130,5 @@
 .meta {
   font-size: 11px;
   color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }

@@ -5,7 +5,7 @@
 
 .refreshButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 14px;
@@ -14,10 +14,10 @@
 
 .successText {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--accent);
   padding: 12px 14px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }

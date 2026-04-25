@@ -22,7 +22,7 @@
 
 .label {
   position: absolute;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
   background: var(--bg-base);

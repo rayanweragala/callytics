@@ -11,7 +11,7 @@
 
 .panel {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 0 20px 16px;
   overflow: hidden;
@@ -32,7 +32,7 @@
 
 .filterPill {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   padding: 6px 10px;
@@ -40,13 +40,13 @@
 }
 
 .filterPillActive {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .input {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   padding: 10px 12px;
@@ -69,7 +69,7 @@
 .tableHead {
   padding: 16px 0;
   border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -92,20 +92,20 @@
 }
 
 .mono {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 400;
 }
 
 .flowName {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 400;
 }
 
 .timestamp {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -114,8 +114,8 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
-  font-family: 'Space Mono', monospace;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
   font-size: 10px;
   text-transform: lowercase;
   padding: 4px 8px;
@@ -124,9 +124,9 @@
 
 .mosBadge {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 400;
   line-height: 1;
@@ -136,12 +136,12 @@
 
 .missingQuality {
   color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .mosGood {
-  color: var(--color-success);
+  color: var(--color-active);
 }
 
 .mosFair {
@@ -165,7 +165,7 @@
 }
 
 .traceIcon {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 400;
   color: var(--text-secondary);
@@ -173,10 +173,10 @@
 
 .traceButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 400;
   width: 32px;

@@ -8,7 +8,7 @@
 .cell {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px 24px;
   min-height: 112px;
   display: flex;
@@ -17,7 +17,7 @@
 }
 
 .value {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 32px;
   line-height: 1;
   color: var(--text-primary);

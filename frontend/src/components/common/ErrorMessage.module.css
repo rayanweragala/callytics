@@ -3,7 +3,7 @@
   background: var(--bg-surface);
   padding: 12px 16px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin: 0.5rem 0;
 }
 

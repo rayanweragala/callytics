@@ -5,7 +5,7 @@
   min-height: 150px;
   border: 1px dashed rgba(var(--accent-rgb), 0.4);
   background: rgba(var(--accent-rgb), 0.04);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   position: relative;
 }
 
@@ -22,7 +22,7 @@
 
 .label,
 .labelInput {
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: rgba(var(--accent-rgb), 0.7);
 }

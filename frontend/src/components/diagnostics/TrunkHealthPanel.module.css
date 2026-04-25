@@ -1,6 +1,6 @@
 .panel {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   padding: 16px;
 }
@@ -29,7 +29,7 @@
 .table {
   display: grid;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -44,7 +44,7 @@
 
 .head {
   background: var(--bg-elevated);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -56,7 +56,7 @@
 
 .name,
 .mono {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .badge {
@@ -86,7 +86,7 @@
 
 .button {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-base);
   color: var(--text-primary);
   padding: 8px 10px;

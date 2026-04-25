@@ -34,7 +34,7 @@
 .libraryPanel {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
 }
 
@@ -75,7 +75,7 @@
 .textarea {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   padding: 10px 12px;
 }
@@ -101,7 +101,7 @@
 .name,
 .meta,
 .fieldError {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .sliderValue {
@@ -125,7 +125,7 @@
   left: 0;
   right: 0;
   height: 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--border-subtle);
   overflow: hidden;
 }
@@ -159,7 +159,7 @@
   height: 12px;
   margin-top: -3px;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--accent);
 }
 
@@ -167,7 +167,7 @@
   width: 12px;
   height: 12px;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--accent);
 }
 
@@ -176,7 +176,7 @@
 .deleteButton,
 .previewButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 14px;
@@ -227,7 +227,7 @@
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-elevated);
 }
 
@@ -240,7 +240,7 @@
 }
 
 .tableHead {
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -290,7 +290,7 @@
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-overlay);
 }
 

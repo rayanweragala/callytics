@@ -34,7 +34,7 @@
 
 .closeButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
   width: 30px;
@@ -59,13 +59,13 @@
 }
 
 .score {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 36px;
   line-height: 1;
 }
 
 .grade {
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
   text-transform: lowercase;
   font-size: 13px;
 }
@@ -83,16 +83,16 @@
 
 .captureButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   color: var(--text-primary);
   padding: 10px 12px;
   cursor: pointer;
-  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mono);
 }
 
 .good {
-  color: var(--color-success);
+  color: var(--color-active);
 }
 
 .fair {

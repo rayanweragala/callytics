@@ -45,7 +45,7 @@
   border-radius: 4px;
   font-size: 11px;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   text-transform: none;
 }
 
@@ -89,7 +89,7 @@
 .breadcrumb {
   font-size: 11px;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px dashed var(--border-subtle);
@@ -130,10 +130,10 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 4px 10px;
   font-size: 11px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-secondary);
   margin-bottom: 12px;
   text-transform: uppercase;
@@ -142,7 +142,7 @@
 .cardNodeType {
   font-size: 11px;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
@@ -197,7 +197,7 @@
   height: 34px;
   padding: 0 12px;
   font-size: 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   cursor: pointer;
   text-transform: lowercase;
 }
@@ -216,7 +216,7 @@
   min-width: 80px;
   padding: 0 14px;
   font-size: 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   cursor: pointer;
   text-transform: lowercase;
 }
@@ -244,7 +244,7 @@
   align-items: center;
   gap: 6px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 5px 10px;
   background: var(--bg-surface);
 }
@@ -252,7 +252,7 @@
 .chipLabel {
   font-size: 11px;
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .pathArrow {

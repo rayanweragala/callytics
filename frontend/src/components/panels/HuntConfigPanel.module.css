@@ -12,7 +12,7 @@
 
 .fieldLabel,
 .meta {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .fieldLabel {

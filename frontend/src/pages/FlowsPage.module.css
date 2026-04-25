@@ -27,7 +27,7 @@
 .tableCard {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   padding: 0 20px 16px;
 }
@@ -43,7 +43,7 @@
 
 .tableHead {
   border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--accent);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -60,7 +60,7 @@
 .row:last-child { border-bottom: none; }
 
 .flowName {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .flowName {
@@ -76,7 +76,7 @@
 
 .createdAt {
   color: var(--text-secondary);
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -93,7 +93,7 @@
 .secondaryButton,
 .deleteButton {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 14px;
@@ -118,7 +118,7 @@
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-overlay);
 }
 
@@ -126,7 +126,7 @@
 .deletedText,
 .failedText
 .createdAt  {
-  font-family: 'Space Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
