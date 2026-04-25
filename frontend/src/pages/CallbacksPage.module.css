@@ -3,10 +3,11 @@
   gap: 12px;
 }
 
+/* FIX 1 — Card border */
 .tablePanel {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--surface);
   padding: 0 20px 16px;
   overflow-x: auto;
 }
@@ -16,7 +17,7 @@
   align-items: flex-end;
   gap: 8px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .filterField {
@@ -26,21 +27,30 @@
   min-width: 220px;
 }
 
+/* FIX — Form label */
 .filterLabel {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
   text-transform: uppercase;
 }
 
+/* FIX 7 — Select: amber focus */
 .select {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   color: var(--text-primary);
   min-height: 34px;
   padding: 0 10px;
   font-family: var(--font-mono);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.select:focus {
+  border-color: var(--accent);
 }
 
 .table {
@@ -50,17 +60,22 @@
   table-layout: fixed;
 }
 
+/* Table header */
 .tableHead {
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
+/* FIX 3 — Row: 9px vertical padding + border-bottom */
 .row {
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
+  transition: background 0.1s;
+  cursor: default;
 }
 
 .row:last-child {
@@ -69,68 +84,57 @@
 
 .tableHead th,
 .row td {
-  padding: 16px 0;
+  padding: 9px 12px;
   text-align: left;
   vertical-align: top;
 }
 
 .tableHead th {
-  font-weight: 400;
+  font-weight: 700;
 }
 
 .row td {
-  font-size: 12px;
+  font-size: 14px;
 }
 
-.colId {
-  width: 60px;
+/* FIX 4 — Row hover tint */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
-.colCustomer {
-  width: 160px;
-}
+.colId { width: 60px; }
+.colCustomer { width: 160px; }
+.colOperator { width: 180px; }
+.colStatus { width: 120px; }
+.colReceived { width: 180px; }
+.colExecuted { width: 180px; }
+.colActions { width: 160px; min-width: 160px; }
 
-.colOperator {
-  width: 180px;
-}
-
-.colStatus {
-  width: 120px;
-}
-
-.colReceived {
-  width: 180px;
-}
-
-.colExecuted {
-  width: 180px;
-}
-
-.colActions {
-  width: 160px;
-  min-width: 160px;
-}
-
+/* FIX 2 — Data values: cyan + 600 (phone numbers, timestamps) */
 .dataMono {
   font-family: var(--font-mono);
-  color: var(--text-primary);
-  font-size: 12px;
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
   word-break: break-word;
 }
 
 .dashMuted {
-  color: var(--color-text-muted);
+  color: var(--text-muted);
 }
 
+/* Status badge — matches spec */
 .statusBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 22px;
-  padding: 0 8px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: lowercase;
 }
 
@@ -181,22 +185,60 @@
   text-align: center;
 }
 
-.primaryButton,
-.secondaryButton,
-.dangerButton {
-  border-radius: var(--radius-lg);
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 12px;
+/* FIX 5 — Primary CTA: amber */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
 
-.primaryButton {
-  border-color: var(--border-default);
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+/* FIX 6 — Row action buttons */
+.secondaryButton {
+  height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.secondaryButton:hover {
   color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.dangerButton {
+  height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--color-error);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.dangerButton:hover {
+  border-color: var(--color-error);
 }
 
 .confirmInline {
@@ -204,14 +246,14 @@
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   justify-content: center;
 }
 
 .rowError {
   padding: 0 12px 10px;
   color: var(--color-error);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .empty {

@@ -64,7 +64,7 @@
 
 .pageIndicator {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
@@ -87,7 +87,7 @@
 
 .live,
 .liveCall {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   color: var(--color-active);
   display: flex;
@@ -152,7 +152,7 @@
 
 .callId {
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.02em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,21 +160,21 @@
 
 .caller {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .finalStatus {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .time {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
   text-align: right;
 }
 
@@ -229,14 +229,14 @@
 
 .nodeType {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
 .nodeKey {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -246,7 +246,7 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 14px;
   padding: 2px 6px;
   line-height: 1.2;
   flex-shrink: 0;
@@ -254,7 +254,7 @@
 
 .elapsedTime {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
   text-align: right;
   white-space: nowrap;
 }

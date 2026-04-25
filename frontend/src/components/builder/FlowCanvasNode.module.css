@@ -24,7 +24,7 @@
 
 .type {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
@@ -32,14 +32,14 @@
 
 .label {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 4px;
 }
 
 .meta {
   margin-top: 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 

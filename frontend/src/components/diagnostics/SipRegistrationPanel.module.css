@@ -11,7 +11,7 @@
 
 .eyebrow {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -41,13 +41,13 @@
 .head {
   background: var(--bg-elevated);
   color: var(--accent);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
 }
 
 .row {
   border-top: 1px solid var(--border-default);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .head > span,
@@ -78,7 +78,7 @@
   border-top: 1px solid var(--border-default);
   color: var(--text-secondary);
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .mono {
@@ -90,7 +90,7 @@
   border: 1px solid currentColor;
   border-radius: var(--radius-lg);
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .registered {

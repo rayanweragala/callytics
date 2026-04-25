@@ -63,8 +63,8 @@ export function TrunkHealthPanel({
           return (
             <div className={styles.row} key={trunk.id}>
               <span className={styles.name}>{trunk.name}</span>
-              <span>{trunk.host}:{trunk.port}</span>
-              <span>{result?.tcpStatus || 'unknown'}</span>
+              <span className={styles.hostCell} title={`${trunk.host}:${trunk.port}`}>{trunk.host}:{trunk.port}</span>
+              <span className={styles.tcpCell}>{result?.tcpStatus || 'unknown'}</span>
               <span>
                 <span className={`${styles.badge} ${styles[result?.status || 'unknown']}`}>
                   {getStatusLabel(result)}

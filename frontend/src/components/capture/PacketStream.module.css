@@ -19,7 +19,7 @@
   color: var(--text-primary);
   border: 1px solid var(--border-default);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   padding: 8px 10px;
 }
 
@@ -35,7 +35,7 @@
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
 }
 
@@ -54,7 +54,7 @@
   color: var(--text-primary);
   padding: 8px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .tableRow:hover {
@@ -73,21 +73,34 @@
   color: var(--color-warning);
 }
 
-.methodInvite {
-  color: var(--color-info);
-}
-
-.methodBye {
-  color: var(--color-warning);
+.methodSecondary {
+  color: var(--text-secondary);
 }
 
 .methodDefault {
   color: var(--text-primary);
 }
 
+.codeSuccess {
+  color: var(--color-active);
+}
+
+.codeError {
+  color: var(--color-error);
+}
+
+.codeNeutral {
+  color: var(--text-secondary);
+}
+
 .emptyState {
   padding: 20px;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

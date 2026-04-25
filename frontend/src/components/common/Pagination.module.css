@@ -1,26 +1,46 @@
+/* Pagination — Compact per Phase 30c spec */
 .footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-strong);
 }
 
 .pageIndicator {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
+/* Pagination buttons: compact 28px height */
 .button {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 8px 12px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
 }
 
+.button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* Active page: amber indicator */
+.button.active,
+.buttonActive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Disabled: reduced opacity */
 .button:disabled {
-  color: var(--text-muted);
+  opacity: 0.35;
+  cursor: not-allowed;
 }

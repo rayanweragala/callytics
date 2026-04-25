@@ -12,24 +12,25 @@
 }
 
 .sectionLabel {
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--accent);
 }
 
 .title {
   margin: 4px 0 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
+/* FIX 1 — Card borders */
 .formPanel,
 .tablePanel,
 .modal {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
 }
 
@@ -62,14 +63,14 @@
 .formGrid {
   margin-top: 12px;
   padding: 12px 16px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 .editorRow {
   padding: 12px 16px;
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
   border-top: 1px solid var(--border-subtle);
   margin-top: -1px;
 }
@@ -82,34 +83,86 @@
   gap: 8px;
 }
 
+/* FIX — Form labels */
 .fieldLabel {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--text-muted);
 }
 
+/* FIX 7 — Input: dark bg + amber focus */
 .input {
   width: 100%;
   min-width: 0;
-  height: 36px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  height: 34px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
   padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
-.primaryButton,
-.secondaryButton,
-.deleteButton {
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+.input:focus {
+  border-color: var(--accent);
+}
+
+/* FIX 5 — Buttons */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-transform: lowercase;
+}
+
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   height: 36px;
   padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
   text-transform: lowercase;
+}
+
+/* FIX 6 — Delete row action */
+.deleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: lowercase;
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .deleteButton,
@@ -117,14 +170,7 @@
   color: var(--color-error);
 }
 
-.primaryButton:hover,
-.secondaryButton:hover,
-.deleteButton:hover,
-.input:hover,
-.input:focus {
-  border-color: var(--border-strong);
-}
-
+/* FIX 3 — Row: 9px vertical padding */
 .tableHead,
 .row {
   display: grid;
@@ -134,17 +180,25 @@
 }
 
 .tableHead {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-default);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
 .row {
-  padding: 16px 0;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .row:last-of-type {
@@ -174,9 +228,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 .confirmText,
@@ -194,33 +248,39 @@
   color: var(--text-secondary);
 }
 
+/* FIX 2 — Data values: cyan + 600 */
 .dataMono {
-  color: var(--text-primary);
-  font-size: 12px;
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .transportBadge {
   display: inline-block;
   min-width: 68px;
-  padding: 2px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-align: center;
 }
 
+/* FIX 2 — Timestamps: cyan + 600 */
 .createdAt {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .displayName,
 .successText,
 .failedText,
 .empty {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .successText {
@@ -257,9 +317,9 @@
 
 .qrFrame {
   margin-top: 16px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   padding: 18px;
   display: flex;
   justify-content: center;
@@ -271,12 +331,12 @@
   max-width: 100%;
   height: auto;
   background: var(--text-primary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .uriText {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: 14px;
   word-break: break-all;
 }
 
@@ -300,4 +360,9 @@
     text-align: left;
     justify-content: flex-start;
   }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

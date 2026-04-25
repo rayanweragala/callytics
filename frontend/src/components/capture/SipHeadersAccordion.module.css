@@ -9,7 +9,7 @@
 
 .sectionTitle {
   margin: 10px 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
 }
@@ -19,7 +19,7 @@
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   padding: 8px 10px;
   cursor: pointer;
 }
@@ -46,7 +46,7 @@
   cursor: pointer;
   padding: 8px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 
@@ -61,7 +61,7 @@
   grid-template-columns: 220px 1fr;
   gap: 10px;
   padding: 4px 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .headerKey {
@@ -70,7 +70,7 @@
 }
 
 .headerValue {
-  color: var(--text-primary);
+  color: var(--color-data);
   overflow-wrap: anywhere;
 }
 
@@ -79,7 +79,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   padding: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .sdpSummary {
@@ -98,7 +98,7 @@
   max-width: 100%;
   box-sizing: border-box;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
@@ -108,7 +108,7 @@
   border-radius: var(--radius-lg);
   background: var(--bg-base);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   padding: 6px 8px;
   cursor: pointer;
 }

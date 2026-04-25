@@ -48,7 +48,7 @@
 
 .inlineDialog .title {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -64,7 +64,7 @@
 
 .inlineDialog .message {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.4;
 }
 

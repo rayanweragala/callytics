@@ -13,7 +13,7 @@
 .label {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .valueWrap {
@@ -23,14 +23,14 @@
 }
 
 .value {
-  color: var(--text-primary);
+  color: var(--color-data);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .plain {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: lowercase;
 }
 

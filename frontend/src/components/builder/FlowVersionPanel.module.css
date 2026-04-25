@@ -48,7 +48,7 @@
 .versionNotice {
   padding: 0 16px 16px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .versionsList {
@@ -77,14 +77,14 @@
 }
 
 .versionNum {
-  color: var(--accent);
-  font-size: 12px;
+  color: var(--color-data);
+  font-size: 14px;
   font-family: var(--font-mono);
 }
 
 .versionMessage {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .versionActions {
@@ -124,11 +124,16 @@
 
 .empty {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .meta {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

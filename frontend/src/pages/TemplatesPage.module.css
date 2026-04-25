@@ -4,51 +4,71 @@
   gap: 12px;
 }
 
+/* FIX 1 — Card border */
 .card {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--surface);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: background 0.1s;
 }
 
+.card:hover {
+  background: var(--surface-elevated);
+}
+
+/* Typography: accent subtitle */
 .category {
   font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 10px;
+  letter-spacing: 0.10em;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--accent);
 }
 
+/* Entity name: text-primary */
 .name {
   margin: 0;
   font-size: 16px;
   color: var(--text-primary);
+  font-weight: 600;
 }
 
+/* Description: muted */
 .description {
   margin: 0;
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: var(--text-muted);
   min-height: 54px;
 }
 
 .meta {
   font-family: var(--font-mono);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
+/* FIX 5 — Import button: amber CTA */
 .importButton {
   margin-top: auto;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-base);
-  color: var(--text-primary);
-  padding: 10px 12px;
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.importButton:hover {
+  opacity: 0.88;
 }
 
 .importButton:disabled {

@@ -15,7 +15,7 @@
 
 .eyebrow {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -36,7 +36,7 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: 1.1fr 1.2fr 0.7fr 0.8fr 1fr 0.7fr 1fr 0.9fr;
+  grid-template-columns: 1.1fr minmax(220px, 1.9fr) 0.8fr 1fr 0.8fr 1.2fr 0.9fr;
   gap: 12px;
   align-items: center;
   padding: 12px 14px;
@@ -45,18 +45,37 @@
 .head {
   background: var(--bg-elevated);
   color: var(--accent);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
 }
 
 .row {
   border-top: 1px solid var(--border-default);
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.head > span,
+.row > span {
+  min-width: 0;
 }
 
 .name,
 .mono {
   font-family: var(--font-mono);
+}
+
+.hostCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcpCell {
+  white-space: nowrap;
+}
+
+.mono {
+  color: var(--color-data);
 }
 
 .badge {
@@ -65,7 +84,7 @@
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .reachable {

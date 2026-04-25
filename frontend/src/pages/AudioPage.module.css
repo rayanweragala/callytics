@@ -11,16 +11,16 @@
 }
 
 .sectionLabel {
-  font-size: 13px;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
+  letter-spacing: 0.10em;
+  color: var(--accent);
 }
 
 .title {
   margin: 4px 0 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -30,10 +30,11 @@
   gap: 12px;
 }
 
+/* FIX 1 — Card borders */
 .panel,
 .libraryPanel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 20px;
 }
@@ -63,25 +64,41 @@
   gap: 8px;
 }
 
+/* FIX — Form labels */
 .fieldLabel,
 .previewLabel {
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
+  letter-spacing: 0.10em;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
 }
 
+/* FIX 7 — Inputs */
 .input,
 .textarea {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
-  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 0 10px;
+  height: 34px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--accent);
 }
 
 .textarea {
+  height: auto;
   min-height: 120px;
+  padding: 10px;
   resize: vertical;
 }
 
@@ -104,13 +121,16 @@
   font-family: var(--font-mono);
 }
 
+/* FIX 2 — Data values: cyan */
 .sliderValue {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .dataValue {
-  color: var(--text-primary);
+  color: var(--color-data);
+  font-weight: 600;
 }
 
 .sliderShell {
@@ -171,34 +191,79 @@
   background: var(--accent);
 }
 
-.primaryButton,
-.secondaryButton,
-.deleteButton,
-.previewButton {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 10px 14px;
-  text-transform: lowercase;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-
-.previewButton {
-  border-color: var(--border-subtle);
-  background: transparent;
-}
-
-.primaryButton:hover,
-.secondaryButton:hover,
-.deleteButton:hover,
-.previewButton:hover,
-.input:hover,
-.input:focus,
-.textarea:hover,
-.textarea:focus,
 .slider:hover,
 .slider:focus {
+  outline: none;
+}
+
+/* FIX 5 — Primary CTA */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-transform: lowercase;
+}
+
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+/* FIX 5 — Secondary */
+.secondaryButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+/* FIX 6 — Row action buttons */
+.deleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: lowercase;
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.previewButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.previewButton:hover {
+  color: var(--text-primary);
   border-color: var(--border-strong);
 }
 
@@ -226,11 +291,12 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .tableHead,
 .row {
   display: grid;
@@ -241,11 +307,12 @@
 
 .tableHead {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-default);
+  letter-spacing: 0.10em;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .actionsHeader {
@@ -253,23 +320,37 @@
 }
 
 .row {
-  padding: 16px 0;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .row:last-child {
   border-bottom: none;
 }
 
+/* Entity name: text-primary */
 .name {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .meta,
 .createdAt {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
+}
+
+/* FIX 2 — Duration and timestamps: cyan */
+.createdAt {
+  color: var(--color-data);
+  font-weight: 600;
 }
 
 .empty {
@@ -289,14 +370,14 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
 }
 
 .confirmText {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .confirmActions {
@@ -321,4 +402,9 @@
     text-align: left;
     justify-content: flex-start;
   }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

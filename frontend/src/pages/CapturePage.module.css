@@ -9,17 +9,17 @@
 }
 
 .statusLine {
-  color: var(--text-secondary);
+  color: var(--color-data);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .errorText {
   border: 1px solid var(--color-error);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-error-tint);
   color: var(--color-error);
-  font-size: 12px;
+  font-size: 14px;
   padding: 8px 10px;
 }
 
@@ -34,22 +34,31 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: lowercase;
 }
 
+/* FIX 6 — Action button: compact */
 .actionButton {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 8px 10px;
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.actionButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .actionButton:disabled {
-  opacity: 0.65;
+  opacity: 0.35;
   cursor: default;
 }
 
@@ -79,7 +88,7 @@
   width: 6px;
   min-width: 6px;
   cursor: col-resize;
-  background: var(--border-default);
+  background: var(--border-strong);
   align-self: stretch;
   flex: 0 0 6px;
 }
@@ -89,9 +98,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--bg-base);
+  background: var(--bg);
   padding: 12px;
   max-height: calc(100vh - 140px);
   overflow-y: auto;
@@ -188,6 +197,7 @@
   flex-shrink: 0;
 }
 
+/* FIX 7 — Inputs */
 .filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -197,14 +207,24 @@
 
 .select,
 .input {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   color: var(--text-primary);
-  font-size: 12px;
-  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  height: 34px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
+.select:focus,
+.input:focus {
+  border-color: var(--accent);
+}
+
+/* Table head */
 .tableHead,
 .tableRow {
   display: grid;
@@ -214,24 +234,27 @@
 }
 
 .tableHead {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-bottom: 0;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
   color: var(--accent);
-  font-size: 12px;
-  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 9px 10px;
   text-transform: uppercase;
 }
 
 .tableBody {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   max-height: 440px;
   overflow-y: auto;
   margin-bottom: 12px;
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .tableRow {
   width: 100%;
   border: 0;
@@ -240,14 +263,16 @@
   color: var(--text-primary);
   text-align: left;
   font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 10px;
+  font-size: 14px;
+  padding: 9px 10px;
   cursor: pointer;
   animation: timeline-enter 200ms ease;
+  transition: background 0.1s;
 }
 
+/* FIX 4 — Row hover */
 .tableRow:hover {
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
 }
 
 .selectedRow {
@@ -258,8 +283,10 @@
   background: var(--color-error-tint);
 }
 
+/* FIX 2 — Time cell: cyan (timestamp data) */
 .timeCell {
-  color: var(--color-warning);
+  color: var(--color-data);
+  font-weight: 600;
 }
 
 .methodInvite {
@@ -276,14 +303,14 @@
 
 .emptyState {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   padding: 24px 0;
   text-align: center;
 }
 
 .verdictBanner {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   padding: 10px;
   margin-bottom: 12px;
 }
@@ -304,13 +331,13 @@
 }
 
 .verdictMessage {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
 .verdictCause {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   margin-top: 4px;
 }
@@ -325,7 +352,7 @@
 
 .sectionTitle {
   margin: 10px 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
 }
@@ -338,21 +365,21 @@
 }
 
 .accordionItem {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
 
 .accordionSummary {
   cursor: pointer;
   padding: 8px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 
 .headerList {
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-strong);
   padding: 8px;
 }
 
@@ -361,7 +388,7 @@
   grid-template-columns: 220px 1fr;
   gap: 10px;
   padding: 4px 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .headerKey {
@@ -370,16 +397,16 @@
 }
 
 .headerValue {
-  color: var(--text-primary);
+  color: var(--color-data);
   overflow-wrap: anywhere;
 }
 
 .sdpBlock {
   margin-top: 8px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   padding: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .sdpBlock pre,
@@ -387,17 +414,35 @@
   margin: 8px 0 0;
   white-space: pre-wrap;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
 .rawButton {
   margin-top: 8px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 6px 8px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rawButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+@keyframes timeline-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

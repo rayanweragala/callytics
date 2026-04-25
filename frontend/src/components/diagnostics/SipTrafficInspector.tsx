@@ -51,6 +51,22 @@ function getRowTone(item: SipTrafficItem): string {
   return styles.info;
 }
 
+function codeClass(code: number | null): string {
+  if (code !== null && code >= 200 && code < 300) {
+    return styles.codeSuccess;
+  }
+  if (code !== null && code >= 400) {
+    return styles.codeError;
+  }
+  return styles.codeNeutral;
+}
+
+function methodClass(method: string): string {
+  return method === 'INVITE' || method === 'REGISTER' || method === 'OPTIONS'
+    ? styles.methodSecondary
+    : styles.methodDefault;
+}
+
 function uniqueItems(items: SipTrafficItem[]): SipTrafficItem[] {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -226,12 +242,12 @@ export function SipTrafficInspector({ items, onClear, loading = false, onRowClic
                 type="button"
               >
                 <span>[{formatSipTimestamp(item.timestamp)}]</span>
-                <span>{item.method}</span>
+                <span className={methodClass(item.method)}>{item.method}</span>
                 <span>{item.from}</span>
                 <span>→</span>
                 <span>{item.to}</span>
                 <span>{item.direction === 'outbound' ? '↑' : '↓'}</span>
-                <span>{item.responseCode ?? '-'}</span>
+                <span className={codeClass(item.responseCode)}>{item.responseCode ?? '-'}</span>
               </button>
               {expandedIndex === index ? (
                 <pre className={styles.raw}>{item.rawMessage}</pre>

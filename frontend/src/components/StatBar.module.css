@@ -5,32 +5,33 @@
   margin-bottom: 24px;
 }
 
+/* FIX — StatBar tile: border + surface */
 .cell {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 20px 24px;
-  min-height: 112px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
+/* StatBar spec: 22px value, text-primary */
 .value {
   font-family: var(--font-mono);
-  font-size: 32px;
+  font-size: 22px;
+  font-weight: 600;
   line-height: 1;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  font-weight: 700;
+  color: var(--color-data);
 }
 
+/* StatBar spec: 10px label, text-muted, uppercase */
 .label {
   margin-top: 8px;
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
 }
 
 @media (max-width: 900px) {

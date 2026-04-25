@@ -1,27 +1,30 @@
+/* FIX 1 — Card border */
 .tableCard {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
   padding: 0 20px 16px;
 }
 
+/* Table header */
 .tableHead {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 16px;
-  padding: 16px 0;
+  padding: 9px 12px;
   align-items: center;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
 .headMeta {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.04em;
   text-transform: none;
   color: var(--text-secondary);
@@ -31,35 +34,44 @@
   text-align: right;
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .row {
   display: grid;
   grid-template-columns: 40px minmax(220px, 0.8fr) minmax(320px, 1.2fr);
   gap: 16px;
-  padding: 16px 0;
+  padding: 9px 12px;
   align-items: center;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .row:last-child {
   border-bottom: none;
 }
 
-.primaryButton,
-.secondaryButton {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 10px 14px;
-  text-transform: lowercase;
-  transition: background 150ms ease, border-color 150ms ease;
+/* FIX 5 — Buttons */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.15s;
+  text-transform: lowercase;
 }
 
-.primaryButton:hover,
-.secondaryButton:hover {
-  background: var(--bg-elevated);
-  border-color: var(--border-strong);
+.primaryButton:hover {
+  opacity: 0.88;
 }
 
 .primaryButton:disabled {
@@ -67,11 +79,25 @@
   cursor: not-allowed;
 }
 
+.secondaryButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-transform: lowercase;
+}
+
 .summaryBanner {
   margin-top: 12px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -113,17 +139,17 @@
 
 .checkLabel {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .checkMessage {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .checkDetail {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 14px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
 }
@@ -131,7 +157,7 @@
 .autoRefreshLine {
   margin-top: 12px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .inlineLink {
@@ -144,42 +170,54 @@
   text-underline-offset: 2px;
 }
 
+/* FIX 3 — History rows: 9px */
 .historyHead,
 .historyRow {
   display: grid;
   grid-template-columns: max-content max-content 1fr;
   gap: 16px;
-  padding: 16px 0;
+  padding: 9px 12px;
   align-items: center;
 }
 
 .historyHead {
-  border-bottom: 1px solid var(--border-default);
-  color: var(--text-secondary);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
 .historyRow {
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
 }
 
+.historyRow:hover {
+  background: var(--surface-elevated);
+}
+
+/* FIX 2 — Timestamps: cyan + 600 */
 .timestamp {
-  color: var(--text-secondary);
+  color: var(--color-data);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
+/* Summary badge — compact */
 .summaryBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
   width: fit-content;
   color: var(--text-primary);
 }
@@ -217,13 +255,7 @@
 }
 
 @keyframes pulseOpacity {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
 }

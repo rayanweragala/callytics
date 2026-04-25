@@ -23,29 +23,33 @@
   font-family: var(--font-mono);
 }
 
+/* FIX — Typography scale */
 .sectionLabel {
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--accent);
 }
 
 .title {
   margin: 4px 0 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.formPanel,
-.tablePanel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+/* FIX 1 — Table card with real border */
+.formPanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 20px;
 }
 
 .tablePanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   padding: 0 20px 16px;
   overflow-x: auto;
 }
@@ -74,14 +78,14 @@
 .formGrid {
   margin-top: 12px;
   padding: 12px 16px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 .editorRow {
   padding: 12px 16px;
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
   border-top: 1px solid var(--border-subtle);
   margin-top: -1px;
 }
@@ -94,11 +98,14 @@
   gap: 8px;
 }
 
+/* FIX — Typography: form labels */
 .fieldLabel {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 .field :global(.container) {
@@ -106,23 +113,24 @@
   min-width: 0;
 }
 
+/* FIX 7 — Input: dark bg + amber focus */
 .input {
   width: 100%;
   min-width: 0;
-  height: 36px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  height: 34px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
   padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
-.input:hover,
-.input:focus,
-.primaryButton:hover,
-.secondaryButton:hover,
-.toggleButton:hover {
-  border-color: var(--border-strong);
+.input:focus {
+  border-color: var(--accent);
 }
 
 .input[type="number"]::-webkit-inner-spin-button,
@@ -138,41 +146,87 @@
 
 .helper {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
-.primaryButton,
-.secondaryButton,
-.toggleButton {
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+/* FIX 5 — Primary CTA: amber filled */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
 
-.primaryButton,
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+/* FIX 5 — Secondary: transparent muted */
 .secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   height: 36px;
   padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* FIX — Toggle button */
+.toggleButton {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
   text-transform: lowercase;
 }
 
+/* Table header: accent uppercase */
 .tableHead {
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .row {
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover tint */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .tableHead th,
 .row td {
-  padding: 16px 0;
+  padding: 9px 12px;
   text-align: left;
   vertical-align: top;
 }
@@ -200,27 +254,33 @@
   min-width: 180px;
 }
 
+/* FIX — Entity names: text-primary white */
 .rowValue {
   font-family: var(--font-mono);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
 }
 
+/* FIX — Labels: muted */
 .rowMuted {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
+/* FIX 2 — Data values: cyan + weight 600 */
 .dataMono {
-  color: var(--text-primary);
-  font-size: 12px;
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
   word-break: break-word;
 }
 
+/* FIX 2 — Timestamp: cyan + weight 600 */
 .createdAt {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .actionsHeader {
@@ -255,14 +315,14 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 .confirmText {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .formActions {
@@ -270,37 +330,49 @@
   justify-content: flex-end;
 }
 
-.secondaryButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+/* FIX 6 — Row action buttons */
+.rowDeleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .rowDeleteButton:hover {
   color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .menuWrap {
   position: relative;
 }
 
+/* FIX 6 — Menu button: compact row action */
 .menuButton {
-  min-width: 36px;
-  height: 36px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-size: 16px;
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
   line-height: 1;
   letter-spacing: 0.08em;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .menuButton:hover {
+  color: var(--text-primary);
   border-color: var(--border-strong);
 }
 
@@ -309,9 +381,9 @@
   top: calc(100% + 4px);
   right: 0;
   width: 180px;
-  border: 1px solid var(--border-color, var(--border-default));
-  border-radius: 6px;
-  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
   padding: 4px 0;
   z-index: 20;
 }
@@ -322,7 +394,7 @@
   background: transparent;
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -331,12 +403,12 @@
 }
 
 .menuItem:hover {
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
 }
 
 .menuDivider {
   height: 1px;
-  background: var(--border-color, var(--border-default));
+  background: var(--border-strong);
   margin: 4px 0;
 }
 
@@ -355,13 +427,13 @@
 .expandedPanel {
   width: 100%;
   padding: 20px 24px;
-  background: var(--bg-elevated);
-  border-top: 1px solid var(--border-color, var(--border-default));
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-strong);
 }
 
 .expandedPanelTitle {
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 12px;
@@ -399,12 +471,12 @@
 .expandedDescription {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
 .expandedStatusLine {
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 10px;
   line-height: 1.4;
 }
@@ -423,15 +495,6 @@
 
 .failedText {
   color: var(--color-error);
-}
-
-.toggleButton {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  text-transform: lowercase;
 }
 
 .toggleOn {
@@ -467,15 +530,18 @@
   animation: spin 800ms linear infinite;
 }
 
+/* Badge styles */
 .testBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 6px 10px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   line-height: 1.4;
 }
 
@@ -497,7 +563,7 @@
 .empty,
 .failedText {
   padding-top: 16px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .empty {
@@ -541,4 +607,9 @@
     width: 100%;
     flex: 1 1 auto;
   }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

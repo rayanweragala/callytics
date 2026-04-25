@@ -16,7 +16,7 @@
 }
 
 .fieldLabel {
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-muted);
@@ -122,6 +122,11 @@
 }
 
 .meta {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

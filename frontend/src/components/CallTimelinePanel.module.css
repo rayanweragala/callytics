@@ -34,7 +34,7 @@
 
 .live,
 .liveCall {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   color: var(--color-active);
   display: flex;
@@ -92,18 +92,18 @@
 
 .callId {
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.02em;
 }
 
 .caller {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .finalStatus {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -161,20 +161,20 @@
 
 .node {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   text-transform: lowercase;
 }
 
 .status {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .time {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
   text-align: right;
 }
 

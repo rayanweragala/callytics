@@ -128,17 +128,17 @@
 
 .itemLabel {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 
 .itemMeta {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
 .empty {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
 }

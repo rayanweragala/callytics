@@ -3,21 +3,32 @@
   gap: 16px;
 }
 
+/* FIX 5 — Refresh button: treat as secondary */
 .refreshButton {
-  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 10px 14px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
 }
 
+.refreshButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* FIX 1 — Card border for success text display */
 .successText {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--surface);
   color: var(--accent);
   padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
 }

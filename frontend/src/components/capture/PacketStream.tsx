@@ -165,6 +165,12 @@ export function PacketStream({ packets, selectedCallId, onSelectCallId, filters,
           const isSelected = selectedCallId === packet.callId;
           const code = packet.statusCode ?? Number.parseInt(packet.method, 10);
           const isError = Number.isFinite(code) && code >= 400;
+          const methodClass = packet.method === 'INVITE' || packet.method === 'REGISTER' || packet.method === 'OPTIONS'
+            ? styles.methodSecondary
+            : styles.methodDefault;
+          const codeClass = Number.isFinite(code)
+            ? (code >= 200 && code < 300 ? styles.codeSuccess : code >= 400 ? styles.codeError : styles.codeNeutral)
+            : styles.codeNeutral;
           return (
             <button
               aria-label={`${packet.timestamp} ${packet.method} ${packet.from} ${packet.to} ${packet.callId}`}
@@ -174,10 +180,10 @@ export function PacketStream({ packets, selectedCallId, onSelectCallId, filters,
               type="button"
             >
               <span className={styles.timeCell}>{formatPacketTimestamp(packet.timestamp)}</span>
-              <span className={packet.method === 'INVITE' ? styles.methodInvite : packet.method === 'BYE' ? styles.methodBye : styles.methodDefault}>{packet.method}</span>
+              <span className={methodClass}>{packet.method}</span>
               <span>{packet.from}</span>
               <span>{packet.to}</span>
-              <span>{packet.statusCode ?? '-'}</span>
+              <span className={codeClass}>{packet.statusCode ?? '-'}</span>
               <span>{packet.callId.slice(0, 18)}{packet.callId.length > 18 ? '…' : ''}</span>
             </button>
           );

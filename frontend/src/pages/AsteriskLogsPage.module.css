@@ -5,16 +5,16 @@
 }
 
 .callFilterBanner {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--surface);
   color: var(--text-primary);
   padding: 10px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .clearFilterLink {
@@ -23,7 +23,7 @@
   color: var(--accent);
   cursor: pointer;
   text-decoration: underline;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0;
 }
 
@@ -34,14 +34,16 @@
   gap: 12px;
 }
 
+/* FIX 1 — Card border */
 .tableCard {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
   padding: 0 20px 16px;
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .tableHead,
 .row {
   display: grid;
@@ -52,28 +54,37 @@
     minmax(190px, 0.9fr)
     minmax(360px, 1.8fr);
   gap: 16px;
-  padding: 16px 0;
+  padding: 9px 12px;
   align-items: center;
 }
 
+/* Table header typography */
 .tableHead {
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
 .row {
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover tint */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .channelGroupA {
-  background: var(--color-surface-1, var(--bg-base));
+  background: transparent;
 }
 
 .channelGroupB {
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
 }
 
 .rowError {
@@ -99,6 +110,7 @@
   align-items: center;
 }
 
+/* AsteriskLogsPage — filter toggles per spec */
 .levelFilters {
   display: inline-flex;
   align-items: center;
@@ -107,14 +119,17 @@
 }
 
 .levelPill {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 12px;
+  height: 28px;
   cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
 .levelPillActive {
@@ -123,61 +138,84 @@
   border-color: var(--accent);
 }
 
+/* FIX 7 — Input: dark bg + amber focus */
 .searchInput {
   width: 280px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-base);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   color: var(--text-primary);
-  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  height: 34px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
+.searchInput:focus {
+  border-color: var(--accent);
+}
+
+/* FIX 6 — Refresh button: compact row action */
 .refreshButton {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
 }
 
-.timestamp,
-.channel,
-.module {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 400;
+.refreshButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
+/* FIX 2 — Timestamp: cyan + 600 */
 .timestamp {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .channel,
 .module {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-data);
+  font-weight: 600;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
 }
 
+/* Level badges — compact */
 .levelBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
   width: fit-content;
 }
 
+/* AsteriskLogsPage — ERROR text color */
 .levelError {
   background: var(--color-error);
   color: var(--text-primary);
 }
 
+/* AsteriskLogsPage — WARNING */
 .levelWarning {
   background: var(--color-warning);
   color: var(--text-inverse);
@@ -189,12 +227,13 @@
 }
 
 .levelVerbose {
-  background: var(--bg-overlay);
-  color: var(--color-text, var(--text-primary));
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
 }
 
 .levelUnknown {
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
   color: var(--text-muted);
 }
 
@@ -205,7 +244,7 @@
 .rawMessage {
   display: block;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -213,7 +252,7 @@
 
 .translation {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
   margin-top: 4px;
 }

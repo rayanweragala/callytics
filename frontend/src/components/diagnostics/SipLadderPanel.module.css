@@ -83,7 +83,7 @@
   margin: 6px 0 0;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .closeButton {
@@ -99,7 +99,7 @@
 .loading {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .svgWrap {
@@ -119,6 +119,6 @@
   background: var(--bg-base);
   padding: 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   white-space: pre-wrap;
 }

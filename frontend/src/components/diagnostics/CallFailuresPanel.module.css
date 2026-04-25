@@ -11,7 +11,7 @@
 
 .eyebrow {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   font-family: inherit;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -48,7 +48,7 @@
 .head {
   background: var(--bg-elevated);
   color: var(--accent);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -58,7 +58,7 @@
   border-top: 1px solid var(--border-default);
   background: transparent;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   cursor: pointer;
   text-align: left;
@@ -70,7 +70,7 @@
 
 .mono {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
@@ -84,7 +84,7 @@
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   width: 32px;
   height: 28px;

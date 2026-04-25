@@ -15,7 +15,7 @@
 
 .eyebrow {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -29,7 +29,7 @@
 .meta {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .grid {
@@ -47,7 +47,7 @@
 
 .label {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 10px;
 }
 
@@ -57,12 +57,12 @@
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
 .healthy {
-  color: var(--accent);
+  color: var(--color-active);
 }
 
 .down {
@@ -75,7 +75,7 @@
 
 .detail {
   margin-top: 10px;
-  color: var(--text-primary);
+  color: var(--color-data);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
 }

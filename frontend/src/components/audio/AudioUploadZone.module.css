@@ -24,13 +24,13 @@
 }
 
 .label {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   text-transform: lowercase;
 }
 
 .fileName {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-primary);
 }

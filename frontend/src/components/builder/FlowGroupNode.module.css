@@ -23,7 +23,7 @@
 .label,
 .labelInput {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   color: rgba(var(--accent-rgb), 0.7);
 }
 

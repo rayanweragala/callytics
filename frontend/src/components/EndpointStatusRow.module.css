@@ -22,13 +22,13 @@
 
 .name {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .address {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -36,6 +36,6 @@
 
 .since {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
   text-align: right;
 }

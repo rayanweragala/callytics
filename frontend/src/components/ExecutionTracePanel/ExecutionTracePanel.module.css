@@ -52,7 +52,7 @@
 
 .metaLabel {
   display: block;
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.08em;
@@ -60,13 +60,13 @@
 
 .metaValue {
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-primary);
+  font-size: 14px;
+  color: var(--color-data);
 }
 
 .empty {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .timeline {
@@ -95,7 +95,7 @@
 }
 
 .nodeBadge {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border: 1px solid var(--border-default);
@@ -114,22 +114,22 @@
 
 .duration {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
 .nodeKey {
   font-family: var(--font-mono);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .metaLine {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .errorText {
   color: var(--color-error);
-  font-size: 12px;
+  font-size: 14px;
 }

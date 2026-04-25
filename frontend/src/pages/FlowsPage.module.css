@@ -11,41 +11,45 @@
 }
 
 .sectionLabel {
-  font-size: 13px;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
+  letter-spacing: 0.10em;
+  color: var(--accent);
 }
 
 .title {
   margin: 4px 0 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
+/* FIX 1 — Card border */
 .tableCard {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
   padding: 0 20px 16px;
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .tableHead,
 .row {
   display: grid;
   grid-template-columns: minmax(240px, 1fr) 220px 280px;
   gap: 16px;
-  padding: 16px 0;
+  padding: 9px 12px;
   align-items: center;
 }
 
+/* Table header typography */
 .tableHead {
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
@@ -55,29 +59,36 @@
 
 .row {
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .row:last-child { border-bottom: none; }
 
+/* Entity name: text-primary white */
 .flowName {
   font-family: var(--font-mono);
-}
-
-.flowName {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .flowDescription {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 4px;
 }
 
+/* FIX 2 — Timestamps: cyan + 600 */
 .createdAt {
-  color: var(--text-secondary);
+  color: var(--color-data);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .actions {
@@ -89,23 +100,62 @@
   text-align: right;
 }
 
-.primaryButton,
-.secondaryButton,
-.deleteButton {
-  border: 1px solid var(--border-default);
+/* FIX 5 — Primary CTA */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 10px 14px;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
   text-transform: lowercase;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.primaryButton:hover,
-.secondaryButton:hover,
-.deleteButton:hover {
-  background: var(--bg-elevated);
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+/* FIX 6 — Row action buttons */
+.secondaryButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: lowercase;
+}
+
+.secondaryButton:hover {
+  color: var(--text-primary);
   border-color: var(--border-strong);
+}
+
+.deleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: lowercase;
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .deleteButton {
@@ -117,17 +167,17 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
 }
 
 .confirmText,
 .deletedText,
-.failedText
-.createdAt  {
+.failedText,
+.createdAt {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .confirmText {

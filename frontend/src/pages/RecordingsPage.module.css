@@ -11,22 +11,23 @@
 }
 
 .sectionLabel {
-  font-size: 13px;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
+  letter-spacing: 0.10em;
+  color: var(--accent);
 }
 
 .title {
   margin: 4px 0 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
+/* FIX 1 — Card border */
 .libraryPanel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 0 20px 16px;
   overflow: hidden;
@@ -40,6 +41,7 @@
   margin-bottom: 16px;
 }
 
+/* FIX 3 — Row: 9px vertical padding */
 .tableHead,
 .row {
   display: grid;
@@ -50,11 +52,12 @@
 
 .tableHead {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-default);
+  letter-spacing: 0.10em;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .actionsHeader {
@@ -62,8 +65,15 @@
 }
 
 .row {
-  padding: 16px 0;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .row:last-child {
@@ -80,26 +90,34 @@
   font-family: var(--font-mono);
 }
 
+/* Entity names: text-primary */
 .name {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .meta {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 14px;
 }
 
+/* FIX 2 — Duration & timestamps: cyan + 600 */
 .duration,
 .createdAt,
 .confirmText,
 .deletedText,
 .failedText {
-  font-size: 11px;
+  font-size: 14px;
+}
+
+.duration {
+  color: var(--color-data);
+  font-weight: 600;
 }
 
 .createdAt {
-  color: var(--text-secondary);
+  color: var(--color-data);
+  font-weight: 600;
 }
 
 .empty {
@@ -118,20 +136,23 @@
   cursor: pointer;
 }
 
-.secondaryButton,
-.deleteButton {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 10px 14px;
+/* FIX 6 — Row action buttons */
+.secondaryButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
   text-transform: lowercase;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.secondaryButton:hover,
-.deleteButton:hover {
-  background: var(--bg-elevated);
+.secondaryButton:hover {
+  color: var(--text-primary);
   border-color: var(--border-strong);
 }
 
@@ -141,6 +162,24 @@
   align-items: center;
   justify-content: center;
   min-width: 88px;
+}
+
+.deleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .deleteButton,
@@ -157,9 +196,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
 }
 
 .confirmText {

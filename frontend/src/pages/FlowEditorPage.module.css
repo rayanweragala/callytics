@@ -30,7 +30,7 @@
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-warning) 10%, var(--bg-surface));
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .inlineSaveWarningActions {
@@ -52,7 +52,7 @@
 }
 
 .saveStatus {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -170,13 +170,13 @@
 
 .paletteGroupChevron {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1;
 }
 
 .paletteGroupLabel {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -278,14 +278,14 @@
 }
 
 .paletteType {
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
 }
 
 .paletteLabel {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   margin-top: 4px;
 }
@@ -303,14 +303,14 @@
 }
 
 .fieldLabel {
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-muted);
 }
 
 .meta {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -445,7 +445,7 @@
 .versionNotice {
   padding: 0 16px 16px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .versionsList {
@@ -475,12 +475,12 @@
 
 .versionNum {
   color: var(--accent);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .versionMessage {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .versionActions {
@@ -507,7 +507,7 @@
 
 .compareSubhead {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .compareGrid {
@@ -545,7 +545,7 @@
   gap: 24px;
   border-top: 1px solid var(--border-default);
   padding-top: 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .addedText {
@@ -585,7 +585,7 @@
   cursor: pointer;
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 @media (max-width: 1280px) {
@@ -596,4 +596,9 @@
   .rightPanel {
     grid-column: 1 / -1;
   }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }

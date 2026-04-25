@@ -4,15 +4,18 @@
   gap: 16px;
 }
 
-.formPanel,
-.tablePanel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
+/* FIX 1 — Card border */
+.formPanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 20px;
 }
 
 .tablePanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   padding: 0 20px 16px;
 }
 
@@ -30,9 +33,9 @@
   gap: 12px;
   margin-top: 12px;
   padding: 12px 16px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 .field {
@@ -46,11 +49,14 @@
   min-width: 0;
 }
 
+/* FIX — Form labels */
 .fieldLabel {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 .field :global(.container) {
@@ -58,15 +64,24 @@
   min-width: 0;
 }
 
+/* FIX 7 — Inputs */
 .input {
   width: 100%;
   min-width: 0;
-  height: 36px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  height: 34px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
   padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--accent);
 }
 
 .select {
@@ -75,15 +90,6 @@
 
 .dateTimeInput {
   min-width: 0;
-}
-
-.input:hover,
-.input:focus,
-.primaryButton:hover,
-.secondaryButton:hover,
-.deleteButton:hover,
-.uploadZone:hover {
-  border-color: var(--border-strong);
 }
 
 .formPanel input[type='number']::-webkit-inner-spin-button,
@@ -96,20 +102,72 @@
   -moz-appearance: textfield;
 }
 
-.primaryButton,
-.secondaryButton,
-.deleteButton,
-.dangerButton {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-base);
-  color: var(--text-primary);
-  padding: 8px 12px;
+/* FIX 5 — Primary CTA: amber */
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
   text-transform: lowercase;
 }
 
-.dangerButton,
-.deleteButton,
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+/* FIX 5 — Secondary */
+.secondaryButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+/* FIX 6 — Row action/delete */
+.deleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: border-color 0.15s;
+  text-transform: lowercase;
+}
+
+.deleteButton:hover {
+  border-color: var(--color-error);
+}
+
+.dangerButton {
+  background: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.dangerButton:hover,
 .failedText {
   color: var(--color-error);
 }
@@ -117,7 +175,7 @@
 .uploadSection {
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-strong);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -128,9 +186,9 @@
 }
 
 .uploadZone {
-  border: 1px dashed var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-base);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   color: var(--text-secondary);
   min-height: 84px;
   display: flex;
@@ -141,7 +199,12 @@
   cursor: pointer;
   text-align: center;
   padding: 12px;
-  font-size: 12px;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+
+.uploadZone:hover {
+  border-color: var(--accent);
 }
 
 .uploadLabel {
@@ -164,7 +227,7 @@
 
 .uploadFileName {
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 14px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,12 +253,13 @@
 .skippedReasons {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+/* FIX 3 — Row: 9px padding */
 .tableHead,
 .row {
   display: grid;
@@ -205,18 +269,26 @@
 }
 
 .tableHead {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-default);
-  font-size: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   color: var(--accent);
 }
 
 .row {
-  padding: 14px 0;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 12px;
+  font-size: 14px;
+  transition: background 0.1s;
+  cursor: default;
+}
+
+/* FIX 4 — Row hover */
+.row:hover {
+  background: var(--surface-elevated);
 }
 
 .row:last-of-type {
@@ -241,25 +313,42 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
+/* FIX 2 — Data values: cyan */
+.dataMono {
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Entity names */
+.nameCell {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* Status badges */
 .statusBadge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: var(--radius-lg);
-  font-size: 10px;
-  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
   text-transform: lowercase;
   border: 1px solid transparent;
 }
 
 .statusDraft {
-  background: var(--bg-overlay);
+  background: var(--surface-elevated);
   color: var(--text-muted);
+  border-color: var(--border-strong);
 }
 
 .statusScheduled {
@@ -278,9 +367,9 @@
 }
 
 .statusMuted {
-  background: var(--bg-elevated);
+  background: var(--surface-elevated);
   color: var(--text-muted);
-  border-color: var(--border-default);
+  border-color: var(--border-strong);
 }
 
 .pulseDot {
@@ -300,7 +389,7 @@
 .progressTrack {
   width: 80px;
   height: 4px;
-  background: var(--bg-overlay);
+  background: var(--surface-elevated);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -341,4 +430,9 @@
     text-align: left;
     justify-content: flex-start;
   }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
 }
