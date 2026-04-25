@@ -3,32 +3,49 @@
 @import url('reactflow/dist/style.css');
 
 :root {
-  --bg-base: #0a0a0a;
-  --bg-surface: #111111;
-  --bg-elevated: #1a1a1a;
-  --bg-overlay: #222222;
-  --border-subtle: #1f1f1f;
-  --border-default: #2e2e2e;
-  --border-strong: #444444;
-  --text-primary: #ededed;
-  --text-secondary: #888888;
-  --text-muted: #555555;
-  --text-inverse: #0a0a0a;
-  --color-active: #00dc82;
-  --color-warning: #f5a623;
-  --color-error: #ff4444;
-  --color-info: #3b82f6;
-  --color-primary: #3b82f6;
-  --color-surface-3: #2e2e2e;
-  --color-text-on-primary: #ffffff;
-  --color-success: #10b981;
-  --color-active-soft: #00dc8215;
-  --color-warning-soft: #f5a62315;
-  --color-error-soft: #ff444415;
-  --overlay-strong: #000000b8;
-  --accent: #00dc82;
-  --accent-rgb: 0, 220, 130;
-  --accent-dim: #00dc8220;
+  /* ─── PRIMITIVES (raw values — never use directly in components) ─── */
+  --primitive-black:     #0a0a0a;
+  --primitive-grey-900:  #111111;
+  --primitive-grey-800:  #1a1a1a;
+  --primitive-grey-700:  #222222;
+  --primitive-grey-600:  #2e2e2e;
+  --primitive-grey-500:  #444444;
+  --primitive-grey-400:  #555555;
+  --primitive-grey-300:  #888888;
+  --primitive-grey-100:  #ededed;
+  --primitive-white:     #ffffff;
+  --primitive-green:     #00dc82;
+  --primitive-green-dim: #00dc8220;
+  --primitive-amber:     #f5a623;
+  --primitive-red:       #ff4444;
+  --primitive-blue:      #3b82f6;
+
+  /* ─── SEMANTIC TOKENS (what components use) ─── */
+  --bg-base:        var(--primitive-black);
+  --bg-surface:     var(--primitive-grey-900);
+  --bg-elevated:    var(--primitive-grey-800);
+  --bg-overlay:     var(--primitive-grey-700);
+  --border-subtle:  var(--primitive-grey-700);
+  --border-default: var(--primitive-grey-600);
+  --border-strong:  var(--primitive-grey-500);
+  --text-primary:   var(--primitive-grey-100);
+  --text-secondary: var(--primitive-grey-300);
+  --text-muted:     var(--primitive-grey-400);
+  --text-inverse:   var(--primitive-black);
+  --color-active:   var(--primitive-green);
+  --color-warning:  var(--primitive-amber);
+  --color-error:    var(--primitive-red);
+  --color-info:     var(--primitive-blue);
+  --accent:         var(--primitive-green);
+  --accent-dim:     var(--primitive-green-dim);
+
+  /* ─── TINTS ─── */
+  --color-active-tint:  #00dc8215;
+  --color-error-tint:   #ff444415;
+  --color-muted-tint:   #55555515;
+  --color-warning-tint: #f5a62315;
+  --color-info-tint:    #3b82f615;
+
   color: var(--text-primary);
   background: var(--bg-base);
   font-family: 'Geist', system-ui, -apple-system, sans-serif;

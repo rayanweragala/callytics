@@ -5,13 +5,13 @@
 }
 
 .base {
-  background-color: var(--bg-surface, #1a1a1a);
+  background-color: var(--bg-surface);
   border-radius: 4px;
   animation: skeletonPulse 1.4s ease-in-out infinite;
 }
 
 .cell {
-  background-color: var(--bg-surface, #1a1a1a);
+  background-color: var(--bg-surface);
   border-radius: 4px;
   animation: skeletonPulse 1.4s ease-in-out infinite;
   height: 14px;
@@ -22,7 +22,7 @@
   display: flex;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border-subtle, #222);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .table {
@@ -32,7 +32,7 @@
 }
 
 .card {
-  background-color: var(--bg-surface, #1a1a1a);
+  background-color: var(--bg-surface);
   animation: skeletonPulse 1.4s ease-in-out infinite;
   height: 80px;
   border-radius: 6px;
@@ -40,7 +40,7 @@
 }
 
 .text {
-  background-color: var(--bg-surface, #1a1a1a);
+  background-color: var(--bg-surface);
   animation: skeletonPulse 1.4s ease-in-out infinite;
   height: 12px;
   border-radius: 3px;

@@ -2,23 +2,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500&display=swap');
 
 :root {
-  --bg-base: #0a0a0a;
-  --bg-surface: #111111;
-  --bg-elevated: #1a1a1a;
-  --bg-overlay: #222222;
-  --border-subtle: #1f1f1f;
-  --border-default: #2e2e2e;
-  --border-strong: #444444;
-  --text-primary: #ededed;
-  --text-secondary: #888888;
-  --text-muted: #555555;
-  --text-inverse: #0a0a0a;
-  --color-active: #00dc82;
-  --color-warning: #f5a623;
-  --color-error: #ff4444;
-  --color-info: #3b82f6;
-  --accent: #00dc82;
-  --accent-dim: #00dc8220;
   color: var(--text-primary);
   background: var(--bg-base);
   font-family: 'Geist', system-ui, -apple-system, sans-serif;
@@ -182,11 +165,11 @@ body { margin: 0; padding: 0; background: var(--bg-base); }
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
 }
 .badge-dot, .pulse-dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; }
-.badge-registered { background: #00dc8215; color: var(--color-active); }
+.badge-registered { background: var(--color-active-tint); color: var(--color-active); }
 .badge-registered .badge-dot { background: var(--color-active); animation: pulse 2s ease-in-out infinite; }
-.badge-unregistered { background: #ff444415; color: var(--color-error); }
+.badge-unregistered { background: var(--color-error-tint); color: var(--color-error); }
 .badge-unregistered .badge-dot { background: var(--color-error); }
-.badge-unknown { background: #55555515; color: var(--text-secondary); }
+.badge-unknown { background: var(--color-muted-tint); color: var(--text-secondary); }
 .badge-unknown .badge-dot { background: var(--text-secondary); }
 .live-indicator { font-size: 11px; letter-spacing: 0.08em; color: var(--color-active); display: flex; gap: 8px; align-items: center; }
 .pulse-dot { background: var(--color-active); animation: pulse 2s ease-in-out infinite; }

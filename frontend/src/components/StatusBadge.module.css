@@ -11,16 +11,16 @@
 }
 
 .registered {
-  background: #00dc8215;
+  background: var(--color-active-tint);
   color: var(--color-active);
 }
 
 .unregistered {
-  background: #ff444415;
+  background: var(--color-error-tint);
   color: var(--color-error);
 }
 
 .unknown {
-  background: #55555515;
+  background: var(--color-muted-tint);
   color: var(--text-secondary);
 }
