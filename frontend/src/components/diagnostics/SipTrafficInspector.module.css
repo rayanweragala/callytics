@@ -1,7 +1,7 @@
 .panel {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-base);
+  background: transparent;
   padding: 16px;
 }
 
@@ -70,7 +70,7 @@
   border: 1px solid var(--border-default);
   border-top: 0;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  background: var(--bg-surface);
+  background: transparent;
 }
 
 .head {
@@ -79,7 +79,7 @@
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  background: var(--bg-elevated);
+  background: transparent;
   color: var(--accent);
   font-size: 14px;
   text-transform: uppercase;
@@ -112,7 +112,7 @@
 .raw {
   margin: 0;
   padding: 12px;
-  background: var(--bg-base);
+  background: transparent;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
   font-family: var(--font-mono);

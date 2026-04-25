@@ -136,9 +136,11 @@ export function CallbacksPage() {
   };
 
   return (
-    <PageLayout title="Callbacks" subtitle="configure">
-      <div className={styles.page}>
-        <section className={styles.tablePanel}>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="Callbacks" subtitle="configure" />
+      </div>
+        <div className={styles.tableCard}>
           <div className={styles.filters}>
             <label className={styles.filterField}>
               <span className={styles.filterLabel}>status</span>
@@ -161,10 +163,10 @@ export function CallbacksPage() {
           </div>
 
           {loading ? <Loading message="Loading callbacks..." /> : null}
-          {!loading && items.length === 0 ? <div className={styles.empty}>No callbacks found.</div> : null}
+          {!loading && items.length === 0 ? <div className={styles.emptyState}>No callbacks found.</div> : null}
 
           {!loading ? (
-            <table className={styles.table}>
+            <table>
               <colgroup>
                 <col className={styles.colId} />
                 <col className={styles.colCustomer} />
@@ -175,7 +177,7 @@ export function CallbacksPage() {
                 <col className={styles.colActions} />
               </colgroup>
               <thead>
-                <tr className={styles.tableHead}>
+                <tr>
                   <th>ID</th>
                   <th>Customer Number</th>
                   <th>Operator</th>
@@ -244,8 +246,7 @@ export function CallbacksPage() {
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           <ErrorMessage message={errorText} />
-        </section>
+        </div>
       </div>
-    </PageLayout>
   );
 }

@@ -4,9 +4,9 @@
 :root {
   /* ─── PRIMITIVES ─── */
   --primitive-navy-950:  #0f1117;
-  --primitive-navy-900:  #1b1f3a;
-  --primitive-navy-800:  #252847;
-  --primitive-navy-700:  #2e3254;
+  --primitive-navy-900:  #13162b;
+  --primitive-navy-800:  #1b1f3a;
+  --primitive-navy-700:  #252847;
   --primitive-navy-600:  #3a3f66;
   --primitive-navy-500:  #4a5080;
   --primitive-navy-400:  #6b7299;
@@ -32,7 +32,7 @@
   --primitive-blue:      #5bb8f5;
   --primitive-blue-dim:  rgba(91, 184, 245, 0.12);
 
-  --primitive-text-100:  #c8cee8;
+  --primitive-text-100:  #e8ecf8;
   --primitive-text-300:  #9098c0;
   --primitive-text-500:  #5a6080;
   --primitive-text-900:  #0f1117;
@@ -124,45 +124,44 @@ button, input, textarea { font: inherit; }
 }
 
 /* ─── GLOBAL TABLE STYLES ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 thead th {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-default);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
   text-align: left;
   background: var(--bg-surface);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-thead tr {
-  background: rgba(91, 184, 245, 0.07);
+tbody td {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 tbody tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-subtle);
   transition: background 0.08s;
 }
 
 tbody tr:hover {
   background: var(--bg-elevated);
-}
-
-tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.015);
-}
-
-tbody tr:nth-child(even):hover {
-  background: var(--bg-elevated);
-}
-
-tbody td {
-  padding: 10px 12px;
-  color: var(--text-primary);
-  vertical-align: middle;
-  font-size: 14px;
 }
 
 /* ─── GLOBAL BUTTON BASE ─── */

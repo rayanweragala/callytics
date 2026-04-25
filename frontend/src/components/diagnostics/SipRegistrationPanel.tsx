@@ -18,33 +18,39 @@ export function SipRegistrationPanel({ items, loading }: SipRegistrationPanelPro
         </div>
       </div>
 
-      <div className={styles.table}>
-        <div className={styles.head}>
-          <span>Name</span>
-          <span>Type</span>
-          <span>Status</span>
-          <span>Contact URI</span>
-          <span>RTT</span>
-          <span>Last Seen</span>
-        </div>
-        {loading && items.length === 0 ? (
-          <div className={styles.empty}>Loading SIP registrations…</div>
-        ) : items.length === 0 ? (
-          <div className={styles.empty}>No SIP registrations found.</div>
-        ) : (
-          items.map((item) => (
-            <div className={styles.row} key={item.name}>
-              <span className={`${styles.mono} ${styles.cell} ${styles.nameCell}`} title={item.name}>{item.name}</span>
-              <span className={`${styles.cell} ${styles.typeCell}`}>{item.type}</span>
-              <span className={styles.cell}>
-                <span className={`${styles.badge} ${styles[item.status]}`}>{item.status}</span>
-              </span>
-              <span className={`${styles.mono} ${styles.cell} ${styles.contactCell}`} title={item.contactUri || '—'}>{item.contactUri || '—'}</span>
-              <span className={`${styles.mono} ${styles.cell}`}>{item.rttMs ?? '—'}</span>
-              <span className={`${styles.cell} ${styles.lastSeenCell}`}>{item.lastSeen ? formatDateTime(item.lastSeen) : '—'}</span>
-            </div>
-          ))
-        )}
+      <div className={styles.tableCard}>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Contact URI</th>
+              <th>RTT</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && items.length === 0 ? (
+              <tr><td colSpan={6} className={styles.emptyState}>Loading SIP registrations…</td></tr>
+            ) : items.length === 0 ? (
+              <tr><td colSpan={6} className={styles.emptyState}>No SIP registrations found.</td></tr>
+            ) : (
+              items.map((item) => (
+                <tr key={item.name}>
+                  <td className={`${styles.mono} ${styles.nameCell}`} title={item.name}>{item.name}</td>
+                  <td className={styles.typeCell}>{item.type}</td>
+                  <td>
+                    <span className={`${styles.badge} ${styles[item.status]}`}>{item.status}</span>
+                  </td>
+                  <td className={`${styles.mono} ${styles.contactCell}`} title={item.contactUri || '—'}>{item.contactUri || '—'}</td>
+                  <td className={styles.mono}>{item.rttMs ?? '—'}</td>
+                  <td className={styles.lastSeenCell}>{item.lastSeen ? formatDateTime(item.lastSeen) : '—'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </section>
   );

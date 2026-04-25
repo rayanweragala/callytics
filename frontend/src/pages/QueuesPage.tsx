@@ -246,9 +246,11 @@ export function QueuesPage() {
   );
 
   return (
-    <PageLayout actions={pageActions} title="Queues" subtitle="configure">
-      <div className={styles.page}>
-
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="Queues" subtitle="configure" />
+        {pageActions}
+      </div>
         {/* Create form */}
         {createOpen ? (
           <div className={styles.formPanel}>
@@ -327,7 +329,7 @@ export function QueuesPage() {
         ) : null}
 
         {/* Table */}
-        <div className={styles.tablePanel}>
+        <div className={styles.tableCard}>
           {loading && queues.length === 0 ? (
             <>
               {Array.from({ length: 3 }, (_, i) => (
@@ -342,131 +344,141 @@ export function QueuesPage() {
               ))}
             </>
           ) : queues.length === 0 ? (
-            <div className={styles.empty}>No queues yet. Add one above.</div>
+            <div className={styles.emptyState}>No queues yet. Add one above.</div>
           ) : (
-            <div className="fadeIn">
-              <div className={styles.tableHead}>
-                <span>name</span>
-                <span>operators</span>
-                <span>max wait</span>
-                <span>PIN retries</span>
-                <span>created</span>
-                <span className={styles.actionsHeader}>actions</span>
-              </div>
-              {queues.map((q) => (
-                <Fragment key={q.id}>
-                  <div className={styles.row}>
-                    <span className={styles.dataMono}>{q.name}</span>
-                    <span className={styles.dataMono}>{q.operators.map((o) => o.name).join(', ') || '—'}</span>
-                    <span className={styles.dataMono}>{q.maxWaitSeconds}s</span>
-                    <span className={styles.dataMono}>{q.pinRetryAttempts}</span>
-                    <span className={styles.createdAt}>{formatDateTime(q.createdAt)}</span>
-                    <div className={styles.actions}>
-                      {confirmDeleteId === q.id ? (
-                        <div className={styles.confirmBox}>
-                          <div className={styles.confirmText}>Delete this queue? This cannot be undone.</div>
-                          <div className={styles.confirmActions}>
-                            <button className={styles.cancelButton} type="button" onClick={() => setConfirmDeleteId(null)}>cancel</button>
-                            <button className={styles.deleteButton} type="button" onClick={() => void handleDelete(q.id)}>
-                              {deletingId === q.id ? 'deleting…' : 'delete'}
-                            </button>
-                          </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>name</th>
+                  <th>operators</th>
+                  <th>max wait</th>
+                  <th>PIN retries</th>
+                  <th>created</th>
+                  <th>actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {queues.map((q) => (
+                  <Fragment key={q.id}>
+                    <tr>
+                      <td className={styles.dataMono}>{q.name}</td>
+                      <td className={styles.dataMono}>{q.operators.map((o) => o.name).join(', ') || '—'}</td>
+                      <td className={styles.dataMono}>{q.maxWaitSeconds}s</td>
+                      <td className={styles.dataMono}>{q.pinRetryAttempts}</td>
+                      <td className={styles.createdAt}>{formatDateTime(q.createdAt)}</td>
+                      <td>
+                        <div className={styles.actions}>
+                          {confirmDeleteId === q.id ? (
+                            <div className={styles.confirmBox}>
+                              <div className={styles.confirmText}>Delete this queue? This cannot be undone.</div>
+                              <div className={styles.confirmActions}>
+                                <button className={styles.cancelButton} type="button" onClick={() => setConfirmDeleteId(null)}>cancel</button>
+                                <button className={styles.deleteButton} type="button" onClick={() => void handleDelete(q.id)}>
+                                  {deletingId === q.id ? 'deleting…' : 'delete'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                className={styles.editButton}
+                                type="button"
+                                onClick={() => startEdit(q)}
+                              >
+                                edit
+                              </button>
+                              <button
+                                className={styles.cancelButton}
+                                type="button"
+                                onClick={() => setConfirmDeleteId(q.id)}
+                              >
+                                delete
+                              </button>
+                            </>
+                          )}
                         </div>
-                      ) : (
-                        <>
-                          <button
-                            className={styles.editButton}
-                            type="button"
-                            onClick={() => startEdit(q)}
-                          >
-                            edit
-                          </button>
-                          <button
-                            className={styles.cancelButton}
-                            type="button"
-                            onClick={() => setConfirmDeleteId(q.id)}
-                          >
-                            delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                      </td>
+                    </tr>
 
-                  {editState?.queueId === q.id ? (
-                    <form className={styles.editorRow} onSubmit={(e) => void handleSave(e)}>
-                      <div className={styles.formGrid}>
-                        <div className={styles.formRow}>
-                          <label className={styles.field}>
-                            <span className={styles.fieldLabel}>name</span>
-                            <input
-                              className={styles.input}
-                              value={editState.name}
-                              onChange={(e) => setEditState((s) => s ? { ...s, name: e.target.value } : s)}
-                              disabled={saving}
-                            />
-                          </label>
-                          <label className={styles.field}>
-                            <span className={styles.fieldLabel}>max wait (sec)</span>
-                            <input
-                              className={styles.input}
-                              type="number"
-                              min={1}
-                              value={editState.maxWaitSeconds}
-                              onChange={(e) => setEditState((s) => s ? { ...s, maxWaitSeconds: Math.max(1, Number(e.target.value) || 300) } : s)}
-                              disabled={saving}
-                            />
-                          </label>
-                          <label className={styles.field}>
-                            <span className={styles.fieldLabel}>PIN retries</span>
-                            <input
-                              className={styles.input}
-                              type="number"
-                              min={1}
-                              value={editState.pinRetryAttempts}
-                              onChange={(e) => setEditState((s) => s ? { ...s, pinRetryAttempts: Math.max(1, Number(e.target.value) || 3) } : s)}
-                              disabled={saving}
-                            />
-                          </label>
-                        </div>
-                        <div className={styles.formRow}>
-                          <label className={styles.field}>
-                            <span className={styles.fieldLabel}>wait audio</span>
-                            <SearchableSelect
-                              options={audioOptions}
-                              value={editState.waitAudioFileId ? String(editState.waitAudioFileId) : null}
-                              onChange={(val) => setEditState((s) => s ? { ...s, waitAudioFileId: val ? Number(val) : null } : s)}
-                              placeholder="select audio file…"
-                            />
-                            {editState.waitAudioFileId ? (
-                              (() => {
-                                const item = audioItems.find(a => a.id === editState.waitAudioFileId);
-                                const srcPath = item?.previewUrl || item?.originalUrl;
-                                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={editState.waitAudioFileId} src={`${BASE}${srcPath}`} /> : null;
-                              })()
-                            ) : null}
-                          </label>
-                          <label className={styles.field}>
-                            <span className={styles.fieldLabel}>operators</span>
-                            <OperatorPickerRow
-                              allOperators={operators}
-                              selectedIds={editState.operatorIds}
-                              onChange={(ids) => setEditState((s) => s ? { ...s, operatorIds: ids } : s)}
-                            />
-                          </label>
-                        </div>
-                        <div className={styles.formActions}>
-                          <button className={styles.cancelButton} type="button" onClick={cancelEdit} disabled={saving}>cancel</button>
-                          <button className={styles.primaryButton} type="submit" disabled={saving}>
-                            {saving ? 'saving…' : 'save'}
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  ) : null}
-                </Fragment>
-              ))}
-            </div>
+                    {editState?.queueId === q.id ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <form className={styles.editorRow} onSubmit={(e) => void handleSave(e)}>
+                            <div className={styles.formGrid}>
+                              <div className={styles.formRow}>
+                                <label className={styles.field}>
+                                  <span className={styles.fieldLabel}>name</span>
+                                  <input
+                                    className={styles.input}
+                                    value={editState.name}
+                                    onChange={(e) => setEditState((s) => s ? { ...s, name: e.target.value } : s)}
+                                    disabled={saving}
+                                  />
+                                </label>
+                                <label className={styles.field}>
+                                  <span className={styles.fieldLabel}>max wait (sec)</span>
+                                  <input
+                                    className={styles.input}
+                                    type="number"
+                                    min={1}
+                                    value={editState.maxWaitSeconds}
+                                    onChange={(e) => setEditState((s) => s ? { ...s, maxWaitSeconds: Math.max(1, Number(e.target.value) || 300) } : s)}
+                                    disabled={saving}
+                                  />
+                                </label>
+                                <label className={styles.field}>
+                                  <span className={styles.fieldLabel}>PIN retries</span>
+                                  <input
+                                    className={styles.input}
+                                    type="number"
+                                    min={1}
+                                    value={editState.pinRetryAttempts}
+                                    onChange={(e) => setEditState((s) => s ? { ...s, pinRetryAttempts: Math.max(1, Number(e.target.value) || 3) } : s)}
+                                    disabled={saving}
+                                  />
+                                </label>
+                              </div>
+                              <div className={styles.formRow}>
+                                <label className={styles.field}>
+                                  <span className={styles.fieldLabel}>wait audio</span>
+                                  <SearchableSelect
+                                    options={audioOptions}
+                                    value={editState.waitAudioFileId ? String(editState.waitAudioFileId) : null}
+                                    onChange={(val) => setEditState((s) => s ? { ...s, waitAudioFileId: val ? Number(val) : null } : s)}
+                                    placeholder="select audio file…"
+                                  />
+                                  {editState.waitAudioFileId ? (
+                                    (() => {
+                                      const item = audioItems.find(a => a.id === editState.waitAudioFileId);
+                                      const srcPath = item?.previewUrl || item?.originalUrl;
+                                      return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={editState.waitAudioFileId} src={`${BASE}${srcPath}`} /> : null;
+                                    })()
+                                  ) : null}
+                                </label>
+                                <label className={styles.field}>
+                                  <span className={styles.fieldLabel}>operators</span>
+                                  <OperatorPickerRow
+                                    allOperators={operators}
+                                    selectedIds={editState.operatorIds}
+                                    onChange={(ids) => setEditState((s) => s ? { ...s, operatorIds: ids } : s)}
+                                  />
+                                </label>
+                              </div>
+                              <div className={styles.formActions}>
+                                <button className={styles.cancelButton} type="button" onClick={cancelEdit} disabled={saving}>cancel</button>
+                                <button className={styles.primaryButton} type="submit" disabled={saving}>
+                                  {saving ? 'saving…' : 'save'}
+                                </button>
+                              </div>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
           )}
           <Pagination
             page={page}
@@ -475,7 +487,7 @@ export function QueuesPage() {
           />
           {!createOpen && errorText && editState === null ? <ErrorMessage message={errorText} /> : null}
         </div>
+
       </div>
-    </PageLayout>
   );
 }

@@ -16,7 +16,6 @@
   gap: 12px;
 }
 
-/* FIX 1 — Card borders */
 .summaryCard,
 .contactsCard {
   border: 1px solid var(--border-strong);
@@ -24,6 +23,15 @@
   background: var(--surface);
   padding: 16px;
 }
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
 
 .summaryTop {
   display: flex;
@@ -176,37 +184,21 @@
   margin-bottom: 10px;
 }
 
-/* FIX 3 — Row: 9px vertical padding */
-.tableHead,
-.row {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 140px 90px 180px 90px;
-  gap: 10px;
-  align-items: center;
+/* Column widths */
+th:nth-child(1) { width: 28%; }
+th:nth-child(2) { width: 14%; }
+th:nth-child(3) { width: 10%; }
+th:nth-child(4) { width: 20%; }
+th:nth-child(5) { width: 14%; }
+th:nth-child(6) { width: 14%; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.tableHead {
-  border-bottom: 1px solid var(--border-strong);
-  padding: 9px 12px;
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--accent);
-}
-
-.row {
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 9px 12px;
-  font-size: 14px;
-  transition: background 0.1s;
-  cursor: default;
-}
-
-/* FIX 4 — Row hover */
-.row:hover {
-  background: var(--surface-elevated);
-}
 
 /* Status badge — compact */
 .statusBadge {

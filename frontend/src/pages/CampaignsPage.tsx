@@ -369,10 +369,9 @@ export function CampaignsPage() {
   };
 
   return (
-    <PageLayout
-      title="campaigns"
-      subtitle="outbound"
-      actions={(
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="campaigns" subtitle="outbound" />
         <button
           className={styles.primaryButton}
           type="button"
@@ -383,9 +382,7 @@ export function CampaignsPage() {
         >
           new campaign
         </button>
-      )}
-    >
-      <div className={styles.page}>
+      </div>
         {formOpen ? (
           <>
             <section className={styles.formPanel}>
@@ -540,55 +537,62 @@ export function CampaignsPage() {
         </>
         ) : null}
 
-        <section className={styles.tablePanel}>
-          <div className={styles.tableHead}>
-            <div>Name</div>
-            <div>Flow</div>
-            <div>Trunk</div>
-            <div>Scheduled</div>
-            <div>Status</div>
-            <div>Progress</div>
-            <div className={styles.actionsHeader}>Actions</div>
-          </div>
-
+        <div className={styles.tableCard}>
           {loading ? <Loading message="Loading campaigns..." /> : null}
-          {!loading && campaigns.length === 0 ? <div className={styles.empty}>No campaigns yet.</div> : null}
+          {!loading && campaigns.length === 0 ? <div className={styles.emptyState}>No campaigns yet.</div> : null}
 
-          {!loading && campaigns.map((campaign) => {
-            const percent = campaign.totalContacts > 0
-              ? Math.max(0, Math.min(100, Math.round((campaign.answeredCount / campaign.totalContacts) * 100)))
-              : 0;
-            const showProgress = campaign.status === 'running' || campaign.status === 'completed';
-            return (
-              <div className={styles.row} key={campaign.id}>
-                <div className={styles.nameCell}>{campaign.name}</div>
-                <div>{campaign.flowName || '—'}</div>
-                <div>{campaign.trunkName || '—'}</div>
-                <div className={styles.mono}>{campaign.scheduledAt ? formatDateTime(campaign.scheduledAt) : '—'}</div>
-                <div>
-                  <span className={`${styles.statusBadge} ${statusClass(campaign.status)}`}>
-                    {statusLabel(campaign.status)}
-                    {campaign.status === 'running' ? <span className={styles.pulseDot} /> : null}
-                  </span>
-                </div>
-                <div>
-                  {showProgress ? (
-                    <div className={styles.progressInline}>
-                      <span className={styles.mono}>{campaign.answeredCount}/{campaign.totalContacts}</span>
-                      <span className={styles.progressTrack}><span className={styles.progressFill} style={{ width: `${percent}%` }} /></span>
-                    </div>
-                  ) : '—'}
-                </div>
-                <div className={styles.actions}>{actionsFor(campaign)}</div>
-              </div>
-            );
-          })}
+          {!loading && campaigns.length > 0 && (
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Flow</th>
+                  <th>Trunk</th>
+                  <th>Scheduled</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((campaign) => {
+                  const percent = campaign.totalContacts > 0
+                    ? Math.max(0, Math.min(100, Math.round((campaign.answeredCount / campaign.totalContacts) * 100)))
+                    : 0;
+                  const showProgress = campaign.status === 'running' || campaign.status === 'completed';
+                  return (
+                    <tr key={campaign.id}>
+                      <td className={styles.nameCell}>{campaign.name}</td>
+                      <td>{campaign.flowName || '—'}</td>
+                      <td>{campaign.trunkName || '—'}</td>
+                      <td className={styles.mono}>{campaign.scheduledAt ? formatDateTime(campaign.scheduledAt) : '—'}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${statusClass(campaign.status)}`}>
+                          {statusLabel(campaign.status)}
+                          {campaign.status === 'running' ? <span className={styles.pulseDot} /> : null}
+                        </span>
+                      </td>
+                      <td>
+                        {showProgress ? (
+                          <div className={styles.progressInline}>
+                            <span className={styles.mono}>{campaign.answeredCount}/{campaign.totalContacts}</span>
+                            <span className={styles.progressTrack}><span className={styles.progressFill} style={{ width: `${percent}%` }} /></span>
+                          </div>
+                        ) : '—'}
+                      </td>
+                      <td>
+                        <div className={styles.actions}>{actionsFor(campaign)}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           {!formOpen ? <ErrorMessage message={errorText} /> : null}
-        </section>
+        </div>
       </div>
-
-    </PageLayout>
   );
 }

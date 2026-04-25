@@ -7,8 +7,7 @@ import { ExecutionTracePanel } from '../components/ExecutionTracePanel/Execution
 import { QualityDrawer } from '../components/quality/QualityDrawer';
 import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
 import { SipEndpointsPanel } from '../components/panels/SipEndpointsPanel';
-import { StatBar } from '../components/StatBar';
-import { getCallQuality, getDiagnosticsHealth, getDiagnosticsRegistrations, listCallLogs, listFlows } from '../lib/api';
+import { getCallQuality, getDiagnosticsRegistrations, listCallLogs } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import { diagnosticsSocket } from '../lib/socket';
@@ -66,7 +65,6 @@ function MosBadge({
 
 export function CallLogsPage() {
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState({ activeCalls: 0, registeredEndpoints: 0, flows: 0, uptimeSeconds: 0 });
   const [sipStatuses, setSipStatuses] = useState<SipEndpointStatus[]>([]);
   const [sipPage, setSipPage] = useState(0);
   const [livePage, setLivePage] = useState(0);
@@ -180,19 +178,8 @@ export function CallLogsPage() {
     let active = true;
     const loadTopSection = async () => {
       try {
-        const [health, registrations, flows] = await Promise.all([
-          getDiagnosticsHealth(),
-          getDiagnosticsRegistrations(),
-          listFlows(1, 1),
-        ]);
+        const registrations = await getDiagnosticsRegistrations();
         if (!active) return;
-
-        setMetrics({
-          activeCalls: health.activeChannels,
-          registeredEndpoints: registrations.data.filter((item) => item.status === 'registered').length,
-          flows: flows.total,
-          uptimeSeconds: health.asterisk.uptimeSeconds || 0,
-        });
 
         setSipStatuses(registrations.data.map((item) => ({
           endpoint: item.name,
@@ -296,8 +283,6 @@ export function CallLogsPage() {
   return (
     <PageLayout subtitle="monitor" title="Call Logs">
       <div className={styles.page}>
-        <StatBar metrics={metrics} />
-
         <section className={styles.topGrid}>
           <LiveExecutionPanel
             liveCalls={pagedLiveCalls}
@@ -317,7 +302,7 @@ export function CallLogsPage() {
           />
         </section>
 
-        <section className={styles.panel}>
+        <div className={styles.tableCard}>
           <div className={styles.filters}>
             <input
               className={styles.input}
@@ -344,89 +329,93 @@ export function CallLogsPage() {
 
           <ErrorMessage message={errorText} />
 
-          <div className={styles.table}>
-            <div className={styles.tableHead}>
-              <span>Caller number</span>
-              <span>Destination</span>
-              <span>Flow name</span>
-              <span>Campaign</span>
-              <span>Duration</span>
-              <span>Quality</span>
-              <span>Start time</span>
-              <span>End time</span>
-              <span>End reason</span>
-              <span>Logs</span>
-              <span>Trace</span>
-            </div>
+          {loading ? <div className={styles.emptyState}>Loading call logs...</div> : null}
+          {!loading && data.length === 0 ? <div className={styles.emptyState}>No call logs found.</div> : null}
 
-            {loading ? <div className={styles.empty}>Loading call logs...</div> : null}
-            {!loading && data.length === 0 ? <div className={styles.empty}>No call logs found.</div> : null}
-            {!loading && data.map((item) => {
-              const quality = qualityByCall[item.callUuid];
-              const from = shiftIso(item.startedAt, -2000);
-              const to = shiftIso(item.endedAt ?? item.startedAt, 2000);
-              const hasLogsDrillDown = Boolean(item.callUuid && from && to);
-              return (
-                <div className={styles.row} key={`${item.id}-${item.callUuid}`}>
-                  <span className={styles.mono}>{item.callerNumber || '—'}</span>
-                  <span className={styles.mono}>{item.calleeNumber || '—'}</span>
-                  <span className={styles.flowName}>{item.flowName || '—'}</span>
-                  <span className={styles.flowName}>{item.campaignName || '—'}</span>
-                  <span className={styles.mono}>{formatDuration(item.durationSeconds)}</span>
-                  <span>
-                    {quality ? (
-                      <MosBadge
-                        grade={quality.grade}
-                        mos={quality.mos}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setQualityDrawerCallId(item.callUuid);
-                        }}
-                      />
-                    ) : (
-                      <span className={styles.missingQuality}>—</span>
-                    )}
-                  </span>
-                  <span className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</span>
-                  <span className={styles.timestamp}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</span>
-                  <span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span>
-                  <span className={styles.traceIcon}>
-                    <button
-                      className={`${styles.traceButton} ${styles.logsButton}`}
-                      disabled={!hasLogsDrillDown}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (!hasLogsDrillDown || !from || !to) {
-                          return;
-                        }
-                        navigate(`/logs?uniqueid=${encodeURIComponent(item.callUuid)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
-                      }}
-                      type="button"
-                    >
-                      Logs
-                    </button>
-                  </span>
-                  <span className={styles.traceIcon}>
-                    <button
-                      className={styles.traceButton}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setTraceCallUuid(item.callUuid);
-                      }}
-                      type="button"
-                    >
-                      {'>'}
-                    </button>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {!loading && data.length > 0 && (
+            <table>
+              <thead>
+                <tr>
+                  <th>Caller number</th>
+                  <th>Destination</th>
+                  <th>Flow name</th>
+                  <th>Campaign</th>
+                  <th>Duration</th>
+                  <th>Quality</th>
+                  <th>Start time</th>
+                  <th>End time</th>
+                  <th>End reason</th>
+                  <th>Logs</th>
+                  <th>Trace</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((item) => {
+                  const quality = qualityByCall[item.callUuid];
+                  const from = shiftIso(item.startedAt, -2000);
+                  const to = shiftIso(item.endedAt ?? item.startedAt, 2000);
+                  const hasLogsDrillDown = Boolean(item.callUuid && from && to);
+                  return (
+                    <tr key={`${item.id}-${item.callUuid}`}>
+                      <td className={styles.mono}>{item.callerNumber || '—'}</td>
+                      <td className={styles.mono}>{item.calleeNumber || '—'}</td>
+                      <td className={styles.flowName}>{item.flowName || '—'}</td>
+                      <td className={styles.flowName}>{item.campaignName || '—'}</td>
+                      <td className={styles.mono}>{formatDuration(item.durationSeconds)}</td>
+                      <td>
+                        {quality ? (
+                          <MosBadge
+                            grade={quality.grade}
+                            mos={quality.mos}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setQualityDrawerCallId(item.callUuid);
+                            }}
+                          />
+                        ) : (
+                          <span className={styles.missingQuality}>—</span>
+                        )}
+                      </td>
+                      <td className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</td>
+                      <td className={styles.timestamp}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</td>
+                      <td><span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span></td>
+                      <td>
+                        <button
+                          className={`${styles.traceButton} ${styles.logsButton}`}
+                          disabled={!hasLogsDrillDown}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!hasLogsDrillDown || !from || !to) return;
+                            navigate(`/logs?uniqueid=${encodeURIComponent(item.callUuid)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                          }}
+                          type="button"
+                        >
+                          Logs
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          className={styles.traceButton}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setTraceCallUuid(item.callUuid);
+                          }}
+                          type="button"
+                        >
+                          {'>'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
 
           <div className={styles.paginationWrap}>
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
-        </section>
+        </div>
       </div>
 
       <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />

@@ -674,9 +674,11 @@ export function TrunksPage() {
   );
 
   return (
-    <PageLayout actions={pageActions} title="SIP trunks" subtitle="configure">
-      <div className={styles.page}>
-
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="SIP trunks" subtitle="configure" />
+        {pageActions}
+      </div>
       {createOpen ? (
         <section className={styles.formPanel}>
           <div className={styles.panelTitle}>new trunk</div>
@@ -746,7 +748,7 @@ export function TrunksPage() {
         </section>
       ) : null}
 
-      <section className={styles.tablePanel}>
+      <div className={styles.tableCard}>
         {isLoading ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (
@@ -765,10 +767,9 @@ export function TrunksPage() {
         ) : loadError ? (
           <ErrorMessage message={loadError} />
         ) : sortedItems.length === 0 ? (
-          <div className={styles.empty}>No trunks configured. Add your first SIP trunk.</div>
+          <div className={styles.emptyState}>No trunks configured. Add your first SIP trunk.</div>
         ) : (
-          <div className="fadeIn">
-            <table className={styles.table}>
+          <table className={styles.table}>
               <thead>
                 <tr className={styles.tableHead}>
                   <th>Name</th>
@@ -1010,15 +1011,12 @@ export function TrunksPage() {
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+          </table>
         )}
-
         <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
         {errorText ? <ErrorMessage message={errorText} /> : null}
-      </section>
+      </div>
 
       </div>
-    </PageLayout>
   );
 }

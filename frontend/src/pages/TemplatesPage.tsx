@@ -54,29 +54,49 @@ export function TemplatesPage() {
   };
 
   return (
-    <PageLayout title="IVR Templates" subtitle="configure">
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="IVR Templates" subtitle="configure" />
+      </div>
       <ErrorMessage message={errorText} />
-      {loading ? <Loading message="Loading templates..." /> : null}
-      {!loading ? (
-        <div className={styles.grid}>
-          {items.map((item) => (
-            <article className={styles.card} key={item.id}>
-              <div className={styles.category}>{item.templateCategory || 'general'}</div>
-              <h2 className={styles.name}>{item.name}</h2>
-              <p className={styles.description}>{item.templateDescription || item.description || 'No description provided.'}</p>
-              <div className={styles.meta}>{item.nodeCount} nodes</div>
-              <button
-                className={styles.importButton}
-                disabled={busyId === item.id}
-                onClick={() => setPendingImportId(item.id)}
-                type="button"
-              >
-                {busyId === item.id ? 'Importing...' : 'Import'}
-              </button>
-            </article>
-          ))}
+      {loading ? null : (
+        <div className={styles.tableCard}>
+          <table>
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>description</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr><td colSpan={3} className={styles.emptyState}>No templates available.</td></tr>
+              ) : (
+                items.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <div>{item.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{item.templateCategory || 'general'} · {item.nodeCount} nodes</div>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{item.templateDescription || item.description || '—'}</td>
+                    <td>
+                      <button
+                        className={styles.importButton}
+                        disabled={busyId === item.id}
+                        onClick={() => setPendingImportId(item.id)}
+                        type="button"
+                      >
+                        {busyId === item.id ? 'Importing...' : 'Import'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      ) : null}
+      )}
 
       <ConfirmDialog
         cancelLabel="Cancel"
@@ -92,6 +112,6 @@ export function TemplatesPage() {
         open={pendingImportId !== null}
         title="Import Template"
       />
-    </PageLayout>
+    </div>
   );
 }

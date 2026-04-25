@@ -47,39 +47,49 @@ export function TrunkHealthPanel({
         </button>
       </div>
 
-      <div className={styles.table}>
-        <div className={styles.head}>
-          <span>Trunk</span>
-          <span>Host</span>
-          <span>TCP</span>
-          <span>SIP</span>
-          <span>RTT</span>
-          <span>Last Tested</span>
-          <span>Action</span>
-        </div>
-        {trunks.map((trunk) => {
-          const result = results[trunk.id];
-          const busy = busyIds.includes(trunk.id);
-          return (
-            <div className={styles.row} key={trunk.id}>
-              <span className={styles.name}>{trunk.name}</span>
-              <span className={styles.hostCell} title={`${trunk.host}:${trunk.port}`}>{trunk.host}:{trunk.port}</span>
-              <span className={styles.tcpCell}>{result?.tcpStatus || 'unknown'}</span>
-              <span>
-                <span className={`${styles.badge} ${styles[result?.status || 'unknown']}`}>
-                  {getStatusLabel(result)}
-                </span>
-              </span>
-              <span className={styles.mono}>{result?.sipLatencyMs ?? result?.tcpLatencyMs ?? '—'}</span>
-              <span>{result ? formatDateTime(result.testedAt) : 'Never'}</span>
-              <span>
-                <button className={styles.button} disabled={busy || testingAll} onClick={() => onTest(trunk.id)} type="button">
-                  {busy ? 'Testing...' : 'Test Now'}
-                </button>
-              </span>
-            </div>
-          );
-        })}
+      <div className={styles.tableCard}>
+        <table>
+          <thead>
+            <tr>
+              <th>Trunk</th>
+              <th>Host</th>
+              <th>TCP</th>
+              <th>SIP</th>
+              <th>RTT</th>
+              <th>Last Tested</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trunks.length === 0 ? (
+              <tr><td colSpan={7} className={styles.emptyState}>No trunks configured.</td></tr>
+            ) : (
+              trunks.map((trunk) => {
+                const result = results[trunk.id];
+                const busy = busyIds.includes(trunk.id);
+                return (
+                  <tr key={trunk.id}>
+                    <td className={styles.name}>{trunk.name}</td>
+                    <td className={styles.hostCell} title={`${trunk.host}:${trunk.port}`}>{trunk.host}:{trunk.port}</td>
+                    <td className={styles.tcpCell}>{result?.tcpStatus || 'unknown'}</td>
+                    <td>
+                      <span className={`${styles.badge} ${styles[result?.status || 'unknown']}`}>
+                        {getStatusLabel(result)}
+                      </span>
+                    </td>
+                    <td className={styles.mono}>{result?.sipLatencyMs ?? result?.tcpLatencyMs ?? '—'}</td>
+                    <td>{result ? formatDateTime(result.testedAt) : 'Never'}</td>
+                    <td>
+                      <button className={styles.button} disabled={busy || testingAll} onClick={() => onTest(trunk.id)} type="button">
+                        {busy ? 'Testing...' : 'Test Now'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </section>
   );

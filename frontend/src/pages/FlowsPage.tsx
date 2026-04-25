@@ -85,57 +85,63 @@ export function FlowsPage() {
   };
 
   return (
-    <PageLayout
-      title="flow builder"
-      subtitle="configure"
-      actions={
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="flow builder" subtitle="configure" />
         <button className={styles.primaryButton} onClick={() => void handleCreate()} type="button">
           new flow
         </button>
-      }
-    >
+      </div>
       <div className={styles.tableCard}>
-        <div className={styles.tableHead}>
-          <div>name</div>
-          <div>created</div>
-          <div className={styles.actionsHeader}>actions</div>
-        </div>
-        {loading ? (
-          <div className={styles.empty}>—</div>
-        ) : flows.length === 0 ? (
-          <div className={styles.empty}>No flows yet.</div>
-        ) : (
-          flows.map((flow) => (
-            <div className={styles.row} key={flow.id}>
-              <div>
-                <div className={styles.flowName}>{flow.name}</div>
-                <div className={styles.flowDescription}>{flow.description || '—'}</div>
-              </div>
-              <div className={styles.createdAt} title={flow.createdAt}>{formatDateTime(flow.createdAt)}</div>
-              <div className={styles.actions}>
-                {deletedId === flow.id ? (
-                  <div className={styles.deletedText}>deleted</div>
-                ) : confirmId === flow.id ? (
-                  <div className={styles.confirmBox}>
-                    <div className={styles.confirmText}>Delete this flow? This cannot be undone.</div>
-                    <div className={styles.confirmActions}>
-                      <button className={styles.secondaryButton} onClick={() => setConfirmId(null)} type="button">cancel</button>
-                      <button className={styles.deleteButton} onClick={() => void confirmDelete(flow.id)} type="button">
-                        {busyId === flow.id ? 'deleting…' : 'delete'}
-                      </button>
+        <table>
+          <thead>
+            <tr>
+              <th>name</th>
+              <th>created</th>
+              <th>actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={3} className={styles.emptyState}>—</td></tr>
+            ) : flows.length === 0 ? (
+              <tr><td colSpan={3} className={styles.emptyState}>No flows yet.</td></tr>
+            ) : (
+              flows.map((flow) => (
+                <tr key={flow.id}>
+                  <td>
+                    <div className={styles.flowName}>{flow.name}</div>
+                    <div className={styles.flowDescription}>{flow.description || '—'}</div>
+                  </td>
+                  <td className={styles.createdAt} title={flow.createdAt}>{formatDateTime(flow.createdAt)}</td>
+                  <td>
+                    <div className={styles.actions}>
+                      {deletedId === flow.id ? (
+                        <div className={styles.deletedText}>deleted</div>
+                      ) : confirmId === flow.id ? (
+                        <div className={styles.confirmBox}>
+                          <div className={styles.confirmText}>Delete this flow? This cannot be undone.</div>
+                          <div className={styles.confirmActions}>
+                            <button className={styles.secondaryButton} onClick={() => setConfirmId(null)} type="button">cancel</button>
+                            <button className={styles.deleteButton} onClick={() => void confirmDelete(flow.id)} type="button">
+                              {busyId === flow.id ? 'deleting…' : 'delete'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <button className={styles.secondaryButton} onClick={() => navigate(`/flows/${flow.id}`)} type="button">edit</button>
+                          <button className={styles.secondaryButton} onClick={() => setConfirmId(flow.id)} type="button">delete</button>
+                          {failedDeleteId === flow.id ? <div className={styles.failedText}>failed to delete</div> : null}
+                        </>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <button className={styles.secondaryButton} onClick={() => navigate(`/flows/${flow.id}`)} type="button">edit</button>
-                    <button className={styles.secondaryButton} onClick={() => setConfirmId(flow.id)} type="button">delete</button>
-                    {failedDeleteId === flow.id ? <div className={styles.failedText}>failed to delete</div> : null}
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
         <Pagination
           page={page}
           totalPages={totalPages}
@@ -143,6 +149,6 @@ export function FlowsPage() {
         />
         <ErrorMessage message={errorText} />
       </div>
-    </PageLayout>
+    </div>
   );
 }

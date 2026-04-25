@@ -52,12 +52,13 @@
 
 .groupLabel {
   font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  padding: 12px 16px 4px;
+  padding: 16px 16px 6px;
+  opacity: 1;
 }
 
 .item {
@@ -66,10 +67,10 @@
   border: none;
   border-left: 2px solid transparent;
   color: var(--text-secondary);
-  padding: 6px 16px;
+  padding: 7px 16px;
   text-align: left;
   text-transform: lowercase;
-  font-size: 14px;
+  font-size: 13px;
   font-family: var(--font-mono);
   font-weight: 400;
   letter-spacing: 0.02em;
@@ -90,7 +91,7 @@
   color: var(--accent);
   background: var(--accent-dim);
   border-left-color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .itemActive:hover {

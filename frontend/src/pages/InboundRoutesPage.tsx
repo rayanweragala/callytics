@@ -181,9 +181,11 @@ export function InboundRoutesPage() {
   );
 
   return (
-    <PageLayout actions={pageActions} title="Inbound Routes" subtitle="configure">
-      <div className={styles.page}>
-
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="Inbound Routes" subtitle="configure" />
+        {pageActions}
+      </div>
         {createOpen ? (
           <section className={styles.formPanel}>
             <div className={styles.panelTitle}>new route</div>
@@ -216,14 +218,7 @@ export function InboundRoutesPage() {
             {errorText ? <ErrorMessage message={errorText} /> : null}
           </section>
         ) : (
-          <section className={styles.tablePanel}>
-            <div className={styles.tableHead}>
-              <div>did</div>
-              <div>label</div>
-              <div>flow</div>
-              <div>created</div>
-              <div className={styles.actionsHeader}>actions</div>
-            </div>
+          <div className={styles.tableCard}>
             {isLoading ? (
               <>
                 {Array.from({ length: 3 }, (_, i) => (
@@ -239,67 +234,84 @@ export function InboundRoutesPage() {
             ) : loadError ? (
               <ErrorMessage message={loadError} />
             ) : sortedItems.length === 0 ? (
-              <div className={styles.empty}>No inbound routes yet.</div>
+              <div className={styles.emptyState}>No inbound routes yet.</div>
             ) : (
-              <div className="fadeIn">
-                {sortedItems.map((item) => (
-                  <Fragment key={item.id}>
-                    <div className={styles.row}>
-                      <div className={styles.dataMono}>{item.did}</div>
-                      <div className={styles.labelText}>{item.label || '—'}</div>
-                      <div className={styles.flowText}>{item.flowName || `flow ${item.flowId}`}</div>
-                      <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
-                      <div className={styles.actions}>
-                        {confirmDeleteId === item.id ? (
-                          <div className={styles.confirmBox}>
-                            <div className={styles.confirmText}>Delete this route? This cannot be undone.</div>
-                            <div className={styles.confirmActions}>
-                              <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
-                              <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
-                                {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
-                              </button>
-                            </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>did</th>
+                    <th>label</th>
+                    <th>flow</th>
+                    <th>created</th>
+                    <th>actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedItems.map((item) => (
+                    <Fragment key={item.id}>
+                      <tr>
+                        <td className={styles.dataMono}>{item.did}</td>
+                        <td className={styles.labelText}>{item.label || '—'}</td>
+                        <td className={styles.flowText}>{item.flowName || `flow ${item.flowId}`}</td>
+                        <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
+                        <td>
+                          <div className={styles.actions}>
+                            {confirmDeleteId === item.id ? (
+                              <div className={styles.confirmBox}>
+                                <div className={styles.confirmText}>Delete this route? This cannot be undone.</div>
+                                <div className={styles.confirmActions}>
+                                  <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
+                                  <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
+                                    {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <button className={styles.secondaryButton} onClick={() => openEdit(item)} type="button">edit</button>
+                                <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
+                              </>
+                            )}
                           </div>
-                        ) : (
-                          <>
-                            <button className={styles.secondaryButton} onClick={() => openEdit(item)} type="button">edit</button>
-                            <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {editingId === item.id ? (
-                      <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
-                        <label className={styles.field}>
-                          <span className={styles.fieldLabel}>did</span>
-                          <input className={`${styles.input} ${styles.dataMono}`} value={editForm.did} onChange={(event) => {
-                            resetMessages();
-                            setEditForm((current) => ({ ...current, did: event.target.value }));
-                          }} />
-                        </label>
-                        <label className={styles.field}>
-                          <span className={styles.fieldLabel}>label</span>
-                          <input className={styles.input} value={editForm.label} onChange={(event) => {
-                            resetMessages();
-                            setEditForm((current) => ({ ...current, label: event.target.value }));
-                          }} />
-                        </label>
-                        <label className={styles.field}>
-                          <span className={styles.fieldLabel}>flow</span>
-                          <SearchableSelect options={flowOptions} placeholder="select flow" value={editForm.flowId || null} onChange={(value) => {
-                            resetMessages();
-                            setEditForm((current) => ({ ...current, flowId: value || '' }));
-                          }} />
-                        </label>
-                        <div className={styles.formActions}>
-                          <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
-                          <button className={styles.primaryButton} disabled={!editForm.flowId} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
-                        </div>
-                      </form>
-                    ) : null}
-                  </Fragment>
-                ))}
-              </div>
+                        </td>
+                      </tr>
+                      {editingId === item.id ? (
+                        <tr>
+                          <td colSpan={5}>
+                            <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>did</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} value={editForm.did} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, did: event.target.value }));
+                                }} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>label</span>
+                                <input className={styles.input} value={editForm.label} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, label: event.target.value }));
+                                }} />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>flow</span>
+                                <SearchableSelect options={flowOptions} placeholder="select flow" value={editForm.flowId || null} onChange={(value) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, flowId: value || '' }));
+                                }} />
+                              </label>
+                              <div className={styles.formActions}>
+                                <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
+                                <button className={styles.primaryButton} disabled={!editForm.flowId} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
             )}
             <Pagination
               page={page}
@@ -308,9 +320,8 @@ export function InboundRoutesPage() {
             />
             {deletedId !== null ? <div className={styles.successText}>route deleted</div> : null}
             {errorText ? <ErrorMessage message={errorText} /> : null}
-          </section>
+          </div>
         )}
       </div>
-    </PageLayout>
   );
 }

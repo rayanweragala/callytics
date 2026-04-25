@@ -205,39 +205,52 @@ export function AsteriskLogsPage() {
         </div>
 
         <div className={styles.tableCard}>
-          <div className={styles.tableHead}>
-            <div>timestamp</div>
-            <div>level</div>
-            <div>channel</div>
-            <div>module</div>
-            <div>message</div>
-          </div>
-
-          {loading ? <Loading message="Loading logs..." /> : null}
-          {!loading && errorText ? <ErrorMessage message={errorText} /> : null}
-
-          {!loading && !errorText && entries.length === 0 ? (
-            <div className={styles.empty}>{emptyText}</div>
-          ) : null}
-
-          {!loading && !errorText && entries.map((entry, index) => {
-            const normalizedChannel = normalizeChannel(entry.channel);
-            const channelGroupClass = normalizedChannel ? channelGroupByValue.get(normalizedChannel) ?? '' : '';
-            return (
-              <div className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)}`.trim()} key={`${entry.timestamp}-${entry.module}-${index}`}>
-                <div className={styles.timestamp}>{formatDateTime(entry.timestamp)}</div>
-                <div>
-                  <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
-                </div>
-                <div className={styles.channel} title={normalizedChannel || '—'}>{normalizedChannel || '—'}</div>
-                <div className={styles.module} title={entry.module}>{entry.module}</div>
-                <div className={styles.messageCell}>
-                  <span className={styles.rawMessage}>{entry.message}</span>
-                  {entry.translation ? <span className={styles.translation}>{entry.translation}</span> : null}
-                </div>
-              </div>
-            );
-          })}
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>timestamp</th>
+                <th>level</th>
+                <th>channel</th>
+                <th>module</th>
+                <th>message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className={styles.empty}><Loading message="Loading logs..." /></td>
+                </tr>
+              ) : null}
+              {!loading && errorText ? (
+                <tr>
+                  <td colSpan={5} className={styles.empty}><ErrorMessage message={errorText} /></td>
+                </tr>
+              ) : null}
+              {!loading && !errorText && entries.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className={styles.empty}>{emptyText}</td>
+                </tr>
+              ) : null}
+              {!loading && !errorText && entries.map((entry, index) => {
+                const normalizedChannel = normalizeChannel(entry.channel);
+                const channelGroupClass = normalizedChannel ? channelGroupByValue.get(normalizedChannel) ?? '' : '';
+                return (
+                  <tr className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)}`.trim()} key={`${entry.timestamp}-${entry.module}-${index}`}>
+                    <td className={styles.timestamp}>{formatDateTime(entry.timestamp)}</td>
+                    <td>
+                      <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
+                    </td>
+                    <td className={styles.channel} title={normalizedChannel || '—'}>{normalizedChannel || '—'}</td>
+                    <td className={styles.module} title={entry.module}>{entry.module}</td>
+                    <td className={styles.messageCell}>
+                      <span className={styles.rawMessage}>{entry.message}</span>
+                      {entry.translation ? <span className={styles.translation}>{entry.translation}</span> : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
 
           <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * PAGE_SIZE)} />
         </div>

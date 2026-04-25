@@ -1,5 +1,5 @@
 .panel {
-  background: var(--bg-surface);
+  background: transparent;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -61,7 +61,7 @@
 .paginationButton {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: transparent;
   color: var(--text-primary);
   padding: 8px 12px;
 }

@@ -257,111 +257,116 @@ export function ExtensionsPage() {
           {errorText ? <ErrorMessage message={errorText} /> : null}
         </section>
       ) : (
-        <section className={styles.tablePanel}>
-          <div className={styles.tableHead}>
-            <div>username</div>
-            <div>display name</div>
-            <div>transport</div>
-            <div>sip uri</div>
-            <div>created</div>
-            <div className={styles.actionsHeader}>actions</div>
-          </div>
-          {isLoading ? (
-            <>
-              {Array.from({ length: 3 }, (_, i) => (
-                <SkeletonRow key={i} columns={[
-                  { width: '200px' },
-                  { width: '160px' },
-                  { width: '140px' },
-                  { width: '250px' },
-                  { width: '108px' },
-                  { width: '220px' },
-                ]} />
-              ))}
-            </>
-          ) : loadError ? (
-            <ErrorMessage message={loadError} />
-          ) : sortedItems.length === 0 ? (
-            <div className={styles.empty}>No extensions yet.</div>
-          ) : (
-            <div className="fadeIn">
-              {sortedItems.map((item) => (
-                <Fragment key={item.id}>
-                  <div className={styles.row}>
-                <div className={styles.dataMono}>{item.username}</div>
-                <div className={styles.displayName}>{item.displayName || '—'}</div>
-                <div>
-                  <span className={styles.transportBadge}>{item.transportType === 'webrtc' ? 'WebRTC' : 'SIP'}</span>
-                </div>
-                <div className={styles.dataMono}>{buildSipUri(item.username)}</div>
-                <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
-                <div className={styles.actions}>
-                  {confirmDeleteId === item.id ? (
-                    <div className={styles.confirmBox}>
-                      <div className={styles.confirmText}>Delete this extension? This cannot be undone.</div>
-                      <div className={styles.confirmActions}>
-                        <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
-                        <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
-                          {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <button className={styles.secondaryButton} onClick={() => openEdit(item)} type="button">edit</button>
-                      <button className={styles.secondaryButton} onClick={() => void handleOpenQr(item)} type="button">{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
-                      <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
-                    </>
-                  )}
-                </div>
-              </div>
-              {editingId === item.id ? (
-                <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>username</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, username: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>password</span>
-                    <input className={`${styles.input} ${styles.dataMono}`} value={editForm.password} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, password: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>display name</span>
-                    <input className={styles.input} value={editForm.displayName} onChange={(event) => {
-                      resetMessages();
-                      setEditForm((current) => ({ ...current, displayName: event.target.value }));
-                    }} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>transport</span>
-                    <select
-                      className={styles.input}
-                      value={editForm.transportType}
-                      onChange={(event) => {
-                        resetMessages();
-                        setEditForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
-                      }}
-                    >
-                      <option value="sip">SIP / UDP</option>
-                      <option value="webrtc">WebRTC / WSS</option>
-                    </select>
-                  </label>
-                  <div className={styles.formActions}>
-                    <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
-                    <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
-                  </div>
-                </form>
-              ) : null}
-            </Fragment>
-          ))}
-          </div>
-          )}
+        <div className={styles.tableCard}>
+          <table>
+            <thead>
+              <tr>
+                <th>username</th>
+                <th>display name</th>
+                <th>transport</th>
+                <th>sip uri</th>
+                <th>created</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 3 }, (_, i) => (
+                  <tr key={i}>
+                    {[200, 160, 140, 250, 108, 220].map((w, j) => (
+                      <td key={j}><span style={{ display: 'block', height: 14, width: w, background: 'var(--border-strong)', borderRadius: 3, opacity: 0.4 }} /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : loadError ? (
+                <tr><td colSpan={6}><ErrorMessage message={loadError} /></td></tr>
+              ) : sortedItems.length === 0 ? (
+                <tr><td colSpan={6} className={styles.emptyState}>No extensions yet.</td></tr>
+              ) : (
+                sortedItems.map((item) => (
+                  <Fragment key={item.id}>
+                    <tr>
+                      <td className={styles.dataMono}>{item.username}</td>
+                      <td className={styles.displayName}>{item.displayName || '—'}</td>
+                      <td>
+                        <span className={styles.transportBadge}>{item.transportType === 'webrtc' ? 'WebRTC' : 'SIP'}</span>
+                      </td>
+                      <td className={styles.dataMono}>{buildSipUri(item.username)}</td>
+                      <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
+                      <td>
+                        <div className={styles.actions}>
+                          {confirmDeleteId === item.id ? (
+                            <div className={styles.confirmBox}>
+                              <div className={styles.confirmText}>Delete this extension? This cannot be undone.</div>
+                              <div className={styles.confirmActions}>
+                                <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
+                                <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
+                                  {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button className={styles.secondaryButton} onClick={() => openEdit(item)} type="button">edit</button>
+                              <button className={styles.secondaryButton} onClick={() => void handleOpenQr(item)} type="button">{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
+                              <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {editingId === item.id ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>username</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, username: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>password</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} value={editForm.password} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, password: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>display name</span>
+                              <input className={styles.input} value={editForm.displayName} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, displayName: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>transport</span>
+                              <select
+                                className={styles.input}
+                                value={editForm.transportType}
+                                onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
+                                }}
+                              >
+                                <option value="sip">SIP / UDP</option>
+                                <option value="webrtc">WebRTC / WSS</option>
+                              </select>
+                            </label>
+                            <div className={styles.formActions}>
+                              <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
+                              <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
           <Pagination
             page={page}
             totalPages={totalPages}
@@ -369,7 +374,7 @@ export function ExtensionsPage() {
           />
           {deletedId !== null ? <div className={styles.successText}>extension deleted</div> : null}
           {errorText ? <ErrorMessage message={errorText} /> : null}
-        </section>
+        </div>
       )}
 
       {qrModal ? (

@@ -133,7 +133,6 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
     number_source: 'ani',
     dtmf_prompt_audio_id: null,
     dtmf_max_digits: 11,
-    timeout_ms: 20000,
     confirmation_audio_id: null,
     destination_type: 'operator',
     destination_value: null,

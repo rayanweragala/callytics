@@ -96,17 +96,11 @@ export function RecordingsPage() {
   };
 
   return (
-    <PageLayout title="Recordings" subtitle="monitor">
-      <div className={styles.page}>
-      <section className={styles.libraryPanel}>
-        <div className={styles.tableHead}>
-          <div>name</div>
-          <div>source</div>
-          <div>duration</div>
-          <div>preview</div>
-          <div>created</div>
-          <div className={styles.actionsHeader}>actions</div>
-        </div>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="Recordings" subtitle="monitor" />
+      </div>
+      <div className={styles.tableCard}>
         {isLoading ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (
@@ -123,43 +117,57 @@ export function RecordingsPage() {
         ) : loadError ? (
           <ErrorMessage message={loadError} />
         ) : items.length === 0 ? (
-          <div className={styles.empty}>No recordings yet. Recordings appear here automatically after calls.</div>
+          <div className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</div>
         ) : (
-          <div className="fadeIn">
-            {items.map((item) => (
-              <div className={styles.row} key={item.id}>
-            <div>
-              <div className={styles.name}>{item.callId.slice(0, 16)}</div>
-              <div className={styles.meta}>{item.flowName || 'unknown flow'}</div>
-            </div>
-            <div className={styles.meta}>inbound</div>
-            <div className={styles.duration}>{formatDuration(item.durationSeconds)}</div>
-            <div className={styles.previewCell} onClick={() => setActiveId(item.id)}>
-              <AudioPreviewPlayer key={item.id} src={`${backendBase}${item.streamUrl}`} isActive={activeId === null || activeId === item.id} />
-            </div>
-            <div className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</div>
-            <div className={styles.actions}>
-              {deletedId === item.id ? (
-                <div className={styles.deletedText}>deleted</div>
-              ) : confirmId === item.id ? (
-                <div className={styles.confirmBox}>
-                  <div className={styles.confirmText}>Delete this recording? This cannot be undone.</div>
-                  <div className={styles.confirmActions}>
-                    <button className={styles.secondaryButton} onClick={() => setConfirmId(null)} type="button">cancel</button>
-                    <button className={styles.deleteButton} onClick={() => void confirmDelete(item.id)} type="button">delete</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <a className={`${styles.secondaryButton} ${styles.downloadButton}`} href={`${backendBase}/recordings/${item.id}/download`} target="_blank" rel="noreferrer">download</a>
-                  <button className={styles.secondaryButton} onClick={() => setConfirmId(item.id)} type="button">delete</button>
-                  {failedDeleteId === item.id ? <div className={styles.failedText}>failed to delete</div> : null}
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>source</th>
+                <th>duration</th>
+                <th>preview</th>
+                <th>created</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <div className={styles.name}>{item.callId.slice(0, 16)}</div>
+                    <div className={styles.meta}>{item.flowName || 'unknown flow'}</div>
+                  </td>
+                  <td className={styles.meta}>inbound</td>
+                  <td className={styles.duration}>{formatDuration(item.durationSeconds)}</td>
+                  <td className={styles.previewCell} onClick={() => setActiveId(item.id)}>
+                    <AudioPreviewPlayer key={item.id} src={`${backendBase}${item.streamUrl}`} isActive={activeId === null || activeId === item.id} />
+                  </td>
+                  <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
+                  <td>
+                    <div className={styles.actions}>
+                      {deletedId === item.id ? (
+                        <div className={styles.deletedText}>deleted</div>
+                      ) : confirmId === item.id ? (
+                        <div className={styles.confirmBox}>
+                          <div className={styles.confirmText}>Delete this recording? This cannot be undone.</div>
+                          <div className={styles.confirmActions}>
+                            <button className={styles.secondaryButton} onClick={() => setConfirmId(null)} type="button">cancel</button>
+                            <button className={styles.deleteButton} onClick={() => void confirmDelete(item.id)} type="button">delete</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <a className={`${styles.secondaryButton} ${styles.downloadButton}`} href={`${backendBase}/recordings/${item.id}/download`} target="_blank" rel="noreferrer">download</a>
+                          <button className={styles.secondaryButton} onClick={() => setConfirmId(item.id)} type="button">delete</button>
+                          {failedDeleteId === item.id ? <div className={styles.failedText}>failed to delete</div> : null}
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
         <Pagination
           page={page}
@@ -167,8 +175,7 @@ export function RecordingsPage() {
           onPageChange={setPage}
         />
         {errorText ? <ErrorMessage message={errorText} /> : null}
-      </section>
       </div>
-    </PageLayout>
+    </div>
   );
 }

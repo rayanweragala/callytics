@@ -3,7 +3,14 @@
   gap: 12px;
 }
 
-/* FIX 1 — Card border */
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
 .tablePanel {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -11,6 +18,14 @@
   padding: 0 20px 16px;
   overflow-x: auto;
 }
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 
 .filters {
   display: flex;
@@ -82,33 +97,22 @@
   border-bottom: 0;
 }
 
-.tableHead th,
-.row td {
-  padding: 9px 12px;
-  text-align: left;
-  vertical-align: top;
+/* Column widths */
+th:nth-child(1) { width: 6%; }
+th:nth-child(2) { width: 18%; }
+th:nth-child(3) { width: 20%; }
+th:nth-child(4) { width: 10%; }
+th:nth-child(5) { width: 16%; }
+th:nth-child(6) { width: 16%; }
+th:nth-child(7) { width: 14%; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.tableHead th {
-  font-weight: 700;
-}
-
-.row td {
-  font-size: 14px;
-}
-
-/* FIX 4 — Row hover tint */
-.row:hover {
-  background: var(--surface-elevated);
-}
-
-.colId { width: 60px; }
-.colCustomer { width: 160px; }
-.colOperator { width: 180px; }
-.colStatus { width: 120px; }
-.colReceived { width: 180px; }
-.colExecuted { width: 180px; }
-.colActions { width: 160px; min-width: 160px; }
 
 /* FIX 2 — Data values: cyan + 600 (phone numbers, timestamps) */
 .dataMono {

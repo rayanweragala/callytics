@@ -36,40 +36,25 @@
 
 /* FIX 1 — Card border */
 .tableCard {
-  background: var(--surface);
+  background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  padding: 0 20px 16px;
 }
 
-/* FIX 3 — Row: 9px vertical padding */
-.tableHead,
-.row {
-  display: grid;
-  grid-template-columns:
-    minmax(230px, 1.15fr)
-    minmax(96px, 0.55fr)
-    minmax(180px, 0.8fr)
-    minmax(190px, 0.9fr)
-    minmax(360px, 1.8fr);
-  gap: 16px;
-  padding: 9px 12px;
-  align-items: center;
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }
 
-/* Table header typography */
-.tableHead {
-  border-bottom: 1px solid var(--border-strong);
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-}
+.table th:nth-child(1) { width: 15%; }
+.table th:nth-child(2) { width: 10%; }
+.table th:nth-child(3) { width: 16%; }
+.table th:nth-child(4) { width: 16%; }
+.table th:nth-child(5) { width: 43%; }
 
 .row {
-  border-bottom: 1px solid var(--border-subtle);
   transition: background 0.1s;
   cursor: default;
 }
@@ -88,15 +73,21 @@
 }
 
 .rowError {
-  border-left: 2px solid var(--color-error);
-  padding-left: 10px;
   background: color-mix(in srgb, var(--color-error) 10%, transparent);
 }
 
+.rowError td:first-child {
+  border-left: 2px solid var(--color-error);
+  padding-left: 10px;
+}
+
 .rowWarning {
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.rowWarning td:first-child {
   border-left: 2px solid var(--color-warning);
   padding-left: 10px;
-  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
 }
 
 .row:last-child {
@@ -258,6 +249,7 @@
 }
 
 .empty {
+  text-align: center;
   padding: 24px 16px;
   color: var(--text-muted);
 }
@@ -286,17 +278,13 @@
     overflow-x: auto;
   }
 
-  .tableHead,
-  .row {
+  .table {
     min-width: 1160px;
   }
 }
 
 @media (max-width: 760px) {
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
-    min-width: 0;
-    gap: 8px;
+  .table {
+    min-width: 720px;
   }
 }

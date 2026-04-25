@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
@@ -170,9 +170,11 @@ export function ContactNumbersPage() {
   );
 
   return (
-    <PageLayout actions={pageActions} title="Contacts" subtitle="configure">
-      <div className={styles.page}>
-
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="Contacts" subtitle="configure" />
+        {pageActions}
+      </div>
         {createOpen ? (
           <form className={styles.formPanel} onSubmit={(event) => void submitCreate(event)}>
             <label className={styles.field}>
@@ -207,86 +209,101 @@ export function ContactNumbersPage() {
 
         {error ? <ErrorMessage message={error} /> : null}
 
-        <section className={styles.tablePanel}>
-          <div className={styles.tableHead}>
-            <div>label</div>
-            <div>number</div>
-            <div>trunk</div>
-            <div>notes</div>
-            <div>created</div>
-            <div className={styles.actionsHeader}>actions</div>
-          </div>
-          {loading ? <div className={styles.empty}>loading…</div> : null}
-          {!loading && items.length === 0 ? <div className={styles.empty}>No contacts yet.</div> : null}
-          {!loading && items.map((item) => (
-            <div key={item.id} className={styles.rowWrap}>
-              <div className={styles.row}>
-                <div className={styles.rowValue}>{item.label}</div>
-                <div className={styles.dataMono}>{item.number}</div>
-                <div className={styles.rowMuted}>{item.trunkId ? trunkMap.get(item.trunkId) || `#${item.trunkId}` : '—'}</div>
-                <div className={styles.rowMuted}>{item.notes || '—'}</div>
-                <div className={styles.createdAt}>{formatDateTime(item.createdAt)}</div>
-                <div className={styles.actionsInline}>
-                  {confirmDeleteId === item.id ? (
-                    <ConfirmDialog
-                      inline
-                      open
-                      title="Delete contact"
-                      message="Delete this contact? This cannot be undone."
-                      cancelLabel="cancel"
-                      confirmLabel={deletingId === item.id ? 'deleting…' : 'delete'}
-                      onCancel={() => setConfirmDeleteId(null)}
-                      onConfirm={() => void confirmDelete(item.id)}
-                    />
-                  ) : (
-                    <>
-                      <button className={styles.secondaryButton} type="button" onClick={() => openEdit(item)}>edit</button>
-                      <button className={styles.secondaryButton} type="button" onClick={() => setConfirmDeleteId(item.id)}>delete</button>
-                    </>
-                  )}
-                </div>
-              </div>
-              {editingId === item.id ? (
-                <form className={styles.editPanel} onSubmit={(event) => void submitEdit(event)}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>label</span>
-                    <input className={styles.input} value={editForm.label} onChange={(event) => setEditForm((prev) => ({ ...prev, label: event.target.value }))} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>number</span>
-                    <input className={styles.input} value={editForm.number} onChange={(event) => setEditForm((prev) => ({ ...prev, number: event.target.value }))} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>country</span>
-                    <select className={`${styles.input} ${styles.select}`} value={editForm.country} onChange={(event) => setEditForm((prev) => ({ ...prev, country: event.target.value }))}>
-                      {COUNTRY_OPTIONS.map((option) => (
-                        <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>trunk</span>
-                    <SearchableSelect options={trunkOptions} value={editForm.trunkId || null} onChange={(value) => setEditForm((prev) => ({ ...prev, trunkId: value || '' }))} placeholder="optional trunk" />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>notes</span>
-                    <input className={styles.input} value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
-                  </label>
-                  <div className={styles.actions}>
-                    <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
-                    <button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? 'saving…' : 'save'}</button>
-                  </div>
-                </form>
-              ) : null}
-            </div>
-          ))}
+        <div className={styles.tableCard}>
+          {loading ? (
+            <div className={styles.emptyState}>loading…</div>
+          ) : items.length === 0 ? (
+            <div className={styles.emptyState}>No contacts yet.</div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>label</th>
+                  <th>number</th>
+                  <th>trunk</th>
+                  <th>notes</th>
+                  <th>created</th>
+                  <th>actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <Fragment key={item.id}>
+                    <tr>
+                      <td className={styles.rowValue}>{item.label}</td>
+                      <td className={styles.dataMono}>{item.number}</td>
+                      <td className={styles.rowMuted}>{item.trunkId ? trunkMap.get(item.trunkId) || `#${item.trunkId}` : '—'}</td>
+                      <td className={styles.rowMuted}>{item.notes || '—'}</td>
+                      <td className={styles.createdAt}>{formatDateTime(item.createdAt)}</td>
+                      <td>
+                        <div className={styles.actionsInline}>
+                          {confirmDeleteId === item.id ? (
+                            <ConfirmDialog
+                              inline
+                              open
+                              title="Delete contact"
+                              message="Delete this contact? This cannot be undone."
+                              cancelLabel="cancel"
+                              confirmLabel={deletingId === item.id ? 'deleting…' : 'delete'}
+                              onCancel={() => setConfirmDeleteId(null)}
+                              onConfirm={() => void confirmDelete(item.id)}
+                            />
+                          ) : (
+                            <>
+                              <button className={styles.secondaryButton} type="button" onClick={() => openEdit(item)}>edit</button>
+                              <button className={styles.secondaryButton} type="button" onClick={() => setConfirmDeleteId(item.id)}>delete</button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {editingId === item.id ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <form className={styles.editPanel} onSubmit={(event) => void submitEdit(event)}>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>label</span>
+                              <input className={styles.input} value={editForm.label} onChange={(event) => setEditForm((prev) => ({ ...prev, label: event.target.value }))} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>number</span>
+                              <input className={styles.input} value={editForm.number} onChange={(event) => setEditForm((prev) => ({ ...prev, number: event.target.value }))} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>country</span>
+                              <select className={`${styles.input} ${styles.select}`} value={editForm.country} onChange={(event) => setEditForm((prev) => ({ ...prev, country: event.target.value }))}>
+                                {COUNTRY_OPTIONS.map((option) => (
+                                  <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>trunk</span>
+                              <SearchableSelect options={trunkOptions} value={editForm.trunkId || null} onChange={(value) => setEditForm((prev) => ({ ...prev, trunkId: value || '' }))} placeholder="optional trunk" />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>notes</span>
+                              <input className={styles.input} value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                            </label>
+                            <div className={styles.actions}>
+                              <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
+                              <button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? 'saving…' : 'save'}</button>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          )}
           <Pagination
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
           />
-        </section>
       </div>
-    </PageLayout>
+    </div>
   );
 }

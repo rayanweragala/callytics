@@ -235,7 +235,10 @@ export function AudioPage() {
   const voiceOptions = useMemo(() => voices.map(v => ({ value: v.id, label: humanizeVoice(v.id) })), [voices]);
 
   return (
-    <PageLayout title="audio" subtitle="configure">
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="audio" subtitle="configure" />
+      </div>
       <div className={styles.grid}>
         <section className={styles.panel}>
           <div className={styles.panelTitle}>upload audio</div>
@@ -294,62 +297,67 @@ export function AudioPage() {
         </section>
       </div>
 
-      <section className={styles.libraryPanel}>
-        <div className={styles.tableHead}>
-          <div>name</div>
-          <div>source</div>
-          <div>status</div>
-          <div>preview</div>
-          <div>created</div>
-          <div className={styles.actionsHeader}>actions</div>
-        </div>
-        
+      <div className={styles.tableCard}>
         {isLoading ? (
-          <div className="fadeIn">
+          <>
             {Array.from({ length: 3 }).map((_, i) => (
               <SkeletonRow key={i} columns={[{ width: '20%' }, { width: '15%' }, { width: '15%' }, { width: '15%' }, { width: '20%' }, { width: '15%' }]} />
             ))}
-          </div>
+          </>
         ) : items.length === 0 ? (
-          <div className={styles.empty}>No audio yet.</div>
+          <div className={styles.emptyState}>No audio yet.</div>
         ) : (
-          <div className="fadeIn">
-            {items.map((item) => (
-              <div className={styles.row} key={item.id}>
-                <div>
-                  <div className={styles.name}>{item.name}</div>
-                  <div className={styles.meta}>{item.ttsVoice || item.originalFilename || '—'}</div>
-                </div>
-                <div className={styles.meta}>{item.sourceType}</div>
-                <div className={styles.meta}>{item.conversionStatus}</div>
-                <div>
-                  {item.previewUrl ? <AudioPreviewPlayer src={`${backendBase}${item.previewUrl}`} /> : <span className={styles.meta}>—</span>}
-                </div>
-                <div className={styles.createdAt}>{formatDateTime(item.createdAt)}</div>
-                <div className={styles.actions}>
-                  {deletedId === item.id ? (
-                    <div className={styles.deletedText}>deleted</div>
-                  ) : confirmId === item.id ? (
-                    <div className={styles.confirmBox}>
-                      <div className={styles.confirmText}>Delete this audio?</div>
-                      <div className={styles.confirmActions}>
-                        <button className={styles.secondaryButton} onClick={() => setConfirmId(null)}>cancel</button>
-                        <button className={styles.deleteButton} onClick={() => void confirmDelete(item.id)}>delete</button>
-                      </div>
+          <table>
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>source</th>
+                <th>status</th>
+                <th>preview</th>
+                <th>created</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <div className={styles.name}>{item.name}</div>
+                    <div className={styles.meta}>{item.ttsVoice || item.originalFilename || '—'}</div>
+                  </td>
+                  <td className={styles.meta}>{item.sourceType}</td>
+                  <td className={styles.meta}>{item.conversionStatus}</td>
+                  <td>
+                    {item.previewUrl ? <AudioPreviewPlayer src={`${backendBase}${item.previewUrl}`} /> : <span className={styles.meta}>—</span>}
+                  </td>
+                  <td className={styles.createdAt}>{formatDateTime(item.createdAt)}</td>
+                  <td>
+                    <div className={styles.actions}>
+                      {deletedId === item.id ? (
+                        <div className={styles.deletedText}>deleted</div>
+                      ) : confirmId === item.id ? (
+                        <div className={styles.confirmBox}>
+                          <div className={styles.confirmText}>Delete this audio?</div>
+                          <div className={styles.confirmActions}>
+                            <button className={styles.secondaryButton} onClick={() => setConfirmId(null)}>cancel</button>
+                            <button className={styles.deleteButton} onClick={() => void confirmDelete(item.id)}>delete</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <button className={styles.secondaryButton} onClick={() => setConfirmId(item.id)}>delete</button>
+                          {failedDeleteId === item.id && <div className={styles.failedText}>failed</div>}
+                        </>
+                      )}
                     </div>
-                  ) : (
-                    <>
-                      <button className={styles.secondaryButton} onClick={() => setConfirmId(item.id)}>delete</button>
-                      {failedDeleteId === item.id && <div className={styles.failedText}>failed</div>}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-      </section>
-    </PageLayout>
+      </div>
+    </div>
   );
 }

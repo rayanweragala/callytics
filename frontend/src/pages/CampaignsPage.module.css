@@ -12,11 +12,26 @@
   padding: 20px;
 }
 
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
 .tablePanel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 0 20px 16px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .panelTitle {
@@ -259,41 +274,21 @@
   gap: 4px;
 }
 
-/* FIX 3 — Row: 9px padding */
-.tableHead,
-.row {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(180px, 1.1fr) 120px 150px 260px;
-  gap: 12px;
-  align-items: center;
+/* Column widths */
+th:nth-child(1) { width: 25%; }
+th:nth-child(2) { width: 15%; }
+th:nth-child(3) { width: 10%; }
+th:nth-child(4) { width: 10%; }
+th:nth-child(5) { width: 16%; }
+th:nth-child(6) { width: 12%; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.tableHead {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-strong);
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--accent);
-}
-
-.row {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 14px;
-  transition: background 0.1s;
-  cursor: default;
-}
-
-/* FIX 4 — Row hover */
-.row:hover {
-  background: var(--surface-elevated);
-}
-
-.row:last-of-type {
-  border-bottom: none;
-}
 
 .actionsHeader {
   text-align: right;

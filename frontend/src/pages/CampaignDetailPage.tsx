@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
@@ -203,7 +203,7 @@ export function CampaignDetailPage() {
           )}
         </section>
 
-        <section className={styles.contactsCard}>
+        <div className={styles.tableCard}>
           <div className={styles.filters}>
             {STATUS_FILTERS.map((status) => (
               <button
@@ -220,54 +220,64 @@ export function CampaignDetailPage() {
             ))}
           </div>
 
-          <div className={styles.tableHead}>
-            <div>Phone Number</div>
-            <div>Name</div>
-            <div>Status</div>
-            <div>Attempts</div>
-            <div>Last Attempt</div>
-            <div>Actions</div>
-          </div>
-
           {loading ? <Loading message="Loading contacts..." /> : null}
-          {!loading && contacts.length === 0 ? <div className={styles.empty}>No contacts in this campaign.</div> : null}
+          {!loading && contacts.length === 0 ? <div className={styles.emptyState}>No contacts in this campaign.</div> : null}
 
-          {!loading && contacts.map((contact) => (
-            <div key={contact.id}>
-              <div className={styles.row}>
-                <div className={styles.mono}>{contact.phoneNumber}</div>
-                <div>{contact.name || '—'}</div>
-                <div><span className={styles.statusBadge}>{contact.status}</span></div>
-                <div className={styles.mono}>{contact.attempts}</div>
-                <div className={styles.mono}>{contact.lastAttemptAt ? formatDateTime(contact.lastAttemptAt) : '—'}</div>
-                <div>
-                  <button className={styles.historyButton} type="button" onClick={() => void toggleHistory(contact)}>history</button>
-                </div>
-              </div>
-
-              {expanded[contact.id] ? (
-                <div className={styles.historyPanel}>
-                  {(attemptsByContact[contact.id] || []).map((attempt) => (
-                    <div className={styles.historyRow} key={attempt.id}>
-                      <span>Attempt #{attempt.attemptNumber}</span>
-                      <span>{attempt.outcome}</span>
-                      <span>{attempt.duration === null ? '—' : `${attempt.duration}s`}</span>
-                      <span>{attempt.startedAt ? formatDateTime(attempt.startedAt) : '—'}</span>
-                      <span>
-                        {attempt.callLogId ? (
-                          <button className={styles.historyButton} type="button" onClick={() => navigate(`/call-logs?callLogId=${attempt.callLogId}`)}>{'>'}</button>
-                        ) : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ))}
+          {!loading && contacts.length > 0 && (
+            <table>
+              <thead>
+                <tr>
+                  <th>Phone Number</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Attempts</th>
+                  <th>Last Attempt</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contacts.map((contact) => (
+                  <Fragment key={contact.id}>
+                    <tr>
+                      <td className={styles.mono}>{contact.phoneNumber}</td>
+                      <td>{contact.name || '—'}</td>
+                      <td><span className={styles.statusBadge}>{contact.status}</span></td>
+                      <td className={styles.mono}>{contact.attempts}</td>
+                      <td className={styles.mono}>{contact.lastAttemptAt ? formatDateTime(contact.lastAttemptAt) : '—'}</td>
+                      <td>
+                        <button className={styles.historyButton} type="button" onClick={() => void toggleHistory(contact)}>history</button>
+                      </td>
+                    </tr>
+                    {expanded[contact.id] ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className={styles.historyPanel}>
+                            {(attemptsByContact[contact.id] || []).map((attempt) => (
+                              <div className={styles.historyRow} key={attempt.id}>
+                                <span>Attempt #{attempt.attemptNumber}</span>
+                                <span>{attempt.outcome}</span>
+                                <span>{attempt.duration === null ? '—' : `${attempt.duration}s`}</span>
+                                <span>{attempt.startedAt ? formatDateTime(attempt.startedAt) : '—'}</span>
+                                <span>
+                                  {attempt.callLogId ? (
+                                    <button className={styles.historyButton} type="button" onClick={() => navigate(`/call-logs?callLogId=${attempt.callLogId}`)}>{`>`}</button>
+                                  ) : '—'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           <ErrorMessage message={errorText} />
-        </section>
+        </div>
       </div>
     </PageLayout>
   );

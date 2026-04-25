@@ -3,6 +3,22 @@
   gap: 16px;
 }
 
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+
 /* FIX 5 — Refresh button: treat as secondary */
 .refreshButton {
   background: transparent;

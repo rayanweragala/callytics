@@ -5,10 +5,19 @@ interface PageLayoutProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 export function PageLayout({ title, subtitle, actions, children }: PageLayoutProps) {
+  if (!children) {
+    return (
+      <div>
+        {subtitle && <div className={styles.sectionLabel}>{subtitle}</div>}
+        <h1 className={styles.title}>{title}</h1>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>

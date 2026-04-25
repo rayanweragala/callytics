@@ -26,49 +26,33 @@
 
 /* FIX 1 — Card border */
 .tableCard {
-  background: var(--surface);
+  background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  padding: 0 20px 16px;
+  margin-top: 0;
 }
 
-/* FIX 3 — Row: 9px vertical padding */
-.tableHead,
-.row {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) 220px 280px;
-  gap: 16px;
-  padding: 9px 12px;
+.pageHeader {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-/* Table header typography */
-.tableHead {
-  border-bottom: 1px solid var(--border-strong);
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
+
+/* Column widths */
+th:nth-child(1) { width: 55%; }
+th:nth-child(2) { width: 25%; }
+th:nth-child(3) { width: 20%; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.actionsHeader {
-  text-align: right;
-}
-
-.row {
-  border-bottom: 1px solid var(--border-subtle);
-  transition: background 0.1s;
-  cursor: default;
-}
-
-/* FIX 4 — Row hover */
-.row:hover {
-  background: var(--surface-elevated);
-}
-
-.row:last-child { border-bottom: none; }
 
 /* Entity name: text-primary white */
 .flowName {

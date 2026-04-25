@@ -242,9 +242,11 @@ export function OperatorsPage() {
   );
 
   return (
-    <PageLayout actions={pageActions} title="Operators" subtitle="configure">
-      <div className={styles.page}>
-
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <PageLayout title="Operators" subtitle="configure" />
+        {pageActions}
+      </div>
         {createOpen ? (
           <section className={styles.formPanel}>
             <div className={styles.panelTitle}>new operator</div>
@@ -336,156 +338,167 @@ export function OperatorsPage() {
           </div>
         ) : null}
 
-        <section className={styles.tablePanel}>
-          <div className={styles.tableHead}>
-            <div>name</div>
-            <div>extension</div>
-            <div>pstn fallback</div>
-            <div>pin</div>
-            <div>status</div>
-            <div>created</div>
-            <div className={styles.actionsHeader}>actions</div>
-          </div>
-          {loading && operators.length === 0 ? (
-            <>
-              {Array.from({ length: 3 }, (_, i) => (
-                <SkeletonRow key={i} columns={[
-                  { width: '180px' },
-                  { width: '160px' },
-                  { width: '160px' },
-                  { width: '140px' },
-                  { width: '80px' },
-                  { width: '140px' },
-                  { width: '200px' },
-                ]} />
-              ))}
-            </>
-          ) : operators.length === 0 ? (
-            <div className={styles.empty}>No operators yet. Add one above.</div>
-          ) : (
-            <div className="fadeIn">
-              {operators.map((op) => (
-                <Fragment key={op.id}>
-                  <div className={styles.row}>
-                    <div className={styles.dataMono}>{op.name}</div>
-                    <div className={styles.dataMono}>{op.extension?.username || '—'}</div>
-                    <div className={styles.dataMono}>{op.contactNumber?.label || '—'}</div>
-                    <div className={styles.pinCell}>
-                      <span className={`${styles.dataMono} ${revealedPins.has(op.id) ? styles.pinRevealedValue : ''}`}>
-                        {revealedPins.has(op.id) ? op.pin || '••••••' : '••••••'}
-                      </span>
-                      <button
-                        className={styles.pinToggle}
-                        type="button"
-                        onClick={() => togglePinVisibility(op.id)}
-                        aria-label={revealedPins.has(op.id) ? `Hide PIN for ${op.name}` : `Show PIN for ${op.name}`}
-                      >
-                        {revealedPins.has(op.id) ? '[hide]' : '[show]'}
-                      </button>
-                    </div>
-                    <StatusBadge status={op.status} />
-                    <div className={styles.createdAt}>{formatDateTime(op.createdAt)}</div>
-                    <div className={styles.actions}>
-                      {confirmDeleteId === op.id ? (
-                        <div className={styles.confirmBox}>
-                          <div className={styles.confirmText}>Delete this operator? They will be logged out.</div>
-                          <div className={styles.confirmActions}>
-                            <button className={styles.secondaryButton} type="button" onClick={() => setConfirmDeleteId(null)}>cancel</button>
-                            <button className={styles.deleteButton} type="button" onClick={() => void handleDelete(op.id)}>
-                              {deletingId === op.id ? 'deleting…' : 'delete'}
+        <div className={styles.tableCard}>
+            {loading && operators.length === 0 ? (
+              <>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonRow key={i} columns={[
+                    { width: '180px' },
+                    { width: '160px' },
+                    { width: '160px' },
+                    { width: '140px' },
+                    { width: '80px' },
+                    { width: '140px' },
+                    { width: '200px' },
+                  ]} />
+                ))}
+              </>
+            ) : operators.length === 0 ? (
+              <div className={styles.emptyState}>No operators yet. Add one above.</div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>name</th>
+                    <th>extension</th>
+                    <th>pstn fallback</th>
+                    <th>pin</th>
+                    <th>status</th>
+                    <th>created</th>
+                    <th>actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {operators.map((op) => (
+                    <Fragment key={op.id}>
+                      <tr>
+                        <td className={styles.dataMono}>{op.name}</td>
+                        <td className={styles.dataMono}>{op.extension?.username || '—'}</td>
+                        <td className={styles.dataMono}>{op.contactNumber?.label || '—'}</td>
+                        <td>
+                          <div className={styles.pinCell}>
+                            <span className={`${styles.dataMono} ${revealedPins.has(op.id) ? styles.pinRevealedValue : ''}`}>
+                              {revealedPins.has(op.id) ? op.pin || '••••••' : '••••••'}
+                            </span>
+                            <button
+                              className={styles.pinToggle}
+                              type="button"
+                              onClick={() => togglePinVisibility(op.id)}
+                              aria-label={revealedPins.has(op.id) ? `Hide PIN for ${op.name}` : `Show PIN for ${op.name}`}
+                            >
+                              {revealedPins.has(op.id) ? '[hide]' : '[show]'}
                             </button>
                           </div>
-                        </div>
-                      ) : (
-                        <>
-                          <button className={styles.secondaryButton} type="button" onClick={() => openEdit(op)}>edit</button>
-                          <button className={styles.secondaryButton} type="button" onClick={() => setConfirmDeleteId(op.id)}>delete</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  {editingId === op.id ? (
-                    <form className={styles.editorRow} onSubmit={(e) => void handleUpdate(e)}>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>name</span>
-                        <input
-                          className={styles.input}
-                          value={editForm.name}
-                          onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, name: e.target.value })); }}
-                          disabled={saving}
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>SIP extension</span>
-                        <SearchableSelect
-                          options={extensionOptions}
-                          value={editForm.extensionId || null}
-                          onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, extensionId: v || '' })); }}
-                          placeholder="No extension assigned"
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>PSTN fallback</span>
-                        <SearchableSelect
-                          options={contactOptions}
-                          value={editForm.contactNumberId || null}
-                          onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, contactNumberId: v || '' })); }}
-                          placeholder="No PSTN contact"
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>PIN (optional)</span>
-                        <input
-                          className={styles.input}
-                          type="password"
-                          placeholder={op.hasPIN ? 'leave blank to keep existing PIN' : 'set a 4-6 digit PIN'}
-                          value={editForm.pin}
-                          onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, pin: e.target.value })); }}
-                          disabled={saving}
-                        />
-                        <span className={styles.inlineHint}>{op.hasPIN ? 'Leave blank to keep the current PIN hash.' : 'Optional — a random PIN will be generated if omitted.'}</span>
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>Callback Number (PSTN)</span>
-                        <input
-                          className={styles.input}
-                          placeholder="+94771234567"
-                          value={editForm.callbackNumber}
-                          onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, callbackNumber: e.target.value })); }}
-                          disabled={saving}
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>Callback Trunk</span>
-                        <SearchableSelect
-                          options={trunkOptions}
-                          value={editForm.callbackTrunkId || null}
-                          onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, callbackTrunkId: v || '' })); }}
-                          placeholder="No callback trunk"
-                        />
-                      </label>
-                      <div className={styles.formActions}>
-                        <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
-                        <button className={styles.primaryButton} type="submit" disabled={saving}>
-                          {saving ? 'saving…' : 'save changes'}
-                        </button>
-                      </div>
-                      {errorText === OPERATOR_DESTINATION_REQUIRED ? <div className={styles.inlineValidationError}>{OPERATOR_DESTINATION_REQUIRED}</div> : null}
-                      {errorText && errorText !== OPERATOR_DESTINATION_REQUIRED ? <ErrorMessage message={errorText} /> : null}
-                    </form>
-                  ) : null}
-                </Fragment>
-              ))}
-            </div>
-          )}
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-          {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
-        </section>
+                        </td>
+                        <td><StatusBadge status={op.status} /></td>
+                        <td className={styles.createdAt}>{formatDateTime(op.createdAt)}</td>
+                        <td>
+                          <div className={styles.actions}>
+                            {confirmDeleteId === op.id ? (
+                              <div className={styles.confirmBox}>
+                                <div className={styles.confirmText}>Delete this operator? They will be logged out.</div>
+                                <div className={styles.confirmActions}>
+                                  <button className={styles.secondaryButton} type="button" onClick={() => setConfirmDeleteId(null)}>cancel</button>
+                                  <button className={styles.deleteButton} type="button" onClick={() => void handleDelete(op.id)}>
+                                    {deletingId === op.id ? 'deleting…' : 'delete'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <button className={styles.secondaryButton} type="button" onClick={() => openEdit(op)}>edit</button>
+                                <button className={styles.secondaryButton} type="button" onClick={() => setConfirmDeleteId(op.id)}>delete</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {editingId === op.id ? (
+                        <tr>
+                          <td colSpan={7}>
+                            <form className={styles.editorRow} onSubmit={(e) => void handleUpdate(e)}>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>name</span>
+                                <input
+                                  className={styles.input}
+                                  value={editForm.name}
+                                  onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, name: e.target.value })); }}
+                                  disabled={saving}
+                                />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>SIP extension</span>
+                                <SearchableSelect
+                                  options={extensionOptions}
+                                  value={editForm.extensionId || null}
+                                  onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, extensionId: v || '' })); }}
+                                  placeholder="No extension assigned"
+                                />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>PSTN fallback</span>
+                                <SearchableSelect
+                                  options={contactOptions}
+                                  value={editForm.contactNumberId || null}
+                                  onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, contactNumberId: v || '' })); }}
+                                  placeholder="No PSTN contact"
+                                />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>PIN (optional)</span>
+                                <input
+                                  className={styles.input}
+                                  type="password"
+                                  placeholder={op.hasPIN ? 'leave blank to keep existing PIN' : 'set a 4-6 digit PIN'}
+                                  value={editForm.pin}
+                                  onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, pin: e.target.value })); }}
+                                  disabled={saving}
+                                />
+                                <span className={styles.inlineHint}>{op.hasPIN ? 'Leave blank to keep the current PIN hash.' : 'Optional — a random PIN will be generated if omitted.'}</span>
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>Callback Number (PSTN)</span>
+                                <input
+                                  className={styles.input}
+                                  placeholder="+94771234567"
+                                  value={editForm.callbackNumber}
+                                  onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, callbackNumber: e.target.value })); }}
+                                  disabled={saving}
+                                />
+                              </label>
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>Callback Trunk</span>
+                                <SearchableSelect
+                                  options={trunkOptions}
+                                  value={editForm.callbackTrunkId || null}
+                                  onChange={(v) => { showError(null); setEditForm((f) => ({ ...f, callbackTrunkId: v || '' })); }}
+                                  placeholder="No callback trunk"
+                                />
+                              </label>
+                              <div className={styles.formActions}>
+                                <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
+                                <button className={styles.primaryButton} type="submit" disabled={saving}>
+                                  {saving ? 'saving…' : 'save changes'}
+                                </button>
+                              </div>
+                              {errorText === OPERATOR_DESTINATION_REQUIRED ? <div className={styles.inlineValidationError}>{OPERATOR_DESTINATION_REQUIRED}</div> : null}
+                              {errorText && errorText !== OPERATOR_DESTINATION_REQUIRED ? <ErrorMessage message={errorText} /> : null}
+                            </form>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+            {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
       </div>
-    </PageLayout>
+    </div>
   );
 }

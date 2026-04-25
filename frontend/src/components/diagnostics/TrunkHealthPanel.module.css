@@ -1,7 +1,7 @@
 .panel {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: transparent;
   padding: 16px;
 }
 
@@ -26,33 +26,30 @@
   font-weight: 500;
 }
 
-.table {
-  display: grid;
-  border: 1px solid var(--border-default);
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  margin-top: 0;
 }
 
-.head,
-.row {
-  display: grid;
-  grid-template-columns: 1.1fr minmax(220px, 1.9fr) 0.8fr 1fr 0.8fr 1.2fr 0.9fr;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 14px;
+/* Column widths — Panel B */
+th:nth-child(1) { width: 18%; }
+th:nth-child(2) { width: 32%; }
+th:nth-child(3) { width: 12%; }
+th:nth-child(4) { width: 10%; }
+th:nth-child(5) { width: 10%; }
+th:nth-child(6) { width: 12%; }
+th:nth-child(7) { width: 6%; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.head {
-  background: var(--bg-elevated);
-  color: var(--accent);
-  font-size: 14px;
-  text-transform: uppercase;
-}
-
-.row {
-  border-top: 1px solid var(--border-default);
-  font-size: 14px;
-}
 
 .head > span,
 .row > span {
