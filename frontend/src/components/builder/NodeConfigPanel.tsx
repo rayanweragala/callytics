@@ -66,6 +66,19 @@ export interface NodeConfigPanelProps {
   saveAttempted?: boolean;
 }
 
+// ── Node type → accent color ──────────────────────────────────────────────────
+function nodeTypeColor(type: string): string {
+  switch (type) {
+    case 'start': case 'hangup': return 'var(--color-active)';
+    case 'play_audio': return '#06b6d4';
+    case 'get_digits': case 'menu': case 'business_hours': return 'var(--accent)';
+    case 'transfer': case 'hunt': return '#3b82f6';
+    case 'queue': case 'queue_login': return '#a855f7';
+    case 'callback': return '#f97316';
+    default: return 'var(--text-muted)';
+  }
+}
+
 export function NodeConfigPanel({
   selectedNode,
   selectedEdge,
@@ -131,9 +144,26 @@ export function NodeConfigPanel({
 
   return (
     <>
-      <div className={pageStyles.panelTitle}>{selectedEdge ? 'edge config' : 'node config'}</div>
-      {selectedEdge ? (
-        <div className={styles.form}>
+      {/* Config panel header */}
+      {selectedNode || selectedEdge ? (
+        <div className={pageStyles.configPanelHeader}>
+          <span
+            className={pageStyles.configPanelAccentBar}
+            style={{ background: nodeTypeColor(selectedNode?.data.type ?? (selectedEdgeSourceNode?.data.type ?? 'hangup')) }}
+          />
+          <div className={pageStyles.configPanelMeta}>
+            <div className={pageStyles.configPanelType}>
+              {selectedEdge ? 'edge config' : (selectedNode?.data.type ?? '')}
+            </div>
+            <div className={pageStyles.configPanelId}>
+              {selectedEdge ? `${selectedEdge.source} → ${selectedEdge.target}` : (selectedNode?.id ?? '')}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className={pageStyles.configScrollArea}>
+        {selectedEdge ? (
+          <div className={styles.form}>
           {selectedEdgeSourceNode &&
           (selectedEdgeSourceNode.data.type === 'get_digits' || selectedEdgeSourceNode.data.type === 'menu') ? (
             <label className={styles.field}>
@@ -693,8 +723,19 @@ export function NodeConfigPanel({
           <div className={styles.meta}>type: {selectedNode.data.type}</div>
         </div>
       ) : (
-        <div className={styles.empty}>Select a node or edge to edit its config.</div>
+        <div className={pageStyles.configEmptyState}>
+          <span className={pageStyles.configEmptyIcon}>
+            <svg viewBox="0 0 36 36" focusable="false">
+              <rect x="4" y="4" width="12" height="12" rx="2" />
+              <rect x="20" y="4" width="12" height="12" rx="2" />
+              <rect x="4" y="20" width="12" height="12" rx="2" />
+              <rect x="20" y="20" width="12" height="12" rx="2" />
+            </svg>
+          </span>
+          <span className={pageStyles.configEmptyLabel}>Select a node to configure it</span>
+        </div>
       )}
+      </div>
     </>
   );
 }

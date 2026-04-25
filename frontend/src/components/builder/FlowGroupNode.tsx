@@ -3,7 +3,7 @@ import { NodeProps, NodeResizer } from 'reactflow';
 import type { FlowNodeData } from '../../types';
 import styles from './FlowGroupNode.module.css';
 
-export function FlowGroupNode({ data, selected }: NodeProps<FlowNodeData>) {
+export function FlowGroupNode({ data, selected }: NodeProps<FlowNodeData & { diffColor?: string }>) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -13,8 +13,10 @@ export function FlowGroupNode({ data, selected }: NodeProps<FlowNodeData>) {
     }
   }, [data.isEditing]);
 
+  const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
+
   return (
-    <div className={`${styles.group} ${selected ? styles.selected : ''}`}>
+    <div className={`${styles.group} ${selected ? styles.selected : ''}`} style={diffStyle}>
       <NodeResizer
         isVisible={selected}
         minWidth={200}

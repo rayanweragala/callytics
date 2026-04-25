@@ -531,8 +531,25 @@ export function makeVersionEdgeKey(edge: { source: string; target: string; data?
   return `${edge.source}|${edge.target}|${edge.data?.branchKey || ''}|${edge.data?.condition || ''}`;
 }
 
-export function decorateDiffNodes(nodes: Array<Node<FlowNodeData>>, nodeIds: Set<string>, colorVar: string): Array<Node<FlowNodeData>> {
-  return nodes.map((node) => nodeIds.has(node.id) ? { ...node, style: { ...node.style, borderLeft: `2px solid var(${colorVar})` } } : node);
+export function decorateDiffNodes(
+  nodes: Array<Node<FlowNodeData>>,
+  primaryIds: Set<string>,
+  primaryColor: string,
+  secondaryIds?: Set<string>,
+  secondaryColor?: string
+): Array<Node<FlowNodeData>> {
+  return nodes.map((node) => {
+    let diffColor: string | undefined;
+    if (primaryIds.has(node.id)) {
+      diffColor = primaryColor;
+    } else if (secondaryIds && secondaryColor && secondaryIds.has(node.id)) {
+      diffColor = secondaryColor;
+    }
+    if (diffColor) {
+      return { ...node, data: { ...node.data, diffColor } };
+    }
+    return node;
+  });
 }
 
 export function decorateDiffEdges(edges: Array<Edge<BuilderEdgeData>>, changedKeys: Set<string>): Array<Edge<BuilderEdgeData>> {

@@ -1,97 +1,153 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   FlowCanvasNode — Phase 30d Polish — Larger, readable cards
+   ───────────────────────────────────────────────────────────────────────────── */
+
 .node {
-  min-width: 170px;
+  min-width: 160px;
   display: flex;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: visible; /* allow glow to spill */
   position: relative;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
+/* hover: slightly elevated */
+.node:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+/* selected: unmistakable amber border + glow */
 .selected {
-  border-color: currentColor;
+  border-color: var(--primitive-amber) !important;
+  box-shadow: 0 0 0 3px var(--primitive-amber-dim),
+              0 0 14px var(--primitive-amber-dim);
 }
 
+/* clip overflow for the card body, but allow glow on the wrapper */
+.node > .accent {
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+/* 4px colored left bar — matches node type color */
 .accent {
-  width: 4px;
+  width: 5px;
   flex-shrink: 0;
   background: currentColor;
 }
 
 .body {
-  padding: 12px;
+  padding: 10px 14px 12px;
+  min-width: 0;
+  flex: 1;
 }
 
+.body:last-child {
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+/* Node type label — 10px muted uppercase mono */
 .type {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-bottom: 5px;
 }
 
+/* Node label — dominant text: larger, white, weight 500 */
 .label {
   color: var(--text-primary);
   font-size: 14px;
-  margin-top: 4px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: break-word;
 }
 
 .meta {
   margin-top: 6px;
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
+/* Delete button */
 .deleteButton {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--bg-surface);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  font-size: 14px;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .deleteButton:hover {
   background: var(--bg-elevated);
-  border-color: var(--border-strong);
-  color: var(--text-primary);
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
+/* Handles — 10px, visible border, amber on focus/hover */
 .handle {
   width: 10px !important;
   height: 10px !important;
-  border: 1px solid var(--border-default) !important;
-  background: currentColor !important;
+  border: 2px solid var(--border-strong) !important;
+  background: var(--bg-surface) !important;
+  transition: border-color 120ms ease, background 120ms ease, width 120ms ease, height 120ms ease !important;
+}
+
+.handle:hover {
+  border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-surface)) !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* On selected nodes, handles are bigger and amber */
+.selected .handle {
+  border-color: var(--accent) !important;
+  width: 12px !important;
+  height: 12px !important;
 }
 
 .handleOpen {
   background: var(--accent) !important;
+  border-color: var(--accent) !important;
 }
 
 .handleClosed {
   background: var(--text-muted) !important;
+  border-color: var(--text-muted) !important;
 }
 
-.start { color: var(--color-active); }
-.playAudio { color: var(--color-info); }
-.getDigits { color: var(--color-warning); }
+/* Node type color system — sets currentColor for accent bar + handle tint */
+.start         { color: var(--color-active); }
+.playAudio     { color: #06b6d4; }
+.getDigits     { color: var(--accent); }
 .businessHours { color: var(--accent); }
-.transfer { color: var(--color-info); }
-.voicemail { color: var(--color-warning); }
-.hangup { color: var(--text-muted); }
-.webhook { color: var(--color-info); }
-.queueLogin { color: var(--color-warning); }
-.queue { color: var(--color-active); }
-.callback { color: var(--color-info); }
+.transfer      { color: #3b82f6; }
+.hunt          { color: #3b82f6; }
+.voicemail     { color: var(--text-muted); }
+.hangup        { color: var(--color-active); }
+.webhook       { color: var(--text-muted); }
+.queueLogin    { color: #a855f7; }
+.queue         { color: #a855f7; }
+.callback      { color: #f97316; }
 
 .webhookSideEffect {
   border-style: dashed;

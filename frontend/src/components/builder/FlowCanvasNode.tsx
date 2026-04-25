@@ -31,10 +31,12 @@ function toneClass(type: FlowNodeData['type']): string {
   }
 }
 
-export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData>) {
+export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { diffColor?: string }>) {
   const isWebhookNode = data.type === 'webhook';
+  const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
+
   return (
-    <div className={`${styles.node} ${toneClass(data.type)} ${selected ? styles.selected : ''} ${isWebhookNode ? styles.webhookSideEffect : ''}`}>
+    <div className={`${styles.node} ${toneClass(data.type)} ${selected ? styles.selected : ''} ${isWebhookNode ? styles.webhookSideEffect : ''}`} style={diffStyle}>
       <span className={styles.accent} />
       <div className={styles.body}>
         <div className={styles.type}>{data.type}</div>

@@ -23,12 +23,13 @@ function strategyLabel(config: Record<string, unknown>): string {
   return 'sequential';
 }
 
-export function HuntNode({ data, selected }: NodeProps<FlowNodeData>) {
+export function HuntNode({ data, selected }: NodeProps<FlowNodeData & { diffColor?: string }>) {
   const count = destinationCount(data.config);
   const strategy = strategyLabel(data.config);
+  const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
 
   return (
-    <div className={`${styles.node} ${selected ? styles.selected : ''}`}>
+    <div className={`${styles.node} ${selected ? styles.selected : ''}`} style={diffStyle}>
       <span className={styles.accent} />
       <div className={styles.body}>
         <div className={styles.type}>hunt</div>

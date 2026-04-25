@@ -14,6 +14,12 @@
   flex-wrap: wrap;
 }
 
+.headerLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
 .sectionLabel {
   font-family: var(--font-mono);
   font-size: 11px;

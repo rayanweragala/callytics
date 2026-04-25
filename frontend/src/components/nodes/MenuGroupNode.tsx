@@ -21,12 +21,14 @@ function branchLabel(branch: string): string {
   return branch;
 }
 
-export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData>) {
+export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData & { diffColor?: string }>) {
   const branches = getActiveBranches(data.config);
+  const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
 
   return (
     <div
       className={`${styles.node} ${selected ? styles.selected : ''}`}
+      style={diffStyle}
       onDoubleClick={() => data.onOpenSubmenu?.()}
       role="button"
       tabIndex={0}

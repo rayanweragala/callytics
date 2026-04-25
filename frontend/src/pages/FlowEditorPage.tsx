@@ -69,6 +69,7 @@ import {
   palette,
   miniMapSizeProps,
 } from './FlowEditorPage.helpers';
+import { PageLayout } from '../components/common/PageLayout';
 
 // ─── Node / edge type registries (stable references) ─────────────────────────
 
@@ -202,6 +203,7 @@ export function FlowEditorPage() {
   const [contactNumbers, setContactNumbers] = useState<ContactNumber[]>([]);
   const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
+  const [minimapVisible, setMinimapVisible] = useState(true);
   const [timeoutWarningConfirmVisible, setTimeoutWarningConfirmVisible] = useState(false);
   const [timeoutWarningMessage, setTimeoutWarningMessage] = useState<string | null>(null);
   const paletteSearchRef = useRef<HTMLInputElement | null>(null);
@@ -510,9 +512,9 @@ export function FlowEditorPage() {
 
   const renderPaletteNodeCard = useCallback((item: (typeof palette)[number]) => (
     <div className={styles.paletteItem} draggable={item.type !== 'start'} key={item.type} onDragStart={() => handleDragStart(item.type)} title={item.type === 'start' ? 'Seed flows already contain the required start node' : 'Drag onto canvas'}>
-      <span className={`${styles.paletteBar} ${styles[`bar${item.type.replace('_', '')}`]}`} />
+      <span className={`${styles.paletteBar} ${styles[`bar${item.type.replace(/_/g, '')}`]}`} />
       {renderPaletteIcon(item.type)}
-      <div>
+      <div className={styles.paletteItemContent}>
         <div className={styles.paletteType}>{item.type}</div>
         <div className={styles.paletteLabel}>{item.label}</div>
       </div>
@@ -862,15 +864,22 @@ export function FlowEditorPage() {
   const snapshotNodeIds = new Set(compareSnapshotNodes.map((node) => node.id));
   const addedNodeIds = new Set(currentSnapshotNodes.filter((node) => !snapshotNodeIds.has(node.id)).map((node) => node.id));
   const removedNodeIds = new Set(compareSnapshotNodes.filter((node) => !currentNodeIds.has(node.id)).map((node) => node.id));
+  const changedNodeIds = new Set(currentSnapshotNodes.filter((curr) => {
+    const prev = compareSnapshotNodes.find((n) => n.id === curr.id);
+    if (!prev) return false;
+    return curr.data.type !== prev.data.type || curr.data.label !== prev.data.label || JSON.stringify(curr.data.config) !== JSON.stringify(prev.data.config);
+  }).map((node) => node.id));
+  
   const currentEdgeKeys = new Set(currentSnapshotEdges.map((edge) => makeVersionEdgeKey(edge)));
   const snapshotEdgeKeys = new Set(compareSnapshotEdges.map((edge) => makeVersionEdgeKey(edge)));
   const changedEdgeKeys = new Set([...Array.from(currentEdgeKeys).filter((key) => !snapshotEdgeKeys.has(key)), ...Array.from(snapshotEdgeKeys).filter((key) => !currentEdgeKeys.has(key))]);
-  const currentDiffNodes = decorateDiffNodes(currentSnapshotNodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--accent');
-  const versionDiffNodes = decorateDiffNodes(compareSnapshotNodes.map((node) => ({ ...node, selected: false })), removedNodeIds, '--color-error');
+  const currentDiffNodes = decorateDiffNodes(currentSnapshotNodes.map((node) => ({ ...node, selected: false })), addedNodeIds, '--primitive-green', changedNodeIds, '--primitive-amber');
+  const versionDiffNodes = decorateDiffNodes(compareSnapshotNodes.map((node) => ({ ...node, selected: false })), removedNodeIds, '--primitive-red', changedNodeIds, '--primitive-amber');
   const currentDiffEdges = decorateDiffEdges(currentSnapshotEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
   const versionDiffEdges = decorateDiffEdges(compareSnapshotEdges.map((edge) => ({ ...edge, selected: false })), changedEdgeKeys);
   const addedNodeLabels = currentSnapshotNodes.filter((node) => addedNodeIds.has(node.id)).map((node) => node.data.type);
   const removedNodeLabels = compareSnapshotNodes.filter((node) => removedNodeIds.has(node.id)).map((node) => node.data.type);
+  const changedNodeLabels = currentSnapshotNodes.filter((node) => changedNodeIds.has(node.id)).map((node) => node.data.type);
   const changedEdgeLabels = Array.from(changedEdgeKeys).map((key) => { const [source, target] = key.split('|'); return `${source}→${target}`; });
 
   // ── Derived UI labels ────────────────────────────────────────────────────────
@@ -884,24 +893,128 @@ export function FlowEditorPage() {
   const selectedMenuSubmenuTargets = typeof selectedConfig.submenu_branch_targets === 'object' && selectedConfig.submenu_branch_targets ? selectedConfig.submenu_branch_targets as Record<string, string> : {};
 
   // ── Render ───────────────────────────────────────────────────────────────────
+  if (compareVersion) {
+    const compareBackAction = (
+      <button className={styles.secondaryButton} onClick={() => setCompareVersion(null)} type="button">
+        ← versions
+      </button>
+    );
+
+    return (
+      <PageLayout
+        title={`v${flow?.versionNumber || 'current'} vs v${compareVersion.versionNum}`}
+        subtitle="configure"
+        backAction={compareBackAction}
+      >
+        <div className={styles.compareLayoutContent}>
+          <div className={styles.compareGrid}>
+            <div className={styles.compareColumn}>
+              <div className={styles.compareCanvasTitleBar}>
+                <span className={styles.compareVersionLabel}>Current</span>
+                <span className={styles.compareVersionMessage}>Working copy</span>
+              </div>
+              <div className={styles.compareCanvas}>
+                <ReactFlow nodes={currentDiffNodes} edges={currentDiffEdges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: 0.2 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag zoomOnScroll>
+                  <Background variant={'dots' as never} color="var(--border-subtle)" gap={20} size={1.5} />
+                </ReactFlow>
+              </div>
+            </div>
+            <div className={styles.compareColumn}>
+              <div className={styles.compareCanvasTitleBar}>
+                <span className={styles.compareVersionLabel}>v{compareVersion.versionNum}</span>
+                <span className={styles.compareVersionMessage}>"{compareVersion.message}"</span>
+              </div>
+              <div className={styles.compareCanvas}>
+                <ReactFlow nodes={versionDiffNodes} edges={versionDiffEdges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: 0.2 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag zoomOnScroll>
+                  <Background variant={'dots' as never} color="var(--border-subtle)" gap={20} size={1.5} />
+                </ReactFlow>
+              </div>
+            </div>
+          </div>
+          <div className={styles.compareSummaryBar}>
+            <div className={styles.summaryItem}><span className={styles.addedText}>{addedNodeLabels.length}</span> added</div>
+            <div className={styles.summaryItem}><span className={styles.removedText}>{removedNodeLabels.length}</span> removed</div>
+            <div className={styles.summaryItem}><span className={styles.changedText}>{changedNodeLabels.length}</span> changed</div>
+            <div className={styles.summaryItem}><span className={styles.changedText}>{changedEdgeLabels.length}</span> edge changes</div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
   return (
     <div className={styles.page}>
       {editorNotice ? <div className={styles.editorNotice}>{editorNotice}</div> : null}
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>
-          <button className={styles.secondaryButton} onClick={isSubflow ? () => void handleBreadcrumbNavigate(breadcrumb[breadcrumb.length - 2].flowId) : () => void leaveFlowEditor()} type="button">
-            {isSubflow ? '← back to parent' : 'back'}
+          <button
+            className={styles.secondaryButton}
+            onClick={isSubflow
+              ? () => void handleBreadcrumbNavigate(breadcrumb[breadcrumb.length - 2].flowId)
+              : () => void leaveFlowEditor()}
+            type="button"
+          >
+            {isSubflow ? '← back' : '← flows'}
           </button>
           <button className={styles.secondaryButton} onClick={() => triggerAutoLayoutWithTracking(rfInstance)} type="button">tidy layout</button>
           {canGroupSelection ? <button className={styles.secondaryButton} onClick={handleGroupSelectionWithTracking} type="button">group</button> : null}
           {canUngroupSelection ? <button className={styles.secondaryButton} onClick={handleUngroupSelectionWithTracking} type="button">ungroup</button> : null}
           {canRemoveFromGroupSelection ? <button className={styles.secondaryButton} onClick={() => void handleRemoveFromGroupWithTracking()} type="button">remove from group</button> : null}
-          <input className={styles.flowNameInput} value={flow?.name || 'loading…'} onChange={(event) => { if (flow) { userEditedRef.current = true; setFlow({ ...flow, name: event.target.value }); } }} />
+        </div>
+        <div className={styles.topBarCenter}>
+          {isSubflow ? (
+            // Breadcrumb trail lives in the toolbar when inside a subflow
+            <nav className={styles.toolbarBreadcrumb} aria-label="Flow breadcrumb">
+              {breadcrumb.map((item, index) => {
+                const isLast = index === breadcrumb.length - 1;
+                return (
+                  <span className={styles.toolbarBreadcrumbItem} key={`${item.flowId}-${index}`}>
+                    {isLast ? (
+                      <span className={styles.toolbarBreadcrumbCurrent}>{item.flowName}</span>
+                    ) : (
+                      <button
+                        className={styles.toolbarBreadcrumbLink}
+                        onClick={() => void handleBreadcrumbNavigate(item.flowId)}
+                        type="button"
+                      >
+                        {item.flowName}
+                      </button>
+                    )}
+                    {!isLast ? <span className={styles.toolbarBreadcrumbSep}>/</span> : null}
+                  </span>
+                );
+              })}
+            </nav>
+          ) : (
+            <input
+              className={styles.flowNameInput}
+              value={flow?.name || 'loading…'}
+              onChange={(event) => { if (flow) { userEditedRef.current = true; setFlow({ ...flow, name: event.target.value }); } }}
+            />
+          )}
         </div>
         <div className={styles.topBarRight}>
-          {!isSubflow ? <button className={styles.secondaryButton} onClick={() => setVersionsOpen((current) => !current)} type="button">versions</button> : null}
+          {/* versions button — always rendered, disabled in subflow */}
+          <button
+            className={`${styles.secondaryButton} ${isSubflow ? styles.toolbarButtonDimmed : ''}`}
+            disabled={isSubflow}
+            onClick={() => setVersionsOpen((current) => !current)}
+            type="button"
+            title={isSubflow ? 'Versions are managed from the root flow' : 'Version history'}
+          >
+            versions
+          </button>
           <button className={styles.secondaryButton} onClick={() => setSimulatorOpen((current) => !current)} type="button">simulate</button>
-          {!isSubflow ? <button className={saveButtonClass} onClick={async () => { const saved = await saveFlow(); if (saved) await createFlowVersion(saved.id, 'Saved from editor'); }} type="button">{saveLabel}</button> : <span className={styles.saveStatus}>{saveStatusLabel}</span>}
+          {/* save button — always rendered, shows status in subflow */}
+          <button
+            className={`${saveButtonClass} ${isSubflow ? styles.toolbarButtonDimmed : ''}`}
+            disabled={isSubflow}
+            onClick={async () => { if (!isSubflow) { const saved = await saveFlow(); if (saved) await createFlowVersion(saved.id, 'Saved from editor'); } }}
+            type="button"
+            title={isSubflow ? saveStatusLabel : undefined}
+          >
+            {isSubflow ? saveStatusLabel : saveLabel}
+          </button>
         </div>
       </div>
       {timeoutWarningConfirmVisible && timeoutWarningMessage ? (
@@ -931,66 +1044,74 @@ export function FlowEditorPage() {
 
       <div className={styles.editorShell}>
         <section className={styles.leftPanel}>
-          <div className={styles.panelTitle}>node palette</div>
-          <label className={styles.paletteSearchWrap}>
-            <span className={styles.paletteSearchIcon} aria-hidden="true">
-              <svg viewBox="0 0 16 16" focusable="false">
-                <circle cx="7" cy="7" r="4.5" />
-                <path d="M10.5 10.5L14 14" />
-              </svg>
-            </span>
-            <input
-              ref={paletteSearchRef}
-              className={styles.paletteSearchInput}
-              placeholder="search nodes..."
-              value={paletteSearchQuery}
-              onChange={(event) => setPaletteSearchQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  setPaletteSearchQuery('');
-                }
-              }}
-            />
-          </label>
-          {normalizedPaletteSearchQuery ? (
-            <div className={styles.paletteList}>
-              {paletteSearchMatches.map((item) => renderPaletteNodeCard(item))}
-            </div>
-          ) : (
-            <div className={styles.paletteGroups}>
-              {paletteGroups.map((group) => {
-                const isCollapsed = paletteGroupCollapsed[group.id] === true;
-                return (
-                  <section className={styles.paletteGroup} key={group.id}>
-                    <button
-                      className={styles.paletteGroupToggle}
-                      onClick={() => {
-                        setPaletteGroupCollapsed((current) => ({
-                          ...current,
-                          [group.id]: !isCollapsed,
-                        }));
-                      }}
-                      type="button"
-                    >
-                      <span className={styles.paletteGroupChevron}>{isCollapsed ? '▶' : '▼'}</span>
-                      <span className={styles.paletteGroupLabel}>{group.label}</span>
-                    </button>
-                    {!isCollapsed ? (
-                      <div className={styles.paletteList}>
-                        {group.items.map((item) => renderPaletteNodeCard(item))}
-                      </div>
-                    ) : null}
-                  </section>
-                );
-              })}
-            </div>
-          )}
-          <FlowTreePanel tree={flowTree} currentFlowId={currentFlowId} onNavigate={handleBreadcrumbNavigate} />
+          <div className={styles.paletteStickyTop}>
+            <label className={styles.paletteSearchWrap}>
+              <span className={styles.paletteSearchIcon} aria-hidden="true">
+                <svg viewBox="0 0 16 16" focusable="false">
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="M10.5 10.5L14 14" />
+                </svg>
+              </span>
+              <input
+                ref={paletteSearchRef}
+                className={styles.paletteSearchInput}
+                placeholder="search nodes..."
+                value={paletteSearchQuery}
+                onChange={(event) => setPaletteSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setPaletteSearchQuery('');
+                  }
+                }}
+              />
+            </label>
+          </div>
+          <div className={styles.paletteScrollArea}>
+            {normalizedPaletteSearchQuery ? (
+              <div className={styles.paletteList}>
+                {paletteSearchMatches.map((item) => renderPaletteNodeCard(item))}
+              </div>
+            ) : (
+              <div className={styles.paletteGroups}>
+                {paletteGroups.map((group) => {
+                  const isCollapsed = paletteGroupCollapsed[group.id] === true;
+                  return (
+                    <section className={styles.paletteGroup} key={group.id}>
+                      <button
+                        className={styles.paletteGroupToggle}
+                        onClick={() => {
+                          setPaletteGroupCollapsed((current) => ({
+                            ...current,
+                            [group.id]: !isCollapsed,
+                          }));
+                        }}
+                        type="button"
+                      >
+                        <span className={`${styles.paletteGroupChevron} ${isCollapsed ? styles.paletteGroupChevronCollapsed : ''}`}>▼</span>
+                        <span className={styles.paletteGroupLabel}>{group.label}</span>
+                      </button>
+                      {!isCollapsed ? (
+                        <div className={styles.paletteList}>
+                          {group.items.map((item) => renderPaletteNodeCard(item))}
+                        </div>
+                      ) : null}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+            <FlowTreePanel tree={flowTree} currentFlowId={currentFlowId} onNavigate={handleBreadcrumbNavigate} />
+          </div>
         </section>
 
         <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { userEditedRef.current = true; handleDrop(event, rfInstance); }}>
-          <FlowBreadcrumb items={breadcrumb} onNavigate={handleBreadcrumbNavigate} />
           <div className={styles.canvasWrapper}>
+            {/* Empty canvas hint — visible only when just the start node exists */}
+            {nodes.filter((n) => !String(n.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX) && n.type !== 'group').length <= 1 ? (
+              <div className={styles.canvasHint} aria-hidden="true">
+                Drag nodes from the palette to begin building your flow
+              </div>
+            ) : null}
             <ReactFlow
               fitView fitViewOptions={{ padding: 0.2 }}
               nodes={canvasNodes} edges={canvasEdges}
@@ -1015,9 +1136,33 @@ export function FlowEditorPage() {
               onInit={(instance) => { setRfInstance(instance); if (nodes.length > 0 && !fitDone.current) { fitDone.current = true; window.setTimeout(() => { void instance.fitView({ padding: 0.2, duration: 300 }); }, 100); } }}
               deleteKeyCode={null}
             >
-              <Background color="var(--border-subtle)" gap={24} />
+              <Background variant={'dots' as never} color="var(--border-subtle)" gap={20} size={1.5} />
               <Controls position="bottom-left" />
-              <MiniMap nodeColor={minimapNodeColor} maskColor="var(--overlay-strong)" position="bottom-right" {...miniMapSizeProps} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '6px', width: 160, height: 120 }} pannable zoomable />
+              <button
+                type="button"
+                className={styles.minimapToggle}
+                onClick={() => setMinimapVisible((v) => !v)}
+                title={minimapVisible ? 'Hide mini-map' : 'Show mini-map'}
+                aria-label={minimapVisible ? 'Hide mini-map' : 'Show mini-map'}
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  {minimapVisible ? (
+                    <>
+                      <rect x="2" y="2" width="12" height="12" rx="2" />
+                      <rect x="5" y="5" width="3" height="3" rx="0.5" />
+                      <rect x="10" y="8" width="2" height="2" rx="0.5" />
+                    </>
+                  ) : (
+                    <>
+                      <rect x="2" y="2" width="12" height="12" rx="2" />
+                      <line x1="5" y1="11" x2="11" y2="5" />
+                    </>
+                  )}
+                </svg>
+              </button>
+              {minimapVisible ? (
+                <MiniMap nodeColor={minimapNodeColor} maskColor="var(--overlay-strong)" position="bottom-right" {...miniMapSizeProps} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: 160, height: 108 }} pannable zoomable />
+              ) : null}
             </ReactFlow>
           </div>
         </section>
@@ -1073,44 +1218,6 @@ export function FlowEditorPage() {
         versionNotice={versionNotice}
         versionsLoading={versionsLoading}
       />
-
-      {compareVersion ? (
-        <div className={styles.compareOverlay}>
-          <div className={styles.compareHeader}>
-            <button className={styles.secondaryButton} onClick={() => setCompareVersion(null)} type="button">← back</button>
-            <div className={styles.compareTitle}>Comparing v{flow?.versionNumber || 'current'} (current) vs v{compareVersion.versionNum}</div>
-          </div>
-          <div className={styles.compareSubhead}>v{compareVersion.versionNum} — "{compareVersion.message}"</div>
-          <div className={styles.compareGrid}>
-            <div className={styles.compareColumn}>
-              <div className={styles.compareCanvasTitle}>Current</div>
-              <div className={styles.compareCanvas}>
-                <ReactFlow nodes={currentDiffNodes} edges={currentDiffEdges} fitView fitViewOptions={{ padding: 0.2 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag zoomOnScroll>
-                  <Background color="var(--border-subtle)" gap={24} />
-                </ReactFlow>
-              </div>
-            </div>
-            <div className={styles.compareColumn}>
-              <div className={styles.compareCanvasTitle}>v{compareVersion.versionNum} — "{compareVersion.message}"</div>
-              <div className={styles.compareCanvas}>
-                <ReactFlow nodes={versionDiffNodes} edges={versionDiffEdges} fitView fitViewOptions={{ padding: 0.2 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag zoomOnScroll>
-                  <Background color="var(--border-subtle)" gap={24} />
-                </ReactFlow>
-              </div>
-            </div>
-          </div>
-          <div className={styles.compareLists}>
-            <div className={styles.compareListRow}><span className={styles.addedText}>Nodes added ({addedNodeLabels.length}):</span> {addedNodeLabels.length ? addedNodeLabels.join(', ') : '—'}</div>
-            <div className={styles.compareListRow}><span className={styles.removedText}>Nodes removed ({removedNodeLabels.length}):</span> {removedNodeLabels.length ? removedNodeLabels.join(', ') : '—'}</div>
-            <div className={styles.compareListRow}><span className={styles.changedText}>Edges changed ({changedEdgeLabels.length}):</span> {changedEdgeLabels.length ? changedEdgeLabels.join(', ') : '—'}</div>
-          </div>
-          <div className={styles.compareSummaryBar}>
-            <div className={styles.addedText}>Nodes added: {addedNodeLabels.length}</div>
-            <div className={styles.removedText}>Nodes removed: {removedNodeLabels.length}</div>
-            <div className={styles.changedText}>Edges changed: {changedEdgeLabels.length}</div>
-          </div>
-        </div>
-      ) : null}
 
       <ConfirmDialog open={confirmLeaveOpen} title="Unsaved changes" message="You have unsaved changes. Leave anyway?" confirmLabel="Leave" onConfirm={() => { const action = pendingLeaveActionRef.current; pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); if (action) performLeaveAction(action); }} onCancel={() => { pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); }} />
       <ConfirmDialog open={restoreConfirmOpen} title="Restore version" message="Restore this version? Current unsaved changes will be lost." confirmLabel="Restore" onConfirm={() => void handleConfirmRestore()} onCancel={() => { setPendingRestoreVersion(null); setRestoreConfirmOpen(false); }} />
