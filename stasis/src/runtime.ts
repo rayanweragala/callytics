@@ -5,6 +5,7 @@ import { executeNode } from './nodes';
 import { resolveNextEdge } from './engine/edgeResolver';
 import { publishCallEvent } from './telemetry';
 import { fireWebhookAsync } from './executors/webhook.executor';
+import { logEvent } from './logger';
 
 interface FlowStackFrame {
   flow: Flow;
@@ -21,7 +22,7 @@ async function insertNodeLog(session: CallSession, node: { nodeKey: string; type
       [session.callUuid, session.flow.id, node.nodeKey, node.type],
     );
   } catch (error) {
-    console.error(`[runtime] failed to insert call_node_logs row for ${session.callUuid}/${node.nodeKey}:`, error);
+    logEvent('CallNodeLogInsertFailed', { callId: session.callUuid, nodeId: node.nodeKey, error });
   }
 }
 
@@ -52,7 +53,7 @@ async function updateNodeLog(
       [session.callUuid, session.flow.id, node.nodeKey, branch, errorMessage],
     );
   } catch (error) {
-    console.error(`[runtime] failed to update call_node_logs row for ${session.callUuid}/${node.nodeKey}:`, error);
+    logEvent('CallNodeLogUpdateFailed', { callId: session.callUuid, nodeId: node.nodeKey, error });
   }
 }
 
@@ -109,7 +110,7 @@ async function returnToParentFlow(session: CallSession, stack: FlowStackFrame[])
   session.flow = frame.flow;
   const completeEdge = resolveNextEdge(frame.menuNodeKey, 'menu', 'complete', frame.flow.edges);
   if (!completeEdge) {
-    console.warn(`No on_complete edge found for menu ${frame.menuNodeKey}`);
+    logEvent('FlowRoutingMissingCompleteEdge', { menuNodeKey: frame.menuNodeKey });
     return false;
   }
 
@@ -154,7 +155,7 @@ export async function runFlow(
   const initialNodeKey = findEntryNode(session.flow);
 
   if (!initialNodeKey) {
-    console.error('No entry node found in flow');
+    logEvent('FlowMissingEntryNode', { flowId: session.flow.id, channelId: session.channelId });
     await publishCallEvent({
       callId: session.channelId,
       timestamp: new Date().toISOString(),
@@ -177,7 +178,7 @@ export async function runFlow(
     lastNodeKey = session.currentNodeKey;
 
     if (!node) {
-      console.warn(`Node not found: ${session.currentNodeKey}`);
+      logEvent('FlowNodeNotFound', { nodeId: session.currentNodeKey, flowId: session.flow.id, channelId: session.channelId });
       if (await returnToParentFlow(session, stack)) {
         continue;
       }
@@ -186,7 +187,6 @@ export async function runFlow(
       break;
     }
 
-    console.log(`Executing node: ${node.type} (${node.nodeKey})`);
     await insertNodeLog(session, node);
 
     let result = 'hangup';
@@ -203,7 +203,7 @@ export async function runFlow(
 
     await updateNodeLog(session, node, result, runtimeError);
 
-    console.log(`Node result: ${result}`);
+    logEvent('NodeResult', { nodeType: node.type, nodeId: node.nodeKey, channelId: session.channelId, callerId: session.callerNumber, result });
 
     if (result === 'done' || result === 'hangup') {
       if (result === 'hangup') {
@@ -232,7 +232,7 @@ export async function runFlow(
         if (submenuTargetNodeKey) {
           const subflowId = await getMenuSubflowId(session.flow.versionId, node.nodeKey);
           if (!subflowId) {
-            console.error(`Menu ${node.nodeKey} has submenu mapping for "${result}" but no subflow id`);
+            logEvent('SubflowMissingId', { nodeId: node.nodeKey, result });
             finalStatus = 'failed';
             failureReason = `Menu ${node.nodeKey} submenu missing subflow_id`;
             break;
@@ -240,7 +240,7 @@ export async function runFlow(
 
           const subflow = await loadFlowById(subflowId);
           if (!subflow) {
-            console.error(`Subflow ${subflowId} could not be loaded for menu ${node.nodeKey}`);
+            logEvent('SubflowLoadFailed', { subflowId, nodeId: node.nodeKey });
             finalStatus = 'failed';
             failureReason = `Subflow ${subflowId} load failure`;
             break;
@@ -248,7 +248,7 @@ export async function runFlow(
 
           const targetNode = subflow.nodes.find((item) => item.nodeKey === submenuTargetNodeKey);
           if (!targetNode) {
-            console.error(`Subflow ${subflowId} missing mapped target node ${submenuTargetNodeKey} for menu ${node.nodeKey} result ${result}`);
+            logEvent('SubflowTargetMissing', { subflowId, nodeId: node.nodeKey, targetNodeId: submenuTargetNodeKey, result });
             finalStatus = 'failed';
             failureReason = `Subflow ${subflowId} missing target node ${submenuTargetNodeKey}`;
             break;
@@ -262,12 +262,12 @@ export async function runFlow(
       }
 
       if (node.type === 'queue_login' && result === 'authenticated') {
-        console.log(`[runtime] queue_login completed without outgoing edge node=${node.nodeKey}; ending call flow`);
+        logEvent('QueueLoginTerminalAuthenticated', { nodeId: node.nodeKey, channelId: session.channelId });
         break;
       }
-      console.error(`No edge found from ${session.currentNodeKey} with result ${result}`);
+      logEvent('FlowEdgeNotFound', { nodeId: session.currentNodeKey, result, channelId: session.channelId });
       if (node.type === 'play_audio') {
-        console.warn(`Dead-end play_audio node ${node.nodeKey}; hanging up call ${session.channelId}`);
+        logEvent('DeadEndPlayAudio', { nodeId: node.nodeKey, channelId: session.channelId });
         try {
           await (channel as { hangup?: () => Promise<void> }).hangup?.();
         } catch {}
@@ -293,7 +293,7 @@ export async function runFlow(
       : null;
 
     if (!subflowId) {
-      console.error(`Target node ${edge.targetNodeKey} not found in flow ${session.flow.id} and no subflow available from ${node.nodeKey}`);
+      logEvent('FlowTargetNodeNotFound', { targetNodeId: edge.targetNodeKey, flowId: session.flow.id, sourceNodeId: node.nodeKey });
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
       }
@@ -304,7 +304,7 @@ export async function runFlow(
 
     const subflow = await loadFlowById(subflowId);
     if (!subflow) {
-      console.error(`Subflow ${subflowId} could not be loaded for menu ${node.nodeKey}`);
+      logEvent('SubflowLoadFailed', { subflowId, nodeId: node.nodeKey });
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
       }
@@ -341,6 +341,6 @@ export async function runFlow(
     });
   }
 
-  console.log(`Call ended: ${session.channelId}`);
+  logEvent('CallFlowEnded', { channelId: session.channelId, callerId: session.callerNumber, status: finalStatus });
   return { status: finalStatus };
 }

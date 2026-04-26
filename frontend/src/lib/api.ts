@@ -574,6 +574,8 @@ export async function listAsteriskLogs(params: {
   uniqueid?: string;
   from?: string;
   to?: string;
+  callerNumber?: string;
+  destination?: string;
   limit?: number;
   offset?: number;
 }): Promise<AsteriskLogsResponse> {

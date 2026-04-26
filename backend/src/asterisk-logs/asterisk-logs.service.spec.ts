@@ -227,4 +227,33 @@ describe('AsteriskLogsService', () => {
     expect(result.entries.some((entry) => entry.raw.includes('Recorder/ARI-00000002;2 left'))).toBe(true);
     expect(result.entries.some((entry) => entry.raw.includes('C-00000077'))).toBe(false);
   });
+
+  it('uses caller and destination context to include conference call legs when uniqueid is not present in log lines', () => {
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue([
+      '[2026-04-26T10:11:54.000Z] VERBOSE[6310][C-00000001] pbx.c: Executing [3333@callytics-inbound:1] Stasis("PJSIP/2001-00000000", "callytics") in new stack',
+      '[2026-04-26T10:11:55.000Z] VERBOSE[6311][C-00000002] pbx.c: Executing [3333@callytics-inbound:1] Stasis("PJSIP/1234-00000001", "callytics") in new stack',
+      '[2026-04-26T10:11:56.000Z] VERBOSE[6312][C-00000001] bridge_channel.c: Channel PJSIP/2001-00000000 joined softmix bridge',
+      '[2026-04-26T10:11:57.000Z] VERBOSE[6313][C-00000002] bridge_channel.c: Channel PJSIP/1234-00000001 joined softmix bridge',
+      '[2026-04-26T10:11:58.000Z] VERBOSE[6314][C-00000077] pbx.c: Executing [4444@callytics-inbound:1] Stasis("PJSIP/9999-00000002", "callytics") in new stack',
+    ].join('\n'));
+
+    const result = service.getLogs(
+      'all',
+      '',
+      false,
+      '1777202327.0',
+      '2026-04-26T10:11:50.000Z',
+      '2026-04-26T10:12:05.000Z',
+      100,
+      0,
+      '2001',
+      '3333',
+    );
+
+    expect(result.total).toBe(4);
+    expect(result.entries.some((entry) => entry.raw.includes('PJSIP/2001-00000000'))).toBe(true);
+    expect(result.entries.some((entry) => entry.raw.includes('PJSIP/1234-00000001'))).toBe(true);
+    expect(result.entries.some((entry) => entry.raw.includes('PJSIP/9999-00000002'))).toBe(false);
+  });
 });

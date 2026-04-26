@@ -1420,6 +1420,76 @@ describe("FlowsService", () => {
       };
       expect(() => validateNodeConfig(node)).not.toThrow();
     });
+
+    it("should pass for conference node with basic config", () => {
+      const node = {
+        nodeKey: "c1",
+        type: "conference",
+        config: {
+          roomName: "SalesRoom1",
+          waitForModerator: false,
+          moderatorType: null,
+          moderatorId: null,
+        },
+      };
+      expect(() => validateNodeConfig(node)).not.toThrow();
+    });
+
+    it("should pass for conference node with moderator extension", () => {
+      const node = {
+        nodeKey: "c1",
+        type: "conference",
+        config: {
+          roomName: "SalesRoom1",
+          waitForModerator: true,
+          moderatorType: "extension",
+          moderatorId: 11,
+        },
+      };
+      expect(() => validateNodeConfig(node)).not.toThrow();
+    });
+
+    it("should throw 400 for conference node missing roomName", () => {
+      const node = {
+        nodeKey: "c1",
+        type: "conference",
+        config: {
+          roomName: "",
+          waitForModerator: false,
+          moderatorType: null,
+          moderatorId: null,
+        },
+      };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it("should throw 400 for conference node with waitForModerator and missing moderatorType", () => {
+      const node = {
+        nodeKey: "c1",
+        type: "conference",
+        config: {
+          roomName: "SalesRoom1",
+          waitForModerator: true,
+          moderatorType: null,
+          moderatorId: 11,
+        },
+      };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
+
+    it("should throw 400 for conference node with waitForModerator and missing moderatorId", () => {
+      const node = {
+        nodeKey: "c1",
+        type: "conference",
+        config: {
+          roomName: "SalesRoom1",
+          waitForModerator: true,
+          moderatorType: "pstn",
+          moderatorId: null,
+        },
+      };
+      expect(() => validateNodeConfig(node)).toThrow(BadRequestException);
+    });
   });
 
   describe("validateNodesConfig", () => {

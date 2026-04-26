@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import { DataSource } from 'typeorm';
+import { AppLogger } from '../logger/app-logger';
 
 interface CallStartedEvent {
   callId: string;
@@ -43,7 +44,7 @@ const REDIS_CALL_EVENTS_CHANNEL = 'callytics:call-events';
 
 @Injectable()
 export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(CallLogsListener.name);
+  private readonly logger = new AppLogger(CallLogsListener.name);
   private subscriber: RedisClientType | null = null;
 
   constructor(
@@ -84,9 +85,14 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
     await this.subscriber.subscribe(REDIS_CALL_EVENTS_CHANNEL, async (message) => {
       try {
         const event = JSON.parse(message) as CallEvent;
+        AppLogger.redisConsume(REDIS_CALL_EVENTS_CHANNEL, {
+          callId: event.callId,
+          type: event.type,
+          flowId: 'flowId' in event ? event.flowId : undefined,
+        });
         await this.handleCallEvent(event);
       } catch (error) {
-        this.logger.warn(`Failed to handle call event: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error('Failed to handle call event', error instanceof Error ? error.stack : String(error));
       }
     });
 
@@ -111,6 +117,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
 
   private async handleCallStarted(event: CallStartedEvent): Promise<void> {
     try {
+      const startedAt = Date.now();
       await this.dataSource.query(
         `
           INSERT INTO call_logs (
@@ -137,15 +144,16 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
           event.direction || 'inbound',
         ],
       );
-      this.logger.debug(`call_logs INSERT for ${event.callId}`);
+      AppLogger.dbQuery('insert', 'call_logs', startedAt);
     } catch (error) {
-      this.logger.error(`call_logs INSERT failed for ${event.callId}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(`call_logs INSERT failed for ${event.callId}`, error instanceof Error ? error.stack : String(error));
     }
   }
 
   private async handleCallEnded(event: CallEndedEvent): Promise<void> {
     try {
       // 1. Update ended_at, duration, and exit_node_key regardless of status, but only if ended_at is NULL
+      const updateStartedAt = Date.now();
       await this.dataSource.query(
         `
           UPDATE call_logs
@@ -162,8 +170,10 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
           event.exitNodeKey ?? null,
         ],
       );
+      AppLogger.dbQuery('update', 'call_logs', updateStartedAt);
 
       // 2. Only set end_reason to 'completed' if it hasn't been set by a 'failed' event already
+      const reasonStartedAt = Date.now();
       await this.dataSource.query(
         `
           UPDATE call_logs
@@ -173,15 +183,16 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
         `,
         [event.callId],
       );
-      this.logger.debug(`call_logs UPDATE (ended) for ${event.callId}`);
+      AppLogger.dbQuery('update', 'call_logs', reasonStartedAt);
     } catch (error) {
-      this.logger.error(`call_logs UPDATE (ended) failed for ${event.callId}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(`call_logs UPDATE (ended) failed for ${event.callId}`, error instanceof Error ? error.stack : String(error));
     }
   }
 
   private async handleCallFailed(event: CallFailedEvent): Promise<void> {
     try {
       // Upsert: insert if stasis never emitted 'started', then mark failed
+      const startedAt = Date.now();
       await this.dataSource.query(
         `
           INSERT INTO call_logs (
@@ -214,9 +225,9 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
           event.direction || 'inbound',
         ],
       );
-      this.logger.debug(`call_logs UPSERT (failed) for ${event.callId}`);
+      AppLogger.dbQuery('upsert', 'call_logs', startedAt);
     } catch (error) {
-      this.logger.error(`call_logs UPSERT (failed) failed for ${event.callId}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(`call_logs UPSERT (failed) failed for ${event.callId}`, error instanceof Error ? error.stack : String(error));
     }
   }
 }

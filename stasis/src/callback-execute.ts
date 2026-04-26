@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 import { publish } from './redis';
 import { publishSipTraffic } from './telemetry';
 import {
@@ -151,15 +152,15 @@ function normalizeSriLankanTrunkEndpoint(endpoint: string): string {
 
 async function startOperatorHoldAudio(ariClient: AriClient, channelId: string): Promise<boolean> {
   if (!ariClient.channels.startMoh) {
-    console.warn(`[callback] hold audio start unavailable channel=${channelId}`);
+    stasisLogger.warn(`[callback] hold audio start unavailable channel=${channelId}`);
     return false;
   }
   try {
     await ariClient.channels.startMoh({ channelId, mohClass: DEFAULT_CALLBACK_MOH_CLASS });
-    console.log(`[callback] hold audio started channel=${channelId} class=${DEFAULT_CALLBACK_MOH_CLASS}`);
+    stasisLogger.log(`[callback] hold audio started channel=${channelId} class=${DEFAULT_CALLBACK_MOH_CLASS}`);
     return true;
   } catch (error) {
-    console.warn(`[callback] hold audio start failed channel=${channelId}:`, error);
+    stasisLogger.warn(`[callback] hold audio start failed channel=${channelId}:`, error);
     return false;
   }
 }
@@ -170,7 +171,7 @@ async function stopOperatorHoldAudio(ariClient: AriClient, channelId: string): P
   }
   try {
     await ariClient.channels.stopMoh({ channelId });
-    console.log(`[callback] hold audio stopped channel=${channelId}`);
+    stasisLogger.log(`[callback] hold audio stopped channel=${channelId}`);
   } catch {
     // best effort
   }
@@ -191,13 +192,13 @@ export async function executeCallback(
     );
   const customerDialString = normalizeSriLankanTrunkEndpoint(rawCustomerDialString);
   if (customerDialString !== rawCustomerDialString) {
-    console.log(
+    stasisLogger.log(
       `[callback] normalized customer endpoint callback_id=${callbackId} from=${rawCustomerDialString} to=${customerDialString}`,
     );
   }
 
   if (!callbackId || !payload.operatorDialString || !customerDialString || !payload.callerIdNumber) {
-    console.error('[callback] execute skipped: missing required fields', {
+    stasisLogger.error('[callback] execute skipped: missing required fields', {
       callbackId,
       hasOperatorDialString: Boolean(payload.operatorDialString),
       hasCustomerDialString: Boolean(customerDialString),
@@ -211,10 +212,10 @@ export async function executeCallback(
   const operatorSipCallId = `callback-${callbackId}-operator`;
   const customerSipCallId = `callback-${callbackId}-customer`;
   try {
-    console.log(
+    stasisLogger.log(
       `[callback] start callback_id=${callbackId} operator_endpoint=${payload.operatorDialString} customer_endpoint=${customerDialString}`,
     );
-    console.log(`[callback] dialing operator callback_id=${callbackId} endpoint=${payload.operatorDialString}`);
+    stasisLogger.log(`[callback] dialing operator callback_id=${callbackId} endpoint=${payload.operatorDialString}`);
     await publishCallbackSipTraffic({
       callId: operatorSipCallId,
       method: 'INVITE',
@@ -224,7 +225,7 @@ export async function executeCallback(
       responseCode: null,
       rawMessage: `INVITE ${payload.operatorDialString} SIP/2.0`,
     }).catch((error) => {
-      console.error('[callback] sip traffic publish failed (operator INVITE):', error);
+      stasisLogger.error('[callback] sip traffic publish failed (operator INVITE):', error);
     });
     await ariClient.channels.originate({
       endpoint: payload.operatorDialString,
@@ -236,7 +237,7 @@ export async function executeCallback(
 
     const operatorResult = await waitForAnsweredLeg(callbackId, 'operator', 30_000);
     if (operatorResult.answered === false) {
-      console.log(`[callback] operator unanswered callback_id=${callbackId} reason=${operatorResult.reason}`);
+      stasisLogger.log(`[callback] operator unanswered callback_id=${callbackId} reason=${operatorResult.reason}`);
       await publishCallbackSipTraffic({
         callId: operatorSipCallId,
         method: '408 Request Timeout',
@@ -246,7 +247,7 @@ export async function executeCallback(
         responseCode: 408,
         rawMessage: 'SIP/2.0 408 Request Timeout',
       }).catch((error) => {
-        console.error('[callback] sip traffic publish failed (operator timeout):', error);
+        stasisLogger.error('[callback] sip traffic publish failed (operator timeout):', error);
       });
       await publishStatus(callbackId, 'failed', 'operator_no_answer');
       return;
@@ -262,13 +263,13 @@ export async function executeCallback(
       responseCode: 200,
       rawMessage: 'SIP/2.0 200 OK',
     }).catch((error) => {
-      console.error('[callback] sip traffic publish failed (operator answer):', error);
+      stasisLogger.error('[callback] sip traffic publish failed (operator answer):', error);
     });
-    console.log(`[callback] operator answered callback_id=${callbackId} channel=${operatorChannel.id}`);
+    stasisLogger.log(`[callback] operator answered callback_id=${callbackId} channel=${operatorChannel.id}`);
     holdAudioStarted = await startOperatorHoldAudio(ariClient, operatorChannel.id);
     await publishStatus(callbackId, 'dialing_customer');
 
-    console.log(`[callback] dialing customer callback_id=${callbackId} endpoint=${customerDialString}`);
+    stasisLogger.log(`[callback] dialing customer callback_id=${callbackId} endpoint=${customerDialString}`);
     await publishCallbackSipTraffic({
       callId: customerSipCallId,
       method: 'INVITE',
@@ -278,7 +279,7 @@ export async function executeCallback(
       responseCode: null,
       rawMessage: `INVITE ${customerDialString} SIP/2.0`,
     }).catch((error) => {
-      console.error('[callback] sip traffic publish failed (customer INVITE):', error);
+      stasisLogger.error('[callback] sip traffic publish failed (customer INVITE):', error);
     });
     await ariClient.channels.originate({
       endpoint: customerDialString,
@@ -290,7 +291,7 @@ export async function executeCallback(
 
     const customerResult = await waitForAnsweredLeg(callbackId, 'customer', 30_000);
     if (customerResult.answered === false) {
-      console.log(`[callback] customer unanswered callback_id=${callbackId} reason=${customerResult.reason}`);
+      stasisLogger.log(`[callback] customer unanswered callback_id=${callbackId} reason=${customerResult.reason}`);
       await publishCallbackSipTraffic({
         callId: customerSipCallId,
         method: '408 Request Timeout',
@@ -300,7 +301,7 @@ export async function executeCallback(
         responseCode: 408,
         rawMessage: 'SIP/2.0 408 Request Timeout',
       }).catch((error) => {
-        console.error('[callback] sip traffic publish failed (customer timeout):', error);
+        stasisLogger.error('[callback] sip traffic publish failed (customer timeout):', error);
       });
       if (holdAudioStarted) {
         await stopOperatorHoldAudio(ariClient, operatorChannel.id);
@@ -321,9 +322,9 @@ export async function executeCallback(
       responseCode: 200,
       rawMessage: 'SIP/2.0 200 OK',
     }).catch((error) => {
-      console.error('[callback] sip traffic publish failed (customer answer):', error);
+      stasisLogger.error('[callback] sip traffic publish failed (customer answer):', error);
     });
-    console.log(`[callback] customer answered callback_id=${callbackId} channel=${customerChannel.id}`);
+    stasisLogger.log(`[callback] customer answered callback_id=${callbackId} channel=${customerChannel.id}`);
     if (holdAudioStarted) {
       await stopOperatorHoldAudio(ariClient, operatorChannel.id);
       holdAudioStarted = false;
@@ -331,7 +332,7 @@ export async function executeCallback(
     await publishStatus(callbackId, 'bridged');
 
     const bridge = await ariClient.bridges.create({ type: 'mixing' });
-    console.log(
+    stasisLogger.log(
       `[callback] bridge created callback_id=${callbackId} bridge=${bridge.id} operator_channel=${operatorChannel.id} customer_channel=${customerChannel.id}`,
     );
     await ariClient.bridges.addChannel({ bridgeId: bridge.id, channel: operatorChannel.id });
@@ -339,21 +340,21 @@ export async function executeCallback(
 
     const endedChannelId = await waitForChannelEnd(ariClient, [operatorChannel.id, customerChannel.id]);
     const survivingChannel = endedChannelId === operatorChannel.id ? customerChannel : operatorChannel;
-    console.log(
+    stasisLogger.log(
       `[callback] leg ended callback_id=${callbackId} ended_channel=${endedChannelId} surviving_channel=${survivingChannel.id}`,
     );
 
     await survivingChannel.hangup().catch(() => undefined);
     await ariClient.bridges.destroy({ bridgeId: bridge.id }).catch(() => undefined);
-    console.log(`[callback] bridge destroyed callback_id=${callbackId} bridge=${bridge.id}`);
+    stasisLogger.log(`[callback] bridge destroyed callback_id=${callbackId} bridge=${bridge.id}`);
 
     await publishStatus(callbackId, 'completed');
-    console.log(`[callback] completed callback_id=${callbackId}`);
+    stasisLogger.log(`[callback] completed callback_id=${callbackId}`);
   } catch (error) {
     if (holdAudioStarted && operatorChannel) {
       await stopOperatorHoldAudio(ariClient, operatorChannel.id);
     }
     await publishStatus(callbackId, 'failed', 'originate_failed');
-    console.error('[callback] execute failed:', error);
+    stasisLogger.error('[callback] execute failed:', error);
   }
 }

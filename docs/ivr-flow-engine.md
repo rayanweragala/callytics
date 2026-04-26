@@ -278,6 +278,47 @@ Config:
 
 Result: `route:<nodeKey>` on exhaustion, or waits for answer and bridges.
 
+### Conference
+
+Purpose:
+
+- Put the caller into a named ConfBridge room for multi-party conversation
+
+Result:
+
+- `default`
+
+How it runs:
+
+1. The app resolves the room from `roomName`
+2. The first channel creates the room bridge for that name
+3. If `waitForModerator` is off, the room opens as soon as the channel joins
+4. If `waitForModerator` is on, non-moderator channels hear MOH until the moderator arrives
+5. When the moderator arrives, the app stops MOH on all channels and keeps the room bridged
+6. If only one participant remains, the app starts MOH for that survivor and arms a 30-second grace timer
+7. If nobody rejoins before the timer fires, the app hangs up the survivor and destroys the room bridge
+
+Config:
+
+- `roomName` (string) - alphanumeric room name used as the ConfBridge room key
+- `waitForModerator` (boolean) - whether callers should wait on MOH until the moderator arrives
+- `moderatorType` (`extension` | `pstn` | `null`) - how to resolve the moderator identity
+- `moderatorId` (number | null) - extension ID or operator ID depending on `moderatorType`
+
+Main ARI control:
+
+- `POST /bridges`
+- `POST /bridges/{bridgeId}/addChannel`
+- `POST /channels/{channelId}/startMoh`
+- `POST /channels/{channelId}/stopMoh`
+- `DELETE /channels/{channelId}`
+
+Notes:
+
+- The node returns `default`
+- Room reuse is keyed by `roomName`, so later callers join the same bridge
+- The app resolves a moderator by looking up the configured extension or operator and matching the channel numbers against that record
+
 ### Transfer
 
 Purpose:

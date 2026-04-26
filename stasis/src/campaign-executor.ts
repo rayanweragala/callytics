@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 import { addSession, createSession, removeSession } from './callSession';
 import { query } from './db';
 import { loadFlowById } from './flowLoader';
@@ -79,7 +80,7 @@ export class CampaignExecutor {
     });
 
     this.subscriberReady = true;
-    console.log('[campaign] subscribed to campaign:start:* and campaign:stop:*');
+    stasisLogger.log('[campaign] subscribed to campaign:start:* and campaign:stop:*');
   }
 
   async handleStasisStart(
@@ -99,7 +100,7 @@ export class CampaignExecutor {
 
     const runtime = this.runtimes.get(campaignId);
     if (!runtime) {
-      console.warn(`[campaign] runtime missing for campaign ${campaignId}`);
+      stasisLogger.warn(`[campaign] runtime missing for campaign ${campaignId}`);
       try {
         await channel.hangup();
       } catch {}
@@ -173,7 +174,7 @@ export class CampaignExecutor {
       await channel.answer();
       active.flowRan = true;
       await runFlow(channel, session, ariClient).catch(async (error) => {
-        console.error('[campaign] runFlow error:', error);
+        stasisLogger.error('[campaign] runFlow error:', error);
         await publishCallEvent({
           callId: channel.id,
           timestamp: new Date().toISOString(),
@@ -187,7 +188,7 @@ export class CampaignExecutor {
         });
       });
     } catch (error) {
-      console.error('[campaign] outbound flow setup failed:', error);
+      stasisLogger.error('[campaign] outbound flow setup failed:', error);
     }
 
     return true;
@@ -241,7 +242,7 @@ export class CampaignExecutor {
 
     const callLogId = await this.findCallLogId(channelId);
     if (callLogId === null) {
-      console.warn(`[campaign] call_log lookup failed after retries for channel=${channelId}; publishing contact update with null callLogId`);
+      stasisLogger.warn(`[campaign] call_log lookup failed after retries for channel=${channelId}; publishing contact update with null callLogId`);
     }
     await publish('campaign:contact:update', {
       campaignId: foundCampaignId,
@@ -286,7 +287,7 @@ export class CampaignExecutor {
   private async startCampaign(campaignId: number): Promise<void> {
     const campaign = await this.fetchCampaign(campaignId);
     if (!campaign || !campaign.flowId || !campaign.trunkId) {
-      console.warn(`[campaign] cannot start campaign ${campaignId}: missing flow/trunk`);
+      stasisLogger.warn(`[campaign] cannot start campaign ${campaignId}: missing flow/trunk`);
       return;
     }
 
@@ -388,7 +389,7 @@ export class CampaignExecutor {
         failedCount: runtime.failedCount,
       });
     } catch (error) {
-      console.error(`[campaign] dial failed campaign=${runtime.campaign.id} contact=${contact.id}:`, error);
+      stasisLogger.error(`[campaign] dial failed campaign=${runtime.campaign.id} contact=${contact.id}:`, error);
       runtime.failedCount += 1;
       await publish('campaign:contact:update', {
         campaignId: runtime.campaign.id,

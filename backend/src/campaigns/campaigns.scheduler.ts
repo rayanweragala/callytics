@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { AppLogger } from '../logger/app-logger';
 import { CampaignsService } from './campaigns.service';
 
 @Injectable()
 export class CampaignsScheduler {
-  private readonly logger = new Logger(CampaignsScheduler.name);
+  private readonly logger = new AppLogger(CampaignsScheduler.name);
 
   constructor(private readonly campaignsService: CampaignsService) {}
 

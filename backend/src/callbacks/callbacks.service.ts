@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
   OnModuleDestroy,
   OnModuleInit,
@@ -11,6 +10,7 @@ import { isValidPhoneNumber, parsePhoneNumber, type CountryCode } from 'libphone
 import { createClient, type RedisClientType } from 'redis';
 import { DataSource } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 
 interface CallbackCreatedPayload {
   flowId: number | null;
@@ -41,7 +41,7 @@ interface ExecuteCallbackPayload {
 
 @Injectable()
 export class CallbacksService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(CallbacksService.name);
+  private readonly logger = new AppLogger(CallbacksService.name);
   private publisher: RedisClientType | null = null;
   private subscriber: RedisClientType | null = null;
 
@@ -500,18 +500,20 @@ export class CallbacksService implements OnModuleInit, OnModuleDestroy {
     await this.subscriber.subscribe('callback:created', async (message) => {
       try {
         const payload = JSON.parse(message) as CallbackCreatedPayload;
+        AppLogger.redisConsume('callback:created', this.compactPayload(payload));
         await this.handleCallbackCreated(payload);
       } catch (error) {
-        this.logger.warn(`callback:created handling failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error('callback:created handling failed', error instanceof Error ? error.stack : String(error));
       }
     });
 
     await this.subscriber.subscribe('callback:status:update', async (message) => {
       try {
         const payload = JSON.parse(message) as CallbackStatusUpdatePayload;
+        AppLogger.redisConsume('callback:status:update', this.compactPayload(payload));
         await this.handleStatusUpdate(payload);
       } catch (error) {
-        this.logger.warn(`callback:status:update handling failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error('callback:status:update handling failed', error instanceof Error ? error.stack : String(error));
       }
     });
   }
@@ -524,5 +526,21 @@ export class CallbacksService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Redis publisher unavailable');
     }
     await this.publisher.publish(channel, JSON.stringify(payload));
+    AppLogger.redisPublish(channel, this.compactPayload(payload));
+  }
+
+  private compactPayload(payload: unknown): Record<string, unknown> {
+    if (!payload || typeof payload !== 'object') {
+      return {};
+    }
+    const source = payload as Record<string, unknown>;
+    return {
+      callbackId: source.callbackId,
+      callLogId: source.callLogId,
+      flowId: source.flowId,
+      trunkId: source.trunkId,
+      status: source.status,
+      customerNumber: source.customerNumber,
+    };
   }
 }

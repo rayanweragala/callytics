@@ -1,3 +1,4 @@
+import { stasisLogger } from "../logger";
 import { resolveAudioMediaPath } from '../audioResolver';
 import { CallSession } from '../callSession';
 import { query } from '../db';
@@ -210,11 +211,11 @@ export async function executeVoicemail(
 
   const durationSeconds = await waitForRecordingFinished(ariClient, recordingName, channel.id);
   if (durationSeconds == null || durationSeconds === 0) {
-    console.log(`[voicemail] skipping save — zero duration call=${session.callUuid}`);
+    stasisLogger.log(`[voicemail] skipping save — zero duration call=${session.callUuid}`);
     return 'done';
   }
   
   await persistVoicemailRecording(session, channel.id, recordingName, startedAt, durationSeconds);
-  console.log(`[voicemail] mailbox=${mailboxName} call=${session.callUuid} recording=${recordingName}`);
+  stasisLogger.log(`[voicemail] mailbox=${mailboxName} call=${session.callUuid} recording=${recordingName}`);
   return 'done';
 }

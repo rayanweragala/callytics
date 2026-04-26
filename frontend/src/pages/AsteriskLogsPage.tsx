@@ -57,7 +57,9 @@ export function AsteriskLogsPage() {
   const uniqueidFilter = searchParams.get('uniqueid')?.trim() || '';
   const fromFilter = searchParams.get('from')?.trim() || '';
   const toFilter = searchParams.get('to')?.trim() || '';
-  const hasCallDrillDown = uniqueidFilter.length > 0 || fromFilter.length > 0 || toFilter.length > 0;
+  const callerNumberFilter = searchParams.get('callerNumber')?.trim() || '';
+  const destinationFilter = searchParams.get('destination')?.trim() || '';
+  const hasCallDrillDown = uniqueidFilter.length > 0 || fromFilter.length > 0 || toFilter.length > 0 || callerNumberFilter.length > 0 || destinationFilter.length > 0;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -82,6 +84,8 @@ export function AsteriskLogsPage() {
           uniqueid: uniqueidFilter || undefined,
           from: fromFilter || undefined,
           to: toFilter || undefined,
+          callerNumber: callerNumberFilter || undefined,
+          destination: destinationFilter || undefined,
           limit: PAGE_SIZE,
           offset,
         });
@@ -106,7 +110,7 @@ export function AsteriskLogsPage() {
     return () => {
       active = false;
     };
-  }, [level, search, hideNoise, uniqueidFilter, fromFilter, toFilter, offset, refreshKey]);
+  }, [level, search, hideNoise, uniqueidFilter, fromFilter, toFilter, callerNumberFilter, destinationFilter, offset, refreshKey]);
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -139,6 +143,8 @@ export function AsteriskLogsPage() {
     next.delete('uniqueid');
     next.delete('from');
     next.delete('to');
+    next.delete('callerNumber');
+    next.delete('destination');
     setSearchParams(next);
     setLevel('all');
     setSearchInput('');

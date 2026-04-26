@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { Node as FlowNode } from 'reactflow';
 import { NodeConfigPanel } from './NodeConfigPanel';
 import type { FlowNodeData, AudioFileItem } from '../../types';
@@ -159,5 +160,155 @@ describe('NodeConfigPanel', () => {
     );
 
     expect(screen.getByText('pstn number')).toBeInTheDocument();
+  });
+
+  it('renders conference room fields and sanitizes room name input', () => {
+    const onConfigValueChange = vi.fn();
+
+    function Wrapper() {
+      const [config, setConfig] = useState<Record<string, unknown>>({
+        roomName: '',
+        waitForModerator: false,
+        moderatorType: null,
+        moderatorId: null,
+      });
+
+      return (
+        <NodeConfigPanel
+          {...baseProps}
+          selectedNode={mockNode('conference', config)}
+          extensions={[
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+          ]}
+          operators={[
+            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+          ]}
+          onConfigValueChange={(field, value) => {
+            onConfigValueChange(field, value);
+            setConfig((current) => ({ ...current, [field]: value }));
+          }}
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    expect(screen.getByText('room name')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('SalesRoom1'), { target: { value: 'Sales Room 1!@#' } });
+
+    expect(onConfigValueChange).toHaveBeenCalledWith('roomName', 'SalesRoom1');
+    expect(screen.getByPlaceholderText('SalesRoom1')).toHaveValue('SalesRoom1');
+  });
+
+  it('keeps wait for moderator off by default and reveals moderator type when enabled', () => {
+    function Wrapper() {
+      const [config, setConfig] = useState<Record<string, unknown>>({
+        roomName: 'SalesRoom1',
+        waitForModerator: false,
+        moderatorType: null,
+        moderatorId: null,
+      });
+
+      return (
+        <NodeConfigPanel
+          {...baseProps}
+          selectedNode={mockNode('conference', config)}
+          extensions={[
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+          ]}
+          operators={[
+            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+          ]}
+          onConfigValueChange={(field, value) => {
+            setConfig((current) => ({ ...current, [field]: value }));
+          }}
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+
+    expect(screen.getByText('moderator type')).toBeInTheDocument();
+    expect(screen.getByText('Extension')).toBeInTheDocument();
+  });
+
+  it('loads extension and operator options and saves moderator selection', () => {
+    const onConfigValueChange = vi.fn();
+
+    function Wrapper() {
+      const [config, setConfig] = useState<Record<string, unknown>>({
+        roomName: 'SalesRoom1',
+        waitForModerator: true,
+        moderatorType: 'extension',
+        moderatorId: null,
+      });
+
+      return (
+        <NodeConfigPanel
+          {...baseProps}
+          selectedNode={mockNode('conference', config)}
+          extensions={[
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+          ]}
+          operators={[
+            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+          ]}
+          onConfigValueChange={(field, value) => {
+            onConfigValueChange(field, value);
+            setConfig((current) => ({ ...current, [field]: value }));
+          }}
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    fireEvent.click(screen.getByText('select extension'));
+    expect(screen.getByText('2001 — Alice')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('2001 — Alice'));
+
+    expect(onConfigValueChange).toHaveBeenCalledWith('moderatorType', 'extension');
+    expect(onConfigValueChange).toHaveBeenCalledWith('moderatorId', 11);
+  });
+
+  it('switches to PSTN operator selection when moderator type changes', () => {
+    function Wrapper() {
+      const [config, setConfig] = useState<Record<string, unknown>>({
+        roomName: 'SalesRoom1',
+        waitForModerator: true,
+        moderatorType: 'extension',
+        moderatorId: null,
+      });
+
+      return (
+        <NodeConfigPanel
+          {...baseProps}
+          selectedNode={mockNode('conference', config)}
+          extensions={[
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+          ]}
+          operators={[
+            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+          ]}
+          onConfigValueChange={(field, value) => {
+            setConfig((current) => ({ ...current, [field]: value }));
+          }}
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    fireEvent.click(screen.getByText('Extension'));
+    fireEvent.click(screen.getByText('PSTN Operator'));
+
+    expect(screen.getByText('pstn operator')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('select PSTN operator'));
+    expect(screen.getByText('Main Operator — +94770000000')).toBeInTheDocument();
   });
 });

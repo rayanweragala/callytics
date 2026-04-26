@@ -1,3 +1,4 @@
+import { stasisLogger } from "../logger";
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 import { resolveNodeTimeoutMs } from '../timeoutResolver';
@@ -21,7 +22,7 @@ export function fireWebhookAsync(
   const timeoutMs = resolveNodeTimeoutMs(node, session, 5000);
 
   if (!url) {
-    console.warn('[webhook] no URL configured, skipping async fire');
+    stasisLogger.warn('[webhook] no URL configured, skipping async fire');
     return;
   }
 
@@ -67,11 +68,11 @@ export function fireWebhookAsync(
       }
 
       const response = await fetch(url, fetchOptions);
-      console.log(`[webhook] fired url=${url} status=${response.status}`);
+      stasisLogger.log(`[webhook] fired url=${url} status=${response.status}`);
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[webhook] ${isAbort ? 'timeout' : 'failed'} url=${url} err=${message}`);
+      stasisLogger.warn(`[webhook] ${isAbort ? 'timeout' : 'failed'} url=${url} err=${message}`);
     } finally {
       clearTimeout(timer);
     }

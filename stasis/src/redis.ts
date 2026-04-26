@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 import { createClient, RedisClientType } from 'redis';
 
 let publisher: RedisClientType | null = null;
@@ -14,7 +15,7 @@ async function ensurePublisher(): Promise<RedisClientType> {
     });
 
     publisher.on('error', (error) => {
-      console.error('Redis publisher error:', error);
+      stasisLogger.error('Redis publisher error:', error);
     });
 
     await publisher.connect();
@@ -38,7 +39,7 @@ export async function getSubscriber(): Promise<RedisClientType> {
       },
     });
     subscriber.on('error', (error) => {
-      console.error('Redis subscriber error:', error);
+      stasisLogger.error('Redis subscriber error:', error);
     });
     await subscriber.connect();
   }

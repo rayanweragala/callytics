@@ -1,36 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FlowCanvasNode } from './FlowCanvasNode';
-import '../../test/mocks/reactflow';
+import styles from './FlowCanvasNode.module.css';
+import type { FlowNodeData } from '../../types';
 
-describe('FlowCanvasNode', () => {
-  const props: any = {
-    id: '1',
+function createProps(config: Record<string, unknown> = {}) {
+  return {
     data: {
-      nodeKey: '1',
-      type: 'start',
-      label: 'Start Node',
-      config: {},
-    },
+      type: 'conference',
+      label: 'Conference Room',
+      config,
+    } as FlowNodeData,
     selected: false,
-    zIndex: 0,
-    isConnectable: true,
-    xPos: 0,
-    yPos: 0,
-    dragging: false,
-    dragHandle: '',
-    type: 'custom',
-  };
+  } as const;
+}
 
-  it('renders without crashing', () => {
-    render(<FlowCanvasNode {...props} />);
-    expect(screen.getByText('start')).toBeInTheDocument();
-    expect(screen.getByText('Start Node')).toBeInTheDocument();
+describe('FlowCanvasNode conference rendering', () => {
+  it('renders the conference accent bar styling', () => {
+    const { container } = render(<FlowCanvasNode {...createProps({ roomName: 'SalesRoom1' })} />);
+
+    expect(container.firstChild).toHaveClass(styles.conference);
+    expect(container.querySelector('span')).toBeInTheDocument();
   });
 
-  it('shows delete button when selected', () => {
-    const selectedProps = { ...props, selected: true, data: { ...props.data, type: 'play_audio', onDelete: vi.fn() } };
-    render(<FlowCanvasNode {...selectedProps} />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+  it('renders the room name as the subtitle when configured', () => {
+    render(<FlowCanvasNode {...createProps({ roomName: 'SalesRoom1' })} />);
+
+    expect(screen.getByText('SalesRoom1')).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
+import { logEvent } from '../logger';
 
 let _redis: RedisClientType | null = null;
 const DEFAULT_MOH_CLASS = process.env.QUEUE_LOGIN_MOH_CLASS || 'callytics-hold';
@@ -12,7 +13,7 @@ async function getRedis(): Promise<RedisClientType> {
       },
     }) as RedisClientType;
     _redis.on('error', (error: unknown) => {
-      console.error('[queueManager] Redis error:', error);
+      logEvent('RedisError', { source: 'queueManager', error });
     });
     await _redis.connect();
   }
@@ -154,8 +155,8 @@ async function bridgeChannels(
     const bridge = await ariClient.bridges.create({ type: 'mixing' });
     await ariClient.bridges.addChannel({ bridgeId: bridge.id, channel: operatorChannelId });
     await ariClient.bridges.addChannel({ bridgeId: bridge.id, channel: customerChannelId });
-    console.log(`[queueManager] bridge created id=${bridge.id} queue=${queueId} operator=${operatorId} customer=${customerChannelId}`);
+    logEvent('BridgeCreated', { bridgeId: bridge.id, bridgeType: 'mixing', queueId, operatorId, customerChannelId });
   } catch (error) {
-    console.error(`[queueManager] bridge failed queue=${queueId} operator=${operatorId}:`, error);
+    logEvent('QueueBridgeFailed', { queueId, operatorId, error });
   }
 }

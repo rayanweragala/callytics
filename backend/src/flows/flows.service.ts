@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
 import { CallFlowEntity } from './entities/call-flow.entity';
@@ -229,6 +230,26 @@ export function validateNodeConfig(node: FlowNodeInput): void {
       throw new BadRequestException(`Node ${node.nodeKey}: queue is required`);
     }
   }
+  if (node.type === 'conference') {
+    const roomName = String(node.config?.roomName || '').trim();
+    if (!roomName) {
+      throw new BadRequestException(`Node ${node.nodeKey}: roomName is required`);
+    }
+    if (!/^[a-zA-Z0-9]+$/.test(roomName)) {
+      throw new BadRequestException(`Node ${node.nodeKey}: roomName must contain only letters and numbers`);
+    }
+    const waitForModerator = Boolean(node.config?.waitForModerator);
+    if (waitForModerator) {
+      const moderatorType = node.config?.moderatorType === 'pstn' ? 'pstn' : node.config?.moderatorType === 'extension' ? 'extension' : null;
+      const moderatorId = Number(node.config?.moderatorId || 0);
+      if (!moderatorType) {
+        throw new BadRequestException(`Node ${node.nodeKey}: moderatorType must be extension or pstn`);
+      }
+      if (!Number.isInteger(moderatorId) || moderatorId <= 0) {
+        throw new BadRequestException(`Node ${node.nodeKey}: moderatorId is required`);
+      }
+    }
+  }
   if (node.type === 'callback') {
     const numberSource = String(node.config?.number_source || '').trim();
     if (!['ani', 'dtmf'].includes(numberSource)) {
@@ -394,8 +415,10 @@ export class FlowsService implements OnModuleInit {
   }
 
   async findOne(id: number): Promise<{ data: FlowDetailResponse }> {
+    const startedAt = Date.now();
     const flow = await this.callFlowsRepository.findOne({ where: { id } });
     if (!flow) {
+      AppLogger.dbQuery('select', 'call_flows', startedAt);
       throw new NotFoundException(`Flow ${id} not found`);
     }
 
@@ -406,17 +429,23 @@ export class FlowsService implements OnModuleInit {
         order: { versionNumber: 'DESC' },
       });
       if (!latestVersion) {
+        AppLogger.dbQuery('select', 'call_flows', startedAt);
         throw new NotFoundException(`Flow ${id} has no versions`);
       }
-      return { data: await this.buildFlowDetail(flow, latestVersion) };
+      const detail = await this.buildFlowDetail(flow, latestVersion);
+      AppLogger.dbQuery('select', 'call_flows', startedAt);
+      return { data: detail };
     }
 
     const version = await this.flowVersionsRepository.findOne({ where: { id: versionId } });
     if (!version) {
+      AppLogger.dbQuery('select', 'call_flows', startedAt);
       throw new NotFoundException(`Flow ${id} version ${versionId} not found`);
     }
 
-    return { data: await this.buildFlowDetail(flow, version) };
+    const detail = await this.buildFlowDetail(flow, version);
+    AppLogger.dbQuery('select', 'call_flows', startedAt);
+    return { data: detail };
   }
 
   async create(dto: CreateFlowDto): Promise<{ data: FlowDetailResponse }> {

@@ -1,8 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import { DataSource } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 import { QualityRecordDto } from './dto/quality-record.dto';
 
 const STREAM_KEY = 'callytics:rtp-quality';
@@ -20,7 +21,7 @@ interface StreamPayload {
 
 @Injectable()
 export class QualityService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(QualityService.name);
+  private readonly logger = new AppLogger(QualityService.name);
   private redis: RedisClientType | null = null;
   private running = false;
   private consumerName = `quality-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
@@ -168,6 +169,11 @@ export class QualityService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    AppLogger.redisConsume(STREAM_KEY, {
+      callId: parsed.callId,
+      grade: parsed.grade,
+      recordedAt: parsed.recordedAt,
+    });
     await this.upsertQuality(parsed);
   }
 
@@ -183,6 +189,7 @@ export class QualityService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const startedAt = Date.now();
     await this.dataSource.query(
       `
       INSERT INTO call_quality (
@@ -222,5 +229,6 @@ export class QualityService implements OnModuleInit, OnModuleDestroy {
         recordedAt,
       ],
     );
+    AppLogger.dbQuery('upsert', 'call_quality', startedAt);
   }
 }

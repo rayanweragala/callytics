@@ -351,8 +351,8 @@ export function CallLogsPage() {
               <tbody>
                 {data.map((item) => {
                   const quality = qualityByCall[item.callUuid];
-                  const from = shiftIso(item.startedAt, -2000);
-                  const to = shiftIso(item.endedAt ?? item.startedAt, 2000);
+                  const from = shiftIso(item.startedAt, -10000);
+                  const to = shiftIso(item.endedAt ?? item.startedAt, 10000);
                   const hasLogsDrillDown = Boolean(item.callUuid && from && to);
                   return (
                     <tr key={`${item.id}-${item.callUuid}`}>
@@ -384,7 +384,18 @@ export function CallLogsPage() {
                           onClick={(event) => {
                             event.stopPropagation();
                             if (!hasLogsDrillDown || !from || !to) return;
-                            navigate(`/logs?uniqueid=${encodeURIComponent(item.callUuid)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                            const params = new URLSearchParams({
+                              uniqueid: item.callUuid,
+                              from,
+                              to,
+                            });
+                            if (item.callerNumber) {
+                              params.set('callerNumber', item.callerNumber);
+                            }
+                            if (item.calleeNumber) {
+                              params.set('destination', item.calleeNumber);
+                            }
+                            navigate(`/logs?${params.toString()}`);
                           }}
                           type="button"
                         >

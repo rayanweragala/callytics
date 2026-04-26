@@ -1,10 +1,11 @@
-import { Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import * as net from 'node:net';
 import { DataSource, Repository } from 'typeorm';
 import { AsteriskConfigService, type AmiQualifyResult } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { DiagnosticsGateway } from './diagnostics.gateway';
 import type {
@@ -25,7 +26,7 @@ type TrunkDiagnosticsStatus = TrunkDiagnosticsResult['status'];
 
 @Injectable()
 export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(DiagnosticsService.name);
+  private readonly logger = new AppLogger(DiagnosticsService.name);
   private readonly ariUrl = process.env.ARI_URL || 'http://127.0.0.1:8088';
   private readonly ariUser = process.env.ARI_USER || 'callytics';
   private readonly ariPass = process.env.ARI_PASS || 'callytics';
@@ -422,7 +423,13 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     await this.redisSubscriber.subscribe(REDIS_SIP_TRAFFIC_CHANNEL, async (message) => {
       try {
         const payload = JSON.parse(message) as SipTrafficEvent;
+        AppLogger.redisConsume(REDIS_SIP_TRAFFIC_CHANNEL, {
+          callId: payload.callId,
+          method: payload.method,
+          direction: payload.direction,
+        });
         this.gateway?.broadcastSipTraffic(payload);
+        const startedAt = Date.now();
         void this.dataSource.query(
           `
           INSERT INTO sip_messages (
@@ -446,19 +453,25 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
             payload.responseCode,
             payload.rawMessage,
           ],
-        ).catch((error) => {
-          this.logger.error(`Failed to persist SIP message: ${error instanceof Error ? error.message : String(error)}`);
+        ).then(() => {
+          AppLogger.dbQuery('insert', 'sip_messages', startedAt);
+        }).catch((error) => {
+          this.logger.error('Failed to persist SIP message', error instanceof Error ? error.stack : String(error));
         });
       } catch (error) {
-        this.logger.warn(`Failed to parse SIP traffic payload: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error('Failed to parse SIP traffic payload', error instanceof Error ? error.stack : String(error));
       }
     });
     await this.redisSubscriber.subscribe(REDIS_CALL_EVENTS_CHANNEL, async (message) => {
       try {
         const payload = JSON.parse(message) as CallEvent;
+        AppLogger.redisConsume(REDIS_CALL_EVENTS_CHANNEL, {
+          callId: payload.callId,
+          type: payload.type,
+        });
         this.gateway?.broadcastCallEvent(payload);
       } catch (error) {
-        this.logger.warn(`Failed to parse call event payload: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error('Failed to parse call event payload', error instanceof Error ? error.stack : String(error));
       }
     });
 
@@ -468,9 +481,14 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
         if (!payload || typeof payload.callId !== 'string' || !payload.callId || typeof payload.nodeType !== 'string' || !payload.nodeType) {
           return;
         }
+        AppLogger.redisConsume(REDIS_CALL_TIMELINE_CHANNEL, {
+          callId: payload.callId,
+          nodeType: payload.nodeType,
+          nodeId: payload.nodeId,
+        });
         this.gateway?.broadcastCallTimelineEvent(payload);
       } catch (error) {
-        this.logger.warn(`Failed to parse call timeline payload: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error('Failed to parse call timeline payload', error instanceof Error ? error.stack : String(error));
       }
     });
   }

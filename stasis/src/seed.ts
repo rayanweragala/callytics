@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 // NOTE: This seed flow uses built-in Asterisk sound file paths directly
 // for testing. In production flows the config will reference audio_file_id
 // from the audio_files table and the runtime will resolve the actual path.
@@ -26,7 +27,7 @@ export default async function seed(): Promise<void> {
   } | undefined;
 
   if (existingFlow && existingFlow.node_count > 0) {
-    console.log(`Flow ${seedSlug} already exists with ${existingFlow.node_count} nodes, skipping seed`);
+    stasisLogger.log(`Flow ${seedSlug} already exists with ${existingFlow.node_count} nodes, skipping seed`);
     return;
   }
 
@@ -91,7 +92,7 @@ export default async function seed(): Promise<void> {
 
     if (versionNodeCount > 0) {
       await client.query('COMMIT');
-      console.log(`Seed flow ${seedSlug} already has ${versionNodeCount} nodes, skipping insert`);
+      stasisLogger.log(`Seed flow ${seedSlug} already has ${versionNodeCount} nodes, skipping insert`);
       return;
     }
 
@@ -157,7 +158,7 @@ export default async function seed(): Promise<void> {
     }
 
     await client.query('COMMIT');
-    console.log(`Seed flow ${seedSlug} inserted successfully`);
+    stasisLogger.log(`Seed flow ${seedSlug} inserted successfully`);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

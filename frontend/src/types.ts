@@ -172,6 +172,7 @@ export type BuilderNodeType =
   | 'webhook'
   | 'queue_login'
   | 'queue'
+  | 'conference'
   | 'callback';
 
 export type TransferTargetType = 'extension' | 'pstn' | 'sip_uri';
@@ -207,6 +208,13 @@ export interface CallbackNodeConfig {
   destination_value?: string | null;
   destination_trunk_id?: number | null;
   operator_id?: number | null;
+}
+
+export interface ConferenceNodeConfig {
+  roomName: string;
+  waitForModerator: boolean;
+  moderatorType: 'extension' | 'pstn' | null;
+  moderatorId: number | null;
 }
 
 export interface FlowNodeData {

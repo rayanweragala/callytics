@@ -36,6 +36,8 @@
   Chosen because it exposes call events, channel updates, queue events, and enough runtime control for dashboards and status.
 - `ARI` with a `Stasis` app for flow execution
   Chosen because the visual flow lives in the database while the Node.js runtime executes each call step through ARI. Asterisk keeps a small static dialplan that hands calls into the Stasis app.
+- `ConfBridge` for conference rooms
+  Chosen because the conference node needs named bridge reuse, automatic MOH, and lifecycle management for waiting participants and sole survivors.
 - `tshark` for SIP capture ingestion (Phase 22B)
   Used by backend capture service to parse live SIP packets (`-T ek`) for UI diagnostics and `.pcap` export workflows.
 

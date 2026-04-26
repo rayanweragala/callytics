@@ -1,3 +1,4 @@
+import { stasisLogger } from "../logger";
 import * as bcrypt from 'bcrypt';
 import { CallSession } from '../callSession';
 import { query } from '../db';
@@ -99,7 +100,7 @@ async function waitForDtmfDigits(
       }
       lastDigit = digit;
       lastDigitAt = now;
-      console.log(`[queue_login] ChannelDtmfReceived channel=${channel.id} digit=${digit === '#' ? '#' : '*'} digits_len=${digits.length + (digit === '#' ? 0 : 1)}`);
+      stasisLogger.log(`[queue_login] ChannelDtmfReceived channel=${channel.id} digit=${digit === '#' ? '#' : '*'} digits_len=${digits.length + (digit === '#' ? 0 : 1)}`);
       if (digit === '#') {
         settle(digits || null);
         return;
@@ -116,18 +117,18 @@ async function waitForDtmfDigits(
 
     const onHangup = (event: { channel?: { id?: string } }) => {
       if (event.channel?.id !== channel.id) return;
-      console.log(`[queue_login] input interrupted by hangup channel=${channel.id}`);
+      stasisLogger.log(`[queue_login] input interrupted by hangup channel=${channel.id}`);
       settle(null);
     };
 
-    console.log(`[queue_login] listening for DTMF channel=${channel.id} maxDigits=${maxDigits} timeoutMs=${timeoutMs}`);
+    stasisLogger.log(`[queue_login] listening for DTMF channel=${channel.id} maxDigits=${maxDigits} timeoutMs=${timeoutMs}`);
     client.on('ChannelDtmfReceived', onDtmf);
     channel.on?.('ChannelDtmfReceived', onDtmf);
     client.on('StasisEnd', onHangup);
     client.on('ChannelDestroyed', onHangup);
 
     timer = setTimeout(() => {
-      console.log(`[queue_login] input timeout channel=${channel.id} timeoutMs=${timeoutMs}`);
+      stasisLogger.log(`[queue_login] input timeout channel=${channel.id} timeoutMs=${timeoutMs}`);
       settle(null);
     }, timeoutMs);
   });
@@ -142,7 +143,7 @@ async function playAudioFile(
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
   const target = session.inboundBridge ? `bridge:${session.inboundBridge.id}` : `channel:${channel.id}`;
-  console.log(`[queue_login] play request target=${target} media=sound:${soundPath} at=${new Date().toISOString()}`);
+  stasisLogger.log(`[queue_login] play request target=${target} media=sound:${soundPath} at=${new Date().toISOString()}`);
   if (session.inboundBridge) {
     const client = ariClient as {
       bridges: {
@@ -242,20 +243,20 @@ async function startOperatorHoldAudio(
   if (client.channels?.startMoh) {
     try {
       await client.channels.startMoh({ channelId, mohClass: DEFAULT_MOH_CLASS });
-      console.log(`[queue_login] hold audio started target=channel:${channelId} class=${DEFAULT_MOH_CLASS}`);
+      stasisLogger.log(`[queue_login] hold audio started target=channel:${channelId} class=${DEFAULT_MOH_CLASS}`);
       return;
     } catch (error) {
-      console.warn(`[queue_login] hold audio start failed target=channel:${channelId}:`, error);
+      stasisLogger.warn(`[queue_login] hold audio start failed target=channel:${channelId}:`, error);
     }
   }
 
   if (session.inboundBridge?.id && client.bridges?.startMoh) {
     await client.bridges.startMoh({ bridgeId: session.inboundBridge.id, mohClass: DEFAULT_MOH_CLASS });
-    console.log(`[queue_login] hold audio started target=bridge:${session.inboundBridge.id} class=${DEFAULT_MOH_CLASS}`);
+    stasisLogger.log(`[queue_login] hold audio started target=bridge:${session.inboundBridge.id} class=${DEFAULT_MOH_CLASS}`);
     return;
   }
 
-  console.warn(`[queue_login] hold audio start unavailable channel=${channelId}`);
+  stasisLogger.warn(`[queue_login] hold audio start unavailable channel=${channelId}`);
 }
 
 async function stopOperatorHoldAudio(
@@ -271,7 +272,7 @@ async function stopOperatorHoldAudio(
   if (client.channels?.stopMoh) {
     try {
       await client.channels.stopMoh({ channelId });
-      console.log(`[queue_login] hold audio stopped target=channel:${channelId}`);
+      stasisLogger.log(`[queue_login] hold audio stopped target=channel:${channelId}`);
       return;
     } catch {
       // fall through to bridge stop
@@ -280,7 +281,7 @@ async function stopOperatorHoldAudio(
 
   if (session.inboundBridge?.id && client.bridges?.stopMoh) {
     await client.bridges.stopMoh({ bridgeId: session.inboundBridge.id });
-    console.log(`[queue_login] hold audio stopped target=bridge:${session.inboundBridge.id}`);
+    stasisLogger.log(`[queue_login] hold audio stopped target=bridge:${session.inboundBridge.id}`);
     return;
   }
 }
@@ -295,7 +296,7 @@ export async function executeQueueLogin(
   const queueId = Number(config.queue_id || 0);
 
   if (!queueId) {
-    console.warn('[queue_login] no queue_id configured');
+    stasisLogger.warn('[queue_login] no queue_id configured');
     return routeBackToMenuOnFailure(channel, node, session, ariClient);
   }
 
@@ -306,13 +307,13 @@ export async function executeQueueLogin(
   ) as QueueRow[];
 
   if (!queueRows.length) {
-    console.warn(`[queue_login] queue ${queueId} not found`);
+    stasisLogger.warn(`[queue_login] queue ${queueId} not found`);
     return routeBackToMenuOnFailure(channel, node, session, ariClient);
   }
 
   const queueRow = queueRows[0];
   const maxAttempts = queueRow.pin_retry_attempts;
-  console.log(`[queue_login] start queue=${queueId} maxAttempts=${maxAttempts} channel=${channel.id}`);
+  stasisLogger.log(`[queue_login] start queue=${queueId} maxAttempts=${maxAttempts} channel=${channel.id}`);
 
   // Load operator PIN hashes for operators assigned to this queue
   const operatorRows = await query(
@@ -324,17 +325,17 @@ export async function executeQueueLogin(
   ) as OperatorPinRow[];
 
   if (!operatorRows.length) {
-    console.warn(`[queue_login] no operators assigned to queue ${queueId}`);
+    stasisLogger.warn(`[queue_login] no operators assigned to queue ${queueId}`);
     return routeBackToMenuOnFailure(channel, node, session, ariClient);
   }
-  console.log(`[queue_login] loaded operators for queue=${queueId} count=${operatorRows.length}`);
+  stasisLogger.log(`[queue_login] loaded operators for queue=${queueId} count=${operatorRows.length}`);
 
   let attemptsLeft = maxAttempts;
   const inputTimeoutMs = resolveQueueLoginInputTimeoutMs(node, session);
-  console.log(`[queue_login] effective input timeout queue=${queueId} timeoutMs=${inputTimeoutMs}`);
+  stasisLogger.log(`[queue_login] effective input timeout queue=${queueId} timeoutMs=${inputTimeoutMs}`);
 
   while (attemptsLeft > 0) {
-    console.log(`[queue_login] attempt start queue=${queueId} attemptsLeft=${attemptsLeft}`);
+    stasisLogger.log(`[queue_login] attempt start queue=${queueId} attemptsLeft=${attemptsLeft}`);
     const promptPath = await resolveQueueLoginPromptPath(config);
 
     const playbackFactory = ariClient as { Playback: () => { id: string; stop?: () => Promise<void> } };
@@ -347,13 +348,13 @@ export async function executeQueueLogin(
         new Promise<void>((resolveStop) => setTimeout(resolveStop, 250)),
       ]);
       promptActive = false;
-      console.log(`[queue_login] prompt interrupted by input channel=${channel.id}`);
+      stasisLogger.log(`[queue_login] prompt interrupted by input channel=${channel.id}`);
     };
 
     const promptTask = (async () => {
       try {
         const target = session.inboundBridge ? `bridge:${session.inboundBridge.id}` : `channel:${channel.id}`;
-        console.log(`[queue_login] play request target=${target} media=sound:${promptPath} at=${new Date().toISOString()}`);
+        stasisLogger.log(`[queue_login] play request target=${target} media=sound:${promptPath} at=${new Date().toISOString()}`);
         promptActive = true;
         if (session.inboundBridge) {
           const client = ariClient as {
@@ -383,11 +384,11 @@ export async function executeQueueLogin(
 
     if (input === null) {
       // Hangup during input
-      console.log('[queue_login] no input captured (timeout/hangup), routing to menu fallback');
+      stasisLogger.log('[queue_login] no input captured (timeout/hangup), routing to menu fallback');
       return routeBackToMenuOnFailure(channel, node, session, ariClient);
     }
-    console.log(`[queue_login] collected PIN input length=${input.length}`);
-    console.log('[queue_login] collected PIN input pin=***');
+    stasisLogger.log(`[queue_login] collected PIN input length=${input.length}`);
+    stasisLogger.log('[queue_login] collected PIN input pin=***');
 
     // Compare against each operator's PIN hash
     let matchedOperator: OperatorPinRow | null = null;
@@ -406,10 +407,10 @@ export async function executeQueueLogin(
       try {
         await startOperatorHoldAudio(channel.id, session, ariClient);
       } catch (error) {
-        console.warn(`[queue_login] failed to start hold audio channel=${channel.id}:`, error);
+        stasisLogger.warn(`[queue_login] failed to start hold audio channel=${channel.id}:`, error);
       }
 
-      console.log(`[queue_login] operator ${operatorId} authenticated on queue ${queueId} channel=${channel.id}`);
+      stasisLogger.log(`[queue_login] operator ${operatorId} authenticated on queue ${queueId} channel=${channel.id}`);
 
       // Play login success audio if configured
       if (config.login_success_audio_file_id) {
@@ -468,13 +469,13 @@ export async function executeQueueLogin(
       }
 
       await logoutOperator(operatorId, queueId);
-      console.log(`[queue_login] operator ${operatorId} logged out from queue ${queueId}`);
+      stasisLogger.log(`[queue_login] operator ${operatorId} logged out from queue ${queueId}`);
 
       return 'authenticated';
     }
 
     attemptsLeft--;
-    console.log(`[queue_login] PIN mismatch queue=${queueId} attemptsLeft=${attemptsLeft}`);
+    stasisLogger.log(`[queue_login] PIN mismatch queue=${queueId} attemptsLeft=${attemptsLeft}`);
 
     // Play wrong PIN audio if configured
     if (config.wrong_pin_audio_file_id) {
@@ -494,9 +495,9 @@ export async function executeQueueLogin(
       }
     }
 
-    console.log(`[queue_login] wrong PIN attempt, ${attemptsLeft} left`);
+    stasisLogger.log(`[queue_login] wrong PIN attempt, ${attemptsLeft} left`);
   }
 
-  console.log('[queue_login] attempts exhausted, routing to menu fallback');
+  stasisLogger.log('[queue_login] attempts exhausted, routing to menu fallback');
   return routeBackToMenuOnFailure(channel, node, session, ariClient);
 }

@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
   OnModuleInit,
   OnModuleDestroy,
@@ -12,6 +11,7 @@ import { isValidPhoneNumber, parsePhoneNumber } from 'libphonenumber-js';
 import { createClient, RedisClientType } from 'redis';
 import { DataSource, Repository } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 import { CreateOperatorDto } from './dto/create-operator.dto';
 import { UpdateOperatorDto } from './dto/update-operator.dto';
 import { OperatorEntity } from './entities/operator.entity';
@@ -48,7 +48,7 @@ const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
 export class OperatorsService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(OperatorsService.name);
+  private readonly logger = new AppLogger(OperatorsService.name);
   private redisClient: RedisClientType | null = null;
   private pinColumnAvailable: boolean | null = null;
   private callbackColumnsAvailable: boolean | null = null;
@@ -82,7 +82,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
         },
       }) as RedisClientType;
       this.redisClient.on('error', (error: unknown) => {
-        this.logger.error('Redis client error:', error);
+        this.logger.error('Redis client error', error instanceof Error ? error.stack : String(error));
       });
       await this.redisClient.connect();
     }
@@ -105,7 +105,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
       const isBusy = await redis.sIsMember(`queue:${queueId}:busy`, String(id));
       return isBusy ? 'busy' : 'available';
     } catch (error) {
-      this.logger.warn(`Failed to get status for operator ${id}: ${String(error)}`);
+      this.logger.error(`Failed to get status for operator ${id}`, error instanceof Error ? error.stack : String(error));
       return 'offline';
     }
   }
@@ -243,7 +243,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
       await redis.del(`operator:${id}:queue`);
       await redis.del(`operator:${id}:channel`);
     } catch (error) {
-      this.logger.warn(`Redis cleanup failed for operator ${id}: ${String(error)}`);
+      this.logger.error(`Redis cleanup failed for operator ${id}`, error instanceof Error ? error.stack : String(error));
     }
   }
 

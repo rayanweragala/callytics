@@ -14,6 +14,7 @@ module.exports = {
     'executors/voicemail.executor.ts',
     'executors/webhook.executor.ts',
     'executors/queue.executor.ts',
+    'nodes/conference.executor.ts',
     'engine/queueManager.ts',
   ],
   coverageThreshold: {

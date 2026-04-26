@@ -6,9 +6,10 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { OnModuleDestroy } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
 import { Server, Socket } from 'socket.io';
+import { AppLogger } from '../logger/app-logger';
 import { DiagnosticsService } from './diagnostics.service';
 import { CaptureService } from '../capture/capture.service';
 import type { SipTrafficEvent, CallEvent, CallTimelineEvent } from './diagnostics.types';
@@ -28,7 +29,7 @@ export class DiagnosticsGateway implements OnGatewayInit, OnGatewayConnection, O
   @WebSocketServer()
   server!: Server;
 
-  private readonly logger = new Logger(DiagnosticsGateway.name);
+  private readonly logger = new AppLogger(DiagnosticsGateway.name);
   private captureRedis: RedisClientType | null = null;
   private captureLoopRunning = false;
   private captureLastId = '$';
@@ -169,11 +170,16 @@ export class DiagnosticsGateway implements OnGatewayInit, OnGatewayConnection, O
             this.captureLastId = message.id;
             const packet = this.mapCaptureMessage(message.id, message.message as Record<string, string>);
             if (packet) {
+              AppLogger.redisConsume(SIP_CAPTURE_STREAM, {
+                callId: packet.callId,
+                method: packet.method,
+                direction: packet.direction,
+              });
               this.broadcastSipPacket(packet);
               try {
                 await this.captureService.persistPacket(packet);
               } catch (error) {
-                this.logger.warn(`capture packet persist failed: ${error instanceof Error ? error.message : String(error)}`);
+                this.logger.error('capture packet persist failed', error instanceof Error ? error.stack : String(error));
               }
             }
           }

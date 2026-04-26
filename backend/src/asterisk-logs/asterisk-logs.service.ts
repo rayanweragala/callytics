@@ -74,6 +74,8 @@ export class AsteriskLogsService {
     to = '',
     limit = 100,
     offset = 0,
+    callerNumber = '',
+    destination = '',
   ): { entries: AsteriskLogEntry[]; total: number; fileExists: boolean } {
     if (!fs.existsSync(LOG_FILE_PATH)) {
       return { entries: [], total: 0, fileExists: false };
@@ -84,7 +86,7 @@ export class AsteriskLogsService {
     const normalizedLevel = String(level || 'all').toUpperCase();
     const normalizedSearch = String(search || '').trim().toLowerCase();
     const normalizedUniqueId = String(uniqueid || '').trim().toLowerCase();
-    const uniqueIdNeedles = this.buildUniqueIdNeedles(normalizedUniqueId);
+    const callNeedles = this.buildCallFilterNeedles(normalizedUniqueId, callerNumber, destination);
     const noiseHidden = hideNoise === true;
     const fromTime = this.parseFilterTimestamp(from);
     const toTime = this.parseFilterTimestamp(to);
@@ -126,8 +128,8 @@ export class AsteriskLogsService {
     });
 
     const filtered =
-      uniqueIdNeedles.length > 0
-        ? this.filterByUniqueIdWithCorrelation(filteredWithoutUniqueId, uniqueIdNeedles)
+      callNeedles.length > 0
+        ? this.filterByCallContextWithCorrelation(filteredWithoutUniqueId, callNeedles)
         : filteredWithoutUniqueId;
 
     const mostRecentFirst = [...filtered].reverse();
@@ -154,20 +156,21 @@ export class AsteriskLogsService {
     return normalized === 'manager.c' || normalized === 'res_pjsip_logger.c';
   }
 
-  private matchesUniqueId(entry: AsteriskLogEntry, uniqueIdNeedles: string[]): boolean {
+  private matchesCallNeedle(entry: AsteriskLogEntry, callNeedles: string[]): boolean {
     const searchable = `${entry.channel} ${entry.message} ${entry.raw}`.toLowerCase();
-    return uniqueIdNeedles.some((needle) => searchable.includes(needle));
+    return callNeedles.some((needle) => searchable.includes(needle));
   }
 
-  private filterByUniqueIdWithCorrelation(entries: AsteriskLogEntry[], uniqueIdNeedles: string[]): AsteriskLogEntry[] {
+  private filterByCallContextWithCorrelation(entries: AsteriskLogEntry[], callNeedles: string[]): AsteriskLogEntry[] {
     const included = new Set<number>();
     const channels = new Set<string>();
     const bridgeIds = new Set<string>();
+    const pjsipChannels = new Set<string>();
 
     entries.forEach((entry, index) => {
-      if (this.matchesUniqueId(entry, uniqueIdNeedles)) {
+      if (this.matchesCallNeedle(entry, callNeedles)) {
         included.add(index);
-        this.collectCorrelationTokens(entry, channels, bridgeIds);
+        this.collectCorrelationTokens(entry, channels, bridgeIds, pjsipChannels);
       }
     });
 
@@ -183,9 +186,9 @@ export class AsteriskLogsService {
           return;
         }
 
-        if (this.matchesCorrelationContext(entry, channels, bridgeIds)) {
+        if (this.matchesCorrelationContext(entry, channels, bridgeIds, pjsipChannels)) {
           included.add(index);
-          this.collectCorrelationTokens(entry, channels, bridgeIds);
+          this.collectCorrelationTokens(entry, channels, bridgeIds, pjsipChannels);
           changed = true;
         }
       });
@@ -194,15 +197,28 @@ export class AsteriskLogsService {
     return entries.filter((_, index) => included.has(index));
   }
 
-  private collectCorrelationTokens(entry: AsteriskLogEntry, channels: Set<string>, bridgeIds: Set<string>): void {
+  private collectCorrelationTokens(
+    entry: AsteriskLogEntry,
+    channels: Set<string>,
+    bridgeIds: Set<string>,
+    pjsipChannels: Set<string>,
+  ): void {
     const channelMatches = [...entry.raw.matchAll(/\[(C-[^\]]+)\]/gi)];
     channelMatches.forEach((match) => channels.add(match[1].toLowerCase()));
 
     const bridgeMatches = [...entry.raw.matchAll(/stasis-bridge <([^>]+)>/gi)];
     bridgeMatches.forEach((match) => bridgeIds.add(match[1].toLowerCase()));
+
+    const pjsipMatches = [...entry.raw.matchAll(/\b(PJSIP\/[^\s'",)]+)/gi)];
+    pjsipMatches.forEach((match) => pjsipChannels.add(match[1].toLowerCase()));
   }
 
-  private matchesCorrelationContext(entry: AsteriskLogEntry, channels: Set<string>, bridgeIds: Set<string>): boolean {
+  private matchesCorrelationContext(
+    entry: AsteriskLogEntry,
+    channels: Set<string>,
+    bridgeIds: Set<string>,
+    pjsipChannels: Set<string>,
+  ): boolean {
     const searchable = `${entry.channel} ${entry.message} ${entry.raw}`.toLowerCase();
     for (const channel of channels) {
       if (searchable.includes(channel)) {
@@ -216,16 +232,21 @@ export class AsteriskLogsService {
       }
     }
 
+    for (const pjsipChannel of pjsipChannels) {
+      if (searchable.includes(pjsipChannel)) {
+        return true;
+      }
+    }
+
     return false;
   }
 
-  private buildUniqueIdNeedles(uniqueId: string): string[] {
+  private buildCallFilterNeedles(uniqueId: string, callerNumber: string, destination: string): string[] {
     const normalized = String(uniqueId || '').trim().toLowerCase();
-    if (!normalized) {
-      return [];
+    const needles = new Set<string>();
+    if (normalized) {
+      needles.add(normalized);
     }
-
-    const needles = new Set<string>([normalized]);
     const dotIndex = normalized.indexOf('.');
     if (dotIndex > 0) {
       const base = normalized.slice(0, dotIndex);
@@ -234,6 +255,13 @@ export class AsteriskLogsService {
         needles.add(`${base}/`);
       }
     }
+
+    [callerNumber, destination].forEach((value) => {
+      const token = String(value || '').trim().toLowerCase();
+      if (token) {
+        needles.add(token);
+      }
+    });
 
     return [...needles];
   }

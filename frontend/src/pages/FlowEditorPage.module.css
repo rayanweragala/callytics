@@ -394,6 +394,7 @@
 .barhunt      { background: var(--primitive-blue); } /* blue */
 .barqueue     { background: var(--primitive-navy-300); } /* purple */
 .barqueuelogin { background: var(--primitive-navy-300); } /* purple */
+.barconference { background: #2dd4bf; }
 .barvoicemail { background: var(--text-muted); }
 .barwebhook   { background: var(--text-muted); }
 .barcallback  { background: var(--primitive-orange); } /* orange */

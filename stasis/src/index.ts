@@ -1,3 +1,4 @@
+import { logEvent, stasisLogger } from "./logger";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -174,7 +175,7 @@ async function startBridgeRecording(
   const name = callId;
   const format = "wav";
   const startedAt = new Date();
-  console.log(
+  stasisLogger.log(
     `[recording] start request bridge=${bridgeId} call_id=${callId} at=${startedAt.toISOString()}`,
   );
 
@@ -199,7 +200,7 @@ async function startBridgeRecording(
     );
   }
 
-  console.log(
+  stasisLogger.log(
     `[recording] start ok bridge=${bridgeId} call_id=${callId} at=${new Date().toISOString()}`,
   );
   return {
@@ -234,9 +235,7 @@ async function createInboundBridge(
     name: `inbound-${channelId}`,
   });
   await client.bridges.addChannel({ bridgeId: bridge.id, channel: channelId });
-  console.log(
-    `[bridge] created inbound bridge=${bridge.id} channel=${channelId} at=${new Date().toISOString()}`,
-  );
+  logEvent("BridgeCreated", { bridgeId: bridge.id, bridgeType: "mixing" });
   return { id: bridge.id };
 }
 
@@ -252,11 +251,9 @@ async function destroyInboundBridge(
 
   try {
     await client.bridges.destroy({ bridgeId });
-    console.log(
-      `[bridge] destroyed inbound bridge=${bridgeId} at=${new Date().toISOString()}`,
-    );
+    logEvent("BridgeDestroyed", { bridgeId, channelCountAtDestroy: 0 });
   } catch (error) {
-    console.error(`[bridge] destroy failed bridge=${bridgeId}:`, error);
+    stasisLogger.error(`[bridge] destroy failed bridge=${bridgeId}:`, error);
   }
 }
 
@@ -305,7 +302,7 @@ async function persistRecording(session: {
     try {
       await stopInboundRecording(session.recording.name);
     } catch (error) {
-      console.error(
+      stasisLogger.error(
         `[recording] stop failed call_id=${session.callUuid} file=${session.recording.fileName}:`,
         error,
       );
@@ -338,16 +335,16 @@ async function persistRecording(session: {
     );
   }
 
-  console.log(
+  stasisLogger.log(
     `[recording] saved call_id=${session.callUuid} file=${session.recording.fileName} duration=${durationSeconds}s`,
   );
 }
 
 async function start(): Promise<void> {
-  console.log("Running database migrations...");
+  stasisLogger.log("Running database migrations...");
   await migrate();
 
-  console.log("Seeding database...");
+  stasisLogger.log("Seeding database...");
   await seed();
 
   const redis = await getPublisher();
@@ -358,18 +355,18 @@ async function start(): Promise<void> {
   startAmiMonitor();
   startSipTrafficMonitor(redis);
 
-  console.log(`Connecting to ARI at ${ARI_URL}...`);
+  stasisLogger.log(`Connecting to ARI at ${ARI_URL}...`);
 
   try {
     const client = await ari.connect(ARI_URL, ARI_USER, ARI_PASS);
-    console.log("Stasis app connected to ARI");
+    stasisLogger.log("Stasis app connected to ARI");
 
     await redisSubscriber.subscribe("trunk:test:outbound", async (message) => {
       let payload: TrunkTestOutboundEvent | null = null;
       try {
         payload = JSON.parse(message) as TrunkTestOutboundEvent;
       } catch (error) {
-        console.error("[trunk-test] invalid outbound payload:", error);
+        stasisLogger.error("[trunk-test] invalid outbound payload:", error);
         return;
       }
 
@@ -380,7 +377,7 @@ async function start(): Promise<void> {
         ? null
         : Number(payload.audioFileId);
       if (!trunkId || !testCallId || !number) {
-        console.error("[trunk-test] outbound payload missing required fields");
+        stasisLogger.error("[trunk-test] outbound payload missing required fields");
         return;
       }
 
@@ -417,16 +414,16 @@ async function start(): Promise<void> {
         testCallStates.set(channelId, { testCallId, type: "outbound", answered: false });
       } catch (error) {
         const reason = error instanceof Error ? error.message : "originate failed";
-        console.error("[trunk-test] outbound originate failed:", error);
+        stasisLogger.error("[trunk-test] outbound originate failed:", error);
         await setTrunkTestStatus(redis, testCallId, "failed", reason);
       }
     });
 
     await redisSubscriber.subscribe("trunk:test:inbound", async (message) => {
       const parsedPayload = parseInboundTestMessage(message);
-      console.log("[trunk:test:inbound] received", JSON.stringify(parsedPayload ?? message));
+      stasisLogger.log("[trunk:test:inbound] received", JSON.stringify(parsedPayload ?? message));
       if (!parsedPayload) {
-        console.error("[trunk-test] invalid inbound payload: expected { trunkId, testCallId }");
+        stasisLogger.error("[trunk-test] invalid inbound payload: expected { trunkId, testCallId }");
         return;
       }
       const { testCallId } = parsedPayload;
@@ -454,7 +451,7 @@ async function start(): Promise<void> {
         }
         testCallStates.set(channelId, { testCallId, type: "inbound", answered: false });
       } catch (error) {
-        console.error("[trunk:test:inbound] originate failed", error);
+        stasisLogger.error("[trunk:test:inbound] originate failed", error);
         await redis.set(
           `trunk:test:${testCallId}:status`,
           JSON.stringify({
@@ -471,14 +468,14 @@ async function start(): Promise<void> {
       try {
         payload = JSON.parse(message) as CallbackExecutePayload;
       } catch (error) {
-        console.error("[callback] invalid execute payload:", error);
+        stasisLogger.error("[callback] invalid execute payload:", error);
         return;
       }
 
       const hasCustomerDialString = Boolean(String(payload?.customerDialString || '').trim());
       const hasCustomerNumberAndTrunk = Boolean(payload?.customerNumber && payload?.customerTrunkId);
       if (!payload?.callbackId || !payload.operatorDialString || !payload.callerIdNumber || (!hasCustomerDialString && !hasCustomerNumberAndTrunk)) {
-        console.error("[callback] execute payload missing required fields");
+        stasisLogger.error("[callback] execute payload missing required fields");
         return;
       }
 
@@ -512,7 +509,7 @@ async function start(): Promise<void> {
 
         if (event.args?.[0] === "transfer-outbound" && event.args[1]) {
           resolveTransferWaiter(event.args[1], channel);
-          console.log(
+          stasisLogger.log(
             `Transfer leg answered: ${channel.id} for ${event.args[1]}`,
           );
           return;
@@ -521,7 +518,7 @@ async function start(): Promise<void> {
         if (event.args?.[0] === "hunt-outbound" && event.args[1]) {
           const token = event.args[1];
           if (!hasHuntWaiter(token)) {
-            console.log(
+            stasisLogger.log(
               `[hunt] orphan leg detected token=${token} — hanging up`,
             );
             try {
@@ -530,7 +527,7 @@ async function start(): Promise<void> {
             return;
           }
           resolveHuntWaiter(token, channel);
-          console.log(
+          stasisLogger.log(
             `Hunt leg entered Stasis: ${channel.id} token=${token}`,
           );
           return;
@@ -539,7 +536,7 @@ async function start(): Promise<void> {
         if (event.args?.[0] === "callback-operator" && event.args[1]) {
           const callbackId = Number(event.args[1] || 0);
           if (!callbackId || !hasCallbackWaiter(callbackId, "operator")) {
-            console.log(
+            stasisLogger.log(
               `[callback] orphan operator leg callback_id=${String(event.args[1] || "")} — hanging up`,
             );
             try {
@@ -548,14 +545,14 @@ async function start(): Promise<void> {
             return;
           }
           resolveCallbackWaiter(callbackId, "operator", channel);
-          console.log(`Callback operator leg entered Stasis: ${channel.id} callback=${callbackId}`);
+          stasisLogger.log(`Callback operator leg entered Stasis: ${channel.id} callback=${callbackId}`);
           return;
         }
 
         if (event.args?.[0] === "callback-customer" && event.args[1]) {
           const callbackId = Number(event.args[1] || 0);
           if (!callbackId || !hasCallbackWaiter(callbackId, "customer")) {
-            console.log(
+            stasisLogger.log(
               `[callback] orphan customer leg callback_id=${String(event.args[1] || "")} — hanging up`,
             );
             try {
@@ -564,7 +561,7 @@ async function start(): Promise<void> {
             return;
           }
           resolveCallbackWaiter(callbackId, "customer", channel);
-          console.log(`Callback customer leg entered Stasis: ${channel.id} callback=${callbackId}`);
+          stasisLogger.log(`Callback customer leg entered Stasis: ${channel.id} callback=${callbackId}`);
           return;
         }
 
@@ -590,7 +587,7 @@ async function start(): Promise<void> {
               direction: "outbound",
             });
           } catch (error) {
-            console.error("[trunk-test] publish outbound started failed:", error);
+            stasisLogger.error("[trunk-test] publish outbound started failed:", error);
           }
           try {
             await runOutboundTestPlayback(channel, client, Number.isFinite(audioFileId || 0) ? audioFileId : null);
@@ -607,7 +604,7 @@ async function start(): Promise<void> {
               direction: "outbound",
               failureReason: reason,
             }).catch((eventError) => {
-              console.error("[trunk-test] publish outbound playback failure failed:", eventError);
+              stasisLogger.error("[trunk-test] publish outbound playback failure failed:", eventError);
             });
             await channel.hangup().catch(() => undefined);
             testCallStates.delete(channel.id);
@@ -637,7 +634,7 @@ async function start(): Promise<void> {
           !channelExten ||
           channelExten === "h"
         ) {
-          console.log(
+          stasisLogger.log(
             `Ignoring StasisStart for channel ${channel.id} context=${channelContext || "unknown"} exten=${channelExten || "unknown"}`,
           );
           return;
@@ -647,7 +644,7 @@ async function start(): Promise<void> {
         const inboundDid = String(
           event.channel?.dnid || channelExten || "",
         ).trim();
-        console.log(`Incoming call: ${channel.id} from ${callerNumber}`);
+        stasisLogger.log(`Incoming call: ${channel.id} from ${callerNumber}`);
         try {
           await publishSipTraffic({
             callId: channel.id,
@@ -660,7 +657,7 @@ async function start(): Promise<void> {
             rawMessage: `INVITE sip:${inboundDid || channelExten} SIP/2.0`,
           });
         } catch (err) {
-          console.error(
+          stasisLogger.error(
             "[telemetry] sip traffic publish failed (StasisStart):",
             err,
           );
@@ -671,17 +668,17 @@ async function start(): Promise<void> {
           try {
             const route = await resolveInboundRoute(inboundDid);
             if (route) {
-              console.log(
+              stasisLogger.log(
                 `[routing] inbound route found DID=${route.did} flow_id=${route.flowId}`,
               );
               flow = await loadFlowById(route.flowId);
             } else {
-              console.warn(
+              stasisLogger.warn(
                 `[routing] no inbound route for DID ${inboundDid}, using default flow`,
               );
             }
           } catch (error) {
-            console.error(
+            stasisLogger.error(
               `[routing] inbound route lookup failed DID=${inboundDid}:`,
               error,
             );
@@ -692,12 +689,19 @@ async function start(): Promise<void> {
           flow = await loadFlow();
         }
         if (!flow) {
-          console.warn("No published flow found. Hanging up.");
+          stasisLogger.warn("No published flow found. Hanging up.");
           try {
             await channel.hangup();
           } catch {}
           return;
         }
+
+        logEvent("StasisStart", {
+          channelId: channel.id,
+          callerId: callerNumber,
+          calledNumber: inboundDid || channelExten,
+          flowId: flow.id,
+        });
 
         const entryNode =
           flow.nodes.find((node) => node.type === "start") || flow.nodes[0];
@@ -721,7 +725,7 @@ async function start(): Promise<void> {
             entryNodeKey: entryNode.nodeKey,
           });
         } catch (err) {
-          console.error(
+          stasisLogger.error(
             "[telemetry] call event publish failed (StasisStart):",
             err,
           );
@@ -741,11 +745,11 @@ async function start(): Promise<void> {
               applicationName: ARI_APP,
               eventSource: `channel:${channel.id}`,
             });
-            console.log(
+            stasisLogger.log(
               `Subscribed ARI app ${ARI_APP} to channel:${channel.id}`,
             );
           } catch (error) {
-            console.error(
+            stasisLogger.error(
               `Failed to subscribe ARI app ${ARI_APP} to channel:${channel.id}:`,
               error,
             );
@@ -756,7 +760,7 @@ async function start(): Promise<void> {
             }
           });
         } catch (error) {
-          console.error("Error running flow:", error);
+          stasisLogger.error("Error running flow:", error);
           const failureReason =
             error instanceof Error ? error.message : "Unknown flow error";
           failedCalls.add(channel.id);
@@ -773,7 +777,7 @@ async function start(): Promise<void> {
               failureReason,
             });
           } catch (err) {
-            console.error(
+            stasisLogger.error(
               "[telemetry] call event publish failed (flow error):",
               err,
             );
@@ -830,7 +834,7 @@ async function start(): Promise<void> {
               direction: "outbound",
               failureReason: "call ended before answer",
             }).catch((error) => {
-              console.error("[trunk-test] publish outbound failed completion failed:", error);
+              stasisLogger.error("[trunk-test] publish outbound failed completion failed:", error);
             });
           } else {
             await publishCallEvent({
@@ -841,7 +845,7 @@ async function start(): Promise<void> {
               destination: "outbound-test",
               direction: "outbound",
             }).catch((error) => {
-              console.error("[trunk-test] publish outbound ended failed:", error);
+              stasisLogger.error("[trunk-test] publish outbound ended failed:", error);
             });
             testCallStates.delete(channelId);
             return;
@@ -855,12 +859,13 @@ async function start(): Promise<void> {
           return;
         }
 
-        console.log(
-          `[channel] StasisEnd call_id=${channelId} state=${String(event.channel?.state || "unknown")} name=${String(event.channel?.name || "unknown")}`,
-        );
-
         const isFailed = failedCalls.has(channelId);
         failedCalls.delete(channelId);
+        logEvent("StasisEnd", {
+          channelId,
+          callerId: session.callerNumber,
+          durationMs: Date.now() - session.startedAt.getTime(),
+        });
 
         // 1. Destroy bridge immediately (non-blocking — destroyInboundBridge catches its own errors)
         if (session.inboundBridge) {
@@ -883,7 +888,7 @@ async function start(): Promise<void> {
           responseCode: null,
           rawMessage: `BYE sip:${channel.id} SIP/2.0`,
         }).catch((err) =>
-          console.error(
+          stasisLogger.error(
             "[telemetry] sip traffic publish failed (StasisEnd):",
             err,
           ),
@@ -900,7 +905,7 @@ async function start(): Promise<void> {
               (Date.now() - session.startedAt.getTime()) / 1000,
             ),
           }).catch((err) =>
-            console.error(
+            stasisLogger.error(
               "[telemetry] call event publish failed (StasisEnd):",
               err,
             ),
@@ -912,10 +917,9 @@ async function start(): Promise<void> {
 
         // 4. Fire-and-forget recording persistence — must not block the event handler
         void persistRecording(session).catch((err) =>
-          console.error("[stasis] persistRecording failed:", err),
+          stasisLogger.error("[stasis] persistRecording failed:", err),
         );
 
-        console.log(`StasisEnd: ${channel.id}`);
       },
     );
 
@@ -969,7 +973,7 @@ async function start(): Promise<void> {
               direction: "outbound",
               failureReason,
             }).catch((error) => {
-              console.error("[trunk-test] publish outbound destroy failed:", error);
+              stasisLogger.error("[trunk-test] publish outbound destroy failed:", error);
             });
           } else {
             await publishCallEvent({
@@ -980,7 +984,7 @@ async function start(): Promise<void> {
               destination: "outbound-test",
               direction: "outbound",
             }).catch((error) => {
-              console.error("[trunk-test] publish outbound destroy ended failed:", error);
+              stasisLogger.error("[trunk-test] publish outbound destroy ended failed:", error);
             });
             testCallStates.delete(channel.id);
             return;
@@ -991,16 +995,20 @@ async function start(): Promise<void> {
         if (!getSession(channel.id)) {
           return;
         }
-        console.log(
-          `[channel] destroyed call_id=${channel.id} cause=${String(event.cause ?? "unknown")} cause_txt=${String(event.cause_txt || "unknown")} state=${String(event.channel?.state || "unknown")} name=${String(event.channel?.name || "unknown")}`,
-        );
+        const session = getSession(channel.id);
+        logEvent("ChannelDestroyed", {
+          channelId: channel.id,
+          callerId: session?.callerNumber || null,
+          cause: event.cause ?? null,
+          causeText: event.cause_txt || null,
+        });
       },
     );
 
     client.start(ARI_APP);
-    console.log(`Listening for calls on Stasis app: ${ARI_APP}`);
+    stasisLogger.log(`Listening for calls on Stasis app: ${ARI_APP}`);
   } catch (error) {
-    console.error("Failed to connect to ARI:", error);
+    stasisLogger.error("Failed to connect to ARI:", error);
     process.exit(1);
   }
 }

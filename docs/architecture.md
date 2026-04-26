@@ -106,3 +106,7 @@ MONITOR
 ```
 
 No new sidebar entry. Quality is accessible from within Call Logs only.
+
+## Phase 31 conference architecture
+
+Conference rooms use a fixed bridge ID derived from `roomName`. The Stasis app creates the ConfBridge mixing bridge on first channel arrival, reuses that bridge for later channels with the same room name, and destroys it only after the last channel leaves and the 30-second sole-survivor grace period expires. Waiting participants hear MOH until a moderator arrives.

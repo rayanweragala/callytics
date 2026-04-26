@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as net from 'net';
@@ -6,6 +6,7 @@ import { createClient, type RedisClientType } from 'redis';
 import { DataSource, Repository } from 'typeorm';
 import { AsteriskConfigService, type AmiQualifyResult } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 import { CreateTrunkDto } from './dto/create-trunk.dto';
 import { UpdateTrunkDto } from './dto/update-trunk.dto';
 import { SipTrunkEntity } from './entities/sip-trunk.entity';
@@ -33,7 +34,7 @@ interface TrunkTestStatusResponse {
 
 @Injectable()
 export class TrunksService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(TrunksService.name);
+  private readonly logger = new AppLogger(TrunksService.name);
   private redisPublisher: RedisClientType | null = null;
 
   constructor(
@@ -259,6 +260,20 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
   private async publishRedis(channel: string, payload: unknown): Promise<void> {
     const redis = await this.getRedisPublisher();
     await redis.publish(channel, JSON.stringify(payload));
+    AppLogger.redisPublish(channel, this.compactRedisPayload(payload));
+  }
+
+  private compactRedisPayload(payload: unknown): Record<string, unknown> {
+    if (!payload || typeof payload !== 'object') {
+      return {};
+    }
+    const source = payload as Record<string, unknown>;
+    return {
+      trunkId: source.trunkId,
+      testCallId: source.testCallId,
+      number: source.number,
+      audioFileId: source.audioFileId,
+    };
   }
 
   private async getRedisPublisher(): Promise<RedisClientType> {

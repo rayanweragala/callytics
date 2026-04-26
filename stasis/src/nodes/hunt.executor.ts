@@ -3,6 +3,7 @@ import { CallSession } from '../callSession';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { FlowNode } from '../flowLoader';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
+import { logEvent } from '../logger';
 
 interface HuntExecutorChannel {
   id: string;
@@ -192,7 +193,7 @@ async function captureOriginatedChannel(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[hunt] originate threw exception destination=${destination}: ${message}`);
+    logEvent('HuntOriginateException', { destination, error: message });
     rejectHuntWaiter(token, 'failed');
     cleanup();
     return {
@@ -449,10 +450,10 @@ function normalizeDialNumber(rawNumber: string): string {
     if (parsed && parsed.isValid()) {
       dialNumber = parsed.format('E.164');
     } else {
-      console.warn(`[hunt] could not normalize number ${dialNumber} — dialing as-is`);
+      logEvent('HuntNumberNormalizeFailed', { number: dialNumber });
     }
   } catch {
-    console.warn(`[hunt] number parse failed for ${dialNumber} — dialing as-is`);
+    logEvent('HuntNumberParseFailed', { number: dialNumber });
   }
 
   return dialNumber;
@@ -480,18 +481,18 @@ async function resolveHuntDialString(destination: HuntDestinationConfig): Promis
     // Legacy fallback: target_value as contact id.
     const contactId = parseInt(destination.target_value, 10);
     if (isNaN(contactId)) {
-      console.warn(`[hunt] target_value "${destination.target_value}" is not a valid contact id — skipping`);
+      logEvent('HuntInvalidContactTarget', { targetValue: destination.target_value });
       return '';
     }
 
     const contact = await fetchContactNumber(contactId);
     if (!contact) {
-      console.warn(`[hunt] contact id=${contactId} not found — skipping`);
+      logEvent('HuntContactNotFound', { contactId });
       return '';
     }
 
     if (!contact.trunkId) {
-      console.warn(`[hunt] contact id=${contactId} has no trunk configured — skipping`);
+      logEvent('HuntContactMissingTrunk', { contactId });
       return '';
     }
 
@@ -545,7 +546,7 @@ export async function executeHunt(
   };
 
   if (!bridgeId || destinations.length === 0) {
-    console.log(`[hunt] missing bridge or destinations channel=${channel.id} bridge=${bridgeId || 'none'} destinations=${destinations.length}`);
+    logEvent('HuntMissingBridgeOrDestinations', { channelId: channel.id, bridgeId: bridgeId || null, destinationCount: destinations.length });
     return noAnswerResult(node.config);
   }
 
@@ -559,7 +560,7 @@ export async function executeHunt(
     if (!holdMedia || holdLoop) {
       return;
     }
-    console.log(`[hunt] starting hold loop channel=${channel.id} media=${holdMedia}`);
+    logEvent('HuntHoldStarted', { channelId: channel.id, media: holdMedia });
     holdLoop = startHoldLoop(client, bridgeId, channel.id, holdMedia);
   };
 
@@ -569,14 +570,14 @@ export async function executeHunt(
     }
     await holdLoop.stop();
     holdLoop = null;
-    console.log(`[hunt] stopped hold loop channel=${channel.id}`);
+    logEvent('HuntHoldStopped', { channelId: channel.id });
   };
 
   const finalizeAnswer = async (answeredChannel: HuntExecutorChannel): Promise<string> => {
     await stopHold();
     await hangupChannels(pendingChannels, answeredChannel.id);
     pendingChannels = [answeredChannel];
-    console.log(`[hunt] adding answered channel to bridge inbound=${channel.id} outbound=${answeredChannel.id} bridge=${bridgeId}`);
+    logEvent('HuntAnsweredBridgeAdd', { inboundChannelId: channel.id, outboundChannelId: answeredChannel.id, bridgeId });
     await client.bridges.addChannel({ bridgeId, channel: answeredChannel.id });
     const endedChannelId = await waitForChannelEnd(client, [channel.id, answeredChannel.id]);
     if (endedChannelId === channel.id) {
@@ -592,7 +593,7 @@ export async function executeHunt(
       startHold();
       const createResults = await Promise.allSettled(
         destinations.map(async (destination) => {
-          console.log(`[hunt] group originate destination=${destination.dial} timeout_ms=${totalTimeoutMs}`);
+          logEvent('HuntGroupOriginate', { destination: destination.dial, timeoutMs: totalTimeoutMs });
           return await captureOriginatedChannel(client, destination.dial, channel.id, session.callerNumber, totalTimeoutMs);
         }),
       );
@@ -607,7 +608,7 @@ export async function executeHunt(
 
       const alreadyAnswered = pendingChannels.find((item) => String(item.state || '').toLowerCase() === 'up');
       if (alreadyAnswered) {
-        console.log(`[hunt] group leg already up channel=${alreadyAnswered.id}`);
+        logEvent('HuntGroupLegAlreadyUp', { channelId: alreadyAnswered.id });
         return await finalizeAnswer(alreadyAnswered);
       }
 
@@ -626,7 +627,7 @@ export async function executeHunt(
       if (outcome.status === 'answered' && outcome.channelId) {
         const answered = pendingChannels.find((item) => item.id === outcome.channelId);
         if (answered) {
-          console.log(`[hunt] group answered channel=${answered.id}`);
+          logEvent('HuntGroupAnswered', { channelId: answered.id });
           return await finalizeAnswer(answered);
         }
       }
@@ -634,7 +635,7 @@ export async function executeHunt(
       await stopHold();
       await hangupChannels(pendingChannels);
       pendingChannels = [];
-      console.log(`[hunt] group exhausted result=no-answer`);
+      logEvent('HuntGroupExhausted', { result: 'no-answer' });
       return noAnswerResult(node.config);
     }
 
@@ -660,15 +661,14 @@ export async function executeHunt(
       const dialTimeoutMs = Math.min(attemptTimeoutMs, remainingMs);
 
       startHold();
-      console.log(`[hunt] dialing ${destination}`);
-      console.log(`[hunt] originate strategy=${strategy} destination=${destination} attempt_timeout_ms=${dialTimeoutMs} remaining_ms=${remainingMs}`);
+      logEvent('HuntDialing', { strategy, destination, attemptTimeoutMs: dialTimeoutMs, remainingMs });
 
       let attemptResult: HuntAttemptResult | null = null;
       try {
         attemptResult = await captureOriginatedChannel(client, destination, channel.id, session.callerNumber, dialTimeoutMs);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.log(`[hunt] failed attempt destination=${destination} error=${message}`);
+        logEvent('HuntAttemptFailed', { destination, error: message });
         attemptResult = null;
       }
 
@@ -681,12 +681,10 @@ export async function executeHunt(
         if (attemptResult?.status === 'hangup' || inboundEnded) {
           return 'hangup';
         }
-        console.log(`[hunt] originate failed destination=${destination}`);
+        logEvent('HuntOriginateFailed', { destination });
       } else {
         pendingChannels = [attemptResult.channel];
-        console.log(
-          `[hunt] outbound leg entered stasis destination=${destination} channel=${attemptResult.channel.id} state=${String(attemptResult.channel.state || 'unknown')}`,
-        );
+        logEvent('HuntOutboundLegEntered', { destination, channelId: attemptResult.channel.id, state: String(attemptResult.channel.state || 'unknown') });
         // In this call flow, outbound legs only enter the hunt-outbound Stasis app once the
         // destination has effectively answered. Bridge immediately to avoid missing late/absent
         // ChannelStateChange events and trapping caller on hold.
@@ -702,7 +700,7 @@ export async function executeHunt(
       }
 
       if (busyMedia) {
-        console.log(`[hunt] playing busy media=${busyMedia}`);
+        logEvent('HuntBusyMedia', { media: busyMedia });
         await playOnceOnBridge(client, bridgeId, channel.id, busyMedia);
       }
     }
@@ -710,7 +708,7 @@ export async function executeHunt(
     await stopHold();
     await hangupChannels(pendingChannels);
     pendingChannels = [];
-    console.log(`[hunt] exhausted returning=${noAnswerResult(node.config)}`);
+    logEvent('HuntExhausted', { result: noAnswerResult(node.config) });
     return noAnswerResult(node.config);
   } catch (error) {
     await stopHold();
@@ -720,7 +718,7 @@ export async function executeHunt(
     if (inboundEnded || message === 'hangup') {
       return 'hangup';
     }
-    console.error(`[hunt] fatal error, routing to on_no_answer: ${message}`);
+    logEvent('HuntFatalError', { error: message, result: noAnswerResult(node.config) });
     return noAnswerResult(node.config);
   } finally {
     client.removeListener('StasisEnd', onInboundTerminal);

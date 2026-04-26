@@ -1,8 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import { DataSource } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 import type { SipPacketDto } from './dto/sip-packet.dto';
 
 const pcapHeaders: {
@@ -15,7 +16,7 @@ const SIP_CAPTURE_MAXLEN = 500;
 
 @Injectable()
 export class CaptureService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(CaptureService.name);
+  private readonly logger = new AppLogger(CaptureService.name);
   private redis: RedisClientType | null = null;
 
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -85,6 +86,11 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
     });
 
     packet.id = id;
+    AppLogger.redisPublish(SIP_CAPTURE_STREAM, {
+      callId: packet.callId,
+      method: packet.method,
+      direction: packet.direction,
+    });
 
     await this.redis.xTrim(SIP_CAPTURE_STREAM, 'MAXLEN', SIP_CAPTURE_MAXLEN);
   }
@@ -94,7 +100,7 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
     const capturedAt = this.toIsoTimestamp(packet.timestamp);
 
     if (capturedAt) {
-      console.log('[capture] persisting packet callId=', packet.callId);
+      const startedAt = Date.now();
       await this.dataSource.query(
         `
         INSERT INTO sip_packets (call_id, packet_data, captured_at)
@@ -102,10 +108,11 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
         `,
         [normalizedCallId, JSON.stringify(packet), capturedAt],
       );
+      AppLogger.dbQuery('insert', 'sip_packets', startedAt);
       return;
     }
 
-    console.log('[capture] persisting packet callId=', packet.callId);
+    const startedAt = Date.now();
     await this.dataSource.query(
       `
       INSERT INTO sip_packets (call_id, packet_data, captured_at)
@@ -113,6 +120,7 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
       `,
       [normalizedCallId, JSON.stringify(packet)],
     );
+    AppLogger.dbQuery('insert', 'sip_packets', startedAt);
   }
 
   async findPacketsByCallId(callId: string): Promise<SipPacketDto[]> {

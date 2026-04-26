@@ -50,6 +50,30 @@ function createMenuFlowPayload(name = 'Menu Flow') {
   };
 }
 
+function createConferenceFlowPayload(name = 'Conference Flow') {
+  return {
+    name,
+    description: 'Integration test flow with conference node',
+    nodes: [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      {
+        nodeKey: 'conference-1',
+        type: 'conference',
+        label: 'Conference Room',
+        positionX: 120,
+        positionY: 0,
+        config: {
+          roomName: 'SalesRoom1',
+          waitForModerator: false,
+          moderatorType: null,
+          moderatorId: null,
+        },
+      },
+    ],
+    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'conference-1', branchKey: 'default', condition: null }],
+  };
+}
+
 describe('Flows API', () => {
   afterAll(async () => {
     await closeApp();
@@ -107,6 +131,23 @@ describe('Flows API', () => {
       nodes: expect.any(Array),
       edges: expect.any(Array),
     }));
+  });
+
+  it('POST /flows accepts conference nodes and persists the node type', async () => {
+    const app = await getApp();
+    const response = await request(app.getHttpServer()).post('/flows').send(createConferenceFlowPayload());
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        nodeKey: 'conference-1',
+        type: 'conference',
+        config: expect.objectContaining({
+          roomName: 'SalesRoom1',
+          waitForModerator: false,
+        }),
+      }),
+    ]));
   });
 
   it('GET /flows/:id returns 404 for unknown id', async () => {

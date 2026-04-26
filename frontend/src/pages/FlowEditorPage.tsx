@@ -107,7 +107,7 @@ const PALETTE_GROUPS: PaletteGroupDefinition[] = [
   {
     id: 'routing',
     label: 'ROUTING',
-    types: ['menu', 'transfer', 'hunt', 'queue', 'queue_login'],
+    types: ['menu', 'transfer', 'hunt', 'queue', 'queue_login', 'conference'],
   },
   {
     id: 'caller-actions',

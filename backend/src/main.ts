@@ -1,12 +1,15 @@
 import 'reflect-metadata';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
+import { AppLogger } from './logger/app-logger';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: new AppLogger('NestApplication'),
+  });
   app.enableCors({ origin: '*' });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -19,7 +22,7 @@ async function bootstrap(): Promise<void> {
   const port = Number(process.env.BACKEND_PORT || 3001);
 
   await app.listen(port);
-  Logger.log(`callytics backend running on port ${port}`);
+  AppLogger.event('BackendStarted', { port });
 }
 
 void bootstrap();

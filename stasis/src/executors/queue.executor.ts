@@ -4,6 +4,7 @@ import { FlowNode } from '../flowLoader';
 import { onCustomerHangup } from '../engine/queueManager';
 import { createClient, RedisClientType } from 'redis';
 import { resolveAudioMediaPath } from '../audioResolver';
+import { logEvent } from '../logger';
 
 interface QueueConfig {
   queue_id?: number;
@@ -76,7 +77,7 @@ async function playQueuePrompt(
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
   const target = getPlaybackTarget(channel, session);
-  console.log(`[queue] prompt play request target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
+  logEvent('PlaybackRequest', { nodeType: 'queue', target: `${target.kind}:${target.id}`, media: `sound:${promptPath}`, channelId: channel.id });
   await playMedia(target, ariClient, `sound:${promptPath}`, playback);
 }
 
@@ -90,7 +91,7 @@ export async function executeQueue(
   const queueId = Number(config.queue_id || 0);
 
   if (!queueId) {
-    console.warn('[queue] no queue_id configured');
+    logEvent('QueueMissingId', { channelId: channel.id, nodeId: node.nodeKey });
     return 'abandoned';
   }
 
@@ -100,7 +101,7 @@ export async function executeQueue(
   ) as QueueRow[];
 
   if (!queueRows.length) {
-    console.warn(`[queue] queue ${queueId} not found`);
+    logEvent('QueueNotFound', { queueId, channelId: channel.id });
     return 'abandoned';
   }
 
@@ -151,7 +152,7 @@ export async function executeQueue(
           await ari.bridges.addChannel({ bridgeId: bridge.id, channel: channelId });
           await ari.bridges.addChannel({ bridgeId: bridge.id, channel: operatorChannelId });
 
-          console.log(`[queue] connected customer=${channelId} operator=${operatorId} bridge=${bridge.id}`);
+          logEvent('QueueConnected', { customerChannelId: channelId, operatorId, bridgeId: bridge.id, queueId });
 
           // Subscribe to customer hangup
           await new Promise<void>((resolve) => {
@@ -178,7 +179,7 @@ export async function executeQueue(
 
     // No free operator — add to waiting list and wait
     await redis.rPush(`queue:${queueStr}:waiting`, channelId);
-    console.log(`[queue] customer ${channelId} added to waiting list for queue ${queueId}`);
+    logEvent('QueueCustomerWaiting', { customerChannelId: channelId, queueId });
 
     return await new Promise<'connected' | 'timeout' | 'abandoned'>((resolve) => {
       const ari = ariClient as {

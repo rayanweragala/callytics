@@ -24,6 +24,8 @@ function toneClass(type: FlowNodeData['type']): string {
       return styles.queueLogin;
     case 'queue':
       return styles.queue;
+    case 'conference':
+      return styles.conference;
     case 'callback':
       return styles.callback;
     default:
@@ -60,6 +62,9 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { di
         ) : null}
         {data.type === 'callback' ? (
           <div className={styles.meta}>{String((data.config as Record<string, unknown>).number_source || 'ani')}</div>
+        ) : null}
+        {data.type === 'conference' ? (
+          <div className={styles.meta}>{String((data.config as Record<string, unknown>).roomName || 'no room')}</div>
         ) : null}
       </div>
       {selected && data.type !== 'start' && data.onDelete ? (

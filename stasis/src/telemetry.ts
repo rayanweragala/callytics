@@ -1,5 +1,6 @@
 import { CallSession } from './callSession';
 import { FlowNode } from './flowLoader';
+import { logEvent } from './logger';
 import { publish } from './redis';
 
 export interface NodeTelemetryEvent {
@@ -63,11 +64,11 @@ export async function publishNodeTelemetry(
     meta,
   };
 
-  console.log(`[telemetry] publishing node event ${payload.nodeType}:${payload.status} for ${payload.callId}`);
+  logEvent('TelemetryPublish', { channel: 'callytics:call-timeline', nodeType: payload.nodeType, status: payload.status, callId: payload.callId });
   try {
     await publish('callytics:call-timeline', payload);
   } catch (err) {
-    console.error('[telemetry] failed to publish node event', err);
+    logEvent('TelemetryPublishFailed', { channel: 'callytics:call-timeline', error: err });
   }
 }
 
@@ -90,40 +91,40 @@ export async function publishCallEndTelemetry(
     },
   };
 
-  console.log(`[telemetry] publishing node event ${payload.nodeType}:${payload.status} for ${payload.callId}`);
+  logEvent('TelemetryPublish', { channel: 'callytics:call-timeline', nodeType: payload.nodeType, status: payload.status, callId: payload.callId });
   try {
     await publish('callytics:call-timeline', payload);
   } catch (err) {
-    console.error('[telemetry] failed to publish call end event', err);
+    logEvent('TelemetryPublishFailed', { channel: 'callytics:call-timeline', error: err });
   }
 }
 
 export async function publishSipStatus(endpoints: SipEndpointStatus[]): Promise<void> {
-  console.log(`[telemetry] publishing sip status for ${endpoints.length} endpoints`);
+  logEvent('TelemetryPublish', { channel: 'callytics:sip-status', endpointCount: endpoints.length });
   try {
     await publish('callytics:sip-status', {
       ts: Date.now(),
       endpoints,
     });
   } catch (err) {
-    console.error('[telemetry] failed to publish sip status', err);
+    logEvent('TelemetryPublishFailed', { channel: 'callytics:sip-status', error: err });
   }
 }
 
 export async function publishSipTraffic(event: SipTrafficEvent): Promise<void> {
-  console.log(`[telemetry] publishing sip traffic ${event.method} ${event.direction}`);
+  logEvent('TelemetryPublish', { channel: 'callytics:sip-traffic', method: event.method, direction: event.direction, callId: event.callId });
   try {
     await publish('callytics:sip-traffic', event);
   } catch (err) {
-    console.error('[telemetry] failed to publish sip traffic', err);
+    logEvent('TelemetryPublishFailed', { channel: 'callytics:sip-traffic', error: err });
   }
 }
 
 export async function publishCallEvent(event: CallEvent): Promise<void> {
-  console.log(`[telemetry] publishing call event ${event.type} for ${event.callId}`);
+  logEvent('TelemetryPublish', { channel: 'callytics:call-events', type: event.type, callId: event.callId });
   try {
     await publish('callytics:call-events', event);
   } catch (err) {
-    console.error('[telemetry] failed to publish call event', err);
+    logEvent('TelemetryPublishFailed', { channel: 'callytics:call-events', error: err });
   }
 }

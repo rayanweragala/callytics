@@ -13,9 +13,11 @@ export class AsteriskLogsController {
     @Query('uniqueid', new DefaultValuePipe('')) uniqueid: string,
     @Query('from', new DefaultValuePipe('')) from: string,
     @Query('to', new DefaultValuePipe('')) to: string,
+    @Query('callerNumber', new DefaultValuePipe('')) callerNumber: string,
+    @Query('destination', new DefaultValuePipe('')) destination: string,
     @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ) {
-    return this.asteriskLogsService.getLogs(level, search, hideNoise, uniqueid, from, to, limit, offset);
+    return this.asteriskLogsService.getLogs(level, search, hideNoise, uniqueid, from, to, limit, offset, callerNumber, destination);
   }
 }

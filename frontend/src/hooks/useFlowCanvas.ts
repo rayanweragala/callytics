@@ -214,6 +214,7 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
     { type: 'webhook', label: 'Webhook' },
     { type: 'queue_login', label: 'Queue Login' },
     { type: 'queue', label: 'Queue' },
+    { type: 'conference', label: 'Conference Room' },
     { type: 'callback', label: 'Callback' },
     { type: 'hangup', label: 'hangup' },
   ];
@@ -273,6 +274,7 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       input_timeout_ms: null,
     };
     if (t === 'queue') return { queue_id: null, prompt_audio_file_id: null };
+    if (t === 'conference') return { roomName: '', waitForModerator: false, moderatorType: null, moderatorId: null };
     if (t === 'callback') return {
       number_source: 'ani',
       dtmf_prompt_audio_id: null,

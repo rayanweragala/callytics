@@ -15,6 +15,8 @@ import { executeVoicemail } from "../executors/voicemail.executor";
 import { executeQueueLogin } from "../executors/queue_login.executor";
 import { executeQueue } from "../executors/queue.executor";
 import { executeCallbackNode } from "./callback.executor";
+import { executeConference } from "./conference.executor";
+import { logEvent } from "../logger";
 import { resolveNodeTimeoutMs } from "../timeoutResolver";
 
 type PlaybackTarget =
@@ -178,13 +180,9 @@ async function executePlayAudio(
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
   const target = getPlaybackTarget(channel as never, session);
-  console.log(
-    `[play_audio] request target=${target.kind}:${target.id} media=sound:${audioFilePath} at=${new Date().toISOString()}`,
-  );
+  logEvent("PlaybackRequest", { nodeType: "play_audio", target: `${target.kind}:${target.id}`, media: `sound:${audioFilePath}`, channelId: channel.id });
   await playMedia(target, ariClient, "sound:" + audioFilePath, playback);
-  console.log(
-    `[play_audio] request returned target=${target.kind}:${target.id} media=sound:${audioFilePath} playbackId=${playback.id} at=${new Date().toISOString()}`,
-  );
+  logEvent("PlaybackStarted", { nodeType: "play_audio", target: `${target.kind}:${target.id}`, media: `sound:${audioFilePath}`, playbackId: playback.id, channelId: channel.id });
   await waitForPlaybackFinished(ariClient, playback.id, channel.id);
   return "default";
 }
@@ -209,9 +207,7 @@ async function executeGetDigits(
   session: CallSession,
   ariClient: unknown,
 ): Promise<string> {
-  console.log(
-    `[get_digits] start channel=${channel.id} config=${JSON.stringify(node.config)}`,
-  );
+  logEvent("GetDigitsStart", { channelId: channel.id, timeoutMs: node.config.timeout_ms, promptAudioFileId: node.config.prompt_audio_file_id });
   const promptPath = await resolveAudioMediaPath(
     node.config,
     "prompt_audio_file_id",
@@ -264,9 +260,7 @@ async function executeGetDigits(
       if (finished) return;
       finished = true;
       cleanup();
-      console.log(
-        `[get_digits] returning channel=${channel.id} result=${value}`,
-      );
+      logEvent("GetDigitsResult", { channelId: channel.id, result: value });
       resolve(value);
       void stopPlaybackSafely();
     };
@@ -276,9 +270,7 @@ async function executeGetDigits(
       digit?: string;
     }) => {
       if (event.channel?.id && event.channel.id !== channel.id) return;
-      console.log(
-        `[get_digits] ChannelDtmfReceived channel=${channel.id} digit=${String(event.digit || "")}`,
-      );
+      logEvent("DtmfReceived", { channelId: channel.id, digit: String(event.digit || "") });
       settle(String(event.digit || "default"));
     };
 
@@ -287,27 +279,23 @@ async function executeGetDigits(
       settle("hangup");
     };
 
-    console.log(`[get_digits] listening for DTMF on channel=${channel.id}`);
+    logEvent("DtmfListening", { channelId: channel.id, nodeType: "get_digits" });
     client.on("ChannelDtmfReceived", onDtmf);
     channelEmitter.on?.("ChannelDtmfReceived", onDtmf);
     client.on("StasisEnd", onHangup);
     client.on("ChannelDestroyed", onHangup);
 
     timer = setTimeout(() => {
-      console.log("[get_digits] timeout fired");
+      logEvent("GetDigitsTimeout", { channelId: channel.id, timeoutMs });
       settle("timeout");
     }, timeoutMs);
 
     try {
       if (promptPath) {
         const target = getPlaybackTarget(channel as never, session);
-        console.log(
-          `[get_digits] play request target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`,
-        );
+        logEvent("PlaybackRequest", { nodeType: "get_digits", target: `${target.kind}:${target.id}`, media: `sound:${promptPath}`, channelId: channel.id });
         await playMedia(target, ariClient, "sound:" + promptPath, playback);
-        console.log(
-          `[get_digits] play request returned target=${target.kind}:${target.id} media=sound:${promptPath} playbackId=${playback.id} at=${new Date().toISOString()}`,
-        );
+        logEvent("PlaybackStarted", { nodeType: "get_digits", target: `${target.kind}:${target.id}`, media: `sound:${promptPath}`, playbackId: playback.id, channelId: channel.id });
       }
     } catch (error) {
       reject(error instanceof Error ? error : new Error("get_digits_failed"));
@@ -399,14 +387,10 @@ function normalizeDialNumber(rawNumber: string): string {
     if (parsed && parsed.isValid()) {
       dialNumber = parsed.format("E.164");
     } else {
-      console.warn(
-        `[transfer] could not normalize number ${dialNumber} — dialing as-is`,
-      );
+      logEvent("TransferNumberNormalizeFailed", { number: dialNumber });
     }
   } catch {
-    console.warn(
-      `[transfer] number parse failed for ${dialNumber} — dialing as-is`,
-    );
+    logEvent("TransferNumberParseFailed", { number: dialNumber });
   }
 
   return dialNumber;
@@ -435,31 +419,25 @@ async function resolveTransferDialString(
     const directTrunkId = config.trunk_id ? Number(config.trunk_id) : null;
     if (directTrunkId && PSTN_TARGET_PATTERN.test(targetValue)) {
       const dialNumber = normalizeDialNumber(targetValue);
-      console.log(
-        `[transfer] using direct trunk schema trunk_id=${directTrunkId} number=${dialNumber}`,
-      );
+      logEvent("TransferDirectTrunkResolved", { trunkId: directTrunkId, number: dialNumber });
       return `PJSIP/${dialNumber}@trunk-${directTrunkId}`;
     }
 
     // Schema B: legacy contact-id target lookup.
     const contactId = parseInt(targetValue, 10);
     if (isNaN(contactId)) {
-      console.warn(
-        `[transfer] target_value "${targetValue}" is not a valid contact id — skipping`,
-      );
+      logEvent("TransferInvalidContactTarget", { targetValue });
       return "";
     }
 
     const contact = await fetchContactNumber(contactId);
     if (!contact) {
-      console.warn(`[transfer] contact id=${contactId} not found — skipping`);
+      logEvent("TransferContactNotFound", { contactId });
       return "";
     }
 
     if (!contact.trunkId) {
-      console.warn(
-        `[transfer] contact id=${contactId} has no trunk configured — skipping`,
-      );
+      logEvent("TransferContactMissingTrunk", { contactId });
       return "";
     }
 
@@ -563,7 +541,7 @@ async function executeTransfer(
   const onNoAnswer = String(node.config.on_no_answer || "").trim();
 
   if (!destination) {
-    console.log("transfer: missing destination");
+    logEvent("TransferMissingDestination", { nodeId: node.nodeKey, channelId: channel.id });
     return "hangup";
   }
 
@@ -609,23 +587,15 @@ async function executeTransfer(
       try {
         await stopLiveRecording(session.recording.name);
       } catch (error) {
-        console.error(
-          `[recording] transfer stop failed call_id=${session.callUuid} file=${session.recording.fileName}:`,
-          error,
-        );
+        logEvent("RecordingStopFailed", { callId: session.callUuid, fileName: session.recording.fileName, error });
       }
       session.recording.endedAt = new Date();
     }
     try {
       await client.bridges.destroy({ bridgeId: session.inboundBridge.id });
-      console.log(
-        `[bridge] transfer teardown inbound bridge=${session.inboundBridge.id}`,
-      );
+      logEvent("BridgeDestroyed", { bridgeId: session.inboundBridge.id, channelCountAtDestroy: 1 });
     } catch (error) {
-      console.error(
-        `[bridge] transfer teardown failed bridge=${session.inboundBridge.id}:`,
-        error,
-      );
+      logEvent("BridgeDestroyFailed", { bridgeId: session.inboundBridge.id, error });
     }
     session.inboundBridge = null;
   }
@@ -738,9 +708,7 @@ async function executeTransfer(
 
     if (transferResult.answered === false) {
       const reason = transferResult.reason;
-      console.log(
-        `transfer: no answer for destination ${destination} reason=${reason}`,
-      );
+      logEvent("TransferNoAnswer", { destination, reason, channelId: channel.id });
 
       if (reason !== "caller_disconnected" && noAnswerSoundMediaPath) {
         await playTransferNoAnswerSound(
@@ -788,7 +756,7 @@ async function executeTransfer(
       await waitingSoundLoop.stop();
       waitingSoundLoop = null;
     }
-    console.error("transfer failed:", error);
+    logEvent("TransferFailed", { channelId: channel.id, error });
     return onNoAnswer ? `route:${onNoAnswer}` : "hangup";
   }
 }
@@ -841,8 +809,37 @@ const executorMap: Record<string, NodeExecutor> = {
     executeSetVariable(node, session),
   queue_login: executeQueueLogin,
   queue: executeQueue,
+  conference: executeConference,
   callback: executeCallbackNode,
 };
+
+function nodeExecConfig(node: FlowNode): Record<string, unknown> {
+  if (node.type === "conference") {
+    return {
+      roomName: node.config.roomName,
+      waitForModerator: Boolean(node.config.waitForModerator),
+    };
+  }
+  if (node.type === "queue" || node.type === "queue_login") {
+    return { queue_id: node.config.queue_id };
+  }
+  if (node.type === "transfer") {
+    return {
+      target_type: node.config.target_type,
+      target_value: node.config.target_value,
+    };
+  }
+  if (node.type === "hunt") {
+    return { destinations: Array.isArray(node.config.destinations) ? node.config.destinations.length : 0 };
+  }
+  if (node.type === "play_audio") {
+    return {
+      audio_file_id: node.config.audio_file_id,
+      audio_file_path: node.config.audio_file_path,
+    };
+  }
+  return {};
+}
 
 export async function executeNode(
   channel: {
@@ -857,6 +854,13 @@ export async function executeNode(
   session: CallSession,
   ariClient: unknown,
 ): Promise<string> {
+  logEvent("NodeExec", {
+    nodeType: node.type,
+    nodeId: node.nodeKey,
+    channelId: channel.id,
+    callerId: session.callerNumber,
+    config: nodeExecConfig(node),
+  });
   await publishNodeTelemetry(session, node, "started");
 
   try {
@@ -867,7 +871,7 @@ export async function executeNode(
 
     const executor = executorMap[node.type];
     if (!executor) {
-      console.warn(`Unknown node type: ${node.type}`);
+      logEvent("UnknownNodeType", { nodeType: node.type, nodeId: node.nodeKey, channelId: channel.id });
       await publishNodeTelemetry(session, node, "completed", {
         result: "default",
       });
@@ -878,7 +882,7 @@ export async function executeNode(
     await publishNodeTelemetry(session, node, "completed", { result });
     return result;
   } catch (error) {
-    console.error(`Node execution failed for ${node.nodeKey}:`, error);
+    logEvent("NodeExecFailed", { nodeType: node.type, nodeId: node.nodeKey, channelId: channel.id, error });
     session.variables.__last_node_error__ =
       error instanceof Error ? error.message : "unknown error";
     await publishNodeTelemetry(session, node, "error", {

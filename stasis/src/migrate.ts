@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 import pool from './db';
 
 export default async function migrate(): Promise<void> {
@@ -143,7 +144,7 @@ export default async function migrate(): Promise<void> {
 
   for (const table of tables) {
     await pool.query(table.sql);
-    console.log(`Checked table: ${table.name}`);
+    stasisLogger.log(`Checked table: ${table.name}`);
   }
 
   await pool.query(`ALTER TABLE flow_edges ADD COLUMN IF NOT EXISTS condition VARCHAR(100)`);
@@ -180,5 +181,5 @@ export default async function migrate(): Promise<void> {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_queues_wait_audio_file_id ON queues(wait_audio_file_id)`).catch(() => undefined);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_queue_operators_operator_id ON queue_operators(operator_id)`).catch(() => undefined);
 
-  console.log('Tables checked successfully');
+  stasisLogger.log('Tables checked successfully');
 }

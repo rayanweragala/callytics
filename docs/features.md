@@ -2,7 +2,6 @@
 
 ## Flow builder
 
-
 ## Hunt Group Node
 
 Dial multiple SIP destinations with configurable strategy.
@@ -15,9 +14,19 @@ Dial multiple SIP destinations with configurable strategy.
 **Features:**
 - Hold audio loops on caller channel during dialing
 - Busy audio plays between retry attempts
-- Failed or unreachable endpoints count as failed attempts — retries continue
-- Bare extension destinations auto-normalized to PJSIP/ prefix
+- Failed or unreachable endpoints count as failed attempts - retries continue
+- Bare extension destinations auto-normalize to PJSIP/ prefix
 - Routes to on_no_answer node when all attempts exhausted
+
+## Conference Room Node
+
+Multi-party conference rooms backed by Asterisk ConfBridge.
+
+**Features:**
+- ConfBridge-based conferencing with a named room per node
+- Automatic MOH for participants waiting on a moderator
+- Moderator can be designated by extension or PSTN operator
+- Sole-survivor grace period with automatic hangup after 30 seconds
 
 - Drag-and-drop canvas with custom nodes and editable connections
 - Left sidebar for node types, center canvas for flow layout, right panel for node settings
@@ -118,7 +127,6 @@ Dial multiple SIP destinations with configurable strategy.
 - SIP settings page
 - Backup and restore entry point for future versions
 
-
 ## Shared UI components
 
 - `SearchableSelect` is now a reusable picker used for voices and audio assets
@@ -134,7 +142,7 @@ Dial multiple SIP destinations with configurable strategy.
 - SIP traffic persistence to `sip_messages` for historical diagnostics and Call-ID correlation
 - SIP ladder diagram slide-in for per-Call-ID drill-down from traffic/failure rows
 - Recent call failures panel with flow and destination resolution
-- Dedicated `/capture` page (MONITOR → Capture) for packet-level SIP troubleshooting
+- Dedicated `/capture` page (MONITOR -> Capture) for packet-level SIP troubleshooting
   - Live packet stream with method/Call-ID/trunk/time filters
   - Historical packet restore for completed calls via `?callId=` deep link and `GET /capture/packets/:callId`
   - Historical-call info banner when stored packets are loaded (live capture auto-paused)
@@ -147,20 +155,20 @@ Dial multiple SIP destinations with configurable strategy.
 
 Per-call audio quality scoring surfaced directly on the Call Logs page.
 
-**MOS badge** — every completed call row shows a colour-coded Mean Opinion
-Score badge (green ≥ 4.0 / amber 3.0–3.9 / red < 3.0 / grey = no data).
+**MOS badge** - every completed call row shows a colour-coded Mean Opinion
+Score badge (green >= 4.0 / amber 3.0-3.9 / red < 3.0 / grey = no data).
 Score is computed offline from RTCP statistics using the simplified E-model
 (ITU-T G.107). No API cost.
 
-**Quality drawer** — clicking the MOS badge opens a side drawer showing:
+**Quality drawer** - clicking the MOS badge opens a side drawer showing:
 - MOS score (large, colour-coded)
 - Jitter in ms with plain-English label (excellent / slight / high)
 - Packet loss % with plain-English label (none / low / elevated)
 - Round-trip time in ms with plain-English label (normal / moderate / high)
 - A one-line verdict summarising the likely quality cause
-- "View in Capture" button — jumps to the Capture page filtered by Call-ID
+- "View in Capture" button - jumps to the Capture page filtered by Call-ID
 
-**No new page** — quality is accessible directly from Call Logs without
+**No new page** - quality is accessible directly from Call Logs without
 navigating away. The Execution Trace drawer and Quality drawer are two
 independent interactions on the same call row.
 

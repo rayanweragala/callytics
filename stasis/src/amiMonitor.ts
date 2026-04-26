@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 import net from 'node:net';
 import { publishSipStatus, SipEndpointStatus } from './telemetry';
 
@@ -118,7 +119,7 @@ export function startAmiMonitor(): void {
         } satisfies SipEndpointStatus)),
       );
     } catch (error) {
-      console.error('AMI monitor error:', error);
+      stasisLogger.error('AMI monitor error:', error);
       await publishSipStatus([
         {
           endpoint: 'AMI',

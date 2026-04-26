@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { AppLogger } from '../logger/app-logger';
 
 interface ListCallLogsParams {
   page?: number;
@@ -71,6 +72,7 @@ export class CallLogsService {
 
     const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
 
+    const startedAt = Date.now();
     const countRows = await this.dataSource.query(
       `
         SELECT COUNT(*)::int AS total
@@ -120,6 +122,7 @@ export class CallLogsService {
       `,
       queryParams,
     );
+    AppLogger.dbQuery('select', 'call_logs', startedAt);
 
     return {
       data: dataRows.map((row: Record<string, unknown>) => ({
@@ -148,6 +151,7 @@ export class CallLogsService {
   }
 
   async getTrace(callUuid: string): Promise<{ callUuid: string; callerNumber: string | null; startTime: string | null; nodes: TraceNode[] }> {
+    const startedAt = Date.now();
     const headerRows = await this.dataSource.query(
       `
         SELECT call_uuid AS "callUuid", caller_number AS "callerNumber", started_at AS "startedAt"
@@ -175,6 +179,7 @@ export class CallLogsService {
       `,
       [callUuid],
     );
+    AppLogger.dbQuery('select', 'call_node_logs', startedAt);
 
     const header = headerRows[0] as Record<string, unknown> | undefined;
 

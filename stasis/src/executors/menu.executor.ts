@@ -1,3 +1,4 @@
+import { stasisLogger } from "../logger";
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 import { resolveAudioMediaPath } from '../audioResolver';
@@ -90,7 +91,7 @@ async function playResolvedPrompt(
   };
   const playback = client.Playback();
   const target = getPlaybackTarget(channel as never, session);
-  console.log(`[menu] ${logPrefix} target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
+  stasisLogger.log(`[menu] ${logPrefix} target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
   await playMedia(target, ariClient, 'sound:' + promptPath, playback);
 }
 
@@ -140,7 +141,7 @@ async function collectMenuAttempt(
       if (finished) return;
       finished = true;
       cleanup();
-      console.log(`[menu] returning channel=${channel.id} result=${value}`);
+      stasisLogger.log(`[menu] returning channel=${channel.id} result=${value}`);
       resolve(value);
       void stopPlaybackSafely();
     };
@@ -148,7 +149,7 @@ async function collectMenuAttempt(
     const onDtmf = async (event: { channel?: { id?: string }; digit?: string }) => {
       if (event.channel?.id && event.channel.id !== channel.id) return;
       const rawDigit = String(event.digit || '');
-      console.log(`[menu] ChannelDtmfReceived channel=${channel.id} digit=${rawDigit}`);
+      stasisLogger.log(`[menu] ChannelDtmfReceived channel=${channel.id} digit=${rawDigit}`);
       settle(resolveMenuDigit(node, rawDigit));
     };
 
@@ -157,14 +158,14 @@ async function collectMenuAttempt(
       settle('hangup');
     };
 
-    console.log(`[menu] listening for DTMF on channel=${channel.id}`);
+    stasisLogger.log(`[menu] listening for DTMF on channel=${channel.id}`);
     client.on('ChannelDtmfReceived', onDtmf);
     channelEmitter.on?.('ChannelDtmfReceived', onDtmf);
     client.on('StasisEnd', onHangup);
     client.on('ChannelDestroyed', onHangup);
 
     timer = setTimeout(() => {
-      console.log('[menu] timeout fired');
+      stasisLogger.log('[menu] timeout fired');
       settle('timeout');
     }, timeoutMs);
 
@@ -172,9 +173,9 @@ async function collectMenuAttempt(
       const promptPath = await resolveAudioMediaPath(node.config, 'prompt_audio_file_id', 'prompt_path');
       if (promptPath) {
         const target = getPlaybackTarget(channel as never, session);
-        console.log(`[menu] play request target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
+        stasisLogger.log(`[menu] play request target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
         await playMedia(target, ariClient, 'sound:' + promptPath, playback);
-        console.log(`[menu] play request returned target=${target.kind}:${target.id} media=sound:${promptPath} playbackId=${playback.id} at=${new Date().toISOString()}`);
+        stasisLogger.log(`[menu] play request returned target=${target.kind}:${target.id} media=sound:${promptPath} playbackId=${playback.id} at=${new Date().toISOString()}`);
       }
     } catch (error) {
       reject(error instanceof Error ? error : new Error('menu_failed'));
@@ -193,7 +194,7 @@ export async function executeMenu(
   session: CallSession,
   ariClient: unknown,
 ): Promise<string> {
-  console.log(`[menu] start channel=${channel.id} config=${JSON.stringify(node.config)}`);
+  stasisLogger.log(`[menu] start channel=${channel.id} config=${JSON.stringify(node.config)}`);
   const maxTimeoutAttempts = Math.max(1, Number(node.config.max_timeout_attempts) || 3);
   const maxInvalidAttempts = Math.max(1, Number(node.config.max_invalid_attempts) || 3);
 

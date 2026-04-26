@@ -118,7 +118,7 @@ function resolveSubmenuTargetNodeId(
 function branchTone(type: string): string {
   if (type === 'transfer' || type === 'play_audio' || type === 'webhook') return styles.dotInfo;
   if (type === 'queue_login' || type === 'voicemail' || type === 'callback') return styles.dotWarning;
-  if (type === 'queue' || type === 'business_hours' || type === 'menu') return styles.dotAccent;
+  if (type === 'queue' || type === 'conference' || type === 'business_hours' || type === 'menu') return styles.dotAccent;
   if (type === 'hangup') return styles.dotMuted;
   return styles.dotDefault;
 }
@@ -586,7 +586,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
           </div>
         ) : null}
 
-        {type === 'queue_login' || type === 'queue' ? (
+        {type === 'queue_login' || type === 'queue' || type === 'conference' ? (
           <div className={styles.branchList}>
             {branches.map((branch) => (
               <button key={branch} className={styles.branchButton} onClick={() => advanceToBranch(branch)} type="button"><strong>{branch}</strong></button>

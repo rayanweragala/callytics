@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -35,6 +36,7 @@ import { AsteriskLogsModule } from './asterisk-logs/asterisk-logs.module';
 import { PreflightModule } from './preflight/preflight.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { CallbacksModule } from './callbacks/callbacks.module';
+import { HttpLoggingInterceptor } from './logger/http-logging.interceptor';
 
 @Module({
   imports: [
@@ -94,5 +96,11 @@ import { CallbacksModule } from './callbacks/callbacks.module';
     CallbacksModule,
   ],
   controllers: [HealthController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpLoggingInterceptor,
+    },
+  ],
 })
 export class AppModule {}

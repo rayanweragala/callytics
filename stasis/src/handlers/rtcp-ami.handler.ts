@@ -1,3 +1,4 @@
+import { stasisLogger } from "../logger";
 import type { RedisClientType } from 'redis';
 import { computeMos, type RtcpDirection, worseDirection } from '../lib/mosScore';
 
@@ -30,7 +31,7 @@ export function handleAmiRtcpEvent(message: Record<string, string>, redis: Redis
   const rttSeconds = parseNumber(message.RTT) ?? 0;
 
   if (!callId || jitterSamples === null) {
-    console.warn('[rtcp-ami] missing callId or jitter — skipping');
+    stasisLogger.warn('[rtcp-ami] missing callId or jitter — skipping');
     return;
   }
 
@@ -62,7 +63,7 @@ export function handleAmiRtcpEvent(message: Record<string, string>, redis: Redis
         });
         await redis.xTrim(STREAM_KEY, 'MAXLEN', parseInt(STREAM_MAX, 10));
       } catch (err) {
-        console.error('[rtcp-ami] redis publish failed:', err);
+        stasisLogger.error('[rtcp-ami] redis publish failed:', err);
       }
     })();
 

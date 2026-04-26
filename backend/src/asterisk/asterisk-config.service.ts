@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
@@ -6,6 +6,7 @@ import { join } from "path";
 import { DataSource, Repository } from "typeorm";
 import { InboundRouteEntity } from "../inbound-routes/entities/inbound-route.entity";
 import { runSqlMigrations } from "../db/run-sql-migrations";
+import { AppLogger } from "../logger/app-logger";
 import type { ResolvedExtensionConfig } from "../extensions/extensions.service";
 import { SipTrunkEntity } from "../trunks/entities/sip-trunk.entity";
 
@@ -38,7 +39,7 @@ export interface AmiPjsipAor {
 
 @Injectable()
 export class AsteriskConfigService implements OnModuleInit {
-  private readonly logger = new Logger(AsteriskConfigService.name);
+  private readonly logger = new AppLogger(AsteriskConfigService.name);
   private readonly configDir =
     process.env.ASTERISK_CONFIG_DIR || "/etc/asterisk";
   private readonly amiHost = process.env.AMI_HOST || "127.0.0.1";
@@ -66,7 +67,7 @@ export class AsteriskConfigService implements OnModuleInit {
     try {
       await this.reloadResPjsip();
     } catch (error) {
-      this.logger.error("failed to reload pjsip", error);
+      this.logger.error("failed to reload pjsip", error instanceof Error ? error.stack : String(error));
     }
   }
 
@@ -75,7 +76,7 @@ export class AsteriskConfigService implements OnModuleInit {
     try {
       await this.reloadDialplan();
     } catch (error) {
-      this.logger.error("failed to reload dialplan", error);
+      this.logger.error("failed to reload dialplan", error instanceof Error ? error.stack : String(error));
     }
   }
 

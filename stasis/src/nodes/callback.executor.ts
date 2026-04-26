@@ -1,3 +1,4 @@
+import { stasisLogger } from "../logger";
 import { resolveAudioMediaPath } from '../audioResolver';
 import { CallSession } from '../callSession';
 import { query } from '../db';
@@ -132,7 +133,7 @@ function collectDtmfDigits(
     const finish = (result: { number: string | null; reason: 'digits' | 'timeout' | 'hangup' }) => {
       if (settled) return;
       settled = true;
-      console.log(
+      stasisLogger.log(
         `[callback][dtmf] finalize channel=${channel.id} reason=${result.reason} number=${result.number || ''}`,
       );
       cleanup();
@@ -152,7 +153,7 @@ function collectDtmfDigits(
         firstDigitSeen = true;
         options?.onFirstDigit?.(digit, digits);
       }
-      console.log(
+      stasisLogger.log(
         `[callback][dtmf] input channel=${channel.id} digit=${digit} accumulated=${digits}`,
       );
       if (digits.length >= maxDigits) {
@@ -168,7 +169,7 @@ function collectDtmfDigits(
     };
 
     const timer = setTimeout(() => {
-      console.log(
+      stasisLogger.log(
         `[callback][dtmf] timeout channel=${channel.id} accumulated=${digits}`,
       );
       finish({ number: digits.length > 0 ? digits : null, reason: 'timeout' });
@@ -303,10 +304,10 @@ export async function executeCallbackNode(
           return;
         }
         promptStopped = true;
-        console.log(`[callback][dtmf] stopping_prompt channel=${channel.id} reason=${reason}`);
+        stasisLogger.log(`[callback][dtmf] stopping_prompt channel=${channel.id} reason=${reason}`);
         await dtmfPromptPlayback.stop().catch(() => undefined);
       };
-      console.log(
+      stasisLogger.log(
         `[callback][dtmf] collecting channel=${channel.id} max_digits=${maxDigits} timeout_ms=${timeoutMs}`,
       );
       const dtmfResult = await collectDtmfDigits(channel, ariClient, maxDigits, timeoutMs, {

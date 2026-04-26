@@ -1,3 +1,4 @@
+import { stasisLogger } from "./logger";
 import net from 'node:net';
 import type { RedisClientType } from 'redis';
 import { handleAmiRtcpEvent } from './handlers/rtcp-ami.handler';
@@ -127,6 +128,6 @@ export function startSipTrafficMonitor(redis: RedisClientType): void {
   });
 
   socket.on('error', (error) => {
-    console.error('SIP traffic monitor error:', error);
+    stasisLogger.error('SIP traffic monitor error:', error);
   });
 }

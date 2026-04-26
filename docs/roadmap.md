@@ -79,6 +79,11 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
   - Diagnostics UI supports Call-ID drill-down from Panel D and Panel E into right-side SIP ladder panel
 - Phase 22A  ✓ COMPLETE — Live call timeline
 - Phase 22B  ✓ COMPLETE — SIP Capture page (commit: c9cee21)
+- Phase 31: conference room node completed
+  - ConfBridge-based multi-party rooms
+  - Automatic MOH for participants waiting on a moderator
+  - Moderator can be an extension or PSTN operator
+  - Sole-survivor grace period with auto-hangup
 - Phase 23   IN PROGRESS — RTP quality monitor
 - Phase 24   PLANNED     — Asterisk log viewer (plain-English translation)
 - Phase 25   PLANNED     — Trunk failover — auto-route via backup trunk on failure
@@ -87,7 +92,7 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 28   PLANNED     — Call scheduler — single outbound call at specific datetime
 - Phase 29   PLANNED     — Blacklist / whitelist — number rules page
 - Phase 30   PLANNED     — Callback node — caller leaves number, system calls back
-- Phase 31   PLANNED     — Conference room node — multi-party, PIN-protected
+- Phase 31   ✓ COMPLETE  — Conference room node — ConfBridge multi-party rooms
 - Phase 32   PLANNED     — Backup and restore UI
 - Phase 33   PLANNED     — Resource usage panel + recording storage manager
 - Phase 34   PLANNED     — Open source launch prep → v1.0.0

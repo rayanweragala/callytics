@@ -147,6 +147,7 @@
 .webhook       { color: var(--text-muted); }
 .queueLogin    { color: var(--primitive-navy-300); }
 .queue         { color: var(--primitive-navy-300); }
+.conference    { color: #2dd4bf; }
 .callback      { color: var(--primitive-orange); }
 
 .webhookSideEffect {

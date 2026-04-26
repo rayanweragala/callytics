@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
   OnModuleDestroy,
   OnModuleInit,
@@ -11,6 +10,7 @@ import { isValidPhoneNumber, parsePhoneNumber, type CountryCode } from 'libphone
 import { createClient, type RedisClientType } from 'redis';
 import { DataSource } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { AppLogger } from '../logger/app-logger';
 
 interface CampaignPayload {
   name?: string;
@@ -46,7 +46,7 @@ interface CampaignStatsUpdateEvent {
 
 @Injectable()
 export class CampaignsService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(CampaignsService.name);
+  private readonly logger = new AppLogger(CampaignsService.name);
   private publisher: RedisClientType | null = null;
   private subscriber: RedisClientType | null = null;
 
@@ -66,6 +66,7 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
     const safeLimit = Math.min(100, Math.max(1, Number(limit || 25)));
     const safeOffset = Math.max(0, Number(offset || 0));
 
+    const startedAt = Date.now();
     const [rows, totalRows] = await Promise.all([
       this.dataSource.query(
         `
@@ -99,6 +100,7 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
       ),
       this.dataSource.query('SELECT COUNT(*)::int AS total FROM campaigns'),
     ]);
+    AppLogger.dbQuery('select', 'campaigns', startedAt);
 
     return {
       campaigns: rows.map((row: Record<string, unknown>) => this.mapCampaignRow(row)),
@@ -107,6 +109,7 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getById(id: number): Promise<Record<string, unknown>> {
+    const startedAt = Date.now();
     const rows = await this.dataSource.query(
       `
         SELECT
@@ -138,6 +141,7 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
       `,
       [id],
     );
+    AppLogger.dbQuery('select', 'campaigns', startedAt);
 
     const row = rows[0] as Record<string, unknown> | undefined;
     if (!row) {
@@ -424,10 +428,17 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException(scheduleError);
     }
 
+    const startedAt = Date.now();
     await this.dataSource.query(
       `UPDATE campaigns SET status = 'scheduled', updated_at = NOW() WHERE id = $1`,
       [id],
     );
+    AppLogger.dbQuery('update', 'campaigns', startedAt);
+    AppLogger.event('CampaignStateChange', {
+      campaignId: id,
+      from: 'draft',
+      to: 'scheduled',
+    });
 
     return this.getById(id);
   }
@@ -439,10 +450,17 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.publish(`campaign:stop:${id}`, { campaignId: id, ts: Date.now() });
+    const startedAt = Date.now();
     await this.dataSource.query(
       `UPDATE campaigns SET status = 'cancelling', updated_at = NOW() WHERE id = $1`,
       [id],
     );
+    AppLogger.dbQuery('update', 'campaigns', startedAt);
+    AppLogger.event('CampaignStateChange', {
+      campaignId: id,
+      from: String(campaign.status || ''),
+      to: 'cancelling',
+    });
 
     setTimeout(async () => {
       try {
@@ -451,13 +469,20 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
           [id],
         );
         if (result[0]?.status === 'cancelling') {
+          const fallbackStartedAt = Date.now();
           await this.dataSource.query(
             `UPDATE campaigns SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
             [id],
           );
+          AppLogger.dbQuery('update', 'campaigns', fallbackStartedAt);
+          AppLogger.event('CampaignStateChange', {
+            campaignId: id,
+            from: 'cancelling',
+            to: 'cancelled',
+          });
         }
       } catch (error) {
-        this.logger.warn(`Campaign ${id} cancelling fallback failed: ${String(error)}`);
+        this.logger.error(`Campaign ${id} cancelling fallback failed`, error instanceof Error ? error.stack : String(error));
       }
     }, 30_000);
 
@@ -490,6 +515,7 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async startDueCampaigns(): Promise<number[]> {
+    const fetchStartedAt = Date.now();
     const dueRows = await this.dataSource.query(
       `
         SELECT id
@@ -500,11 +526,13 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
         ORDER BY scheduled_at ASC
       `,
     );
+    AppLogger.dbQuery('select', 'campaigns', fetchStartedAt);
 
     const started: number[] = [];
 
     for (const row of dueRows as Array<{ id: number }>) {
       const campaignId = Number(row.id);
+      const updateStartedAt = Date.now();
       await this.dataSource.query(
         `
           UPDATE campaigns
@@ -513,6 +541,12 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
         `,
         [campaignId],
       );
+      AppLogger.dbQuery('update', 'campaigns', updateStartedAt);
+      AppLogger.event('CampaignStateChange', {
+        campaignId,
+        from: 'scheduled',
+        to: 'running',
+      });
       await this.publish(`campaign:start:${campaignId}`, { campaignId, ts: Date.now() });
       started.push(campaignId);
     }
@@ -561,15 +595,18 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
     await this.subscriber.subscribe('campaign:contact:update', async (message) => {
       try {
         const payload = JSON.parse(message) as CampaignContactUpdateEvent;
+        AppLogger.redisConsume('campaign:contact:update', this.compactPayload(payload));
         await this.handleCampaignContactUpdate(payload);
       } catch (error) {
-        this.logger.warn(`Failed handling campaign:contact:update: ${String(error)}`);
+        this.logger.error('Failed handling campaign:contact:update', error instanceof Error ? error.stack : String(error));
       }
     });
 
     await this.subscriber.subscribe('campaign:stats:update', async (message) => {
       try {
         const payload = JSON.parse(message) as CampaignStatsUpdateEvent;
+        AppLogger.redisConsume('campaign:stats:update', this.compactPayload(payload));
+        const startedAt = Date.now();
         await this.dataSource.query(
           `
             UPDATE campaigns
@@ -581,26 +618,43 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
           `,
           [payload.campaignId, payload.dialedCount, payload.answeredCount, payload.failedCount],
         );
+        AppLogger.dbQuery('update', 'campaigns', startedAt);
       } catch (error) {
-        this.logger.warn(`Failed handling campaign:stats:update: ${String(error)}`);
+        this.logger.error('Failed handling campaign:stats:update', error instanceof Error ? error.stack : String(error));
       }
     });
 
     await this.subscriber.subscribe('campaign:completed', async (message) => {
       try {
         const payload = JSON.parse(message) as { campaignId: number };
+        AppLogger.redisConsume('campaign:completed', this.compactPayload(payload));
+        const startedAt = Date.now();
         await this.dataSource.query(`UPDATE campaigns SET status = 'completed', updated_at = NOW() WHERE id = $1`, [payload.campaignId]);
+        AppLogger.dbQuery('update', 'campaigns', startedAt);
+        AppLogger.event('CampaignStateChange', {
+          campaignId: payload.campaignId,
+          from: 'running',
+          to: 'completed',
+        });
       } catch (error) {
-        this.logger.warn(`Failed handling campaign:completed: ${String(error)}`);
+        this.logger.error('Failed handling campaign:completed', error instanceof Error ? error.stack : String(error));
       }
     });
 
     await this.subscriber.subscribe('campaign:cancelled', async (message) => {
       try {
         const payload = JSON.parse(message) as { campaignId: number };
+        AppLogger.redisConsume('campaign:cancelled', this.compactPayload(payload));
+        const startedAt = Date.now();
         await this.dataSource.query(`UPDATE campaigns SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [payload.campaignId]);
+        AppLogger.dbQuery('update', 'campaigns', startedAt);
+        AppLogger.event('CampaignStateChange', {
+          campaignId: payload.campaignId,
+          from: 'cancelling',
+          to: 'cancelled',
+        });
       } catch (error) {
-        this.logger.warn(`Failed handling campaign:cancelled: ${String(error)}`);
+        this.logger.error('Failed handling campaign:cancelled', error instanceof Error ? error.stack : String(error));
       }
     });
   }
@@ -612,6 +666,7 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (status === 'dialing') {
+      const startedAt = Date.now();
       await this.dataSource.query(
         `
           UPDATE campaign_contacts
@@ -623,6 +678,21 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
         `,
         [payload.contactId, payload.campaignId],
       );
+      AppLogger.dbQuery('update', 'campaign_contacts', startedAt);
+      const contactRows = await this.dataSource.query(
+        `
+          SELECT phone_number AS "phoneNumber"
+          FROM campaign_contacts
+          WHERE id = $1 AND campaign_id = $2
+          LIMIT 1
+        `,
+        [payload.contactId, payload.campaignId],
+      );
+      AppLogger.event('CampaignDial', {
+        campaignId: payload.campaignId,
+        contactId: payload.contactId,
+        destination: String(contactRows[0]?.phoneNumber || ''),
+      });
       return;
     }
 
@@ -715,6 +785,21 @@ export class CampaignsService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     await this.publisher.publish(channel, JSON.stringify(payload));
+    AppLogger.redisPublish(channel, this.compactPayload(payload));
+  }
+
+  private compactPayload(payload: unknown): Record<string, unknown> {
+    if (!payload || typeof payload !== 'object') {
+      return {};
+    }
+    const source = payload as Record<string, unknown>;
+    return {
+      campaignId: source.campaignId,
+      contactId: source.contactId,
+      status: source.status,
+      outcome: source.outcome,
+      callId: source.callId,
+    };
   }
 
   private normalizePayload(payload: CampaignPayload, partial: boolean): CampaignPayload {

@@ -1,5 +1,5 @@
 import type { Edge, Node } from 'reactflow';
-import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
+import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ConferenceNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
@@ -74,6 +74,7 @@ function nodeTypeColor(type: string): string {
     case 'get_digits': case 'menu': case 'business_hours': return 'var(--accent)';
     case 'transfer': case 'hunt': return 'var(--primitive-blue)';
     case 'queue': case 'queue_login': return 'var(--primitive-navy-300)';
+    case 'conference': return '#2dd4bf';
     case 'callback': return 'var(--primitive-orange)';
     default: return 'var(--text-muted)';
   }
@@ -109,6 +110,11 @@ export function NodeConfigPanel({
   const audioOptions = audioItems.map((item) => ({ value: String(item.id), label: item.name }));
   const nodeOptions = nodes.map((node) => ({ value: node.id, label: `${node.id} — ${node.data.label}` }));
   const extensionOptions = extensions.map((ext) => ({ value: ext.username, label: ext.displayName ? `${ext.username} — ${ext.displayName}` : ext.username }));
+  const extensionIdOptions = extensions.map((ext) => ({ value: String(ext.id), label: ext.displayName ? `${ext.username} — ${ext.displayName}` : ext.username }));
+  const operatorOptions = operators.map((operator) => {
+    const number = operator.contactNumber?.number || operator.callbackNumber || '';
+    return { value: String(operator.id), label: number ? `${operator.name} — ${number}` : operator.name };
+  });
   const contactOptions = contactNumbers.map((item) => ({ value: item.number, label: `${item.label} — ${item.number}` }));
   const trunkOptions = trunks.map((trunk) => ({ value: String(trunk.id), label: trunk.name }));
   const transferTargetTypeOptions = [
@@ -719,6 +725,16 @@ export function NodeConfigPanel({
             />
           ) : null}
 
+          {selectedNode.data.type === 'conference' ? (
+            <ConferenceConfigPanel
+              config={selectedConfig}
+              extensionOptions={extensionIdOptions}
+              operatorOptions={operatorOptions}
+              onConfigValueChange={onConfigValueChange}
+              saveAttempted={saveAttempted}
+            />
+          ) : null}
+
           <div className={styles.meta}>node key: {selectedNode.id}</div>
           <div className={styles.meta}>type: {selectedNode.data.type}</div>
         </div>
@@ -1179,6 +1195,113 @@ function QueueConfigPanel({ config, queueItems, audioItems, audioOptions, onConf
         const srcPath = promptItem?.previewUrl || promptItem?.originalUrl;
         return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${BASE}${srcPath}`} /> : null;
       })()}
+    </>
+  );
+}
+
+interface ConferenceConfigPanelProps {
+  config: Record<string, unknown>;
+  extensionOptions: Array<{ value: string; label: string }>;
+  operatorOptions: Array<{ value: string; label: string }>;
+  onConfigValueChange: (field: string, value: unknown) => void;
+  saveAttempted?: boolean;
+}
+
+function ConferenceConfigPanel({ config, extensionOptions, operatorOptions, onConfigValueChange, saveAttempted }: ConferenceConfigPanelProps) {
+  const conferenceConfig = config as ConferenceNodeConfig & Record<string, unknown>;
+  const roomName = String(conferenceConfig.roomName || '');
+  const waitForModerator = Boolean(conferenceConfig.waitForModerator);
+  const moderatorType = conferenceConfig.moderatorType === 'pstn' ? 'pstn' : 'extension';
+  const moderatorTypeOptions = [
+    { value: 'extension', label: 'Extension' },
+    { value: 'pstn', label: 'PSTN Operator' },
+  ];
+
+  return (
+    <>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>room name</span>
+        <input
+          className={styles.input}
+          placeholder="SalesRoom1"
+          value={roomName}
+          onChange={(event) => onConfigValueChange('roomName', event.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+        />
+        {saveAttempted && !roomName.trim() ? (
+          <span className={styles.inlineError}>Room name is required</span>
+        ) : null}
+      </label>
+
+      <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={waitForModerator}
+          onChange={(event) => {
+            onConfigValueChange('waitForModerator', event.target.checked);
+            if (!event.target.checked) {
+              onConfigValueChange('moderatorType', null);
+              onConfigValueChange('moderatorId', null);
+            } else if (!conferenceConfig.moderatorType) {
+              onConfigValueChange('moderatorType', 'extension');
+            }
+          }}
+        />
+        <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>wait for moderator</span>
+      </label>
+
+      {waitForModerator ? (
+        <>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>moderator type</span>
+            <SearchableSelect
+              options={moderatorTypeOptions}
+              value={moderatorType}
+              onChange={(value) => {
+                const resolvedType = value === 'pstn' ? 'pstn' : 'extension';
+                onConfigValueChange('moderatorType', resolvedType);
+                onConfigValueChange('moderatorId', null);
+              }}
+              placeholder="select moderator type"
+            />
+          </label>
+
+          {moderatorType === 'extension' ? (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>extension</span>
+              <SearchableSelect
+                options={extensionOptions}
+                value={conferenceConfig.moderatorId ? String(conferenceConfig.moderatorId) : null}
+                onChange={(value) => {
+                  onConfigValueChange('moderatorType', 'extension');
+                  onConfigValueChange('moderatorId', value ? Number(value) : null);
+                }}
+                placeholder="select extension"
+              />
+              {saveAttempted && !conferenceConfig.moderatorId ? (
+                <span className={styles.inlineError}>Moderator is required</span>
+              ) : null}
+            </label>
+          ) : null}
+
+          {moderatorType === 'pstn' ? (
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>pstn operator</span>
+              <SearchableSelect
+                options={operatorOptions}
+                value={conferenceConfig.moderatorId ? String(conferenceConfig.moderatorId) : null}
+                onChange={(value) => {
+                  onConfigValueChange('moderatorType', 'pstn');
+                  onConfigValueChange('moderatorId', value ? Number(value) : null);
+                }}
+                placeholder="select PSTN operator"
+              />
+              {saveAttempted && !conferenceConfig.moderatorId ? (
+                <span className={styles.inlineError}>Moderator is required</span>
+              ) : null}
+            </label>
+          ) : null}
+        </>
+      ) : null}
     </>
   );
 }
