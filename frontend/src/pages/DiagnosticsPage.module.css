@@ -3,6 +3,12 @@
   gap: 16px;
 }
 
+.healthSkeletonRow {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+}
+
 .tableCard {
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -25,7 +31,7 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
+  height: 28px;
   padding: 0 14px;
   font-size: 14px;
   font-weight: 500;

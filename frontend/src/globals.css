@@ -155,6 +155,33 @@ tbody td {
   white-space: nowrap;
 }
 
+/* Inline row actions/confirmations must not be clipped by table-cell truncation */
+tbody td:has([class*='actions']),
+tbody td:has([class*='actionsInline']),
+tbody td:has([class*='confirmBox']),
+tbody td:has([class*='confirmInline']),
+tbody td:has([class*='inlineWrapper']),
+tbody td:has([class*='inlineDialog']) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Keep inline confirmation UIs readable and consistently anchored to the right edge */
+tbody td [class*='confirmBox'],
+tbody td [class*='inlineDialog'] {
+  max-width: 100%;
+  width: min(100%, 340px);
+  margin-left: auto;
+  box-sizing: border-box;
+}
+
+tbody td [class*='confirmText'],
+tbody td [class*='message'] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 tbody tr {
   border-bottom: 1px solid var(--border-subtle);
   transition: background 0.08s;

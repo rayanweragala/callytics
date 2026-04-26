@@ -70,11 +70,11 @@ export interface NodeConfigPanelProps {
 function nodeTypeColor(type: string): string {
   switch (type) {
     case 'start': case 'hangup': return 'var(--color-active)';
-    case 'play_audio': return '#06b6d4';
+    case 'play_audio': return 'var(--primitive-cyan)';
     case 'get_digits': case 'menu': case 'business_hours': return 'var(--accent)';
-    case 'transfer': case 'hunt': return '#3b82f6';
-    case 'queue': case 'queue_login': return '#a855f7';
-    case 'callback': return '#f97316';
+    case 'transfer': case 'hunt': return 'var(--primitive-blue)';
+    case 'queue': case 'queue_login': return 'var(--primitive-navy-300)';
+    case 'callback': return 'var(--primitive-orange)';
     default: return 'var(--text-muted)';
   }
 }

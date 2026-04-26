@@ -18,17 +18,6 @@ function formatDuration(durationMs: number | null): string {
   return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
-function nodeTypeClass(nodeType: string): string {
-  const normalized = nodeType.toLowerCase();
-  if (normalized === 'start') return styles.badgeStart;
-  if (normalized === 'menu' || normalized === 'get_digits') return styles.badgeMenu;
-  if (normalized === 'business_hours') return styles.badgeBusinessHours;
-  if (normalized === 'transfer') return styles.badgeTransfer;
-  if (normalized === 'voicemail') return styles.badgeVoicemail;
-  if (normalized === 'hangup') return styles.badgeHangup;
-  return styles.badgeDefault;
-}
-
 export function ExecutionTracePanel({ callUuid, onClose }: ExecutionTracePanelProps) {
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -69,39 +58,50 @@ export function ExecutionTracePanel({ callUuid, onClose }: ExecutionTracePanelPr
 
   return (
     <aside className={`${styles.panel} ${isOpen ? styles.open : ''}`} aria-hidden={!isOpen}>
-      <div className={styles.headerRow}>
-        <h2 className={styles.title}>Execution Trace</h2>
-        <button className={styles.closeButton} onClick={onClose} type="button">×</button>
+      <div className={styles.header}>
+        <div className={styles.title}>Execution Trace</div>
+        <button className={styles.closeButton} onClick={onClose} type="button" aria-label="Close execution trace">×</button>
       </div>
 
-      {trace ? (
-        <div className={styles.callMeta}>
-          <div><span className={styles.metaLabel}>Call UUID</span><span className={styles.metaValue}>{trace.callUuid}</span></div>
-          <div><span className={styles.metaLabel}>Caller</span><span className={styles.metaValue}>{trace.callerNumber || '—'}</span></div>
-          <div><span className={styles.metaLabel}>Started</span><span className={styles.metaValue}>{trace.startTime ? formatDateTime(trace.startTime) : '—'}</span></div>
-        </div>
-      ) : null}
+      <div className={styles.body}>
+        {trace ? (
+          <section className={styles.callMeta}>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>CALL UUID</span>
+              <span className={styles.metaValue}>{trace.callUuid}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>CALLER</span>
+              <span className={styles.metaValue}>{trace.callerNumber || '—'}</span>
+            </div>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>STARTED</span>
+              <span className={styles.metaValue}>{trace.startTime ? formatDateTime(trace.startTime) : '—'}</span>
+            </div>
+          </section>
+        ) : null}
 
-      {loading ? <Loading message="Loading trace..." /> : null}
-      <ErrorMessage message={errorText} />
+        {loading ? <Loading message="Loading trace..." /> : null}
+        <ErrorMessage message={errorText} />
 
-      {!loading && !errorText && !hasNodes ? <div className={styles.empty}>No trace nodes found.</div> : null}
+        {!loading && !errorText && !hasNodes ? <div className={styles.empty}>No trace nodes found.</div> : null}
 
-      {!loading && !errorText && hasNodes ? (
-        <div className={styles.timeline}>
-          {(trace?.nodes || []).map((node) => (
-            <article className={`${styles.nodeCard} ${node.errorMessage ? styles.failed : ''}`} key={node.id}>
-              <div className={styles.cardTop}>
-                <span className={`${styles.nodeBadge} ${nodeTypeClass(node.nodeType)}`}>{node.nodeType}</span>
-                <span className={styles.duration}>{formatDuration(node.durationMs)}</span>
-              </div>
-              <div className={styles.nodeKey}>{node.nodeKey}</div>
-              <div className={styles.metaLine}>Exit branch: {node.exitBranch || '—'}</div>
-              {node.errorMessage ? <div className={styles.errorText}>{node.errorMessage}</div> : null}
-            </article>
-          ))}
-        </div>
-      ) : null}
+        {!loading && !errorText && hasNodes ? (
+          <div className={styles.timeline}>
+            {(trace?.nodes || []).map((node) => (
+              <article className={styles.nodeCard} key={node.id}>
+                <div className={styles.cardTop}>
+                  <span className={styles.nodeBadge}>{node.nodeType}</span>
+                  <span className={styles.duration}>{formatDuration(node.durationMs)}</span>
+                </div>
+                <div className={styles.nodeName}>{node.nodeKey}</div>
+                <div className={styles.metaLine}>Exit branch: {node.exitBranch || '—'}</div>
+                {node.errorMessage ? <div className={styles.errorText}>{node.errorMessage}</div> : null}
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </aside>
   );
 }

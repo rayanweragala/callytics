@@ -4,6 +4,7 @@ import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
 import { Pagination } from '../components/common/Pagination';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import {
   getCampaign,
   getCampaignProgress,
@@ -153,26 +154,7 @@ export function CampaignDetailPage() {
               <div className={styles.summaryTop}>
                 <div className={styles.campaignStatusBadge}>{campaignStatusLabel(campaign.status)}</div>
                 {campaign.status === 'running' ? (
-                  confirmStopInline ? (
-                    <div className={styles.confirmInline}>
-                      <span className={styles.confirmText}>stop this campaign?</span>
-                      <button className={styles.secondaryButton} type="button" onClick={() => setConfirmStopInline(false)}>cancel</button>
-                      <button
-                        className={styles.stopButton}
-                        type="button"
-                        onClick={() => {
-                          setConfirmStopInline(false);
-                          void stopCampaign(campaignId).then(() => loadCampaign()).catch((error) => {
-                            setErrorText(getApiError(error, 'failed to stop campaign'));
-                          });
-                        }}
-                      >
-                        stop
-                      </button>
-                    </div>
-                  ) : (
-                    <button className={styles.stopButton} type="button" onClick={() => setConfirmStopInline(true)}>stop campaign</button>
-                  )
+                  <button className={styles.stopButton} type="button" onClick={() => setConfirmStopInline(true)}>stop campaign</button>
                 ) : null}
               </div>
 
@@ -224,7 +206,7 @@ export function CampaignDetailPage() {
           {!loading && contacts.length === 0 ? <div className={styles.emptyState}>No contacts in this campaign.</div> : null}
 
           {!loading && contacts.length > 0 && (
-            <table>
+            <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Phone Number</th>
@@ -279,6 +261,20 @@ export function CampaignDetailPage() {
           <ErrorMessage message={errorText} />
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmStopInline}
+        title="Stop campaign"
+        message="Stop this campaign?"
+        cancelLabel="cancel"
+        confirmLabel="stop"
+        onCancel={() => setConfirmStopInline(false)}
+        onConfirm={() => {
+          setConfirmStopInline(false);
+          void stopCampaign(campaignId).then(() => loadCampaign()).catch((error) => {
+            setErrorText(getApiError(error, 'failed to stop campaign'));
+          });
+        }}
+      />
     </PageLayout>
   );
 }

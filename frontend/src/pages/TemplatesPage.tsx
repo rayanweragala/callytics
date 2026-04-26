@@ -59,14 +59,14 @@ export function TemplatesPage() {
         <PageLayout title="IVR Templates" subtitle="configure" />
       </div>
       <ErrorMessage message={errorText} />
-      {loading ? null : (
+      {loading ? <Loading message="Loading templates..." /> : (
         <div className={styles.tableCard}>
-          <table>
+          <table className={styles.table}>
             <thead>
               <tr>
                 <th>name</th>
                 <th>description</th>
-                <th>actions</th>
+                <th className={styles.actionsHeader}>actions</th>
               </tr>
             </thead>
             <tbody>
@@ -77,12 +77,12 @@ export function TemplatesPage() {
                   <tr key={item.id}>
                     <td>
                       <div>{item.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>{item.templateCategory || 'general'} · {item.nodeCount} nodes</div>
+                      <div className={styles.nameSubtitle}>{item.templateCategory || 'general'} · {item.nodeCount} nodes</div>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{item.templateDescription || item.description || '—'}</td>
-                    <td>
+                    <td className={styles.descriptionCell}>{item.templateDescription || item.description || '—'}</td>
+                    <td className={styles.actionsCell}>
                       <button
-                        className={styles.importButton}
+                        className={`${styles.secondaryButton} ${styles.importButton}`}
                         disabled={busyId === item.id}
                         onClick={() => setPendingImportId(item.id)}
                         type="button"

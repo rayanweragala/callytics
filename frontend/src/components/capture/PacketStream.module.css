@@ -34,8 +34,11 @@
 .tableHead {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background: var(--bg-surface);
+  color: var(--accent);
   font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 

@@ -4,6 +4,7 @@ import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import {
   createTrunk,
   deleteTrunk,
@@ -770,253 +771,253 @@ export function TrunksPage() {
           <div className={styles.emptyState}>No trunks configured. Add your first SIP trunk.</div>
         ) : (
           <table className={styles.table}>
-              <thead>
-                <tr className={styles.tableHead}>
-                  <th>Name</th>
-                  <th>Provider</th>
-                  <th>Host</th>
-                  <th>Port</th>
-                  <th>Auth</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th className={styles.actionsHeader}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedItems.map((item) => {
-                  const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
-                  return (
-                    <Fragment key={item.id}>
-                      <tr className={styles.row}>
-                        <td className={styles.rowValue}>{item.name}</td>
-                        <td className={styles.rowMuted}>{presetLabel}</td>
-                        <td className={styles.dataMono}>{item.host}</td>
-                        <td className={styles.dataMono}>{item.port}</td>
-                        <td className={styles.rowMuted}>{item.username ? 'Yes' : 'No'}</td>
-                        <td>
-                          <button className={`${styles.toggleButton} ${item.enabled ? styles.toggleOn : styles.toggleOff}`} onClick={() => void handleToggleEnabled(item)} type="button">
-                            {busyKey === `toggle-${item.id}` ? <span className={styles.spinner} /> : <span className={styles.toggleKnob} />}
-                            <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Provider</th>
+                <th>Host</th>
+                <th>Port</th>
+                <th>Auth</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th className={styles.actionsHeader}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedItems.map((item) => {
+                const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
+                return (
+                  <Fragment key={item.id}>
+                    <tr className={styles.row}>
+                      <td className={styles.rowValue}>{item.name}</td>
+                      <td className={styles.rowMuted}>{presetLabel}</td>
+                      <td className={styles.dataMono}>{item.host}</td>
+                      <td className={styles.dataMono}>{item.port}</td>
+                      <td className={styles.rowMuted}>{item.username ? 'Yes' : 'No'}</td>
+                      <td>
+                        <button className={`${styles.toggleButton} ${item.enabled ? styles.toggleOn : styles.toggleOff}`} onClick={() => void handleToggleEnabled(item)} type="button">
+                          {busyKey === `toggle-${item.id}` ? <span className={styles.spinner} /> : <span className={styles.toggleKnob} />}
+                          <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </button>
+                      </td>
+                      <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
+                      <td className={styles.actionsCell}>
+                        <div className={styles.actions} data-trunk-menu-root="true">
+                          <button className={`${styles.secondaryButton} ${styles.editButton}`} type="button" onClick={() => openEdit(item)}>edit</button>
+                          <button
+                            className={`${styles.secondaryButton} ${styles.rowDeleteButton}`}
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setEditingId(null);
+                              setActiveTestPanel(null);
+                              setConfirmDeleteId(item.id);
+                            }}
+                          >
+                            delete
                           </button>
-                        </td>
-                        <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
-                        <td className={styles.actionsCell}>
-                          {confirmDeleteId === item.id ? (
-                            <div className={styles.confirmBox}>
-                              <div className={styles.confirmText}>Delete this trunk?</div>
-                              <div className={styles.confirmActions}>
-                                <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
-                                <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
-                                  {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
+                          <div className={styles.menuWrap}>
+                            <button
+                              className={styles.menuButton}
+                              type="button"
+                              onClick={() => setOpenMenuId((current) => (current === item.id ? null : item.id))}
+                            >
+                              ···
+                            </button>
+                            {openMenuId === item.id ? (
+                              <div className={styles.menuDropdown}>
+                                <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); toggleTestPanel(item.id, 'outbound'); }}>
+                                  <OutboundIcon />
+                                  <span>Test Outbound</span>
+                                </button>
+                                <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); toggleTestPanel(item.id, 'inbound'); }}>
+                                  <InboundIcon />
+                                  <span>Test Inbound</span>
+                                </button>
+                                <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); void handleTest(item); }}>
+                                  <SignalIcon />
+                                  <span>Quick Test</span>
                                 </button>
                               </div>
-                            </div>
-                          ) : (
-                            <div className={styles.actions} data-trunk-menu-root="true">
-                              <button className={styles.secondaryButton} type="button" onClick={() => openEdit(item)}>edit</button>
+                            ) : null}
+                          </div>
+                        </div>
+                        {renderTestBadge(item.id)}
+                      </td>
+                    </tr>
+                    {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'outbound' ? (
+                      <tr className={styles.expandedRow}>
+                        <td className={styles.expandedCell} colSpan={8}>
+                          <div className={styles.expandedPanel}>
+                            <div className={styles.expandedPanelTitle}>Test Outbound Call — {item.name}</div>
+                            <div className={styles.expandedFieldsRow}>
+                              <label className={`${styles.field} ${styles.expandedFieldCountry}`}>
+                                <span className={styles.fieldLabel}>country</span>
+                                <SearchableSelect
+                                  options={countryOptions}
+                                  value={outboundTest.country}
+                                  onChange={(value) => setOutboundTest((current) => ({ ...current, country: value || 'US' }))}
+                                  placeholder="select country"
+                                  disabled={outboundTest.isSubmitting}
+                                />
+                              </label>
+                              <label className={`${styles.field} ${styles.expandedFieldNumber}`}>
+                                <span className={styles.fieldLabel}>number</span>
+                                <input
+                                  className={`${styles.input} ${styles.dataMono}`}
+                                  value={outboundTest.number}
+                                  onChange={(event) => setOutboundTest((current) => ({ ...current, number: event.target.value }))}
+                                  onBlur={() => setOutboundTest((current) => ({
+                                    ...current,
+                                    number: formatE164OnBlur(current.number, current.country),
+                                  }))}
+                                  placeholder="+94771234567"
+                                  disabled={outboundTest.isSubmitting}
+                                />
+                              </label>
+                              <label className={`${styles.field} ${styles.expandedFieldAudio}`}>
+                                <span className={styles.fieldLabel}>play audio (optional)</span>
+                                <SearchableSelect
+                                  options={audioOptions}
+                                  value={outboundTest.audioFileId || null}
+                                  onChange={(value) => setOutboundTest((current) => ({ ...current, audioFileId: value || '' }))}
+                                  placeholder="No audio — play beep"
+                                  disabled={outboundTest.isSubmitting}
+                                />
+                              </label>
                               <button
-                                className={`${styles.secondaryButton} ${styles.rowDeleteButton}`}
+                                className={styles.primaryButton}
                                 type="button"
-                                onClick={() => {
-                                  setOpenMenuId(null);
-                                  setEditingId(null);
-                                  setActiveTestPanel(null);
-                                  setConfirmDeleteId(item.id);
-                                }}
+                                onClick={() => void handleStartOutboundTest()}
+                                disabled={outboundTest.isSubmitting}
                               >
-                                delete
+                                {outboundTest.isSubmitting ? 'Dialing...' : 'Start Test Call'}
                               </button>
-                              <div className={styles.menuWrap}>
-                                <button
-                                  className={styles.menuButton}
-                                  type="button"
-                                  onClick={() => setOpenMenuId((current) => (current === item.id ? null : item.id))}
-                                >
-                                  ···
-                                </button>
-                                {openMenuId === item.id ? (
-                                  <div className={styles.menuDropdown}>
-                                    <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); toggleTestPanel(item.id, 'outbound'); }}>
-                                      <OutboundIcon />
-                                      <span>Test Outbound</span>
-                                    </button>
-                                    <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); toggleTestPanel(item.id, 'inbound'); }}>
-                                      <InboundIcon />
-                                      <span>Test Inbound</span>
-                                    </button>
-                                    <button className={styles.menuItem} type="button" onClick={() => { setOpenMenuId(null); void handleTest(item); }}>
-                                      <SignalIcon />
-                                      <span>Quick Test</span>
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
                             </div>
-                          )}
-                          {renderTestBadge(item.id)}
+                            {outboundTest.status ? (
+                              <div className={`${styles.expandedStatusLine} ${outboundTest.status === 'completed' ? styles.expandedStatusSuccess : outboundTest.status === 'failed' ? styles.expandedStatusFailed : styles.expandedStatusMuted}`}>
+                                {formatStatusLine(outboundTest.status, outboundTest.reason)}
+                              </div>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
-                      {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'outbound' ? (
-                        <tr className={styles.expandedRow}>
-                          <td className={styles.expandedCell} colSpan={8}>
-                            <div className={styles.expandedPanel}>
-                              <div className={styles.expandedPanelTitle}>Test Outbound Call — {item.name}</div>
-                              <div className={styles.expandedFieldsRow}>
-                                <label className={`${styles.field} ${styles.expandedFieldCountry}`}>
-                                  <span className={styles.fieldLabel}>country</span>
-                                  <SearchableSelect
-                                    options={countryOptions}
-                                    value={outboundTest.country}
-                                    onChange={(value) => setOutboundTest((current) => ({ ...current, country: value || 'US' }))}
-                                    placeholder="select country"
-                                    disabled={outboundTest.isSubmitting}
-                                  />
-                                </label>
-                                <label className={`${styles.field} ${styles.expandedFieldNumber}`}>
-                                  <span className={styles.fieldLabel}>number</span>
-                                  <input
-                                    className={`${styles.input} ${styles.dataMono}`}
-                                    value={outboundTest.number}
-                                    onChange={(event) => setOutboundTest((current) => ({ ...current, number: event.target.value }))}
-                                    onBlur={() => setOutboundTest((current) => ({
-                                      ...current,
-                                      number: formatE164OnBlur(current.number, current.country),
-                                    }))}
-                                    placeholder="+94771234567"
-                                    disabled={outboundTest.isSubmitting}
-                                  />
-                                </label>
-                                <label className={`${styles.field} ${styles.expandedFieldAudio}`}>
-                                  <span className={styles.fieldLabel}>play audio (optional)</span>
-                                  <SearchableSelect
-                                    options={audioOptions}
-                                    value={outboundTest.audioFileId || null}
-                                    onChange={(value) => setOutboundTest((current) => ({ ...current, audioFileId: value || '' }))}
-                                    placeholder="No audio — play beep"
-                                    disabled={outboundTest.isSubmitting}
-                                  />
-                                </label>
-                                <button
-                                  className={styles.primaryButton}
-                                  type="button"
-                                  onClick={() => void handleStartOutboundTest()}
-                                  disabled={outboundTest.isSubmitting}
-                                >
-                                  {outboundTest.isSubmitting ? 'Dialing...' : 'Start Test Call'}
-                                </button>
-                              </div>
-                              {outboundTest.status ? (
-                                <div className={`${styles.expandedStatusLine} ${outboundTest.status === 'completed' ? styles.expandedStatusSuccess : outboundTest.status === 'failed' ? styles.expandedStatusFailed : styles.expandedStatusMuted}`}>
-                                  {formatStatusLine(outboundTest.status, outboundTest.reason)}
-                                </div>
-                              ) : null}
+                    ) : null}
+                    {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'inbound' ? (
+                      <tr className={styles.expandedRow}>
+                        <td className={styles.expandedCell} colSpan={8}>
+                          <div className={styles.expandedPanel}>
+                            <div className={styles.expandedPanelTitle}>Test Inbound Call — {item.name}</div>
+                            <div className={styles.expandedInboundRow}>
+                              <div className={styles.expandedDescription}>Generates a synthetic inbound call through this trunk into your inbound routing.</div>
+                              <button
+                                className={styles.primaryButton}
+                                type="button"
+                                onClick={() => void handleStartInboundTest()}
+                                disabled={inboundTest.isSubmitting}
+                              >
+                                {inboundTest.isSubmitting ? 'Dialing...' : 'Start Test'}
+                              </button>
                             </div>
-                          </td>
-                        </tr>
-                      ) : null}
-                      {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'inbound' ? (
-                        <tr className={styles.expandedRow}>
-                          <td className={styles.expandedCell} colSpan={8}>
-                            <div className={styles.expandedPanel}>
-                              <div className={styles.expandedPanelTitle}>Test Inbound Call — {item.name}</div>
-                              <div className={styles.expandedInboundRow}>
-                                <div className={styles.expandedDescription}>Generates a synthetic inbound call through this trunk into your inbound routing.</div>
-                                <button
-                                  className={styles.primaryButton}
-                                  type="button"
-                                  onClick={() => void handleStartInboundTest()}
-                                  disabled={inboundTest.isSubmitting}
-                                >
-                                  {inboundTest.isSubmitting ? 'Dialing...' : 'Start Test'}
-                                </button>
+                            {inboundTest.status ? (
+                              <div className={`${styles.expandedStatusLine} ${inboundTest.status === 'completed' ? styles.expandedStatusSuccess : inboundTest.status === 'failed' ? styles.expandedStatusFailed : styles.expandedStatusMuted}`}>
+                                {formatStatusLine(inboundTest.status, inboundTest.reason)}
                               </div>
-                              {inboundTest.status ? (
-                                <div className={`${styles.expandedStatusLine} ${inboundTest.status === 'completed' ? styles.expandedStatusSuccess : inboundTest.status === 'failed' ? styles.expandedStatusFailed : styles.expandedStatusMuted}`}>
-                                  {formatStatusLine(inboundTest.status, inboundTest.reason)}
-                                </div>
-                              ) : null}
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                    {editingId === item.id ? (
+                      <tr className={styles.expandedRow}>
+                        <td className={styles.expandedCell} colSpan={8}>
+                          <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>trunk name</span>
+                              <input className={styles.input} required value={editForm.name} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, name: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>provider preset</span>
+                              <SearchableSelect options={presetOptions} placeholder="select provider" value={editForm.providerPreset} onChange={(value) => applyPreset(value, 'edit')} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>host</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(editForm.providerPreset)} required value={editForm.host} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, host: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>port</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={editForm.port} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, port: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>username</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, username: event.target.value }));
+                              }} />
+                              <span className={styles.helper}>Leave blank for providers that don't require SIP registration (some local carriers).</span>
+                            </label>
+                            {editForm.username.trim() ? (
+                              <label className={styles.field}>
+                                <span className={styles.fieldLabel}>password</span>
+                                <input className={`${styles.input} ${styles.dataMono}`} type="password" value={editForm.password} onChange={(event) => {
+                                  resetMessages();
+                                  setEditForm((current) => ({ ...current, password: event.target.value }));
+                                }} />
+                              </label>
+                            ) : null}
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>from domain</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={editForm.fromDomain} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, fromDomain: event.target.value }));
+                              }} />
+                            </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>from user</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} value={editForm.fromUser} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, fromUser: event.target.value }));
+                              }} />
+                            </label>
+                            <div className={styles.formActions}>
+                              <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
+                              <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
-                          </td>
-                        </tr>
-                      ) : null}
-                      {editingId === item.id ? (
-                        <tr className={styles.expandedRow}>
-                          <td className={styles.expandedCell} colSpan={8}>
-                            <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>trunk name</span>
-                                <input className={styles.input} required value={editForm.name} onChange={(event) => {
-                                  resetMessages();
-                                  setEditForm((current) => ({ ...current, name: event.target.value }));
-                                }} />
-                              </label>
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>provider preset</span>
-                                <SearchableSelect options={presetOptions} placeholder="select provider" value={editForm.providerPreset} onChange={(value) => applyPreset(value, 'edit')} />
-                              </label>
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>host</span>
-                                <input className={`${styles.input} ${styles.dataMono}`} placeholder={hostPlaceholder(editForm.providerPreset)} required value={editForm.host} onChange={(event) => {
-                                  resetMessages();
-                                  setEditForm((current) => ({ ...current, host: event.target.value }));
-                                }} />
-                              </label>
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>port</span>
-                                <input className={`${styles.input} ${styles.dataMono}`} min={1} type="number" value={editForm.port} onChange={(event) => {
-                                  resetMessages();
-                                  setEditForm((current) => ({ ...current, port: event.target.value }));
-                                }} />
-                              </label>
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>username</span>
-                                <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
-                                  resetMessages();
-                                  setEditForm((current) => ({ ...current, username: event.target.value }));
-                                }} />
-                                <span className={styles.helper}>Leave blank for providers that don't require SIP registration (some local carriers).</span>
-                              </label>
-                              {editForm.username.trim() ? (
-                                <label className={styles.field}>
-                                  <span className={styles.fieldLabel}>password</span>
-                                  <input className={`${styles.input} ${styles.dataMono}`} type="password" value={editForm.password} onChange={(event) => {
-                                    resetMessages();
-                                    setEditForm((current) => ({ ...current, password: event.target.value }));
-                                  }} />
-                                </label>
-                              ) : null}
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>from domain</span>
-                                <input className={`${styles.input} ${styles.dataMono}`} placeholder="provider.com" value={editForm.fromDomain} onChange={(event) => {
-                                  resetMessages();
-                                  setEditForm((current) => ({ ...current, fromDomain: event.target.value }));
-                                }} />
-                              </label>
-                              <label className={styles.field}>
-                                <span className={styles.fieldLabel}>from user</span>
-                                <input className={`${styles.input} ${styles.dataMono}`} value={editForm.fromUser} onChange={(event) => {
-                                  resetMessages();
-                                  setEditForm((current) => ({ ...current, fromUser: event.target.value }));
-                                }} />
-                              </label>
-                              <div className={styles.formActions}>
-                                <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
-                                <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
-                              </div>
-                            </form>
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
+                          </form>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
+            </tbody>
           </table>
         )}
         <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
-
-      </div>
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Delete trunk"
+        message="Delete this trunk?"
+        cancelLabel="cancel"
+        confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId !== null) {
+            void handleDelete(confirmDeleteId);
+          }
+        }}
+      />
+    </div>
   );
 }

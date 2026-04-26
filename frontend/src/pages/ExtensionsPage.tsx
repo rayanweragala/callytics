@@ -4,6 +4,7 @@ import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { createExtension, deleteExtension, getHostConfig, listExtensions, updateExtension } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
@@ -211,54 +212,55 @@ export function ExtensionsPage() {
     <PageLayout actions={pageActions} title="Extensions" subtitle="configure">
       <div className={styles.page}>
 
-      {createOpen ? (
-        <section className={styles.formPanel}>
-          <div className={styles.panelTitle}>new extension</div>
-          <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>username</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => {
-                resetMessages();
-                setCreateForm((current) => ({ ...current, username: event.target.value }));
-              }} />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>password</span>
-              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.password} onChange={(event) => {
-                resetMessages();
-                setCreateForm((current) => ({ ...current, password: event.target.value }));
-              }} />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>display name</span>
-              <input className={styles.input} value={createForm.displayName} onChange={(event) => {
-                resetMessages();
-                setCreateForm((current) => ({ ...current, displayName: event.target.value }));
-              }} />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>transport</span>
-              <select
-                className={styles.input}
-                value={createForm.transportType}
-                onChange={(event) => {
+        {createOpen ? (
+          <section className={styles.formPanel}>
+            <div className={styles.panelTitle}>new extension</div>
+            <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>username</span>
+                <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => {
                   resetMessages();
-                  setCreateForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
-                }}
-              >
-                <option value="sip">SIP / UDP</option>
-                <option value="webrtc">WebRTC / WSS</option>
-              </select>
-            </label>
-            <div className={styles.formActions}>
-              <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
-            </div>
-          </form>
-          {errorText ? <ErrorMessage message={errorText} /> : null}
-        </section>
-      ) : (
+                  setCreateForm((current) => ({ ...current, username: event.target.value }));
+                }} />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>password</span>
+                <input className={`${styles.input} ${styles.dataMono}`} value={createForm.password} onChange={(event) => {
+                  resetMessages();
+                  setCreateForm((current) => ({ ...current, password: event.target.value }));
+                }} />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>display name</span>
+                <input className={styles.input} value={createForm.displayName} onChange={(event) => {
+                  resetMessages();
+                  setCreateForm((current) => ({ ...current, displayName: event.target.value }));
+                }} />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>transport</span>
+                <select
+                  className={styles.input}
+                  value={createForm.transportType}
+                  onChange={(event) => {
+                    resetMessages();
+                    setCreateForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
+                  }}
+                >
+                  <option value="sip">SIP / UDP</option>
+                  <option value="webrtc">WebRTC / WSS</option>
+                </select>
+              </label>
+              <div className={styles.formActions}>
+                <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
+              </div>
+            </form>
+            {errorText ? <ErrorMessage message={errorText} /> : null}
+          </section>
+        ) : null}
+
         <div className={styles.tableCard}>
-          <table>
+          <table className={styles.table}>
             <thead>
               <tr>
                 <th>username</th>
@@ -266,18 +268,20 @@ export function ExtensionsPage() {
                 <th>transport</th>
                 <th>sip uri</th>
                 <th>created</th>
-                <th>actions</th>
+                <th className={styles.actionsHeader}>actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 Array.from({ length: 3 }, (_, i) => (
-                  <tr key={i}>
-                    {[200, 160, 140, 250, 108, 220].map((w, j) => (
-                      <td key={j}><span style={{ display: 'block', height: 14, width: w, background: 'var(--border-strong)', borderRadius: 3, opacity: 0.4 }} /></td>
-                    ))}
-                  </tr>
-                ))
+                    <tr key={i}>
+                      {[200, 160, 140, 250, 108, 220].map((w, j) => (
+                      <td key={j}>
+                        <span className={`${styles.skeletonBar} ${styles[`skeletonW${w}`]}`} />
+                      </td>
+                      ))}
+                    </tr>
+                  ))
               ) : loadError ? (
                 <tr><td colSpan={6}><ErrorMessage message={loadError} /></td></tr>
               ) : sortedItems.length === 0 ? (
@@ -293,25 +297,13 @@ export function ExtensionsPage() {
                       </td>
                       <td className={styles.dataMono}>{buildSipUri(item.username)}</td>
                       <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
-                      <td>
+                      <td className={styles.actionsCell}>
                         <div className={styles.actions}>
-                          {confirmDeleteId === item.id ? (
-                            <div className={styles.confirmBox}>
-                              <div className={styles.confirmText}>Delete this extension? This cannot be undone.</div>
-                              <div className={styles.confirmActions}>
-                                <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(null)} type="button">cancel</button>
-                                <button className={styles.deleteButton} onClick={() => void handleDelete(item.id)} type="button">
-                                  {busyKey === `delete-${item.id}` ? 'deleting…' : 'delete'}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <button className={styles.secondaryButton} onClick={() => openEdit(item)} type="button">edit</button>
-                              <button className={styles.secondaryButton} onClick={() => void handleOpenQr(item)} type="button">{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
-                              <button className={styles.secondaryButton} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
-                            </>
-                          )}
+                          <>
+                            <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => openEdit(item)} type="button">edit</button>
+                            <button className={`${styles.secondaryButton} ${styles.qrButton}`} onClick={() => void handleOpenQr(item)} type="button">{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
+                            <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
+                          </>
                         </div>
                       </td>
                     </tr>
@@ -375,25 +367,37 @@ export function ExtensionsPage() {
           {deletedId !== null ? <div className={styles.successText}>extension deleted</div> : null}
           {errorText ? <ErrorMessage message={errorText} /> : null}
         </div>
-      )}
+        <ConfirmDialog
+          open={confirmDeleteId !== null}
+          title="Delete extension"
+          message="Delete this extension? This cannot be undone."
+          cancelLabel="cancel"
+          confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+          onCancel={() => setConfirmDeleteId(null)}
+          onConfirm={() => {
+            if (confirmDeleteId !== null) {
+              void handleDelete(confirmDeleteId);
+            }
+          }}
+        />
 
-      {qrModal ? (
-        <div className={styles.overlay} onClick={() => setQrModal(null)} role="presentation">
-          <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div>
-                <div className={styles.fieldLabel}>qr provisioning</div>
-                <div className={styles.modalTitle}>{qrModal.username}</div>
+        {qrModal ? (
+          <div className={styles.overlay} onClick={() => setQrModal(null)} role="presentation">
+            <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <div>
+                  <div className={styles.fieldLabel}>qr provisioning</div>
+                  <div className={styles.modalTitle}>{qrModal.username}</div>
+                </div>
+                <button className={styles.secondaryButton} onClick={() => setQrModal(null)} type="button">close</button>
               </div>
-              <button className={styles.secondaryButton} onClick={() => setQrModal(null)} type="button">close</button>
+              <div className={styles.qrFrame}>
+                <img alt={`QR code for ${qrModal.uri}`} className={styles.qrImage} src={qrModal.dataUrl} />
+              </div>
+              <div className={styles.uriText}>{qrModal.uri}</div>
             </div>
-            <div className={styles.qrFrame}>
-              <img alt={`QR code for ${qrModal.uri}`} className={styles.qrImage} src={qrModal.dataUrl} />
-            </div>
-            <div className={styles.uriText}>{qrModal.uri}</div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
       </div>
     </PageLayout>
   );

@@ -1,3 +1,9 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .tableCard {
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -13,9 +19,43 @@
   margin-bottom: 16px;
 }
 
-th:nth-child(1) { width: 30%; }
-th:nth-child(2) { width: 45%; }
-th:nth-child(3) { width: 25%; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th:nth-child(1) {
+  width: 30%;
+}
+
+.table th:nth-child(2) {
+  width: 45%;
+}
+
+.table th:nth-child(3) {
+  width: 25%;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
+  text-align: right;
+}
+
+.nameSubtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.descriptionCell {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
 
 .emptyState {
   text-align: center;
@@ -78,26 +118,33 @@ th:nth-child(3) { width: 25%; }
   font-size: 14px;
 }
 
-/* FIX 5 — Import button: amber CTA */
-.importButton {
+/* Row action button style — neutral label button */
+.secondaryButton {
   margin-top: auto;
-  background: var(--accent);
-  color: var(--text-inverse);
-  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
-  padding: 0 16px;
-  font-size: 14px;
-  font-weight: 600;
+  height: 28px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.secondaryButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .importButton:hover {
-  opacity: 0.88;
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
 }
 
-.importButton:disabled {
+.secondaryButton:disabled {
   opacity: 0.7;
   cursor: default;
 }

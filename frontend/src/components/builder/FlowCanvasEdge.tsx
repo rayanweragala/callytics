@@ -1,4 +1,4 @@
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from 'reactflow';
+import { EdgeLabelRenderer, EdgeProps, getBezierPath } from 'reactflow';
 import styles from './FlowCanvasEdge.module.css';
 
 interface EdgeData {
@@ -49,14 +49,11 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
 
   return (
     <>
-      <BaseEdge
-        path={edgePath}
+      <path
+        className={`react-flow__edge-path ${styles.edgePath} ${isSubflowJump ? styles.edgeSubflowJump : ''} ${selected ? styles.edgeSelected : ''}`.trim()}
+        d={edgePath}
+        fill="none"
         markerEnd={markerEnd}
-        style={{
-          stroke: selected ? 'var(--color-active)' : isSubflowJump ? 'var(--color-info)' : 'var(--border-strong)',
-          strokeWidth: selected ? 2.5 : 1.5,
-          strokeDasharray: isSubflowJump ? '8 5' : undefined,
-        }}
       />
       {showLabel ? (
         <EdgeLabelRenderer>

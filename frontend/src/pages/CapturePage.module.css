@@ -75,7 +75,7 @@
   width: 100%;
 }
 
-.splitLayout > :first-child {
+.splitLayout> :first-child {
   flex: 0 0 var(--capture-left-width, 38%);
   min-width: 280px;
   max-width: 60%;
@@ -109,7 +109,7 @@
   z-index: 1;
 }
 
-.splitLayout > :first-child :global([class*='leftPanel']) {
+.splitLayout> :first-child :global([class*='leftPanel']) {
   width: 100%;
   min-width: 0;
   position: relative;
@@ -117,39 +117,39 @@
   overflow: visible;
 }
 
-.splitLayout > :first-child :global([class*='tableHead']),
-.splitLayout > :first-child :global([class*='tableRow']) {
+.splitLayout> :first-child :global([class*='tableHead']),
+.splitLayout> :first-child :global([class*='tableRow']) {
   width: 100%;
   grid-template-columns: 110px 80px minmax(0, 180px) minmax(0, 180px) 55px 120px;
   gap: 8px;
 }
 
-.splitLayout > :first-child :global([class*='filters']) {
+.splitLayout> :first-child :global([class*='filters']) {
   position: relative;
   z-index: 20;
 }
 
-.splitLayout > :first-child :global([class*='container']) {
+.splitLayout> :first-child :global([class*='container']) {
   position: relative;
   z-index: 20;
 }
 
-.splitLayout > :first-child :global([class*='dropdown']) {
+.splitLayout> :first-child :global([class*='dropdown']) {
   z-index: 20;
 }
 
-.splitLayout > :first-child :global([class*='tableHead']),
-.splitLayout > :first-child :global([class*='tableBody']) {
+.splitLayout> :first-child :global([class*='tableHead']),
+.splitLayout> :first-child :global([class*='tableBody']) {
   overflow: hidden;
 }
 
-.splitLayout > :first-child :global([class*='tableBody']) {
+.splitLayout> :first-child :global([class*='tableBody']) {
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(3),
-.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(4) {
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(3),
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(4) {
   min-width: 0;
   max-width: 180px;
   overflow: hidden;
@@ -157,23 +157,23 @@
   white-space: nowrap;
 }
 
-.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(1),
-.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(1) {
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(1),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(1) {
   width: 110px;
 }
 
-.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(2),
-.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(2) {
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(2),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(2) {
   width: 80px;
 }
 
-.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(5),
-.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(5) {
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(5),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(5) {
   width: 55px;
 }
 
-.splitLayout > :first-child :global([class*='tableRow']) span:nth-child(6),
-.splitLayout > :first-child :global([class*='tableHead']) span:nth-child(6) {
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(6),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(6) {
   width: 120px;
 }
 
@@ -438,8 +438,15 @@
 }
 
 @keyframes timeline-enter {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* input-size-override */

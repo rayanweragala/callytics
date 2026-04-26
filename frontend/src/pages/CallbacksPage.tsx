@@ -3,13 +3,14 @@ import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
 import { Pagination } from '../components/common/Pagination';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { cancelCallback, executeCallback, listCallbacks } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { CallbackItem } from '../types';
 import styles from './CallbacksPage.module.css';
 
-const PAGE_LIMIT = 20;
+const PAGE_LIMIT = 10;
 const ACTIVE_STATUSES = new Set<CallbackItem['status']>([
   'pending',
   'dialing_operator',
@@ -140,113 +141,110 @@ export function CallbacksPage() {
       <div className={styles.pageHeader}>
         <PageLayout title="Callbacks" subtitle="configure" />
       </div>
-        <div className={styles.tableCard}>
-          <div className={styles.filters}>
-            <label className={styles.filterField}>
-              <span className={styles.filterLabel}>status</span>
-              <select
-                className={styles.select}
-                value={statusFilter}
-                onChange={(event) => {
-                  setStatusFilter(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="dialing">Dialing</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </label>
-          </div>
 
-          {loading ? <Loading message="Loading callbacks..." /> : null}
-          {!loading && items.length === 0 ? <div className={styles.emptyState}>No callbacks found.</div> : null}
+      <div className={styles.filters}>
+        <label className={styles.filterField}>
+          <span className={styles.filterLabel}>status</span>
+          <select
+            className={styles.select}
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="dialing">Dialing</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+      </div>
 
-          {!loading ? (
-            <table>
-              <colgroup>
-                <col className={styles.colId} />
-                <col className={styles.colCustomer} />
-                <col className={styles.colOperator} />
-                <col className={styles.colStatus} />
-                <col className={styles.colReceived} />
-                <col className={styles.colExecuted} />
-                <col className={styles.colActions} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Customer Number</th>
-                  <th>Operator</th>
-                  <th className={styles.statusHeader}>Status</th>
-                  <th>Received</th>
-                  <th>Executed</th>
-                  <th className={styles.actionsHeader}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  (() => {
-                    const operatorDisplay = resolveOperatorDisplay(item);
-                    return (
-                  <tr key={item.id} className={styles.row}>
-                    <td className={styles.dataMono}>{item.id}</td>
-                    <td className={styles.dataMono}>{item.customerNumber || <span className={styles.dashMuted}>—</span>}</td>
-                    <td className={operatorDisplay.mono ? styles.dataMono : undefined}>
-                      {operatorDisplay.value || <span className={styles.dashMuted}>—</span>}
-                    </td>
-                    <td className={styles.statusCell}>
-                      <span className={`${styles.statusBadge} ${statusClass(item.status)}`}>
-                        {statusLabel(item.status)}
-                      </span>
-                    </td>
-                    <td className={styles.dataMono}>{item.createdAt ? formatDateTime(item.createdAt) : <span className={styles.dashMuted}>—</span>}</td>
-                    <td className={styles.dataMono}>{item.executedAt ? formatDateTime(item.executedAt) : <span className={styles.dashMuted}>—</span>}</td>
-                    <td className={styles.actionsCell}>
-                      {item.status === 'pending' ? (
-                        confirmCancelId === item.id ? (
-                          <div className={styles.confirmInline}>
-                            <span>Cancel callback?</span>
-                            <button className={styles.dangerButton} type="button" onClick={() => void handleCancel(item.id)}>Confirm</button>
-                            <button className={styles.secondaryButton} type="button" onClick={() => setConfirmCancelId(null)}>No</button>
-                          </div>
-                        ) : (
+      <div className={styles.tableCard}>
+        {loading ? <Loading message="Loading callbacks..." /> : null}
+        {!loading && items.length === 0 ? <div className={styles.emptyState}>No callbacks found.</div> : null}
+
+        {!loading ? (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer Number</th>
+                <th>Operator</th>
+                <th className={styles.statusHeader}>Status</th>
+                <th>Received</th>
+                <th>Executed</th>
+                <th className={styles.actionsHeader}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                (() => {
+                  const operatorDisplay = resolveOperatorDisplay(item);
+                  return (
+                    <tr key={item.id} className={styles.row}>
+                      <td className={styles.dataMono}>{item.id}</td>
+                      <td className={styles.dataMono}>{item.customerNumber || <span className={styles.dashMuted}>—</span>}</td>
+                      <td className={operatorDisplay.mono ? styles.dataMono : undefined}>
+                        {operatorDisplay.value || <span className={styles.dashMuted}>—</span>}
+                      </td>
+                      <td className={styles.statusCell}>
+                        <span className={`${styles.statusBadge} ${statusClass(item.status)}`}>
+                          {statusLabel(item.status)}
+                        </span>
+                      </td>
+                      <td className={styles.dataMono}>{item.createdAt ? formatDateTime(item.createdAt) : <span className={styles.dashMuted}>—</span>}</td>
+                      <td className={styles.dataMono}>{item.executedAt ? formatDateTime(item.executedAt) : <span className={styles.dashMuted}>—</span>}</td>
+                      <td className={styles.actionsCell}>
+                        {item.status === 'pending' ? (
                           <div className={styles.actions}>
                             <button
-                              className={styles.primaryButton}
+                              className={`${styles.secondaryButton} ${styles.actionButton}`}
                               type="button"
                               onClick={() => void handleExecute(item.id)}
                               disabled={executeStateById[item.id] === 'loading'}
                             >
                               {executeStateById[item.id] === 'loading' ? 'calling…' : executeStateById[item.id] === 'saved' ? 'done ✓' : 'Call Now'}
                             </button>
-                            <button className={styles.dangerButton} type="button" onClick={() => setConfirmCancelId(item.id)}>Cancel</button>
+                            <button className={`${styles.secondaryButton} ${styles.actionButton}`} type="button" onClick={() => setConfirmCancelId(item.id)}>Cancel</button>
                           </div>
-                        )
-                      ) : (
-                        null
-                      )}
-                    </td>
-                  </tr>
-                    );
-                  })()
-                ))}
-              </tbody>
-            </table>
-          ) : null}
+                        ) : (
+                          null
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })()
+              ))}
+            </tbody>
+          </table>
+        ) : null}
 
-          {!loading && items.map((item) => (
-            rowErrors[item.id] ? (
-              <div key={`err-${item.id}`} className={styles.rowError}>{rowErrors[item.id]}</div>
-            ) : null
-          ))}
+        {!loading && items.map((item) => (
+          rowErrors[item.id] ? (
+            <div key={`err-${item.id}`} className={styles.rowError}>{rowErrors[item.id]}</div>
+          ) : null
+        ))}
 
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-          <ErrorMessage message={errorText} />
-        </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <ErrorMessage message={errorText} />
       </div>
+      <ConfirmDialog
+        open={confirmCancelId !== null}
+        title="Cancel callback"
+        message="Cancel callback?"
+        cancelLabel="no"
+        confirmLabel="confirm"
+        onCancel={() => setConfirmCancelId(null)}
+        onConfirm={() => {
+          if (confirmCancelId !== null) {
+            void handleCancel(confirmCancelId);
+          }
+        }}
+      />
+    </div>
   );
 }

@@ -57,22 +57,35 @@ export function CapturePage() {
     let active = true;
 
     const loadHistorical = async () => {
-      const historicalPackets = await getCapturePackets(callIdParam);
-      if (!active) {
-        return;
-      }
+      setPageError(null);
+      try {
+        const historicalPackets = await getCapturePackets(callIdParam);
+        if (!active) {
+          return;
+        }
 
-      if (historicalPackets.length > 0) {
-        const sipCallId = historicalPackets[0]?.callId ?? '';
-        setPackets(historicalPackets);
-        setPaused(true);
-        setFilters((prev) => ({ ...prev, callId: sipCallId }));
-        setSelectedCallId(sipCallId);
-        setInfoBanner(`Showing ${historicalPackets.length} historical packets for call ${callIdParam}. Live capture paused.`);
-        return;
-      }
+        if (historicalPackets.length > 0) {
+          const sipCallId = historicalPackets[0]?.callId ?? '';
+          setPackets(historicalPackets);
+          setPaused(true);
+          setFilters((prev) => ({ ...prev, callId: sipCallId }));
+          setSelectedCallId(sipCallId);
+          setInfoBanner(`Showing ${historicalPackets.length} historical packets for call ${callIdParam}. Live capture paused.`);
+          return;
+        }
 
-      setInfoBanner(`Showing 0 historical packets for call ${callIdParam}. Live capture paused.`);
+        setInfoBanner(`Showing 0 historical packets for call ${callIdParam}. Live capture paused.`);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setInfoBanner(null);
+        setPageError(getApiError(error, 'failed to load historical capture packets'));
+      } finally {
+        if (active) {
+          setPaused(true);
+        }
+      }
     };
 
     void loadHistorical();

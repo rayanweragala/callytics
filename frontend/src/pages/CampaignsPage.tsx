@@ -5,6 +5,7 @@ import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
 import { Pagination } from '../components/common/Pagination';
 import { SearchableSelect } from '../components/common/SearchableSelect';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import {
   createCampaign,
   deleteCampaign,
@@ -303,24 +304,12 @@ export function CampaignsPage() {
     }
   };
   const actionsFor = (campaign: CampaignItem) => {
-    if (confirmDeleteId === campaign.id) {
-      return (
-        <div className={styles.confirmBox}>
-          <div className={styles.confirmText}>Delete this campaign?</div>
-          <div className={styles.confirmActions}>
-            <button className={styles.secondaryButton} type="button" onClick={clearInlineConfirm}>cancel</button>
-            <button className={styles.deleteButton} type="button" onClick={() => void handleDelete(campaign.id)}>delete</button>
-          </div>
-        </div>
-      );
-    }
-
     if (campaign.status === 'draft') {
       return (
         <>
-          <button className={styles.secondaryButton} type="button" onClick={() => void openEdit(campaign)}>edit</button>
+          <button className={`${styles.secondaryButton} ${styles.editButton}`} type="button" onClick={() => void openEdit(campaign)}>edit</button>
           <button
-            className={styles.secondaryButton}
+            className={`${styles.secondaryButton} ${styles.deleteButton}`}
             type="button"
             onClick={() => {
               setErrorText(null);
@@ -336,7 +325,7 @@ export function CampaignsPage() {
     if (campaign.status === 'scheduled') {
       return (
         <>
-          <button className={styles.secondaryButton} type="button" onClick={() => void openEdit(campaign)}>edit</button>
+          <button className={`${styles.secondaryButton} ${styles.editButton}`} type="button" onClick={() => void openEdit(campaign)}>edit</button>
           <button className={styles.secondaryButton} type="button" onClick={() => void handleStop(campaign.id)}>cancel</button>
         </>
       );
@@ -346,16 +335,16 @@ export function CampaignsPage() {
       return (
         <>
           <button className={styles.dangerButton} type="button" onClick={() => void handleStop(campaign.id)}>stop</button>
-          <button className={styles.secondaryButton} type="button" onClick={() => navigate(`/campaigns/${campaign.id}`)}>view</button>
+          <button className={`${styles.secondaryButton} ${styles.viewButton}`} type="button" onClick={() => navigate(`/campaigns/${campaign.id}`)}>view</button>
         </>
       );
     }
 
     return (
       <>
-        <button className={styles.secondaryButton} type="button" onClick={() => navigate(`/campaigns/${campaign.id}`)}>view</button>
+        <button className={`${styles.secondaryButton} ${styles.viewButton}`} type="button" onClick={() => navigate(`/campaigns/${campaign.id}`)}>view</button>
         <button
-          className={styles.secondaryButton}
+          className={`${styles.secondaryButton} ${styles.deleteButton}`}
           type="button"
           onClick={() => {
             setErrorText(null);
@@ -542,7 +531,7 @@ export function CampaignsPage() {
           {!loading && campaigns.length === 0 ? <div className={styles.emptyState}>No campaigns yet.</div> : null}
 
           {!loading && campaigns.length > 0 && (
-            <table>
+            <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Name</th>
@@ -551,7 +540,7 @@ export function CampaignsPage() {
                   <th>Scheduled</th>
                   <th>Status</th>
                   <th>Progress</th>
-                  <th>Actions</th>
+                  <th className={styles.actionsHeader}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -580,7 +569,7 @@ export function CampaignsPage() {
                           </div>
                         ) : '—'}
                       </td>
-                      <td>
+                      <td className={styles.actionsCell}>
                         <div className={styles.actions}>{actionsFor(campaign)}</div>
                       </td>
                     </tr>
@@ -593,6 +582,19 @@ export function CampaignsPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           {!formOpen ? <ErrorMessage message={errorText} /> : null}
         </div>
+        <ConfirmDialog
+          open={confirmDeleteId !== null}
+          title="Delete campaign"
+          message="Delete this campaign?"
+          cancelLabel="cancel"
+          confirmLabel="delete"
+          onCancel={clearInlineConfirm}
+          onConfirm={() => {
+            if (confirmDeleteId !== null) {
+              void handleDelete(confirmDeleteId);
+            }
+          }}
+        />
       </div>
   );
 }

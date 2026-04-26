@@ -57,12 +57,36 @@
   margin-bottom: 16px;
 }
 
-/* Column widths */
-th:nth-child(1) { width: 32%; }
-th:nth-child(2) { width: 10%; }
-th:nth-child(3) { width: 10%; }
-th:nth-child(4) { width: 20%; }
-th:nth-child(5) { width: 14%; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th:nth-child(1) {
+  width: 22%;
+}
+
+.table th:nth-child(2) {
+  width: 8%;
+}
+
+.table th:nth-child(3) {
+  width: 8%;
+}
+
+.table th:nth-child(4) {
+  width: 28%;
+}
+
+.table th:nth-child(5) {
+  width: 18%;
+}
+
+.table th:nth-child(6) {
+  width: 16%;
+  text-align: right;
+}
 
 .emptyState {
   text-align: center;
@@ -148,12 +172,22 @@ th:nth-child(5) { width: 14%; }
   border-color: var(--border-strong);
 }
 
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
 .downloadButton {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 88px;
+}
+
+.downloadButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
 }
 
 .deleteButton {
@@ -174,7 +208,6 @@ th:nth-child(5) { width: 14%; }
   border-color: var(--color-error);
 }
 
-.deleteButton,
 .failedText {
   color: var(--color-error);
 }

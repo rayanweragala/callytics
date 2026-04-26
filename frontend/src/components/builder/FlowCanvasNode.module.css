@@ -137,17 +137,17 @@
 
 /* Node type color system — sets currentColor for accent bar + handle tint */
 .start         { color: var(--color-active); }
-.playAudio     { color: #06b6d4; }
+.playAudio     { color: var(--primitive-cyan); }
 .getDigits     { color: var(--accent); }
 .businessHours { color: var(--accent); }
-.transfer      { color: #3b82f6; }
-.hunt          { color: #3b82f6; }
+.transfer      { color: var(--primitive-blue); }
+.hunt          { color: var(--primitive-blue); }
 .voicemail     { color: var(--text-muted); }
 .hangup        { color: var(--color-active); }
 .webhook       { color: var(--text-muted); }
-.queueLogin    { color: #a855f7; }
-.queue         { color: #a855f7; }
-.callback      { color: #f97316; }
+.queueLogin    { color: var(--primitive-navy-300); }
+.queue         { color: var(--primitive-navy-300); }
+.callback      { color: var(--primitive-orange); }
 
 .webhookSideEffect {
   border-style: dashed;

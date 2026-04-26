@@ -7,20 +7,16 @@ import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { SkeletonRow } from '../components/common/skeleton';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
+import { formatDateTime } from '../lib/time';
 import styles from './AudioPage.module.css';
 
 const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
 type PreviewState = 'idle' | 'busy' | 'failed';
 
-const formatDateTime = (dateStr: string) => {
-  try {
-    return new Date(dateStr).toLocaleString();
-  } catch {
-    return dateStr;
-  }
-};
+
 
 function humanizeVoice(id: string): string {
   const match = id.match(/^([a-z]{2})_([A-Z]{2})-([^-]+)-(.+)$/i);
@@ -307,7 +303,7 @@ export function AudioPage() {
         ) : items.length === 0 ? (
           <div className={styles.emptyState}>No audio yet.</div>
         ) : (
-          <table>
+          <table className={styles.table}>
             <thead>
               <tr>
                 <th>name</th>
@@ -315,7 +311,7 @@ export function AudioPage() {
                 <th>status</th>
                 <th>preview</th>
                 <th>created</th>
-                <th>actions</th>
+                <th className={styles.actionsHeader}>actions</th>
               </tr>
             </thead>
             <tbody>
@@ -335,17 +331,9 @@ export function AudioPage() {
                     <div className={styles.actions}>
                       {deletedId === item.id ? (
                         <div className={styles.deletedText}>deleted</div>
-                      ) : confirmId === item.id ? (
-                        <div className={styles.confirmBox}>
-                          <div className={styles.confirmText}>Delete this audio?</div>
-                          <div className={styles.confirmActions}>
-                            <button className={styles.secondaryButton} onClick={() => setConfirmId(null)}>cancel</button>
-                            <button className={styles.deleteButton} onClick={() => void confirmDelete(item.id)}>delete</button>
-                          </div>
-                        </div>
                       ) : (
                         <>
-                          <button className={styles.secondaryButton} onClick={() => setConfirmId(item.id)}>delete</button>
+                          <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmId(item.id)}>delete</button>
                           {failedDeleteId === item.id && <div className={styles.failedText}>failed</div>}
                         </>
                       )}
@@ -358,6 +346,19 @@ export function AudioPage() {
         )}
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Delete audio"
+        message="Delete this audio?"
+        cancelLabel="cancel"
+        confirmLabel="delete"
+        onCancel={() => setConfirmId(null)}
+        onConfirm={() => {
+          if (confirmId !== null) {
+            void confirmDelete(confirmId);
+          }
+        }}
+      />
     </div>
   );
 }

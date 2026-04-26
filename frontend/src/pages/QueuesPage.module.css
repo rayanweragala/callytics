@@ -63,12 +63,32 @@
   margin-bottom: 12px;
 }
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 /* Column widths */
-th:nth-child(1) { width: 25%; }
-th:nth-child(2) { width: 18%; }
-th:nth-child(3) { width: 12%; }
-th:nth-child(4) { width: 18%; }
-th:nth-child(5) { width: 14%; }
+.table th:nth-child(1) {
+  width: 25%;
+}
+
+.table th:nth-child(2) {
+  width: 18%;
+}
+
+.table th:nth-child(3) {
+  width: 12%;
+}
+
+.table th:nth-child(4) {
+  width: 18%;
+}
+
+.table th:nth-child(5) {
+  width: 14%;
+}
 
 .emptyState {
   text-align: center;
@@ -238,8 +258,8 @@ th:nth-child(5) { width: 14%; }
 
 .editButton:hover,
 .cancelButton:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
 }
 
 .input[type="number"]::-webkit-inner-spin-button,
@@ -284,6 +304,18 @@ th:nth-child(5) { width: 14%; }
   font-family: var(--font-mono);
 }
 
+/* Entity names: text-primary */
+.rowValue {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* Secondary/support values: muted */
+.rowMuted {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
 .dataMono {
   color: var(--color-data);
   font-size: 14px;
@@ -309,6 +341,7 @@ th:nth-child(5) { width: 14%; }
 }
 
 @media (max-width: 1100px) {
+
   .formRow,
   .editorRow {
     flex-direction: column;

@@ -31,6 +31,20 @@ import styles from './DiagnosticsPage.module.css';
 
 const FAILURES_PAGE_SIZE = 20;
 
+interface DiagnosticsFailureApiItem {
+  id?: number;
+  callId: string;
+  callUuid?: string | null;
+  startedAt?: string | null;
+  time?: string | null;
+  callerNumber?: string | null;
+  callerId?: string | null;
+  flowName?: string | null;
+  failedNodeType?: string | null;
+  errorMessage?: string | null;
+  durationSeconds?: number | null;
+}
+
 export function DiagnosticsPage() {
   const [health, setHealth] = useState<DiagnosticsSystemHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
@@ -106,11 +120,11 @@ export function DiagnosticsPage() {
     try {
       const offset = (page - 1) * FAILURES_PAGE_SIZE;
       const response = await getDiagnosticsFailures(FAILURES_PAGE_SIZE, offset);
-      setFailures(response.data.map((item: any, index: number) => ({
+      setFailures(response.data.map((item: DiagnosticsFailureApiItem, index: number) => ({
         id: item.id ?? index + 1,
         callId: item.callId,
         callUuid: item.callUuid ?? item.callId,
-        time: item.startedAt ?? item.time,
+        time: item.startedAt ?? item.time ?? '',
         callerId: item.callerNumber ?? item.callerId ?? null,
         flowName: item.flowName ?? null,
         failedNodeType: item.failedNodeType ?? null,
@@ -306,7 +320,7 @@ export function DiagnosticsPage() {
 
         {isHealthInitial ? (
           <section>
-            <div style={{ display: 'flex', gap: 12, padding: '12px 0' }}>
+            <div className={styles.healthSkeletonRow}>
               {[...Array(6)].map((_, i) => (
                 <SkeletonCard key={i} />
               ))}

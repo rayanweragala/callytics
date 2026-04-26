@@ -63,8 +63,7 @@
   text-transform: lowercase;
 }
 
-.formGrid,
-.editorRow {
+.formGrid {
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -79,11 +78,24 @@
   border-radius: var(--radius-md);
 }
 
-.editorRow {
+.editPanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   padding: 12px 16px;
   background: var(--surface-elevated);
   border-top: 1px solid var(--border-subtle);
   margin-top: -1px;
+}
+
+.editRow {
+  border-bottom: none;
+}
+
+.editCell {
+  padding: 0 !important;
+  white-space: normal;
+  overflow: visible;
 }
 
 .field {
@@ -150,13 +162,18 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
+  height: 28px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   text-transform: lowercase;
+}
+
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
 }
 
 /* FIX 6 — Row action: delete */
@@ -179,7 +196,6 @@
   border-color: var(--color-error);
 }
 
-.deleteButton,
 .failedText {
   color: var(--color-error);
 }
@@ -212,6 +228,11 @@
 .formActions {
   flex-shrink: 0;
   flex-wrap: nowrap;
+}
+
+.editPanel .formActions {
+  grid-column: 1 / -1;
+  margin-top: 4px;
 }
 
 /* PIN banner */
@@ -270,12 +291,40 @@
   padding: 2px 6px;
 }
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 /* Column widths */
-th:nth-child(1) { width: 25%; }
-th:nth-child(2) { width: 12%; }
-th:nth-child(3) { width: 12%; }
-th:nth-child(4) { width: 18%; }
-th:nth-child(5) { width: 14%; }
+.table th:nth-child(1) {
+  width: 22%;
+}
+
+.table th:nth-child(2) {
+  width: 11%;
+}
+
+.table th:nth-child(3) {
+  width: 14%;
+}
+
+.table th:nth-child(4) {
+  width: 16%;
+}
+
+.table th:nth-child(5) {
+  width: 12%;
+}
+
+.table th:nth-child(6) {
+  width: 13%;
+}
+
+.table th:nth-child(7) {
+  width: 12%;
+}
 
 .emptyState {
   text-align: center;
@@ -289,10 +338,17 @@ th:nth-child(5) { width: 14%; }
   text-align: right;
 }
 
+.actionsCell {
+  overflow: visible;
+  white-space: normal;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .successText,
@@ -307,6 +363,18 @@ th:nth-child(5) { width: 14%; }
 .uriText,
 .displayName {
   color: var(--text-secondary);
+}
+
+/* Entity names: text-primary */
+.rowValue {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* Secondary/support values: muted */
+.rowMuted {
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
 /* FIX 2 — Data values: cyan + 600 */
@@ -369,6 +437,14 @@ th:nth-child(5) { width: 14%; }
   font-family: var(--font-mono);
 }
 
+.editPanel .inlineValidationError {
+  grid-column: 1 / -1;
+}
+
+.inlineError {
+  grid-column: 1 / -1;
+}
+
 /* Status badge — compact */
 .statusBadge {
   display: inline-block;
@@ -417,10 +493,14 @@ th:nth-child(5) { width: 14%; }
 }
 
 @media (max-width: 1100px) {
-  .formGrid,
-  .editorRow {
+
+  .formGrid {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .editPanel {
+    grid-template-columns: 1fr;
   }
 
   .tableHead,

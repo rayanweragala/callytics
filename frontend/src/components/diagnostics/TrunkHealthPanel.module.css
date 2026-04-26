@@ -109,6 +109,11 @@ th:nth-child(7) { width: 6%; }
   cursor: pointer;
 }
 
+.button:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
 .button:disabled {
   cursor: default;
   opacity: 0.6;

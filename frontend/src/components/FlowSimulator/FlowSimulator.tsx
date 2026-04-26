@@ -306,18 +306,12 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
         : {};
       const targetKey = String(targets[branchKey] || '').trim();
       const subflowId = Number(node.data.subflowId || 0);
-      console.log('[sim] branchKey:', branchKey);
-      console.log('[sim] rawTargets:', JSON.stringify(rawTargets));
-      console.log('[sim] targetKey:', targetKey);
-      console.log('[sim] subflowId:', subflowId);
       if (targetKey && subflowId > 0) {
-          try {
+        try {
           const response = await getFlow(String(subflowId));
-          console.log('[sim] subflow response keys:', Object.keys(response));
-          const flowData = (response as any)?.data ?? response;
-          console.log('[sim] flowData nodes count:', (flowData as any)?.nodes?.length);
-          const subNodes = mapFlowToNodes(flowData as any);
-          const subEdges = mapFlowToEdges(flowData as any);
+          const flowData = response.data;
+          const subNodes = mapFlowToNodes(flowData);
+          const subEdges = mapFlowToEdges(flowData);
           const subNodeMap = new Map(subNodes.map((n) => [n.id, n]));
 
           // Pass 1: match by React Flow id
@@ -326,11 +320,6 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
           // Pass 2: try matching by original nodeKey or id patterns
           if (!targetNode) {
             targetNode = subNodes.find((n) => {
-              // some mappings keep original nodeKey on data.nodeKey (not guaranteed),
-              // try a few heuristics to match common id formats
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              if (n.data && (n.data as any).nodeKey === targetKey) return true;
               if (n.id === targetKey) return true;
               if (String(n.id).endsWith(`:${targetKey}`)) return true;
               return false;
@@ -359,7 +348,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
             isDeadEnd: false,
             doneReason: undefined,
             submenuStack: [...simState.submenuStack, { menuNodeId: node.id, menuLabel: node.data.label || node.id }],
-            flowStack: [...(simState.flowStack || [{ flowId: 0, nodes, edges, label: 'Main Flow' }]), { flowId: subflowId, nodes: subNodes, edges: subEdges, label: (flowData as any).name }],
+            flowStack: [...(simState.flowStack || [{ flowId: 0, nodes, edges, label: 'Main Flow' }]), { flowId: subflowId, nodes: subNodes, edges: subEdges, label: flowData.name }],
             notice: null,
           });
           onSubflowEnter?.(subflowId);

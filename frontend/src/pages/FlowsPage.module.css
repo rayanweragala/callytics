@@ -41,10 +41,25 @@
 }
 
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 /* Column widths */
-th:nth-child(1) { width: 55%; }
-th:nth-child(2) { width: 25%; }
-th:nth-child(3) { width: 20%; }
+.table th:nth-child(1) {
+  width: 55%;
+}
+
+.table th:nth-child(2) {
+  width: 25%;
+}
+
+.table th:nth-child(3) {
+  width: 20%;
+  text-align: right;
+}
 
 .emptyState {
   text-align: center;
@@ -123,6 +138,11 @@ th:nth-child(3) { width: 20%; }
   border-color: var(--border-strong);
 }
 
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
 .deleteButton {
   height: 28px;
   padding: 4px 10px;
@@ -140,10 +160,6 @@ th:nth-child(3) { width: 20%; }
 .deleteButton:hover {
   color: var(--color-error);
   border-color: var(--color-error);
-}
-
-.deleteButton {
-  color: var(--color-error);
 }
 
 .confirmBox {

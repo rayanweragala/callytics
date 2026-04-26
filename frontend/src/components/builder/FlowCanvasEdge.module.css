@@ -1,3 +1,18 @@
+.edgePath {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.edgeSubflowJump {
+  stroke: var(--color-info);
+  stroke-dasharray: 8 5;
+}
+
+.edgeSelected {
+  stroke: var(--color-active);
+  stroke-width: 2.5;
+}
+
 .deleteButton {
   position: absolute;
   width: 20px;

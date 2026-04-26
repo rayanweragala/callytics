@@ -302,38 +302,38 @@ export function CallLogsPage() {
           />
         </section>
 
+        <div className={styles.filters}>
+          <input
+            className={styles.input}
+            placeholder="Search caller number"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+          />
+          <input className={styles.input} type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+          <input className={styles.input} type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+          <select className={styles.input} value={endReason} onChange={(event) => setEndReason(event.target.value)}>
+            <option value="">All</option>
+            <option value="completed">completed</option>
+            <option value="no-answer">no-answer</option>
+            <option value="busy">busy</option>
+            <option value="failed">failed</option>
+          </select>
+        </div>
+
+        <div className={styles.filterPills}>
+          <button className={`${styles.filterPill} ${direction === 'all' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('all')}>All</button>
+          <button className={`${styles.filterPill} ${direction === 'inbound' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('inbound')}>Inbound</button>
+          <button className={`${styles.filterPill} ${direction === 'outbound' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('outbound')}>Outbound</button>
+        </div>
+
         <div className={styles.tableCard}>
-          <div className={styles.filters}>
-            <input
-              className={styles.input}
-              placeholder="Search caller number"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-            />
-            <input className={styles.input} type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-            <input className={styles.input} type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-            <select className={styles.input} value={endReason} onChange={(event) => setEndReason(event.target.value)}>
-              <option value="">All</option>
-              <option value="completed">completed</option>
-              <option value="no-answer">no-answer</option>
-              <option value="busy">busy</option>
-              <option value="failed">failed</option>
-            </select>
-          </div>
-
-          <div className={styles.filterPills}>
-            <button className={`${styles.filterPill} ${direction === 'all' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('all')}>All</button>
-            <button className={`${styles.filterPill} ${direction === 'inbound' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('inbound')}>Inbound</button>
-            <button className={`${styles.filterPill} ${direction === 'outbound' ? styles.filterPillActive : ''}`} type="button" onClick={() => setDirection('outbound')}>Outbound</button>
-          </div>
-
           <ErrorMessage message={errorText} />
 
           {loading ? <div className={styles.emptyState}>Loading call logs...</div> : null}
           {!loading && data.length === 0 ? <div className={styles.emptyState}>No call logs found.</div> : null}
 
           {!loading && data.length > 0 && (
-            <table>
+            <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Caller number</th>
@@ -343,10 +343,9 @@ export function CallLogsPage() {
                   <th>Duration</th>
                   <th>Quality</th>
                   <th>Start time</th>
-                  <th>End time</th>
                   <th>End reason</th>
                   <th>Logs</th>
-                  <th>Trace</th>
+                  <th className={styles.actionsHeader}>Trace</th>
                 </tr>
               </thead>
               <tbody>
@@ -377,7 +376,6 @@ export function CallLogsPage() {
                         )}
                       </td>
                       <td className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</td>
-                      <td className={styles.timestamp}>{item.endedAt ? formatDateTime(item.endedAt) : '—'}</td>
                       <td><span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span></td>
                       <td>
                         <button
@@ -393,7 +391,7 @@ export function CallLogsPage() {
                           Logs
                         </button>
                       </td>
-                      <td>
+                      <td className={styles.traceCell}>
                         <button
                           className={styles.traceButton}
                           onClick={(event) => {

@@ -31,8 +31,8 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border-strong);
+  padding: 0;
+  margin-bottom: 8px;
 }
 
 .filterField {
@@ -98,13 +98,33 @@
 }
 
 /* Column widths */
-th:nth-child(1) { width: 6%; }
-th:nth-child(2) { width: 18%; }
-th:nth-child(3) { width: 20%; }
-th:nth-child(4) { width: 10%; }
-th:nth-child(5) { width: 16%; }
-th:nth-child(6) { width: 16%; }
-th:nth-child(7) { width: 14%; }
+.table th:nth-child(1) {
+  width: 7%;
+}
+
+.table th:nth-child(2) {
+  width: 16%;
+}
+
+.table th:nth-child(3) {
+  width: 14%;
+}
+
+.table th:nth-child(4) {
+  width: 10%;
+}
+
+.table th:nth-child(5) {
+  width: 15%;
+}
+
+.table th:nth-child(6) {
+  width: 15%;
+}
+
+.table th:nth-child(7) {
+  width: 23%;
+}
 
 .emptyState {
   text-align: center;
@@ -169,11 +189,11 @@ th:nth-child(7) { width: 14%; }
   display: flex;
   align-items: center;
   gap: 8px;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .actionsCell {
-  text-align: center;
+  text-align: right;
 }
 
 .actionsHeader {
@@ -225,6 +245,21 @@ th:nth-child(7) { width: 14%; }
 .secondaryButton:hover {
   color: var(--text-primary);
   border-color: var(--border-strong);
+}
+
+.actionButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .dangerButton {

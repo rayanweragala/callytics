@@ -47,11 +47,7 @@
 }
 
 .inlineDialog .title {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  display: none;
 }
 
 .message {
@@ -66,12 +62,17 @@
   font-family: var(--font-mono);
   font-size: 14px;
   line-height: 1.4;
+  color: var(--text-secondary);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.inlineDialog .actions {
+  gap: 8px;
 }
 
 .cancelButton,
@@ -86,10 +87,37 @@
 .inlineDialog .cancelButton,
 .inlineDialog .secondaryButton,
 .inlineDialog .confirmButton {
-  min-height: 32px;
-  border-radius: 6px;
+  min-height: 28px;
+  height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
   text-transform: lowercase;
+}
+
+.inlineDialog .cancelButton,
+.inlineDialog .secondaryButton {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.inlineDialog .cancelButton:hover,
+.inlineDialog .secondaryButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.inlineDialog .confirmButton {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--color-error);
+}
+
+.inlineDialog .confirmButton:hover {
+  border-color: var(--color-error);
 }
 
 .cancelButton {

@@ -27,6 +27,12 @@
   padding: 0 20px 16px;
 }
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 .pageHeader {
   display: flex;
   align-items: center;
@@ -142,7 +148,7 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
+  height: 28px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 500;
@@ -150,22 +156,23 @@
   text-transform: lowercase;
 }
 
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
+.viewButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
 /* FIX 6 — Row action/delete */
 .deleteButton {
-  height: 28px;
-  padding: 4px 10px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-error);
-  border: 1px solid var(--border-strong);
-  cursor: pointer;
-  transition: border-color 0.15s;
-  text-transform: lowercase;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .deleteButton:hover {
+  color: var(--color-error);
   border-color: var(--color-error);
 }
 
@@ -236,6 +243,11 @@
   font-family: var(--font-mono);
 }
 
+.mono {
+  color: var(--color-data);
+  font-weight: 600;
+}
+
 .confirmText {
   color: var(--text-secondary);
 }
@@ -275,12 +287,33 @@
 }
 
 /* Column widths */
-th:nth-child(1) { width: 25%; }
-th:nth-child(2) { width: 15%; }
-th:nth-child(3) { width: 10%; }
-th:nth-child(4) { width: 10%; }
-th:nth-child(5) { width: 16%; }
-th:nth-child(6) { width: 12%; }
+.table th:nth-child(1) {
+  width: 22%;
+}
+
+.table th:nth-child(2) {
+  width: 14%;
+}
+
+.table th:nth-child(3) {
+  width: 10%;
+}
+
+.table th:nth-child(4) {
+  width: 14%;
+}
+
+.table th:nth-child(5) {
+  width: 12%;
+}
+
+.table th:nth-child(6) {
+  width: 12%;
+}
+
+.table th:nth-child(7) {
+  width: 16%;
+}
 
 .emptyState {
   text-align: center;
@@ -291,6 +324,10 @@ th:nth-child(6) { width: 12%; }
 
 
 .actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
   text-align: right;
 }
 
@@ -413,6 +450,7 @@ th:nth-child(6) { width: 12%; }
 }
 
 @media (max-width: 1280px) {
+
   .tableHead,
   .row {
     grid-template-columns: 1fr;

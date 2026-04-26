@@ -4,6 +4,7 @@ import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { deleteRecording, listRecordings } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
@@ -119,7 +120,7 @@ export function RecordingsPage() {
         ) : items.length === 0 ? (
           <div className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</div>
         ) : (
-          <table>
+          <table className={styles.table}>
             <thead>
               <tr>
                 <th>name</th>
@@ -147,18 +148,10 @@ export function RecordingsPage() {
                     <div className={styles.actions}>
                       {deletedId === item.id ? (
                         <div className={styles.deletedText}>deleted</div>
-                      ) : confirmId === item.id ? (
-                        <div className={styles.confirmBox}>
-                          <div className={styles.confirmText}>Delete this recording? This cannot be undone.</div>
-                          <div className={styles.confirmActions}>
-                            <button className={styles.secondaryButton} onClick={() => setConfirmId(null)} type="button">cancel</button>
-                            <button className={styles.deleteButton} onClick={() => void confirmDelete(item.id)} type="button">delete</button>
-                          </div>
-                        </div>
                       ) : (
                         <>
                           <a className={`${styles.secondaryButton} ${styles.downloadButton}`} href={`${backendBase}/recordings/${item.id}/download`} target="_blank" rel="noreferrer">download</a>
-                          <button className={styles.secondaryButton} onClick={() => setConfirmId(item.id)} type="button">delete</button>
+                          <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmId(item.id)} type="button">delete</button>
                           {failedDeleteId === item.id ? <div className={styles.failedText}>failed to delete</div> : null}
                         </>
                       )}
@@ -176,6 +169,19 @@ export function RecordingsPage() {
         />
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Delete recording"
+        message="Delete this recording? This cannot be undone."
+        cancelLabel="cancel"
+        confirmLabel="delete"
+        onCancel={() => setConfirmId(null)}
+        onConfirm={() => {
+          if (confirmId !== null) {
+            void confirmDelete(confirmId);
+          }
+        }}
+      />
     </div>
   );
 }

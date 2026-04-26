@@ -386,17 +386,17 @@
 /* Node type color system */
 .barstart    { background: var(--color-active); }
 .barhangup   { background: var(--color-active); }
-.barplayaudio { background: #06b6d4; } /* cyan */
+.barplayaudio { background: var(--primitive-cyan); } /* cyan */
 .bargetdigits { background: var(--accent); }
 .barmenu      { background: var(--accent); }
 .barbusinesshours { background: var(--accent); }
-.bartransfer  { background: #3b82f6; } /* blue */
-.barhunt      { background: #3b82f6; } /* blue */
-.barqueue     { background: #a855f7; } /* purple */
-.barqueuelogin { background: #a855f7; } /* purple */
+.bartransfer  { background: var(--primitive-blue); } /* blue */
+.barhunt      { background: var(--primitive-blue); } /* blue */
+.barqueue     { background: var(--primitive-navy-300); } /* purple */
+.barqueuelogin { background: var(--primitive-navy-300); } /* purple */
 .barvoicemail { background: var(--text-muted); }
 .barwebhook   { background: var(--text-muted); }
-.barcallback  { background: #f97316; } /* orange */
+.barcallback  { background: var(--primitive-orange); } /* orange */
 
 .paletteIcon {
   width: 15px;
@@ -602,6 +602,14 @@
 }
 
 /* Mini-map — card treatment */
+.minimap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  width: 160px;
+  height: 108px;
+}
+
 :global(.react-flow__minimap) {
   position: absolute;
   bottom: 16px;

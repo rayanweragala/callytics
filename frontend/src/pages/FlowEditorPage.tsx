@@ -1161,7 +1161,15 @@ export function FlowEditorPage() {
                 </svg>
               </button>
               {minimapVisible ? (
-                <MiniMap nodeColor={minimapNodeColor} maskColor="var(--overlay-strong)" position="bottom-right" {...miniMapSizeProps} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: 160, height: 108 }} pannable zoomable />
+                <MiniMap
+                  className={styles.minimap}
+                  nodeColor={minimapNodeColor}
+                  maskColor="var(--overlay-strong)"
+                  position="bottom-right"
+                  {...miniMapSizeProps}
+                  pannable
+                  zoomable
+                />
               ) : null}
             </ReactFlow>
           </div>

@@ -161,6 +161,11 @@
   text-transform: lowercase;
 }
 
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
 /* FIX 6 — Row action: delete */
 .deleteButton {
   height: 28px;
@@ -181,18 +186,40 @@
   border-color: var(--color-error);
 }
 
-.deleteButton,
 .failedText {
   color: var(--color-error);
 }
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 /* Column widths */
-th:nth-child(1) { width: 28%; }
-th:nth-child(2) { width: 24%; }
-th:nth-child(3) { width: 10%; }
-th:nth-child(4) { width: 12%; }
-th:nth-child(5) { width: 16%; }
-th:nth-child(6) { width: 10%; }
+.table th:nth-child(1) {
+  width: 28%;
+}
+
+.table th:nth-child(2) {
+  width: 24%;
+}
+
+.table th:nth-child(3) {
+  width: 10%;
+}
+
+.table th:nth-child(4) {
+  width: 12%;
+}
+
+.table th:nth-child(5) {
+  width: 16%;
+}
+
+.table th:nth-child(6) {
+  width: 10%;
+}
 
 .emptyState {
   text-align: center;
@@ -246,7 +273,7 @@ th:nth-child(6) { width: 10%; }
 .confirmText,
 .labelText,
 .flowText {
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 /* FIX 2 — Data values: cyan + 600 */
@@ -282,6 +309,7 @@ th:nth-child(6) { width: 10%; }
 }
 
 @media (max-width: 1100px) {
+
   .formGrid,
   .editorRow,
   .tableHead,

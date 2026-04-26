@@ -186,11 +186,16 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
+  height: 28px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
 }
 
 /* FIX — Toggle button */
@@ -210,14 +215,47 @@
   text-transform: lowercase;
 }
 
-/* Column widths */
-.table th:nth-child(1) { width: 20%; }
-.table th:nth-child(2) { width: 26%; }
-.table th:nth-child(3) { width: 8%; }
-.table th:nth-child(4) { width: 12%; }
-.table th:nth-child(5) { width: 10%; }
-.table th:nth-child(6) { width: 14%; }
-.table th:nth-child(7) { width: 10%; }
+/* Column widths — 8 cols: Name, Provider, Host, Port, Auth, Status, Created, Actions */
+.table th:nth-child(1) {
+  width: 16%;
+}
+
+/* Name */
+.table th:nth-child(2) {
+  width: 11%;
+}
+
+/* Provider */
+.table th:nth-child(3) {
+  width: 20%;
+}
+
+/* Host */
+.table th:nth-child(4) {
+  width: 7%;
+}
+
+/* Port */
+.table th:nth-child(5) {
+  width: 7%;
+}
+
+/* Auth */
+.table th:nth-child(6) {
+  width: 11%;
+}
+
+/* Status */
+.table th:nth-child(7) {
+  width: 12%;
+}
+
+/* Created */
+.table th:nth-child(8) {
+  width: 16%;
+}
+
+/* Actions */
 
 .emptyState {
   text-align: center;
@@ -280,6 +318,8 @@
   align-items: flex-end;
   gap: 8px;
   position: relative;
+  overflow: visible;
+  white-space: normal;
 }
 
 .actions,
@@ -558,8 +598,13 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 1280px) {

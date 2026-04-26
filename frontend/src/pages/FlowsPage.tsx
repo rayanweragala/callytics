@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../components/common/Pagination';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { deleteFlow, listFlows } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
@@ -93,7 +94,7 @@ export function FlowsPage() {
         </button>
       </div>
       <div className={styles.tableCard}>
-        <table>
+        <table className={styles.table}>
           <thead>
             <tr>
               <th>name</th>
@@ -118,20 +119,10 @@ export function FlowsPage() {
                     <div className={styles.actions}>
                       {deletedId === flow.id ? (
                         <div className={styles.deletedText}>deleted</div>
-                      ) : confirmId === flow.id ? (
-                        <div className={styles.confirmBox}>
-                          <div className={styles.confirmText}>Delete this flow? This cannot be undone.</div>
-                          <div className={styles.confirmActions}>
-                            <button className={styles.secondaryButton} onClick={() => setConfirmId(null)} type="button">cancel</button>
-                            <button className={styles.deleteButton} onClick={() => void confirmDelete(flow.id)} type="button">
-                              {busyId === flow.id ? 'deleting…' : 'delete'}
-                            </button>
-                          </div>
-                        </div>
                       ) : (
                         <>
-                          <button className={styles.secondaryButton} onClick={() => navigate(`/flows/${flow.id}`)} type="button">edit</button>
-                          <button className={styles.secondaryButton} onClick={() => setConfirmId(flow.id)} type="button">delete</button>
+                          <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => navigate(`/flows/${flow.id}`)} type="button">edit</button>
+                          <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmId(flow.id)} type="button">delete</button>
                           {failedDeleteId === flow.id ? <div className={styles.failedText}>failed to delete</div> : null}
                         </>
                       )}
@@ -149,6 +140,19 @@ export function FlowsPage() {
         />
         <ErrorMessage message={errorText} />
       </div>
+      <ConfirmDialog
+        open={confirmId !== null}
+        title="Delete flow"
+        message="Delete this flow? This cannot be undone."
+        cancelLabel="cancel"
+        confirmLabel={confirmId !== null && busyId === confirmId ? 'deleting…' : 'delete'}
+        onCancel={() => setConfirmId(null)}
+        onConfirm={() => {
+          if (confirmId !== null) {
+            void confirmDelete(confirmId);
+          }
+        }}
+      />
     </div>
   );
 }

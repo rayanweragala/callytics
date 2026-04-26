@@ -245,6 +245,11 @@
   text-transform: lowercase;
 }
 
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
 /* FIX 6 — Row action buttons */
 .deleteButton {
   height: 28px;
@@ -284,7 +289,6 @@
 }
 
 .failedButton,
-.deleteButton,
 .failedText,
 .fieldError {
   color: var(--color-error);
@@ -312,13 +316,36 @@
   background: var(--surface-elevated);
 }
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 /* Column widths */
-th:nth-child(1) { width: 30%; }
-th:nth-child(2) { width: 12%; }
-th:nth-child(3) { width: 10%; }
-th:nth-child(4) { width: 10%; }
-th:nth-child(5) { width: 18%; }
-th:nth-child(6) { width: 20%; }
+.table th:nth-child(1) {
+  width: 30%;
+}
+
+.table th:nth-child(2) {
+  width: 12%;
+}
+
+.table th:nth-child(3) {
+  width: 10%;
+}
+
+.table th:nth-child(4) {
+  width: 10%;
+}
+
+.table th:nth-child(5) {
+  width: 18%;
+}
+
+.table th:nth-child(6) {
+  width: 20%;
+}
 
 .emptyState {
   text-align: center;
@@ -356,6 +383,14 @@ th:nth-child(6) { width: 20%; }
   gap: 8px;
   justify-content: flex-end;
   align-items: center;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
+  text-align: right;
 }
 
 .confirmBox {
