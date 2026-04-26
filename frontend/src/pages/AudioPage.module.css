@@ -4,33 +4,12 @@
   gap: 24px;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sectionLabel {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--accent);
-}
-
-.title {
-  margin: 4px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-/* FIX 1 — Card borders */
 .panel,
 .libraryPanel {
   background: var(--surface);
@@ -59,7 +38,6 @@
   margin-bottom: 16px;
 }
 
-
 .panelTitle {
   font-size: 15px;
   font-weight: 500;
@@ -80,7 +58,6 @@
   gap: 8px;
 }
 
-/* FIX — Form labels */
 .fieldLabel,
 .previewLabel {
   font-size: 14px;
@@ -91,7 +68,6 @@
   margin-bottom: 4px;
 }
 
-/* FIX 7 — Inputs */
 .input,
 .textarea {
   background: var(--bg);
@@ -137,7 +113,6 @@
   font-family: var(--font-mono);
 }
 
-/* FIX 2 — Data values: cyan */
 .sliderValue {
   color: var(--color-data);
   font-size: 14px;
@@ -149,70 +124,6 @@
   font-weight: 600;
 }
 
-.sliderShell {
-  position: relative;
-  height: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.sliderTrack {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 6px;
-  border-radius: var(--radius-lg);
-  background: var(--border-subtle);
-  overflow: hidden;
-}
-
-.sliderFill {
-  height: 100%;
-  background: var(--accent);
-}
-
-.slider {
-  position: relative;
-  width: 100%;
-  margin: 0;
-  appearance: none;
-  background: transparent;
-}
-
-.slider::-webkit-slider-runnable-track {
-  height: 6px;
-  background: transparent;
-}
-
-.slider::-moz-range-track {
-  height: 6px;
-  background: transparent;
-}
-
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  margin-top: -3px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
-  background: var(--accent);
-}
-
-.slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
-  background: var(--accent);
-}
-
-.slider:hover,
-.slider:focus {
-  outline: none;
-}
-
-/* FIX 5 — Primary CTA */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -231,7 +142,6 @@
   opacity: 0.88;
 }
 
-/* FIX 5 — Secondary */
 .secondaryButton {
   background: transparent;
   color: var(--text-secondary);
@@ -246,11 +156,10 @@
 }
 
 .editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
-/* FIX 6 — Row action buttons */
 .deleteButton {
   height: 28px;
   padding: 4px 10px;
@@ -323,29 +232,12 @@
 }
 
 /* Column widths */
-.table th:nth-child(1) {
-  width: 30%;
-}
-
-.table th:nth-child(2) {
-  width: 12%;
-}
-
-.table th:nth-child(3) {
-  width: 10%;
-}
-
-.table th:nth-child(4) {
-  width: 10%;
-}
-
-.table th:nth-child(5) {
-  width: 18%;
-}
-
-.table th:nth-child(6) {
-  width: 20%;
-}
+.table th:nth-child(1) { width: 30%; }
+.table th:nth-child(2) { width: 12%; }
+.table th:nth-child(3) { width: 10%; }
+.table th:nth-child(4) { width: 10%; }
+.table th:nth-child(5) { width: 18%; }
+.table th:nth-child(6) { width: 20%; }
 
 .emptyState {
   text-align: center;
@@ -355,7 +247,6 @@
 }
 
 
-/* Entity name: text-primary */
 .name {
   color: var(--text-primary);
   font-size: 14px;
@@ -367,15 +258,9 @@
   font-size: 14px;
 }
 
-/* FIX 2 — Duration and timestamps: cyan */
 .createdAt {
   color: var(--color-data);
   font-weight: 600;
-}
-
-.empty {
-  color: var(--text-muted);
-  padding-top: 16px;
 }
 
 .actions {
@@ -389,50 +274,22 @@
   text-align: right;
 }
 
-.actionsCell {
-  text-align: right;
-}
-
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-}
-
-.confirmText {
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.confirmActions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 @media (max-width: 1100px) {
   .grid {
     grid-template-columns: 1fr;
   }
 
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
+  .tableCard {
+    overflow-x: auto;
   }
 
   .actionsHeader,
-  .actions,
-  .confirmActions {
+  .actions {
     text-align: left;
     justify-content: flex-start;
   }
 }
 
-/* input-size-override */
 .input {
   font-size: 14px;
 }

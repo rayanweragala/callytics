@@ -80,8 +80,7 @@ export function ContactNumbersPage() {
     void load(page).finally(() => setLoading(false));
   }, [page]);
 
-  const submitCreate = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitCreate = async () => {
     const label = form.label.trim();
     const number = form.number.trim();
     if (!label || !number) {
@@ -120,8 +119,7 @@ export function ContactNumbersPage() {
     });
   };
 
-  const submitEdit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitEdit = async () => {
     if (editingId === null) return;
     setSaving(true);
     setError(null);
@@ -176,7 +174,7 @@ export function ContactNumbersPage() {
         {pageActions}
       </div>
       {createOpen ? (
-        <form className={styles.formPanel} onSubmit={(event) => void submitCreate(event)}>
+        <div className={styles.formPanel}>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>label</span>
             <input className={styles.input} value={form.label} onChange={(event) => setForm((prev) => ({ ...prev, label: event.target.value }))} />
@@ -202,9 +200,9 @@ export function ContactNumbersPage() {
             <input className={styles.input} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
           </label>
           <div className={styles.actions}>
-            <button className={styles.primaryButton} type="submit" disabled={creating}>{creating ? 'creating…' : 'create contact'}</button>
+            <button className={styles.primaryButton} type="button" onClick={() => void submitCreate()} disabled={creating}>{creating ? 'creating…' : 'create contact'}</button>
           </div>
-        </form>
+        </div>
       ) : null}
 
       {error ? <ErrorMessage message={error} /> : null}
@@ -247,7 +245,7 @@ export function ContactNumbersPage() {
                   {editingId === item.id ? (
                     <tr>
                       <td colSpan={6}>
-                        <form className={styles.editPanel} onSubmit={(event) => void submitEdit(event)}>
+                        <div className={styles.editPanel}>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>label</span>
                             <input className={styles.input} value={editForm.label} onChange={(event) => setEditForm((prev) => ({ ...prev, label: event.target.value }))} />
@@ -274,9 +272,9 @@ export function ContactNumbersPage() {
                           </label>
                           <div className={styles.actions}>
                             <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
-                            <button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? 'saving…' : 'save'}</button>
+                            <button className={styles.primaryButton} type="button" onClick={() => void submitEdit()} disabled={saving}>{saving ? 'saving…' : 'save'}</button>
                           </div>
-                        </form>
+                        </div>
                       </td>
                     </tr>
                   ) : null}

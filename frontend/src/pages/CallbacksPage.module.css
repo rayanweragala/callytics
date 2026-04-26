@@ -11,14 +11,6 @@
   margin-top: 0;
 }
 
-.tablePanel {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: 0 20px 16px;
-  overflow-x: auto;
-}
-
 .pageHeader {
   display: flex;
   align-items: center;
@@ -42,7 +34,6 @@
   min-width: 220px;
 }
 
-/* FIX — Form label */
 .filterLabel {
   font-size: 14px;
   letter-spacing: 0.08em;
@@ -50,7 +41,6 @@
   text-transform: uppercase;
 }
 
-/* FIX 7 — Select: amber focus */
 .select {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -75,7 +65,7 @@
   table-layout: fixed;
 }
 
-/* Table header */
+/* tableHead/row are native <thead>/<tr> styled via globals — these class-based selectors are kept because they are referenced in TSX */
 .tableHead {
   border-bottom: 1px solid var(--border-strong);
   color: var(--accent);
@@ -85,7 +75,6 @@
   text-transform: uppercase;
 }
 
-/* FIX 3 — Row: 9px vertical padding + border-bottom */
 .row {
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
@@ -134,7 +123,6 @@
 }
 
 
-/* FIX 2 — Data values: cyan + 600 (phone numbers, timestamps) */
 .dataMono {
   font-family: var(--font-mono);
   color: var(--color-data);
@@ -147,7 +135,7 @@
   color: var(--text-muted);
 }
 
-/* Status badge — matches spec */
+/* Status badge variants share the base class defined in globals */
 .statusBadge {
   display: inline-flex;
   align-items: center;
@@ -209,7 +197,6 @@
   text-align: center;
 }
 
-/* FIX 5 — Primary CTA: amber */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -227,7 +214,6 @@
   opacity: 0.88;
 }
 
-/* FIX 6 — Row action buttons */
 .secondaryButton {
   height: 28px;
   padding: 4px 10px;
@@ -248,45 +234,18 @@
 }
 
 .actionButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .deleteButton:hover {
   color: var(--color-error);
   border-color: var(--color-error);
-}
-
-.dangerButton {
-  height: 28px;
-  padding: 4px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--color-error);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.dangerButton:hover {
-  border-color: var(--color-error);
-}
-
-.confirmInline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  justify-content: center;
 }
 
 .rowError {
@@ -295,12 +254,11 @@
   font-size: 14px;
 }
 
-.empty {
-  padding: 16px 12px;
-  color: var(--text-muted);
-}
-
 @media (max-width: 1080px) {
+  .tableCard {
+    overflow-x: auto;
+  }
+
   .table {
     min-width: 940px;
   }

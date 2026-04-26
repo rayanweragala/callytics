@@ -101,8 +101,7 @@ export function ExtensionsPage() {
     showSuccess(null);
   };
 
-  const handleCreate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleCreate = async () => {
     setBusyKey('create');
     resetMessages();
     try {
@@ -137,8 +136,7 @@ export function ExtensionsPage() {
     });
   };
 
-  const handleUpdate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleUpdate = async () => {
     if (editingId === null) return;
     setBusyKey(`edit-${editingId}`);
     resetMessages();
@@ -215,7 +213,7 @@ export function ExtensionsPage() {
         {createOpen ? (
           <section className={styles.formPanel}>
             <div className={styles.panelTitle}>new extension</div>
-            <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
+            <div className={styles.formGrid}>
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>username</span>
                 <input className={`${styles.input} ${styles.dataMono}`} value={createForm.username} onChange={(event) => {
@@ -252,9 +250,9 @@ export function ExtensionsPage() {
                 </select>
               </label>
               <div className={styles.formActions}>
-                <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
+                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
               </div>
-            </form>
+            </div>
             {errorText ? <ErrorMessage message={errorText} /> : null}
           </section>
         ) : null}
@@ -310,7 +308,7 @@ export function ExtensionsPage() {
                     {editingId === item.id ? (
                       <tr>
                         <td colSpan={6}>
-                          <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                          <div className={styles.editorRow}>
                             <label className={styles.field}>
                               <span className={styles.fieldLabel}>username</span>
                               <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
@@ -348,9 +346,9 @@ export function ExtensionsPage() {
                             </label>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
-                              <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
-                          </form>
+                          </div>
                         </td>
                       </tr>
                     ) : null}

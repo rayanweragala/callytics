@@ -4,29 +4,6 @@
   gap: 16px;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.sectionLabel {
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-}
-
-.title {
-  margin: 6px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.1;
-}
-
-/* FIX 1 — Card borders */
 .formPanel,
 .editPanel {
   display: grid;
@@ -44,7 +21,6 @@
   gap: 6px;
 }
 
-/* FIX — Form labels */
 .fieldLabel {
   color: var(--text-secondary);
   font-family: var(--font-mono);
@@ -53,7 +29,6 @@
   letter-spacing: 0.08em;
 }
 
-/* FIX 7 — Input: dark bg + amber focus */
 .input {
   height: 34px;
   border: 1px solid var(--border-strong);
@@ -83,7 +58,6 @@
   grid-column: 1 / -1;
 }
 
-/* FIX 5 — Primary CTA */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -103,13 +77,12 @@
   opacity: 0.88;
 }
 
-/* FIX 5 — Secondary */
 .secondaryButton {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
+  height: 28px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 500;
@@ -119,8 +92,8 @@
 }
 
 .editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .tableCard {
@@ -129,15 +102,6 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-top: 0;
-}
-
-/* FIX 1 — Table card wrapper */
-.tablePanel {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: 0 20px 16px;
-  overflow: hidden;
 }
 
 .pageHeader {
@@ -170,19 +134,16 @@
 }
 
 
-/* Entity names: text-primary */
 .rowValue {
   color: var(--text-primary);
   font-size: 14px;
 }
 
-/* Labels: muted */
 .rowMuted {
   color: var(--text-secondary);
   font-size: 14px;
 }
 
-/* FIX 2 — Data values: cyan + 600 (phone/numbers) */
 .dataMono {
   color: var(--color-data);
   font-family: var(--font-mono);
@@ -190,7 +151,6 @@
   font-weight: 600;
 }
 
-/* FIX 2 — Timestamps: cyan + 600 */
 .createdAt {
   color: var(--color-data);
   font-family: var(--font-mono);
@@ -208,30 +168,6 @@
   gap: 8px;
 }
 
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
-
-.confirmText {
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-family: var(--font-mono);
-}
-
-.confirmActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  align-items: center;
-}
-
-/* FIX 6 — Row action: delete */
 .deleteButton {
   height: 28px;
   padding: 4px 10px;
@@ -250,13 +186,12 @@
   border-color: var(--color-error);
 }
 
-.empty {
-  padding-top: 16px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
+@media (max-width: 1100px) {
+  .tableCard {
+    overflow-x: auto;
+  }
 }
 
-/* input-size-override */
 .input {
   font-size: 14px;
 }

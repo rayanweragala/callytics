@@ -135,8 +135,7 @@ export function QueuesPage() {
     label: a.name,
   }));
 
-  const handleCreate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleCreate = async () => {
     const name = createName.trim();
     if (!name) { setErrorText('Name is required'); return; }
     if (createOperatorIds.length === 0) {
@@ -187,8 +186,7 @@ export function QueuesPage() {
     setErrorText(null);
   };
 
-  const handleSave = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleSave = async () => {
     if (!editState) return;
     if (editState.operatorIds.length === 0) {
       setErrorText('At least one operator is required.');
@@ -256,7 +254,7 @@ export function QueuesPage() {
       {createOpen ? (
         <div className={styles.formPanel}>
           <div className={styles.panelTitle}>new queue</div>
-          <form onSubmit={(e) => { void handleCreate(e); }}>
+          <div>
             <div className={styles.formGrid}>
               <div className={styles.formRow}>
                 <label className={styles.field}>
@@ -319,13 +317,13 @@ export function QueuesPage() {
                 </label>
               </div>
               <div className={styles.formActions}>
-                <button className={styles.primaryButton} type="submit" disabled={creating}>
+                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={creating}>
                   {creating ? 'creating…' : 'add queue'}
                 </button>
               </div>
             </div>
             {errorText ? <ErrorMessage message={errorText} /> : null}
-          </form>
+          </div>
         </div>
       ) : null}
 
@@ -392,7 +390,7 @@ export function QueuesPage() {
                   {editState?.queueId === q.id ? (
                     <tr>
                       <td colSpan={6}>
-                        <form className={styles.editorRow} onSubmit={(e) => void handleSave(e)}>
+                        <div className={styles.editorRow}>
                           <div className={styles.formGrid}>
                             <div className={styles.formRow}>
                               <label className={styles.field}>
@@ -455,12 +453,12 @@ export function QueuesPage() {
                             </div>
                             <div className={styles.formActions}>
                               <button className={styles.cancelButton} type="button" onClick={cancelEdit} disabled={saving}>cancel</button>
-                              <button className={styles.primaryButton} type="submit" disabled={saving}>
+                              <button className={styles.primaryButton} type="button" onClick={() => void handleSave()} disabled={saving}>
                                 {saving ? 'saving…' : 'save'}
                               </button>
                             </div>
                           </div>
-                        </form>
+                        </div>
                       </td>
                     </tr>
                   ) : null}

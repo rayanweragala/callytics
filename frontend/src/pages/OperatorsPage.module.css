@@ -4,28 +4,6 @@
   gap: 16px;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-/* Typography scale */
-.sectionLabel {
-  font-size: 14px;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.title {
-  margin: 4px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
 .formPanel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -39,14 +17,6 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-top: 0;
-}
-
-.tablePanel {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 0 20px 16px;
-  overflow: hidden;
 }
 
 .pageHeader {
@@ -106,7 +76,6 @@
   gap: 8px;
 }
 
-/* FIX — Form labels */
 .fieldLabel {
   font-size: 14px;
   color: var(--text-secondary);
@@ -116,7 +85,6 @@
   text-transform: uppercase;
 }
 
-/* FIX 7 — Input: dark bg + amber focus */
 .input {
   width: 100%;
   min-width: 0;
@@ -136,7 +104,6 @@
   border-color: var(--accent);
 }
 
-/* FIX 5 — Primary CTA: amber */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -156,7 +123,6 @@
   opacity: 0.88;
 }
 
-/* FIX 5 — Secondary */
 .secondaryButton {
   background: transparent;
   color: var(--text-secondary);
@@ -172,11 +138,10 @@
 }
 
 .editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
-/* FIX 6 — Row action: delete */
 .deleteButton {
   height: 28px;
   padding: 4px 10px;
@@ -201,28 +166,11 @@
 }
 
 .actions,
-.formActions,
-.confirmActions {
+.formActions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   align-items: center;
-}
-
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
-
-.confirmText {
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-family: var(--font-mono);
 }
 
 .formActions {
@@ -253,7 +201,6 @@
   color: var(--text-secondary);
 }
 
-/* FIX 2 — PIN value: cyan (numeric data) */
 .pinValue {
   font-family: var(--font-mono);
   font-size: 1.25rem;
@@ -263,34 +210,6 @@
   margin: 4px 0;
 }
 
-.pinCopyButton {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.pinCopyButton:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-
-.pinDismiss {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 6px;
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -298,33 +217,13 @@
 }
 
 /* Column widths */
-.table th:nth-child(1) {
-  width: 22%;
-}
-
-.table th:nth-child(2) {
-  width: 11%;
-}
-
-.table th:nth-child(3) {
-  width: 14%;
-}
-
-.table th:nth-child(4) {
-  width: 16%;
-}
-
-.table th:nth-child(5) {
-  width: 12%;
-}
-
-.table th:nth-child(6) {
-  width: 13%;
-}
-
-.table th:nth-child(7) {
-  width: 12%;
-}
+.table th:nth-child(1) { width: 22%; }
+.table th:nth-child(2) { width: 11%; }
+.table th:nth-child(3) { width: 14%; }
+.table th:nth-child(4) { width: 16%; }
+.table th:nth-child(5) { width: 12%; }
+.table th:nth-child(6) { width: 13%; }
+.table th:nth-child(7) { width: 12%; }
 
 .emptyState {
   text-align: center;
@@ -351,50 +250,35 @@
   align-items: center;
 }
 
-.successText,
 .failedText,
-.uriText,
 .dataMono,
 .createdAt {
   font-family: var(--font-mono);
 }
 
-/* Labels: muted */
-.uriText,
-.displayName {
-  color: var(--text-secondary);
-}
-
-/* Entity names: text-primary */
 .rowValue {
   color: var(--text-primary);
   font-size: 14px;
 }
 
-/* Secondary/support values: muted */
 .rowMuted {
   color: var(--text-secondary);
   font-size: 14px;
 }
 
-/* FIX 2 — Data values: cyan + 600 */
 .dataMono {
   color: var(--color-data);
   font-size: 14px;
   font-weight: 600;
 }
 
-/* FIX 2 — Timestamps: cyan + 600 */
 .createdAt {
   color: var(--color-data);
   font-size: 14px;
   font-weight: 600;
 }
 
-.displayName,
-.successText,
 .failedText,
-.empty,
 .inlineHint {
   font-size: 14px;
 }
@@ -422,11 +306,6 @@
   font-family: var(--font-mono);
 }
 
-.successText {
-  margin-top: 14px;
-  color: var(--color-active);
-}
-
 .inlineHint {
   color: var(--text-muted);
 }
@@ -445,7 +324,6 @@
   grid-column: 1 / -1;
 }
 
-/* Status badge — compact */
 .statusBadge {
   display: inline-block;
   font-size: 11px;
@@ -472,26 +350,6 @@
   border-color: var(--color-warning);
 }
 
-.empty {
-  padding-top: 16px;
-  color: var(--text-muted);
-}
-
-.pinRevealRow {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px 16px;
-  margin-top: -8px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.pinRevealLabel {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
 @media (max-width: 1100px) {
 
   .formGrid {
@@ -503,13 +361,11 @@
     grid-template-columns: 1fr;
   }
 
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
+  .tableCard {
+    overflow-x: auto;
   }
 }
 
-/* input-size-override */
 .input {
   font-size: 14px;
 }

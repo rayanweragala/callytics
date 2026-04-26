@@ -4,27 +4,6 @@
   gap: 24px;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sectionLabel {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--accent);
-}
-
-.title {
-  margin: 4px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* FIX 1 — Card border */
 .tableCard {
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -39,7 +18,6 @@
   justify-content: space-between;
   margin-bottom: 16px;
 }
-
 
 .table {
   width: 100%;
@@ -69,7 +47,6 @@
 }
 
 
-/* Entity name: text-primary white */
 .flowName {
   font-family: var(--font-mono);
   color: var(--text-primary);
@@ -82,7 +59,6 @@
   margin-top: 4px;
 }
 
-/* FIX 2 — Timestamps: cyan + 600 */
 .createdAt {
   color: var(--color-data);
   font-family: var(--font-mono);
@@ -99,7 +75,6 @@
   text-align: right;
 }
 
-/* FIX 5 — Primary CTA */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -118,7 +93,6 @@
   opacity: 0.88;
 }
 
-/* FIX 6 — Row action buttons */
 .secondaryButton {
   height: 28px;
   padding: 4px 10px;
@@ -139,8 +113,8 @@
 }
 
 .editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .deleteButton {
@@ -162,43 +136,20 @@
   border-color: var(--color-error);
 }
 
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-}
-
-.confirmText,
-.deletedText,
-.failedText,
-.createdAt {
+.deletedText {
+  color: var(--color-active);
   font-family: var(--font-mono);
   font-size: 14px;
 }
 
-.confirmText {
-  color: var(--text-secondary);
-}
-
-.confirmActions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.deletedText {
-  color: var(--color-active);
-}
-
 .failedText {
   color: var(--color-error);
+  font-family: var(--font-mono);
+  font-size: 14px;
 }
 
-.empty {
-  padding: 24px 0;
-  color: var(--text-muted);
+@media (max-width: 1100px) {
+  .tableCard {
+    overflow-x: auto;
+  }
 }

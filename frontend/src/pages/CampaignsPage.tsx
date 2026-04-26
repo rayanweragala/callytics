@@ -201,8 +201,7 @@ export function CampaignsPage() {
     setConfirmDeleteId(null);
   };
 
-  const handleSave = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleSave = async () => {
     setSaving(true);
     setErrorText(null);
     setScheduledAtError(null);
@@ -376,7 +375,7 @@ export function CampaignsPage() {
           <>
             <section className={styles.formPanel}>
               <div className={styles.panelTitle}>{editingCampaign ? 'edit campaign' : 'new campaign'}</div>
-              <form id="campaign-form" onSubmit={(event) => void handleSave(event)}>
+              <div id="campaign-form">
                 <div className={styles.formGrid}>
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>name</span>
@@ -514,12 +513,12 @@ export function CampaignsPage() {
                     </div>
                   ) : null}
                 </div>
-            </form>
+            </div>
             <ErrorMessage message={errorText} />
           </section>
           <div className={styles.formActions}>
             <button className={styles.secondaryButton} type="button" onClick={closeForm} disabled={saving}>cancel</button>
-            <button className={saveButtonClass} type="submit" form="campaign-form" disabled={saving}>
+            <button className={saveButtonClass} type="button" onClick={() => void handleSave()} disabled={saving}>
               {saveLabel}
             </button>
           </div>

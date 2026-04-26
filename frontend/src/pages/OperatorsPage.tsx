@@ -115,8 +115,7 @@ export function OperatorsPage() {
     label: item.name,
   }));
 
-  const handleCreate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleCreate = async () => {
     const name = createForm.name.trim();
     if (!name) {
       showError('Name is required');
@@ -165,8 +164,7 @@ export function OperatorsPage() {
     });
   };
 
-  const handleUpdate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleUpdate = async () => {
     if (editingId === null) return;
     if (!editForm.extensionId && !editForm.contactNumberId) {
       showError(OPERATOR_DESTINATION_REQUIRED);
@@ -251,7 +249,7 @@ export function OperatorsPage() {
       {createOpen ? (
         <section className={styles.formPanel}>
           <div className={styles.panelTitle}>new operator</div>
-          <form className={styles.formGrid} onSubmit={(e) => void handleCreate(e)}>
+          <div className={styles.formGrid}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>name</span>
               <input
@@ -312,12 +310,12 @@ export function OperatorsPage() {
               />
             </label>
             <div className={styles.formActions}>
-              <button className={styles.primaryButton} type="submit" disabled={creating}>
+              <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={creating}>
                 {creating ? 'creating…' : 'add operator'}
               </button>
             </div>
             {errorText === OPERATOR_DESTINATION_REQUIRED ? <div className={styles.inlineValidationError}>{OPERATOR_DESTINATION_REQUIRED}</div> : null}
-          </form>
+          </div>
           {errorText && errorText !== OPERATOR_DESTINATION_REQUIRED ? <ErrorMessage message={errorText} /> : null}
         </section>
       ) : null}
@@ -405,7 +403,7 @@ export function OperatorsPage() {
                   {editingId === op.id ? (
                     <tr className={styles.editRow}>
                       <td className={styles.editCell} colSpan={7}>
-                        <form className={styles.editPanel} onSubmit={(e) => void handleUpdate(e)}>
+                        <div className={styles.editPanel}>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>name</span>
                             <input
@@ -466,13 +464,13 @@ export function OperatorsPage() {
                           </label>
                           <div className={styles.formActions}>
                             <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
-                            <button className={styles.primaryButton} type="submit" disabled={saving}>
+                            <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()} disabled={saving}>
                               {saving ? 'saving…' : 'save changes'}
                             </button>
                           </div>
                           {errorText === OPERATOR_DESTINATION_REQUIRED ? <div className={styles.inlineValidationError}>{OPERATOR_DESTINATION_REQUIRED}</div> : null}
                           {errorText && errorText !== OPERATOR_DESTINATION_REQUIRED ? <div className={styles.inlineError}><ErrorMessage message={errorText} /></div> : null}
-                        </form>
+                        </div>
                       </td>
                     </tr>
                   ) : null}

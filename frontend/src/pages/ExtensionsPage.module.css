@@ -4,13 +4,6 @@
   gap: 16px;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
 .sectionLabel {
   font-size: 14px;
   letter-spacing: 0.10em;
@@ -18,24 +11,14 @@
   color: var(--accent);
 }
 
-.title {
-  margin: 4px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* FIX 1 — Card borders */
 .formPanel,
-.tablePanel,
 .modal {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
 }
 
-.formPanel,
-.tablePanel {
+.formPanel {
   padding: 20px;
 }
 
@@ -46,11 +29,6 @@
   padding: 0;
   overflow: hidden;
   margin-top: 0;
-}
-
-.tablePanel {
-  padding: 0 20px 16px;
-  overflow: hidden;
 }
 
 .pageHeader {
@@ -99,7 +77,6 @@
   gap: 8px;
 }
 
-/* FIX — Form labels */
 .fieldLabel {
   font-size: 14px;
   color: var(--text-secondary);
@@ -109,7 +86,6 @@
   text-transform: uppercase;
 }
 
-/* FIX 7 — Input: dark bg + amber focus */
 .input {
   width: 100%;
   min-width: 0;
@@ -129,7 +105,6 @@
   border-color: var(--accent);
 }
 
-/* FIX 5 — Buttons */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -153,7 +128,7 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  height: 36px;
+  height: 28px;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 500;
@@ -161,17 +136,12 @@
   text-transform: lowercase;
 }
 
-.editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
-}
-
+.editButton:hover,
 .qrButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
-/* FIX 6 — Delete row action */
 .deleteButton {
   height: 28px;
   padding: 4px 10px;
@@ -202,29 +172,12 @@
 }
 
 /* Column widths */
-.table th:nth-child(1) {
-  width: 15%;
-}
-
-.table th:nth-child(2) {
-  width: 18%;
-}
-
-.table th:nth-child(3) {
-  width: 10%;
-}
-
-.table th:nth-child(4) {
-  width: 30%;
-}
-
-.table th:nth-child(5) {
-  width: 14%;
-}
-
-.table th:nth-child(6) {
-  width: 13%;
-}
+.table th:nth-child(1) { width: 15%; }
+.table th:nth-child(2) { width: 18%; }
+.table th:nth-child(3) { width: 10%; }
+.table th:nth-child(4) { width: 30%; }
+.table th:nth-child(5) { width: 14%; }
+.table th:nth-child(6) { width: 13%; }
 
 .emptyState {
   text-align: center;
@@ -261,16 +214,6 @@
   flex-wrap: nowrap;
 }
 
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
-
 .confirmText,
 .successText,
 .failedText,
@@ -289,7 +232,6 @@
   color: var(--text-primary);
 }
 
-/* FIX 2 — Data values: cyan + 600 */
 .dataMono {
   color: var(--color-data);
   font-size: 14px;
@@ -310,7 +252,6 @@
   text-align: center;
 }
 
-/* FIX 2 — Timestamps: cyan + 600 */
 .createdAt {
   color: var(--color-data);
   font-size: 14px;
@@ -321,7 +262,7 @@
   display: block;
   height: 14px;
   background: var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   opacity: 0.4;
 }
 
@@ -334,8 +275,7 @@
 
 .displayName,
 .successText,
-.failedText,
-.empty {
+.failedText {
   font-size: 14px;
 }
 
@@ -344,15 +284,10 @@
   color: var(--color-active);
 }
 
-.empty {
-  padding-top: 16px;
-  color: var(--text-muted);
-}
-
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.72));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,12 +332,8 @@
 }
 
 @media (max-width: 1100px) {
-
-  .formGrid,
-  .editorRow,
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
+  .tableCard {
+    overflow-x: auto;
   }
 
   .formGrid,
@@ -419,7 +350,6 @@
   }
 }
 
-/* input-size-override */
 .input {
   font-size: 14px;
 }

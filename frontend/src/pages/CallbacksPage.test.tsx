@@ -77,7 +77,7 @@ describe('CallbacksPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => expect(screen.getByText('Cancel callback?')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
 
     await waitFor(() => {
       expect(api.cancelCallback).toHaveBeenCalledWith(1);

@@ -4,41 +4,12 @@
   gap: 24px;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sectionLabel {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--accent);
-}
-
-.title {
-  margin: 4px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* FIX 1 — Card border */
 .tableCard {
   background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-top: 0;
-}
-
-.libraryPanel {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 0 20px 16px;
-  overflow: hidden;
 }
 
 .pageHeader {
@@ -49,44 +20,18 @@
 }
 
 
-.panelTitle {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary);
-  text-transform: lowercase;
-  margin-bottom: 16px;
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.table th:nth-child(1) {
-  width: 22%;
-}
-
-.table th:nth-child(2) {
-  width: 8%;
-}
-
-.table th:nth-child(3) {
-  width: 8%;
-}
-
-.table th:nth-child(4) {
-  width: 28%;
-}
-
-.table th:nth-child(5) {
-  width: 18%;
-}
-
-.table th:nth-child(6) {
-  width: 16%;
-  text-align: right;
-}
+.table th:nth-child(1) { width: 22%; }
+.table th:nth-child(2) { width: 8%; }
+.table th:nth-child(3) { width: 8%; }
+.table th:nth-child(4) { width: 28%; }
+.table th:nth-child(5) { width: 18%; }
+.table th:nth-child(6) { width: 16%; text-align: right; }
 
 .emptyState {
   text-align: center;
@@ -100,13 +45,11 @@
 .meta,
 .duration,
 .createdAt,
-.confirmText,
 .deletedText,
 .failedText {
   font-family: var(--font-mono);
 }
 
-/* Entity names: text-primary */
 .name {
   color: var(--text-primary);
   font-size: 14px;
@@ -117,10 +60,8 @@
   font-size: 14px;
 }
 
-/* FIX 2 — Duration & timestamps: cyan + 600 */
 .duration,
 .createdAt,
-.confirmText,
 .deletedText,
 .failedText {
   font-size: 14px;
@@ -136,11 +77,6 @@
   font-weight: 600;
 }
 
-.empty {
-  color: var(--text-muted);
-  padding-top: 16px;
-}
-
 .actions {
   display: flex;
   gap: 8px;
@@ -152,7 +88,6 @@
   cursor: pointer;
 }
 
-/* FIX 6 — Row action buttons */
 .secondaryButton {
   height: 28px;
   padding: 4px 10px;
@@ -172,11 +107,6 @@
   border-color: var(--border-strong);
 }
 
-.editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
-}
-
 .downloadButton {
   text-decoration: none;
   display: inline-flex;
@@ -186,8 +116,8 @@
 }
 
 .downloadButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .deleteButton {
@@ -216,22 +146,8 @@
   color: var(--color-active);
 }
 
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-}
-
-.confirmText {
-  color: var(--text-secondary);
-}
-
-.confirmActions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+@media (max-width: 1100px) {
+  .tableCard {
+    overflow-x: auto;
+  }
 }

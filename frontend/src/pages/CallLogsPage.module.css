@@ -25,7 +25,6 @@
   gap: 12px;
 }
 
-/* FIX 1 — Card border */
 .panel {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -47,7 +46,6 @@
   margin-bottom: 8px;
 }
 
-/* Filter pills — compact inactive/active per spec */
 .filterPill {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -67,7 +65,6 @@
   border-color: var(--accent);
 }
 
-/* FIX 7 — Input: dark bg + amber focus */
 .input {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -163,7 +160,6 @@
   font-weight: 400;
 }
 
-/* Entity name: text-primary */
 .flowName {
   font-family: var(--font-mono);
   font-size: 14px;
@@ -171,7 +167,6 @@
   color: var(--text-primary);
 }
 
-/* FIX 2 — Timestamp: cyan + 600 */
 .timestamp {
   color: var(--color-data);
   font-family: var(--font-mono);
@@ -194,7 +189,6 @@
   width: fit-content;
 }
 
-/* FIX 2 — MOS (numeric data): cyan */
 .mosBadge {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -237,7 +231,6 @@
   color: var(--color-error);
 }
 
-/* FIX 6 — Row action buttons */
 .traceIcon {
   font-family: var(--font-mono);
   font-size: 14px;
@@ -261,8 +254,8 @@
 }
 
 .traceButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .logsButton {
@@ -273,12 +266,6 @@
 .traceButton:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-}
-
-.empty {
-  padding-top: 16px;
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 .paginationWrap {
@@ -300,14 +287,11 @@
     grid-template-columns: 1fr;
   }
 
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
-    min-width: 0;
+  .tableCard {
+    overflow-x: auto;
   }
 }
 
-/* input-size-override */
 .input {
   font-size: 14px;
 }

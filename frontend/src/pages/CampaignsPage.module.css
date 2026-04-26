@@ -4,7 +4,6 @@
   gap: 16px;
 }
 
-/* FIX 1 — Card border */
 .formPanel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -18,13 +17,6 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-top: 0;
-}
-
-.tablePanel {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 0 20px 16px;
 }
 
 .table {
@@ -70,7 +62,6 @@
   min-width: 0;
 }
 
-/* FIX — Form labels */
 .fieldLabel {
   font-size: 14px;
   color: var(--text-secondary);
@@ -85,7 +76,6 @@
   min-width: 0;
 }
 
-/* FIX 7 — Inputs */
 .input {
   width: 100%;
   min-width: 0;
@@ -123,7 +113,6 @@
   -moz-appearance: textfield;
 }
 
-/* FIX 5 — Primary CTA: amber */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -142,7 +131,6 @@
   opacity: 0.88;
 }
 
-/* FIX 5 — Secondary */
 .secondaryButton {
   background: transparent;
   color: var(--text-secondary);
@@ -157,16 +145,15 @@
 }
 
 .editButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .viewButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
-/* FIX 6 — Row action/delete */
 .deleteButton {
   transition: color 0.15s, border-color 0.15s;
 }
@@ -234,7 +221,6 @@
 }
 
 .uploadFileName,
-.confirmText,
 .dataMono,
 .failedText,
 .resultText,
@@ -246,10 +232,6 @@
 .mono {
   color: var(--color-data);
   font-weight: 600;
-}
-
-.confirmText {
-  color: var(--text-secondary);
 }
 
 .uploadFileName {
@@ -340,30 +322,17 @@
   align-items: center;
 }
 
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
-
-/* FIX 2 — Data values: cyan */
 .dataMono {
   color: var(--color-data);
   font-size: 14px;
   font-weight: 600;
 }
 
-/* Entity names */
 .nameCell {
   color: var(--text-primary);
   font-size: 14px;
 }
 
-/* Status badges */
 .statusBadge {
   display: inline-flex;
   align-items: center;
@@ -432,28 +401,15 @@
   background: var(--color-active);
 }
 
-.empty {
-  padding: 24px 0;
-  color: var(--text-muted);
-}
-
 @media (max-width: 1480px) {
   .formGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 1120px) {
-  .formGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 1280px) {
-
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
+  .tableCard {
+    overflow-x: auto;
   }
 
   .actionsHeader,
@@ -465,7 +421,12 @@
   }
 }
 
-/* input-size-override */
+@media (max-width: 1120px) {
+  .formGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .input {
   font-size: 14px;
 }

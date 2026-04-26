@@ -84,10 +84,7 @@ describe('ContactNumbersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /add contact/i }));
 
     const createButton = screen.getByRole('button', { name: /create contact/i });
-    const form = createButton.closest('form');
-    expect(form).toBeTruthy();
-
-    const textboxes = within(form as HTMLFormElement).getAllByRole('textbox');
+    const textboxes = screen.getAllByRole('textbox');
     fireEvent.change(textboxes[0], { target: { value: 'Owner Mobile' } });
     fireEvent.change(textboxes[1], { target: { value: '+94770000000' } });
 
@@ -129,9 +126,10 @@ describe('ContactNumbersPage', () => {
     await waitFor(() => expect(screen.getByText('Night Escalation')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
-    expect(screen.getByText('Delete this contact? This cannot be undone.')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Delete this contact? This cannot be undone.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /delete/i }));
 
     await waitFor(() => expect(api.deleteContactNumber).toHaveBeenCalledWith(22));
   });
@@ -150,8 +148,7 @@ describe('ContactNumbersPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /add contact/i }));
     const createButton = screen.getByRole('button', { name: /create contact/i });
-    const form = createButton.closest('form');
-    const textboxes = within(form as HTMLFormElement).getAllByRole('textbox');
+    const textboxes = screen.getAllByRole('textbox');
 
     fireEvent.change(textboxes[0], { target: { value: 'Escalation' } });
     fireEvent.change(textboxes[1], { target: { value: '+94774445566' } });

@@ -4,27 +4,6 @@
   gap: 16px;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.sectionLabel {
-  font-size: 14px;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.title {
-  margin: 4px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
 .formPanel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -38,14 +17,6 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-top: 0;
-}
-
-.tablePanel {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 0 20px 16px;
-  overflow: hidden;
 }
 
 .pageHeader {
@@ -70,25 +41,11 @@
 }
 
 /* Column widths */
-.table th:nth-child(1) {
-  width: 25%;
-}
-
-.table th:nth-child(2) {
-  width: 18%;
-}
-
-.table th:nth-child(3) {
-  width: 12%;
-}
-
-.table th:nth-child(4) {
-  width: 18%;
-}
-
-.table th:nth-child(5) {
-  width: 14%;
-}
+.table th:nth-child(1) { width: 25%; }
+.table th:nth-child(2) { width: 18%; }
+.table th:nth-child(3) { width: 12%; }
+.table th:nth-child(4) { width: 18%; }
+.table th:nth-child(5) { width: 14%; }
 
 .emptyState {
   text-align: center;
@@ -130,7 +87,6 @@
   gap: 8px;
 }
 
-/* FIX — Form labels */
 .fieldLabel {
   font-size: 14px;
   color: var(--text-secondary);
@@ -140,7 +96,6 @@
   text-transform: uppercase;
 }
 
-/* FIX 7 — Inputs */
 .input {
   width: 100%;
   min-width: 0;
@@ -213,7 +168,6 @@
   color: var(--color-error);
 }
 
-/* FIX 5 — Primary CTA */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -233,7 +187,6 @@
   opacity: 0.88;
 }
 
-/* FIX 6 — Row action buttons */
 .deleteButton,
 .editButton,
 .cancelButton {
@@ -258,8 +211,8 @@
 
 .editButton:hover,
 .cancelButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .input[type="number"]::-webkit-inner-spin-button,
@@ -274,43 +227,23 @@
 }
 
 .actions,
-.formActions,
-.confirmActions {
+.formActions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   align-items: center;
 }
 
-.confirmBox {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
-
-.confirmText {
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-family: var(--font-mono);
-}
-
-/* FIX 2 — Data values: cyan + 600 */
 .dataMono,
 .createdAt {
   font-family: var(--font-mono);
 }
 
-/* Entity names: text-primary */
 .rowValue {
   color: var(--text-primary);
   font-size: 14px;
 }
 
-/* Secondary/support values: muted */
 .rowMuted {
   color: var(--text-secondary);
   font-size: 14px;
@@ -328,18 +261,6 @@
   font-weight: 600;
 }
 
-.empty {
-  padding-top: 16px;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.errorText {
-  color: var(--color-error);
-  font-size: 14px;
-  padding-top: 8px;
-}
-
 @media (max-width: 1100px) {
 
   .formRow,
@@ -348,13 +269,11 @@
     align-items: stretch;
   }
 
-  .tableHead,
-  .row {
-    grid-template-columns: 1fr;
+  .tableCard {
+    overflow-x: auto;
   }
 }
 
-/* input-size-override */
 .input {
   font-size: 14px;
 }

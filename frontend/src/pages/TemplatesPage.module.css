@@ -25,17 +25,9 @@
   table-layout: fixed;
 }
 
-.table th:nth-child(1) {
-  width: 30%;
-}
-
-.table th:nth-child(2) {
-  width: 45%;
-}
-
-.table th:nth-child(3) {
-  width: 25%;
-}
+.table th:nth-child(1) { width: 30%; }
+.table th:nth-child(2) { width: 45%; }
+.table th:nth-child(3) { width: 25%; }
 
 .actionsHeader {
   text-align: right;
@@ -64,61 +56,6 @@
   font-size: 13px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-/* FIX 1 — Card border */
-.card {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: background 0.1s;
-}
-
-.card:hover {
-  background: var(--surface-elevated);
-}
-
-/* Typography: accent subtitle */
-.category {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-/* Entity name: text-primary */
-.name {
-  margin: 0;
-  font-size: 16px;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* Description: muted */
-.description {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-muted);
-  min-height: 54px;
-}
-
-.meta {
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-/* Row action button style — neutral label button */
 .secondaryButton {
   margin-top: auto;
   background: transparent;
@@ -140,8 +77,8 @@
 }
 
 .importButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .secondaryButton:disabled {
@@ -149,14 +86,8 @@
   cursor: default;
 }
 
-@media (max-width: 1200px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1100px) {
+  .tableCard {
+    overflow-x: auto;
   }
 }

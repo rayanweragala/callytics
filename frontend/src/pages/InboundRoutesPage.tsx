@@ -93,8 +93,7 @@ export function InboundRoutesPage() {
     showSuccess(null);
   };
 
-  const handleCreate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleCreate = async () => {
     setBusyKey('create');
     resetMessages();
     try {
@@ -126,8 +125,7 @@ export function InboundRoutesPage() {
     });
   };
 
-  const handleUpdate = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleUpdate = async () => {
     if (editingId === null) return;
     setBusyKey(`edit-${editingId}`);
     resetMessages();
@@ -190,7 +188,7 @@ export function InboundRoutesPage() {
       {createOpen ? (
         <section className={styles.formPanel}>
           <div className={styles.panelTitle}>new route</div>
-          <form className={styles.formGrid} onSubmit={(event) => void handleCreate(event)}>
+          <div className={styles.formGrid}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>did</span>
               <input className={`${styles.input} ${styles.dataMono}`} value={createForm.did} onChange={(event) => {
@@ -213,9 +211,9 @@ export function InboundRoutesPage() {
               }} />
             </label>
             <div className={styles.formActions}>
-              <button className={styles.primaryButton} disabled={!createForm.flowId} type="submit">{busyKey === 'create' ? 'saving…' : 'save route'}</button>
+              <button className={styles.primaryButton} disabled={!createForm.flowId} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save route'}</button>
             </div>
-          </form>
+          </div>
           {errorText ? <ErrorMessage message={errorText} /> : null}
         </section>
       ) : null}
@@ -268,7 +266,7 @@ export function InboundRoutesPage() {
                   {editingId === item.id ? (
                     <tr>
                       <td colSpan={5}>
-                        <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                        <div className={styles.editorRow}>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>did</span>
                             <input className={`${styles.input} ${styles.dataMono}`} value={editForm.did} onChange={(event) => {
@@ -292,9 +290,9 @@ export function InboundRoutesPage() {
                           </label>
                           <div className={styles.formActions}>
                             <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
-                            <button className={styles.primaryButton} disabled={!editForm.flowId} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                            <button className={styles.primaryButton} disabled={!editForm.flowId} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                           </div>
-                        </form>
+                        </div>
                       </td>
                     </tr>
                   ) : null}

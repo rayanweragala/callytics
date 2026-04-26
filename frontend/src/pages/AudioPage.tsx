@@ -144,8 +144,7 @@ export function AudioPage() {
     showPreviewError(null);
   };
 
-  const handleUpload = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleUpload = async () => {
     if (!uploadFile) return;
     setUploadState('busy');
     setUploadError(null);
@@ -190,8 +189,7 @@ export function AudioPage() {
     }
   };
 
-  const handleTts = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleTts = async () => {
     if (!validateTts('save')) return;
     setTtsState('busy');
     setTtsError(null);
@@ -238,21 +236,21 @@ export function AudioPage() {
       <div className={styles.grid}>
         <section className={styles.panel}>
           <div className={styles.panelTitle}>upload audio</div>
-          <form className={styles.form} onSubmit={(e) => void handleUpload(e)}>
+          <div className={styles.form}>
             <input className={styles.input} placeholder="display name" value={uploadName} onChange={(e) => { clearUploadFeedback(); setUploadName(e.target.value); }} />
             <AudioUploadZone file={uploadFile} onFileSelect={(f) => { clearUploadFeedback(); setUploadFile(f); }} />
             <div className={styles.actionRow}>
-              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="submit">
+              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleUpload()}>
                 {uploadState === 'busy' ? 'uploading…' : uploadState === 'saved' ? 'uploaded ✓' : uploadState === 'failed' ? 'failed' : 'upload'}
               </button>
               {uploadError && <div className={styles.failedText}>{uploadError}</div>}
             </div>
-          </form>
+          </div>
         </section>
 
         <section className={styles.panel}>
           <div className={styles.panelTitle}>piper tts</div>
-          <form className={styles.form} onSubmit={(e) => void handleTts(e)}>
+          <div className={styles.form}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>asset name</span>
               <input className={styles.input} value={ttsName} onChange={(e) => { setTtsName(e.target.value); clearTtsFeedback(); setTtsFieldErrors(c => ({ ...c, name: undefined })); }} />
@@ -278,7 +276,7 @@ export function AudioPage() {
               <button className={styles.previewButton} type="button" disabled={previewState === 'busy'} onClick={() => void handlePreview()}>
                 {previewState === 'busy' ? 'previewing…' : 'preview'}
               </button>
-              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="submit">
+              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleTts()}>
                 {ttsState === 'busy' ? 'saving…' : ttsState === 'saved' ? 'saved ✓' : ttsState === 'failed' ? 'failed' : 'save'}
               </button>
             </div>
@@ -289,7 +287,7 @@ export function AudioPage() {
                 <AudioPreviewPlayer autoPlay src={previewUrl} />
               </div>
             )}
-          </form>
+          </div>
         </section>
       </div>
 
