@@ -181,7 +181,7 @@ describe('NodeConfigPanel', () => {
             { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
           ]}
           operators={[
-            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+            { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
           ]}
           onConfigValueChange={(field, value) => {
             onConfigValueChange(field, value);
@@ -217,7 +217,7 @@ describe('NodeConfigPanel', () => {
             { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
           ]}
           operators={[
-            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+            { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
           ]}
           onConfigValueChange={(field, value) => {
             setConfig((current) => ({ ...current, [field]: value }));
@@ -256,7 +256,7 @@ describe('NodeConfigPanel', () => {
             { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
           ]}
           operators={[
-            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+            { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
           ]}
           onConfigValueChange={(field, value) => {
             onConfigValueChange(field, value);
@@ -293,7 +293,7 @@ describe('NodeConfigPanel', () => {
             { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
           ]}
           operators={[
-            { id: 21, name: 'Main Operator', status: 'online', extension: undefined, contactNumber: { number: '+94770000000' }, hasPIN: true, createdAt: '2024-01-01' },
+            { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
           ]}
           onConfigValueChange={(field, value) => {
             setConfig((current) => ({ ...current, [field]: value }));

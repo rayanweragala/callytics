@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { DiagnosticsPage } from './DiagnosticsPage';
@@ -18,7 +18,8 @@ vi.mock('../lib/api', () => ({
     ],
   })),
   getDiagnosticsRegistrations: vi.fn(async () => ({
-    data: [{ name: '1001', type: 'extension', status: 'registered', contactUri: 'sip:1001@127.0.0.1', rttMs: 12, lastSeen: new Date().toISOString() }],
+    extensions: [{ extension: '1001', displayName: 'Alice', status: 'registered', registeredIp: '127.0.0.1', lastSeen: new Date().toISOString(), expiresIn: 600 }],
+    trunks: [{ trunkName: 'Main trunk', host: 'sip.example.com', status: 'registered', lastRegistration: new Date().toISOString(), expiresIn: 600 }],
   })),
   listTrunks: vi.fn(async () => ({
     data: [{ id: 1, name: 'Main trunk', providerPreset: 'generic', host: 'sip.example.com', port: 5060, protocol: 'udp', username: null, password: null, fromDomain: null, fromUser: null, enabled: true, createdAt: new Date().toISOString() }],
@@ -48,9 +49,16 @@ describe('DiagnosticsPage', () => {
       </MemoryRouter>,
     );
 
+    // Default tab is Network
     await waitFor(() => expect(screen.getByText('System Health')).toBeInTheDocument());
-    expect(screen.getByText('Trunk Health')).toBeInTheDocument();
-    expect(screen.getByText('SIP Traffic Inspector')).toBeInTheDocument();
+
+    // Trunks tab
+    fireEvent.click(screen.getByRole('button', { name: 'Trunks' }));
+    await waitFor(() => expect(screen.getByText('Trunk Health')).toBeInTheDocument());
+
+    // Traffic tab
+    fireEvent.click(screen.getByRole('button', { name: 'Traffic' }));
+    await waitFor(() => expect(screen.getByText('SIP Traffic Inspector')).toBeInTheDocument());
     expect(screen.getByText('Recent Call Failures')).toBeInTheDocument();
   });
 });

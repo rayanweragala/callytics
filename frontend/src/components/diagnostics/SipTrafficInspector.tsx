@@ -170,7 +170,6 @@ export function SipTrafficInspector({ items, onClear, loading = false, onRowClic
     <section className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <div className={styles.eyebrow}>Panel D</div>
           <h2 className={styles.title}>SIP Traffic Inspector</h2>
         </div>
         <div className={styles.actions}>

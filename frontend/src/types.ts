@@ -44,15 +44,35 @@ export interface TrunkDiagnosticsResult {
   status: 'reachable' | 'sip_unreachable' | 'unreachable' | 'unknown';
   message: string;
   testedAt: string;
+  sipCode: number;
+  sipCodeTitle: string;
+  sipCodeExplanation: string;
+  rawOptionsSent: string;
+  rawOptionsResponse: string;
+  rawCaptureAvailable: boolean;
+  codecsSupported: string[];
 }
 
-export interface SipRegistrationItem {
-  name: string;
-  type: 'extension' | 'trunk';
-  status: 'registered' | 'unregistered' | 'unknown';
-  contactUri: string | null;
-  rttMs: number | null;
+export interface RegistrationExtensionItem {
+  extension: string;
+  displayName: string;
+  status: 'registered' | 'unregistered';
+  registeredIp: string | null;
   lastSeen: string | null;
+  expiresIn: number | null;
+}
+
+export interface RegistrationTrunkItem {
+  trunkName: string;
+  host: string;
+  status: 'registered' | 'unregistered' | 'unknown';
+  lastRegistration: string | null;
+  expiresIn: number | null;
+}
+
+export interface RegistrationHealthResponse {
+  extensions: RegistrationExtensionItem[];
+  trunks: RegistrationTrunkItem[];
 }
 
 export interface SipTrafficItem {

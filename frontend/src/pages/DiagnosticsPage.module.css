@@ -24,8 +24,42 @@
   margin-bottom: 16px;
 }
 
+.tabBar {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-strong);
+  margin-bottom: 4px;
+  gap: 0;
+}
 
-/* FIX 5 — Refresh button: treat as secondary */
+.tab {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tabActive {
+  color: var(--text-primary);
+  border-bottom-color: var(--primitive-amber);
+}
+
+.tabContent {
+  display: grid;
+  gap: 16px;
+}
+
 .refreshButton {
   background: transparent;
   color: var(--text-secondary);
@@ -44,7 +78,6 @@
   border-color: var(--border-strong);
 }
 
-/* FIX 1 — Card border for success text display */
 .successText {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);

@@ -10,11 +10,13 @@ import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { DiagnosticsGateway } from './diagnostics.gateway';
 import type {
   AmiRegistrationDetail,
+  AmiInboundRegistrationDetail,
   CallEvent,
   CallTimelineEvent,
   DiagnosticsSystemHealth,
   SipTrafficEvent,
   SipMessage,
+  RegistrationHealthResponse,
   TrunkDiagnosticsResult,
 } from './diagnostics.types';
 
@@ -23,6 +25,42 @@ const REDIS_CALL_EVENTS_CHANNEL = 'callytics:call-events';
 const REDIS_CALL_TIMELINE_CHANNEL = 'callytics:call-timeline';
 
 type TrunkDiagnosticsStatus = TrunkDiagnosticsResult['status'];
+
+interface SipCodeInfo {
+  title: string;
+  explanation: string;
+}
+
+interface RawSipOptionsResult {
+  sent: string;
+  response: string;
+  rawCaptureAvailable: boolean;
+  codecsSupported: string[];
+}
+
+const SIP_CODE_INFO: Record<number, SipCodeInfo> = {
+  100: { title: 'Processing', explanation: 'Request received, searching for destination. Not an error.' },
+  200: { title: 'Success', explanation: 'Request accepted. For INVITE this means call connected.' },
+  202: { title: 'Accepted', explanation: 'Request accepted for processing, not yet completed.' },
+  301: { title: 'Moved Permanently', explanation: 'Endpoint has a new permanent address. Update your config.' },
+  302: { title: 'Moved Temporarily', explanation: 'Endpoint temporarily at a different address.' },
+  400: { title: 'Bad Request', explanation: 'Malformed SIP message. Check headers and syntax.' },
+  401: { title: 'Authentication Challenge', explanation: 'Normal if followed by retry with credentials. Problem if repeated without resolution.' },
+  403: { title: 'Forbidden', explanation: 'Credentials rejected or IP not authorized. Check username, password, and IP whitelist.' },
+  404: { title: 'Not Found', explanation: 'Destination extension or URI does not exist on this server.' },
+  407: { title: 'Proxy Auth Required', explanation: 'Proxy is demanding credentials. Check trunk authentication config.' },
+  408: { title: 'Request Timeout', explanation: 'No response from destination. Check network connectivity and firewall rules.' },
+  480: { title: 'Temporarily Unavailable', explanation: 'Endpoint exists but is not currently reachable. May be offline or busy.' },
+  481: { title: 'Call Leg Does Not Exist', explanation: 'Transaction or dialog not found. Often a timing issue on BYE or CANCEL.' },
+  486: { title: 'Busy Here', explanation: 'Endpoint is busy. Expected on busy extensions.' },
+  487: { title: 'Request Terminated', explanation: 'Call was cancelled before answer. Normal on user-initiated cancel.' },
+  488: { title: 'Not Acceptable Here', explanation: 'Codec or media mismatch. Check SDP offer and accepted codecs on both sides.' },
+  500: { title: 'Server Internal Error', explanation: 'Asterisk encountered an unexpected error. Check Asterisk logs.' },
+  503: { title: 'Service Unavailable', explanation: 'Server overloaded or temporarily down.' },
+  504: { title: 'Server Timeout', explanation: 'Upstream server did not respond in time.' },
+  600: { title: 'Busy Everywhere', explanation: 'All endpoints for this destination are busy.' },
+  603: { title: 'Decline', explanation: 'Destination explicitly rejected the call. Check inbound route configuration.' },
+};
 
 @Injectable()
 export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
@@ -160,17 +198,11 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     return { data: results };
   }
 
-  async getSipRegistrations(): Promise<{ data: Array<{
-    name: string;
-    type: 'extension' | 'trunk' | 'unknown';
-    status: 'registered' | 'unregistered' | 'unknown';
-    contactUri: string | null;
-    roundtripMs: number | null;
-    lastSeen: string | null;
-  }> }> {
-    const [endpoints, contacts, knownExtensions, knownTrunks] = await Promise.all([
+  async getSipRegistrations(): Promise<RegistrationHealthResponse> {
+    const [endpoints, contacts, inboundRegistrations, knownExtensions, knownTrunks] = await Promise.all([
       this.asteriskConfigService.getPjsipEndpoints(),
       this.getPjsipContacts(),
+      this.getPjsipInboundRegistrationStatuses(),
       this.loadKnownExtensions(),
       this.loadKnownTrunks(),
     ]);
@@ -180,28 +212,42 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
       contactMap.set(contact.endpoint, contact);
     }
 
-    const data = endpoints
+    const extensions = endpoints
+      .filter((endpoint) => knownExtensions.has(endpoint.endpoint))
       .map((endpoint) => {
         const detail = contactMap.get(endpoint.endpoint);
-        const type: 'extension' | 'trunk' | 'unknown' = knownExtensions.has(endpoint.endpoint)
-          ? 'extension'
-          : knownTrunks.has(endpoint.endpoint)
-            ? 'trunk'
-            : 'unknown';
         const contactUri = detail?.contacts[0] || endpoint.contacts[0] || null;
         const status = this.resolveRegistrationStatus(detail?.contactStatus, endpoint.contacts.length > 0 || Boolean(contactUri));
         return {
-          name: endpoint.endpoint,
-          type,
-          status,
-          contactUri,
-          roundtripMs: this.roundtripToMs(detail?.roundtripUsec),
-          lastSeen: detail?.lastQualifiedAt || null,
+          extension: endpoint.endpoint,
+          displayName: knownExtensions.get(endpoint.endpoint) || endpoint.endpoint,
+          status: status === 'registered' ? 'registered' as const : 'unregistered' as const,
+          registeredIp: status === 'registered' ? this.extractIpFromUri(contactUri) : null,
+          lastSeen: detail?.lastSeen || null,
+          expiresIn: this.secondsUntil(detail?.expiresAt || null),
         };
       })
-      .sort((left, right) => left.name.localeCompare(right.name));
+      .sort((left, right) => left.extension.localeCompare(right.extension));
 
-    return { data };
+    const trunkMap = new Map<string, AmiInboundRegistrationDetail>();
+    for (const registration of inboundRegistrations) {
+      trunkMap.set(registration.trunkName, registration);
+    }
+
+    const trunks = Array.from(knownTrunks.entries())
+      .map(([endpoint, trunk]) => {
+        const registration = trunkMap.get(endpoint) ?? trunkMap.get(trunk.name);
+        return {
+          trunkName: trunk.name,
+          host: trunk.host,
+          status: registration?.status ?? 'unknown' as const,
+          lastRegistration: registration?.lastRegistration ?? null,
+          expiresIn: this.secondsUntil(registration?.expiresAt ?? null),
+        };
+      })
+      .sort((left, right) => left.trunkName.localeCompare(right.trunkName));
+
+    return { extensions, trunks };
   }
 
   async getRecentFailures(limit = 20, offset = 0): Promise<{ data: Array<{
@@ -611,13 +657,22 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
       rtt_ms: null,
       message: 'Unknown',
     };
+    let rawOptions: RawSipOptionsResult = {
+      sent: '',
+      response: '',
+      rawCaptureAvailable: false,
+      codecsSupported: [],
+    };
 
     if (tcp.reachable) {
       sip = await this.testTrunkSipOptions(trunk.id);
+      rawOptions = await this.findRawSipOptionsCapture(trunk, new Date());
     }
 
     const testedAt = new Date().toISOString();
     const status = this.resolveTrunkStatus(tcp.reachable, sip.status);
+    const sipCode = this.resolveSipCode(sip);
+    const codeInfo = this.getSipCodeInfo(sipCode);
     const message = !tcp.reachable
       ? tcp.message
       : sip.status === 'reachable'
@@ -637,7 +692,152 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
       status,
       message,
       testedAt,
+      sipCode,
+      sipCodeTitle: codeInfo.title,
+      sipCodeExplanation: codeInfo.explanation,
+      rawOptionsSent: rawOptions.sent,
+      rawOptionsResponse: rawOptions.response,
+      rawCaptureAvailable: rawOptions.rawCaptureAvailable,
+      codecsSupported: rawOptions.codecsSupported,
     };
+  }
+
+  private resolveSipCode(result: AmiQualifyResult): number {
+    if (result.status === 'reachable') {
+      return 200;
+    }
+    if (result.status === 'unreachable' || result.status === 'not_loaded') {
+      return 503;
+    }
+    return 503;
+  }
+
+  private getSipCodeInfo(code: number): SipCodeInfo {
+    return SIP_CODE_INFO[code] ?? {
+      title: 'Unknown Response',
+      explanation: 'No description available for this code.',
+    };
+  }
+
+  private async findRawSipOptionsCapture(trunk: SipTrunkEntity, testTime: Date): Promise<RawSipOptionsResult> {
+    const windowStart = new Date(testTime.getTime() - 5000).toISOString();
+    const windowEnd = new Date(testTime.getTime() + 5000).toISOString();
+    const hostNeedle = `%${trunk.host}%`;
+
+    try {
+      const rows = await this.dataSource.query(
+        `
+        SELECT
+          id,
+          call_id AS "callId",
+          timestamp,
+          method,
+          from_uri AS "fromUri",
+          to_uri AS "toUri",
+          direction,
+          response_code AS "responseCode",
+          raw_message AS "rawMessage",
+          created_at AS "createdAt"
+        FROM sip_messages
+        WHERE timestamp BETWEEN $1 AND $2
+          AND (
+            from_uri ILIKE $3
+            OR to_uri ILIKE $3
+            OR raw_message ILIKE $3
+          )
+        ORDER BY timestamp ASC
+        `,
+        [windowStart, windowEnd, hostNeedle],
+      );
+
+      const messages = rows.map((row: Record<string, unknown>) => this.mapSipMessage(row));
+      const request = messages.find((message) => this.isOptionsRequestForHost(message, trunk.host));
+      const response = messages.find((message) => {
+        if (!this.isOptionsResponseForHost(message, trunk.host)) {
+          return false;
+        }
+        if (!request) {
+          return true;
+        }
+        return Date.parse(message.timestamp) >= Date.parse(request.timestamp);
+      });
+
+      if (!request || !response) {
+        return {
+          sent: '',
+          response: '',
+          rawCaptureAvailable: false,
+          codecsSupported: [],
+        };
+      }
+
+      return {
+        sent: request.rawMessage || '',
+        response: response.rawMessage || '',
+        rawCaptureAvailable: true,
+        codecsSupported: this.parseSdpCodecs(response.rawMessage || ''),
+      };
+    } catch {
+      return {
+        sent: '',
+        response: '',
+        rawCaptureAvailable: false,
+        codecsSupported: [],
+      };
+    }
+  }
+
+  private isOptionsRequestForHost(message: SipMessage, host: string): boolean {
+    const raw = message.rawMessage || '';
+    const uriMatches = (message.toUri || '').includes(host) || (message.fromUri || '').includes(host);
+    return message.method === 'OPTIONS' && uriMatches && /^OPTIONS\s+/im.test(raw);
+  }
+
+  private isOptionsResponseForHost(message: SipMessage, host: string): boolean {
+    const raw = message.rawMessage || '';
+    const uriMatches = (message.toUri || '').includes(host) || (message.fromUri || '').includes(host);
+    const isOptionsCseq = /^CSeq:\s*\d+\s+OPTIONS$/im.test(raw);
+    return uriMatches && isOptionsCseq && /^SIP\/2\.0\s+\d{3}/im.test(raw);
+  }
+
+  private parseSdpCodecs(raw: string): string[] {
+    if (!raw.includes('m=audio')) {
+      return [];
+    }
+
+    const payloads = new Set<string>();
+    const dynamicNames = new Map<string, string>();
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('m=audio')) {
+        trimmed.split(/\s+/).slice(3).forEach((payload) => payloads.add(payload));
+        continue;
+      }
+      const rtpMap = trimmed.match(/^a=rtpmap:(\d+)\s+([^/\s]+)/i);
+      if (rtpMap?.[1] && rtpMap[2]) {
+        dynamicNames.set(rtpMap[1], rtpMap[2]);
+      }
+    }
+
+    return Array.from(payloads)
+      .map((payload) => dynamicNames.get(payload) ?? this.staticPayloadCodecName(payload))
+      .filter((codec): codec is string => Boolean(codec));
+  }
+
+  private staticPayloadCodecName(payload: string): string | null {
+    if (payload === '0') {
+      return 'PCMU';
+    }
+    if (payload === '8') {
+      return 'PCMA';
+    }
+    if (payload === '9') {
+      return 'G722';
+    }
+    if (payload === '18') {
+      return 'G729';
+    }
+    return null;
   }
 
   private resolveTrunkStatus(tcpReachable: boolean, sipStatus: AmiQualifyResult['status']): TrunkDiagnosticsStatus {
@@ -680,6 +880,29 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     return numeric > 1000 ? Math.round((numeric / 1000) * 10) / 10 : Math.round(numeric * 10) / 10;
   }
 
+  private secondsUntil(value: string | null): number | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = Date.parse(value);
+    if (Number.isNaN(parsed)) {
+      return null;
+    }
+    return Math.max(0, Math.floor((parsed - Date.now()) / 1000));
+  }
+
+  private extractIpFromUri(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+    const atMatch = value.match(/@([^;>\s]+)/);
+    const hostPort = (atMatch?.[1] || value.replace(/^<?(?:sip:|sips:)/i, '')).split(';')[0].replace(/>$/, '');
+    const host = hostPort.startsWith('[')
+      ? hostPort.slice(1, hostPort.indexOf(']'))
+      : hostPort.split(':')[0];
+    return host || null;
+  }
+
   private mapSipMessage(row: Record<string, unknown>): SipMessage {
     return {
       id: Number(row.id),
@@ -701,14 +924,23 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async loadKnownExtensions(): Promise<Set<string>> {
-    const rows = await this.dataSource.query('SELECT username FROM sip_extensions');
-    return new Set(rows.map((row: Record<string, unknown>) => String(row.username)));
+  private async loadKnownExtensions(): Promise<Map<string, string>> {
+    const rows = await this.dataSource.query('SELECT username, display_name AS "displayName" FROM sip_extensions');
+    return new Map(rows.map((row: Record<string, unknown>) => [
+      String(row.username),
+      row.displayName ? String(row.displayName) : String(row.username),
+    ]));
   }
 
-  private async loadKnownTrunks(): Promise<Set<string>> {
-    const rows = await this.dataSource.query('SELECT id FROM sip_trunks');
-    return new Set(rows.map((row: Record<string, unknown>) => `trunk-${row.id}`));
+  private async loadKnownTrunks(): Promise<Map<string, { name: string; host: string }>> {
+    const rows = await this.dataSource.query('SELECT id, name, host FROM sip_trunks');
+    return new Map(rows.map((row: Record<string, unknown>) => [
+      `trunk-${row.id}`,
+      {
+        name: row.name ? String(row.name) : `trunk-${row.id}`,
+        host: row.host ? String(row.host) : '',
+      },
+    ]));
   }
 
   private async getPjsipContacts(): Promise<AmiRegistrationDetail[]> {
@@ -761,7 +993,8 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
               contacts: message.Uri ? [message.Uri] : [],
               contactStatus: message.Status || null,
               roundtripUsec: message.RoundtripUsec || null,
-              lastQualifiedAt: this.normalizeRegExpire(message.RegExpire),
+              lastSeen: this.normalizeAmiTimestamp(message.LastQualify || message.LastSeen || message.UpdateTime),
+              expiresAt: this.normalizeRegExpire(message.RegExpire || message.ExpirationTime),
             });
             continue;
           }
@@ -769,6 +1002,72 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
           if (message.Event === 'ContactListComplete') {
             socket.write('Action: Logoff\r\n\r\n');
             finish(contacts);
+            return;
+          }
+        }
+      });
+    });
+  }
+
+  private async getPjsipInboundRegistrationStatuses(): Promise<AmiInboundRegistrationDetail[]> {
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host: this.amiHost, port: this.amiPort });
+      const registrations: AmiInboundRegistrationDetail[] = [];
+      const actionId = `inbound-registrations-${Date.now()}`;
+      let buffer = '';
+      let loggedIn = false;
+      let settled = false;
+
+      const finish = (result: AmiInboundRegistrationDetail[]) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        socket.end();
+        resolve(result);
+      };
+
+      socket.setTimeout(8000, () => finish([]));
+      socket.on('error', () => finish([]));
+      socket.on('connect', () => {
+        socket.write(`Action: Login\r\nUsername: ${this.amiUser}\r\nSecret: ${this.amiPass}\r\n\r\n`);
+      });
+
+      socket.on('data', (chunk) => {
+        buffer += chunk.toString('utf8');
+
+        while (buffer.includes('\r\n\r\n')) {
+          const parts = buffer.split('\r\n\r\n');
+          const raw = parts.shift() || '';
+          buffer = parts.join('\r\n\r\n');
+          const message = this.parseAmiMessage(raw);
+
+          if (!loggedIn && message.Response === 'Success' && message.Message === 'Authentication accepted') {
+            loggedIn = true;
+            socket.write(`Action: PJSIPShowRegistrationInboundContactStatuses\r\nActionID: ${actionId}\r\n\r\n`);
+            continue;
+          }
+
+          if (message.ActionID !== actionId) {
+            continue;
+          }
+
+          if (message.Event && message.Event !== 'InboundRegistrationDetailComplete') {
+            const trunkName = message.EndpointName || message.ObjectName || message.AOR || message.Registration || message.Contact || 'unknown';
+            const host = this.extractIpFromUri(message.Uri || message.Contact || message.ContactURI || null) || message.Host || '';
+            registrations.push({
+              trunkName,
+              host,
+              status: this.resolveRegistrationStatus(message.Status || message.ContactStatus, Boolean(message.Uri || message.Contact)),
+              lastRegistration: this.normalizeAmiTimestamp(message.LastRegistration || message.LastSeen || message.UpdateTime),
+              expiresAt: this.normalizeRegExpire(message.RegExpire || message.ExpirationTime || message.Expires),
+            });
+            continue;
+          }
+
+          if (message.Event === 'InboundRegistrationDetailComplete' || message.Event === 'ContactStatusDetailComplete') {
+            socket.write('Action: Logoff\r\n\r\n');
+            finish(registrations);
             return;
           }
         }
@@ -796,6 +1095,24 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     const numeric = Number(value);
     if (Number.isFinite(numeric) && numeric > 0) {
       return new Date(numeric * 1000).toISOString();
+    }
+
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+
+    return null;
+  }
+
+  private normalizeAmiTimestamp(value: string | undefined): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return new Date(numeric > 9999999999 ? numeric : numeric * 1000).toISOString();
     }
 
     const parsed = Date.parse(value);

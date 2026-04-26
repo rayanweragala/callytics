@@ -49,17 +49,6 @@
   pointer-events: none;
 }
 
-.inlinePanel .svgWrap svg > line {
-  stroke: var(--text-secondary);
-}
-
-.inlinePanel .svgWrap svg g line,
-.inlinePanel .svgWrap svg g polygon,
-.inlinePanel .svgWrap svg g text {
-  stroke: var(--text-primary) !important;
-  fill: var(--text-primary) !important;
-}
-
 .open {
   transform: translateX(0);
 }
@@ -121,4 +110,63 @@
   font-family: var(--font-mono);
   font-size: 14px;
   white-space: pre-wrap;
+}
+
+.participantLabel {
+  fill: var(--text-secondary);
+}
+
+.lifeline {
+  stroke: var(--border-default);
+}
+
+.timestampLabel {
+  fill: var(--color-data);
+}
+
+/* Arrow color classes — applied to <g>, inherited by line/polygon/text via currentColor */
+.arrowInvite {
+  color: var(--color-active);
+}
+
+.arrowError {
+  color: var(--color-error);
+}
+
+.arrowSuccess {
+  color: var(--color-active);
+}
+
+.arrowWarning {
+  color: var(--primitive-amber);
+}
+
+.arrowData {
+  color: var(--color-data);
+}
+
+.arrowMuted {
+  color: var(--text-secondary);
+}
+
+/* Arrow line inherits color via currentColor */
+.arrowLine {
+  stroke: currentColor;
+  fill: none;
+}
+
+/* Response arrows are dashed */
+.arrowLineDashed {
+  stroke: currentColor;
+  fill: none;
+  stroke-dasharray: 4 3;
+}
+
+.arrowHead {
+  fill: currentColor;
+  stroke: none;
+}
+
+.arrowLabel {
+  fill: currentColor;
 }

@@ -38,15 +38,35 @@ export interface TrunkDiagnosticsResult {
   status: 'reachable' | 'sip_unreachable' | 'unreachable' | 'unknown';
   message: string;
   testedAt: string;
+  sipCode: number;
+  sipCodeTitle: string;
+  sipCodeExplanation: string;
+  rawOptionsSent: string;
+  rawOptionsResponse: string;
+  rawCaptureAvailable: boolean;
+  codecsSupported: string[];
 }
 
-export interface SipRegistrationRecord {
-  name: string;
-  type: 'extension' | 'trunk';
-  status: 'registered' | 'unregistered' | 'unknown';
-  contactUri: string | null;
-  rttMs: number | null;
+export interface RegistrationExtensionRecord {
+  extension: string;
+  displayName: string;
+  status: 'registered' | 'unregistered';
+  registeredIp: string | null;
   lastSeen: string | null;
+  expiresIn: number | null;
+}
+
+export interface RegistrationTrunkRecord {
+  trunkName: string;
+  host: string;
+  status: 'registered' | 'unregistered' | 'unknown';
+  lastRegistration: string | null;
+  expiresIn: number | null;
+}
+
+export interface RegistrationHealthResponse {
+  extensions: RegistrationExtensionRecord[];
+  trunks: RegistrationTrunkRecord[];
 }
 
 export interface RecentFailureRecord {
@@ -111,5 +131,14 @@ export interface AmiRegistrationDetail {
   contacts: string[];
   contactStatus?: string | null;
   roundtripUsec?: string | null;
-  lastQualifiedAt?: string | null;
+  lastSeen?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface AmiInboundRegistrationDetail {
+  trunkName: string;
+  host: string;
+  status: 'registered' | 'unregistered' | 'unknown';
+  lastRegistration: string | null;
+  expiresAt: string | null;
 }

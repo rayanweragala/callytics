@@ -21,7 +21,7 @@ import { diagnosticsSocket } from '../lib/socket';
 import type {
   DiagnosticsFailureItem,
   DiagnosticsSystemHealth,
-  SipRegistrationItem,
+  RegistrationHealthResponse,
   SipTrafficItem,
   SipTrunkItem,
   TrunkDiagnosticsResult,
@@ -30,6 +30,9 @@ import { SipLadderPanel } from '../components/diagnostics/SipLadderPanel';
 import styles from './DiagnosticsPage.module.css';
 
 const FAILURES_PAGE_SIZE = 20;
+const EMPTY_REGISTRATIONS: RegistrationHealthResponse = { extensions: [], trunks: [] };
+
+type DiagnosticsTab = 'network' | 'trunks' | 'registrations' | 'traffic';
 
 interface DiagnosticsFailureApiItem {
   id?: number;
@@ -50,7 +53,7 @@ export function DiagnosticsPage() {
   const [healthLoading, setHealthLoading] = useState(true);
   const [isHealthInitial, setIsHealthInitial] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
-  const [registrations, setRegistrations] = useState<SipRegistrationItem[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationHealthResponse>(EMPTY_REGISTRATIONS);
   const [registrationsLoading, setRegistrationsLoading] = useState(true);
   const [isRegistrationsInitial, setIsRegistrationsInitial] = useState(true);
   const [registrationsError, setRegistrationsError] = useState<string | null>(null);
@@ -73,6 +76,7 @@ export function DiagnosticsPage() {
   const [ladderCallId, setLadderCallId] = useState<string | null>(null);
   const [ladderFailedAt, setLadderFailedAt] = useState<string | undefined>(undefined);
   const [ladderError, setLadderError] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<DiagnosticsTab>('network');
   const successTimerRef = useRef<number | null>(null);
 
   const failureTotalPages = Math.max(1, Math.ceil(failuresTotal / FAILURES_PAGE_SIZE));
@@ -94,7 +98,7 @@ export function DiagnosticsPage() {
     setRegistrationsError(null);
     try {
       const response = await getDiagnosticsRegistrations();
-      setRegistrations(response.data);
+      setRegistrations(response);
     } catch (error) {
       setRegistrationsError(getApiError(error, 'failed to load registrations'));
     } finally {
@@ -297,20 +301,27 @@ export function DiagnosticsPage() {
     setLadderError(failure.errorMessage || undefined);
   };
 
+  const handleRefreshAll = () => {
+    void refreshHealth();
+    void refreshRegistrations();
+    void refreshTrunks();
+    void refreshFailures(failuresPage);
+  };
+
   const actions = useMemo(() => (
     <button className={styles.refreshButton} onClick={() => {
-      void refreshHealth();
-      void refreshRegistrations();
-      void refreshTrunks();
-      void refreshFailures(failuresPage);
+      handleRefreshAll();
     }} type="button">
       Refresh
     </button>
   ), [failuresPage]);
 
-  if (healthLoading && registrationsLoading && trunks.length === 0) {
-    // No early return — skeletons render inline in each panel below
-  }
+  const TAB_LABELS: Record<DiagnosticsTab, string> = {
+    network: 'Network',
+    trunks: 'Trunks',
+    registrations: 'Registrations',
+    traffic: 'Traffic',
+  };
 
   return (
     <PageLayout actions={actions} subtitle="monitor" title="Diagnostics">
@@ -318,93 +329,126 @@ export function DiagnosticsPage() {
         <ErrorMessage message={pageError} />
         {successText ? <div className={styles.successText}>{successText}</div> : null}
 
-        {isHealthInitial ? (
-          <section>
-            <div className={styles.healthSkeletonRow}>
-              {[...Array(6)].map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
-          </section>
-        ) : healthError ? (
-          <ErrorMessage message={healthError} />
-        ) : (
-          <SystemHealthPanel health={health} loading={healthLoading} />
-        )}
+        <div className={styles.tabBar}>
+          {(Object.keys(TAB_LABELS) as DiagnosticsTab[]).map((tab) => (
+            <button
+              className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              type="button"
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
 
-        {isTrunksInitial ? (
-          <>
-            {Array.from({ length: 3 }, (_, i) => (
-              <SkeletonRow key={i} columns={[
-                { width: '20%' },
-                { width: '20%' },
-                { width: '10%' },
-                { width: '10%' },
-                { width: '10%' },
-                { width: '15%' },
-                { width: '15%' },
-              ]} />
-            ))}
-          </>
-        ) : trunksError ? (
-          <ErrorMessage message={trunksError} />
-        ) : (
-          <TrunkHealthPanel
-            busyIds={busyIds}
-            onTest={handleTestTrunk}
-            onTestAll={handleTestAll}
-            results={trunkResults}
-            testingAll={testingAll}
-            trunks={trunks}
-          />
-        )}
+        {/* Tab: Network */}
+        {activeTab === 'network' ? (
+          <div className={styles.tabContent}>
+            {isHealthInitial ? (
+              <section>
+                <div className={styles.healthSkeletonRow}>
+                  {[...Array(6)].map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </div>
+              </section>
+            ) : healthError ? (
+              <ErrorMessage message={healthError} />
+            ) : (
+              <SystemHealthPanel health={health} loading={healthLoading} />
+            )}
+          </div>
+        ) : null}
 
-        {isRegistrationsInitial ? (
-          <>
-            {Array.from({ length: 3 }, (_, i) => (
-              <SkeletonRow key={i} columns={[
-                { width: '15%' },
-                { width: '10%' },
-                { width: '15%' },
-                { width: '25%' },
-                { width: '10%' },
-                { width: '25%' },
-              ]} />
-            ))}
-          </>
-        ) : registrationsError ? (
-          <ErrorMessage message={registrationsError} />
-        ) : (
-          <SipRegistrationPanel items={registrations} loading={registrationsLoading} />
-        )}
+        {/* Tab: Trunks */}
+        {activeTab === 'trunks' ? (
+          <div className={styles.tabContent}>
+            {isTrunksInitial ? (
+              <>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonRow key={i} columns={[
+                    { width: '20%' },
+                    { width: '20%' },
+                    { width: '10%' },
+                    { width: '10%' },
+                    { width: '10%' },
+                    { width: '15%' },
+                    { width: '15%' },
+                  ]} />
+                ))}
+              </>
+            ) : trunksError ? (
+              <ErrorMessage message={trunksError} />
+            ) : (
+              <TrunkHealthPanel
+                busyIds={busyIds}
+                onTest={handleTestTrunk}
+                onTestAll={handleTestAll}
+                results={trunkResults}
+                testingAll={testingAll}
+                trunks={trunks}
+              />
+            )}
+          </div>
+        ) : null}
 
-        <SipTrafficInspector items={traffic} loading={trafficLoading} onClear={() => setTraffic([])} onRowClick={handleOpenLadderFromTraffic} />
+        {/* Tab: Registrations */}
+        {activeTab === 'registrations' ? (
+          <div className={styles.tabContent}>
+            {isRegistrationsInitial ? (
+              <>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonRow key={i} columns={[
+                    { width: '15%' },
+                    { width: '10%' },
+                    { width: '15%' },
+                    { width: '25%' },
+                    { width: '10%' },
+                    { width: '25%' },
+                  ]} />
+                ))}
+              </>
+            ) : registrationsError ? (
+              <ErrorMessage message={registrationsError} />
+            ) : (
+              <SipRegistrationPanel items={registrations} loading={registrationsLoading} onRefresh={refreshRegistrations} />
+            )}
+          </div>
+        ) : null}
 
-        {isFailuresInitial ? (
-          <>
-            {Array.from({ length: 3 }, (_, i) => (
-              <SkeletonRow key={i} columns={[
-                { width: '15%' },
-                { width: '15%' },
-                { width: '20%' },
-                { width: '15%' },
-                { width: '20%' },
-                { width: '15%' },
-              ]} />
-            ))}
-          </>
-        ) : failuresError ? (
-          <ErrorMessage message={failuresError} />
-        ) : (
-          <CallFailuresPanel
-            items={failures}
-            onPageChange={setFailuresPage}
-            page={failuresPage}
-            totalPages={failureTotalPages}
-            onTraceOpen={setTraceCallUuid}
-            onFailureClick={handleOpenLadderFromFailure}
-          />
-        )}
+        {/* Tab: Traffic (SIP Traffic Inspector + Call Failures) */}
+        {activeTab === 'traffic' ? (
+          <div className={styles.tabContent}>
+            <SipTrafficInspector items={traffic} loading={trafficLoading} onClear={() => setTraffic([])} onRowClick={handleOpenLadderFromTraffic} />
+
+            {isFailuresInitial ? (
+              <>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonRow key={i} columns={[
+                    { width: '15%' },
+                    { width: '15%' },
+                    { width: '20%' },
+                    { width: '15%' },
+                    { width: '20%' },
+                    { width: '15%' },
+                  ]} />
+                ))}
+              </>
+            ) : failuresError ? (
+              <ErrorMessage message={failuresError} />
+            ) : (
+              <CallFailuresPanel
+                items={failures}
+                onPageChange={setFailuresPage}
+                page={failuresPage}
+                totalPages={failureTotalPages}
+                onTraceOpen={setTraceCallUuid}
+                onFailureClick={handleOpenLadderFromFailure}
+              />
+            )}
+          </div>
+        ) : null}
       </div>
 
       <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />

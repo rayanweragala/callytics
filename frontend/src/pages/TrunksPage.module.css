@@ -23,7 +23,6 @@
   font-family: var(--font-mono);
 }
 
-/* FIX — Typography scale */
 .sectionLabel {
   font-size: 14px;
   letter-spacing: 0.10em;
@@ -38,7 +37,6 @@
   color: var(--text-primary);
 }
 
-/* FIX 1 — Table card with real border */
 .formPanel {
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -106,7 +104,6 @@
   gap: 8px;
 }
 
-/* FIX — Typography: form labels */
 .fieldLabel {
   font-size: 14px;
   color: var(--text-secondary);
@@ -121,7 +118,6 @@
   min-width: 0;
 }
 
-/* FIX 7 — Input: dark bg + amber focus */
 .input {
   width: 100%;
   min-width: 0;
@@ -158,7 +154,6 @@
   line-height: 1.4;
 }
 
-/* FIX 5 — Primary CTA: amber filled */
 .primaryButton {
   background: var(--accent);
   color: var(--text-inverse);
@@ -176,7 +171,6 @@
   opacity: 0.88;
 }
 
-/* FIX 5 — Secondary: transparent muted */
 .secondaryButton {
   display: inline-flex;
   align-items: center;
@@ -198,7 +192,6 @@
   border-color: var(--primitive-amber);
 }
 
-/* FIX — Toggle button */
 .toggleButton {
   min-height: 36px;
   display: inline-flex;
@@ -265,21 +258,18 @@
 }
 
 
-/* FIX 3 — Row: 9px vertical padding */
 .row {
   border-bottom: 1px solid var(--border-subtle);
   transition: background 0.1s;
   cursor: default;
 }
 
-/* FIX 4 — Row hover tint */
 .row:hover {
   background: var(--surface-elevated);
 }
 
 
 
-/* FIX — Entity names: text-primary white */
 .rowValue {
   font-family: var(--font-mono);
   color: var(--text-primary);
@@ -287,13 +277,11 @@
   font-weight: 400;
 }
 
-/* FIX — Labels: muted */
 .rowMuted {
   color: var(--text-secondary);
   font-size: 14px;
 }
 
-/* FIX 2 — Data values: cyan + weight 600 */
 .dataMono {
   color: var(--color-data);
   font-size: 14px;
@@ -301,7 +289,6 @@
   word-break: break-word;
 }
 
-/* FIX 2 — Timestamp: cyan + weight 600 */
 .createdAt {
   color: var(--color-data);
   font-size: 14px;
@@ -357,7 +344,6 @@
   justify-content: flex-end;
 }
 
-/* FIX 6 — Row action buttons */
 .rowDeleteButton {
   height: 28px;
   padding: 4px 10px;
@@ -380,7 +366,6 @@
   position: relative;
 }
 
-/* FIX 6 — Menu button: compact row action */
 .menuButton {
   min-width: 28px;
   height: 28px;

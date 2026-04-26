@@ -18,7 +18,6 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTra
     <section className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <div className={styles.eyebrow}>Panel E</div>
           <h2 className={styles.title}>Recent Call Failures</h2>
         </div>
       </div>

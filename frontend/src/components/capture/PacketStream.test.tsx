@@ -18,6 +18,15 @@ function buildPacket(overrides: Partial<SipPacket> = {}): SipPacket {
   };
 }
 
+const defaultExtraProps = {
+  onCodeHoverShow: vi.fn(),
+  onCodeHoverHide: vi.fn(),
+  checkedPacketIds: [] as string[],
+  onCheckedPacketIdsChange: vi.fn(),
+  compareOpen: false,
+  onCompareOpen: vi.fn(),
+};
+
 describe('PacketStream', () => {
   it('applies method filter using shared dropdown', async () => {
     const packets: SipPacket[] = [
@@ -29,11 +38,13 @@ describe('PacketStream', () => {
 
     render(
       <PacketStream
+        {...defaultExtraProps}
         filters={{ method: 'all', callId: '', endpoint: null, from: '', to: '' }}
         onFiltersChange={onFiltersChange}
         onSelectCallId={vi.fn()}
         packets={packets}
         selectedCallId={null}
+        viewMode="stream"
       />,
     );
 
@@ -49,11 +60,13 @@ describe('PacketStream', () => {
 
     render(
       <PacketStream
+        {...defaultExtraProps}
         filters={{ method: 'all', callId: '', endpoint: null, from: '', to: '' }}
         onFiltersChange={vi.fn()}
         onSelectCallId={onSelectCallId}
         packets={[packet]}
         selectedCallId={null}
+        viewMode="stream"
       />,
     );
 
@@ -70,11 +83,13 @@ describe('PacketStream', () => {
 
     render(
       <PacketStream
+        {...defaultExtraProps}
         filters={{ method: 'all', callId: '', endpoint: null, from: '', to: '' }}
         onFiltersChange={vi.fn()}
         onSelectCallId={vi.fn()}
         packets={packets}
         selectedCallId={null}
+        viewMode="stream"
       />,
     );
 
@@ -95,11 +110,13 @@ describe('PacketStream', () => {
 
     render(
       <PacketStream
+        {...defaultExtraProps}
         filters={{ method: 'all', callId: '', endpoint: null, from: '', to: '' }}
         onFiltersChange={vi.fn()}
         onSelectCallId={vi.fn()}
         packets={packets}
         selectedCallId={'call-error'}
+        viewMode="stream"
       />,
     );
 

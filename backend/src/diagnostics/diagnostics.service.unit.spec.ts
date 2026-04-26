@@ -104,23 +104,95 @@ describe('DiagnosticsService', () => {
     expect(result.status).toBe('reachable');
   });
 
+  it('testTrunk uses qualify as the SIP source of truth and attaches raw capture from sip_messages', async () => {
+    mockRepo.findOne.mockResolvedValue({
+      id: 4,
+      host: 'sip.example.com',
+      port: 5060,
+      username: null,
+      fromDomain: null,
+      fromUser: null,
+    });
+    jest.spyOn(service, 'testTrunkTcp').mockResolvedValue({ reachable: true, latencyMs: 12, message: 'Reachable' });
+    mockAsterisk.qualifyEndpoint.mockResolvedValue({ status: 'reachable', rtt_ms: 21, message: 'Reachable' });
+    mockDataSource.query.mockResolvedValue([
+      {
+        id: 1,
+        callId: 'call-1',
+        timestamp: '2026-04-26T10:00:00.000Z',
+        method: 'OPTIONS',
+        fromUri: 'sip:asterisk@local',
+        toUri: 'sip:provider@sip.example.com',
+        direction: 'outbound',
+        responseCode: null,
+        rawMessage: 'OPTIONS sip:sip.example.com SIP/2.0\r\nCSeq: 1 OPTIONS',
+        createdAt: '2026-04-26T10:00:00.000Z',
+      },
+      {
+        id: 2,
+        callId: 'call-1',
+        timestamp: '2026-04-26T10:00:01.000Z',
+        method: '200 OK',
+        fromUri: 'sip:provider@sip.example.com',
+        toUri: 'sip:asterisk@local',
+        direction: 'inbound',
+        responseCode: 200,
+        rawMessage: 'SIP/2.0 200 OK\r\nCSeq: 1 OPTIONS\r\n\r\nm=audio 49170 RTP/AVP 0 8\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000',
+        createdAt: '2026-04-26T10:00:01.000Z',
+      },
+    ]);
+
+    const result = await service.testTrunk(4);
+
+    expect(result.sipCode).toBe(200);
+    expect(result.sipCodeTitle).toBe('Success');
+    expect(result.rawCaptureAvailable).toBe(true);
+    expect(result.rawOptionsSent).toContain('OPTIONS sip:sip.example.com SIP/2.0');
+    expect(result.rawOptionsResponse).toContain('SIP/2.0 200 OK');
+    expect(result.codecsSupported).toEqual(['PCMU', 'PCMA']);
+  });
+
+  it('testTrunk returns rawCaptureAvailable false when no matching capture exists', async () => {
+    mockRepo.findOne.mockResolvedValue({
+      id: 5,
+      host: 'sip.missing.example',
+      port: 5060,
+      username: null,
+      fromDomain: null,
+      fromUser: null,
+    });
+    jest.spyOn(service, 'testTrunkTcp').mockResolvedValue({ reachable: true, latencyMs: 12, message: 'Reachable' });
+    mockAsterisk.qualifyEndpoint.mockResolvedValue({ status: 'unreachable', rtt_ms: null, message: 'Unreachable' });
+    mockDataSource.query.mockResolvedValue([]);
+
+    const result = await service.testTrunk(5);
+
+    expect(result.sipCode).toBe(503);
+    expect(result.rawCaptureAvailable).toBe(false);
+    expect(result.rawOptionsSent).toBe('');
+    expect(result.rawOptionsResponse).toBe('');
+    expect(result.codecsSupported).toEqual([]);
+  });
+
   it('returns registered status when AMI reports Reachable', async () => {
     mockAsterisk.getPjsipEndpoints.mockResolvedValue([
       { endpoint: '1001', aor: '1001', contacts: ['sip:1001@127.0.0.1'] },
     ]);
     jest.spyOn(service as any, 'getPjsipContacts').mockResolvedValue([
-      { endpoint: '1001', aor: '1001', contacts: ['sip:1001@127.0.0.1'], contactStatus: 'Reachable', roundtripUsec: '12000', lastQualifiedAt: '2026-04-17T00:00:00.000Z' },
+      { endpoint: '1001', aor: '1001', contacts: ['sip:1001@127.0.0.1'], contactStatus: 'Reachable', roundtripUsec: '12000', lastSeen: '2026-04-17T00:00:00.000Z', expiresAt: '2026-04-17T00:05:00.000Z' },
     ]);
+    jest.spyOn(service as any, 'getPjsipInboundRegistrationStatuses').mockResolvedValue([]);
     mockDataSource.query
-      .mockResolvedValueOnce([{ username: '1001' }])
+      .mockResolvedValueOnce([{ username: '1001', displayName: 'Alice' }])
       .mockResolvedValueOnce([]);
 
     const result = await service.getSipRegistrations();
 
-    expect(result.data[0]).toEqual(expect.objectContaining({
-      name: '1001',
+    expect(result.extensions[0]).toEqual(expect.objectContaining({
+      extension: '1001',
+      displayName: 'Alice',
       status: 'registered',
-      roundtripMs: 12,
+      registeredIp: '127.0.0.1',
     }));
   });
 
@@ -129,30 +201,53 @@ describe('DiagnosticsService', () => {
       { endpoint: '1002', aor: '1002', contacts: [] },
     ]);
     jest.spyOn(service as any, 'getPjsipContacts').mockResolvedValue([
-      { endpoint: '1002', aor: '1002', contacts: ['sip:1002@127.0.0.1'], contactStatus: 'Unreachable', roundtripUsec: null, lastQualifiedAt: null },
+      { endpoint: '1002', aor: '1002', contacts: ['sip:1002@127.0.0.1'], contactStatus: 'Unreachable', roundtripUsec: null, lastSeen: null, expiresAt: null },
     ]);
+    jest.spyOn(service as any, 'getPjsipInboundRegistrationStatuses').mockResolvedValue([]);
     mockDataSource.query
-      .mockResolvedValueOnce([{ username: '1002' }])
+      .mockResolvedValueOnce([{ username: '1002', displayName: 'Bob' }])
       .mockResolvedValueOnce([]);
 
     const result = await service.getSipRegistrations();
 
-    expect(result.data[0]).toEqual(expect.objectContaining({
-      name: '1002',
+    expect(result.extensions[0]).toEqual(expect.objectContaining({
+      extension: '1002',
       status: 'unregistered',
+      registeredIp: null,
     }));
   });
 
   it('handles AMI timeout gracefully', async () => {
     mockAsterisk.getPjsipEndpoints.mockResolvedValue([]);
     jest.spyOn(service as any, 'getPjsipContacts').mockResolvedValue([]);
+    jest.spyOn(service as any, 'getPjsipInboundRegistrationStatuses').mockResolvedValue([]);
     mockDataSource.query
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const result = await service.getSipRegistrations();
 
-    expect(result.data).toEqual([]);
+    expect(result.extensions).toEqual([]);
+    expect(result.trunks).toEqual([]);
+  });
+
+  it('returns trunk registration health from AMI inbound registration statuses', async () => {
+    mockAsterisk.getPjsipEndpoints.mockResolvedValue([]);
+    jest.spyOn(service as any, 'getPjsipContacts').mockResolvedValue([]);
+    jest.spyOn(service as any, 'getPjsipInboundRegistrationStatuses').mockResolvedValue([
+      { trunkName: 'trunk-9', host: '198.51.100.10', status: 'registered', lastRegistration: '2026-04-17T00:00:00.000Z', expiresAt: '2026-04-17T00:05:00.000Z' },
+    ]);
+    mockDataSource.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 9, name: 'Provider', host: '198.51.100.10' }]);
+
+    const result = await service.getSipRegistrations();
+
+    expect(result.trunks[0]).toEqual(expect.objectContaining({
+      trunkName: 'Provider',
+      host: '198.51.100.10',
+      status: 'registered',
+    }));
   });
 
   it('returns only non-completed calls', async () => {

@@ -44,7 +44,7 @@
 .verdictIcon {
   width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: var(--radius-lg);
   border: 1px solid currentColor;
   display: inline-flex;
   align-items: center;
@@ -132,6 +132,81 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-top: 12px;
+}
+
+.codecRoot {
+  display: grid;
+  gap: 14px;
+  font-family: var(--font-mono);
+}
+
+.codecColumns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.codecLabel {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.codecPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.codecPillNeutral,
+.codecPillAccepted,
+.codecPillRejected {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.codecPillNeutral {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.codecPillAccepted,
+.codecStatusSuccess {
+  color: var(--color-active);
+}
+
+.codecPillRejected,
+.codecStatusError {
+  color: var(--color-error);
+}
+
+.codecPillRejected {
+  text-decoration: line-through;
+}
+
+.codecStatusPending {
+  color: var(--text-secondary);
+}
+
+.codecStatusSuccess,
+.codecStatusError,
+.codecStatusPending {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.codecEmpty {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 40px;
+  text-align: center;
 }
 
 .headersTabPane :global([class*='dialogHeader']) {

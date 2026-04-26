@@ -72,7 +72,7 @@ describe('SipLadderDiagram (SipLadderPanel SVG)', () => {
 
     await screen.findByText('486');
 
-    const errorStrokes = container.querySelectorAll('line[stroke="var(--color-error)"]');
+    const errorStrokes = container.querySelectorAll('g[class*="arrowError"]');
     expect(errorStrokes.length).toBeGreaterThan(0);
   });
 

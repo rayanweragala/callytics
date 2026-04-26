@@ -54,7 +54,6 @@
   font-family: var(--font-mono);
 }
 
-/* FIX 5 — Secondary / stop / history buttons */
 .secondaryButton,
 .historyButton {
   background: transparent;
@@ -141,7 +140,6 @@
   text-transform: lowercase;
 }
 
-/* FIX 2 — Data values: cyan */
 .summaryGrid strong,
 .mono {
   font-family: var(--font-mono);
@@ -224,7 +222,6 @@
   gap: 6px;
 }
 
-/* FIX 2 — History timestamps: cyan */
 .historyRow {
   display: grid;
   grid-template-columns: 120px 100px 90px 190px 40px;

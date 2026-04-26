@@ -6,13 +6,19 @@ import type { FlowNodeData } from '../../types';
 
 function createProps(config: Record<string, unknown> = {}) {
   return {
+    id: 'test-node',
+    type: 'flowNode',
+    zIndex: 1,
+    isConnectable: true,
+    xPos: 0,
+    yPos: 0,
     data: {
       type: 'conference',
       label: 'Conference Room',
       config,
     } as FlowNodeData,
     selected: false,
-  } as const;
+  } as any;
 }
 
 describe('FlowCanvasNode conference rendering', () => {

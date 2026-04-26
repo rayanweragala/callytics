@@ -17,7 +17,7 @@ function extractHost(uri: string | null): string | null {
     return null;
   }
   const trimmed = uri.trim();
-  const atMatch = trimmed.match(/@([^;>\s]+)/);
+  const atMatch = trimmed.match(/@([^;\s>]+)/);
   const domainSource = atMatch?.[1] || trimmed.replace(/^<?(?:sip:|sips:)/i, '').replace(/>$/, '');
   const host = domainSource.split(';')[0].split(':')[0].trim();
   return host || null;
@@ -32,17 +32,28 @@ function formatTime(value: string): string {
   return `${hh}:${mm}:${ss}.${ms}`;
 }
 
-function getMethodColour(method: string | null): string {
-  if (!method) {
-    return 'var(--text-primary)';
+function getArrowColorClass(message: SipMessage, isFailure: boolean): string {
+  if (isFailure) return styles.arrowError;
+
+  const code = message.responseCode;
+  if (code !== null && code !== undefined) {
+    if (code >= 200 && code < 300) return styles.arrowSuccess;
+    if (code >= 400 && code < 500) return styles.arrowWarning;
+    if (code >= 500) return styles.arrowError;
+    return styles.arrowData; // 1xx/3xx
   }
-  if (method === 'INVITE') {
-    return 'var(--color-info)';
-  }
-  if (method === 'BYE') {
-    return 'var(--color-warning)';
-  }
-  return 'var(--text-primary)';
+
+  const method = message.method;
+  if (!method) return styles.arrowMuted;
+  if (method === 'INVITE') return styles.arrowInvite;
+  if (method === 'BYE' || method === 'CANCEL') return styles.arrowError;
+  if (method === 'REGISTER') return styles.arrowData;
+  if (method === 'ACK' || method === 'OPTIONS') return styles.arrowMuted;
+  return styles.arrowMuted;
+}
+
+function isResponseMessage(message: SipMessage): boolean {
+  return message.responseCode !== null && message.responseCode !== undefined;
 }
 
 function getParticipants(messages: SipMessage[]): [string, string] {
@@ -129,11 +140,13 @@ export function SipLadderPanel({ callId, failedAt, errorMessage, onClose, inline
       ) : (
         <div className={styles.svgWrap}>
           <svg height={svgHeight} viewBox={`0 0 420 ${svgHeight}`} width="100%" xmlns="http://www.w3.org/2000/svg">
-            <text fill="var(--text-secondary)" fontFamily="Space Mono, monospace" fontSize="11" x={leftX - 40} y={24}>{leftLabel}</text>
-            <text fill="var(--text-secondary)" fontFamily="Space Mono, monospace" fontSize="11" x={rightX - 50} y={24}>{rightLabel}</text>
+            {/* Participant labels */}
+            <text className={styles.participantLabel} fontFamily="Space Mono, monospace" fontSize="11" x={leftX - 40} y={24}>{leftLabel}</text>
+            <text className={styles.participantLabel} fontFamily="Space Mono, monospace" fontSize="11" x={rightX - 50} y={24}>{rightLabel}</text>
 
-            <line stroke="var(--border-default)" strokeWidth="1" x1={leftX} x2={leftX} y1={34} y2={svgHeight - 20} />
-            <line stroke="var(--border-default)" strokeWidth="1" x1={rightX} x2={rightX} y1={34} y2={svgHeight - 20} />
+            {/* Vertical lifelines */}
+            <line className={styles.lifeline} strokeWidth="1" x1={leftX} x2={leftX} y1={34} y2={svgHeight - 20} />
+            <line className={styles.lifeline} strokeWidth="1" x1={rightX} x2={rightX} y1={34} y2={svgHeight - 20} />
 
             {messages.map((message, index) => {
               const y = startY + index * rowHeight;
@@ -142,18 +155,26 @@ export function SipLadderPanel({ callId, failedAt, errorMessage, onClose, inline
               const x2 = inbound ? rightX : leftX;
               const label = message.method || (message.responseCode ? String(message.responseCode) : '-');
               const isFailure = Number.isFinite(failedAtTime) && Date.parse(message.timestamp) >= failedAtTime;
-              const methodColour = getMethodColour(message.method);
-              const color = isFailure ? 'var(--color-error)' : methodColour;
+              const colorClass = getArrowColorClass(message, isFailure);
+              const isResponse = isResponseMessage(message);
+
               const head = inbound
                 ? `${rightX},${y} ${rightX - 8},${y - 4} ${rightX - 8},${y + 4}`
                 : `${leftX},${y} ${leftX + 8},${y - 4} ${leftX + 8},${y + 4}`;
 
               return (
-                <g key={`${message.id}-${message.timestamp}-${index}`}>
-                  <text fill="var(--text-muted)" fontFamily="Space Mono, monospace" fontSize="10" x={8} y={y + 3}>{formatTime(message.timestamp)}</text>
-                  <line stroke={color} strokeWidth="1" x1={x1} x2={x2} y1={y} y2={y} />
-                  <polygon fill={color} points={head} />
-                  <text fill={color} fontFamily="Space Mono, monospace" fontSize="11" textAnchor="middle" x={(leftX + rightX) / 2} y={y - 6}>{label}</text>
+                <g className={colorClass} key={`${message.id}-${message.timestamp}-${index}`}>
+                  <text className={styles.timestampLabel} fontFamily="Space Mono, monospace" fontSize="10" x={8} y={y + 3}>{formatTime(message.timestamp)}</text>
+                  <line
+                    className={isResponse ? styles.arrowLineDashed : styles.arrowLine}
+                    strokeWidth="1"
+                    x1={x1}
+                    x2={x2}
+                    y1={y}
+                    y2={y}
+                  />
+                  <polygon className={styles.arrowHead} points={head} />
+                  <text className={styles.arrowLabel} fontFamily="Space Mono, monospace" fontSize="11" textAnchor="middle" x={(leftX + rightX) / 2} y={y - 6}>{label}</text>
                 </g>
               );
             })}
@@ -170,5 +191,4 @@ export function SipLadderPanel({ callId, failedAt, errorMessage, onClose, inline
   }
 
   return <div className={styles.overlay}>{body}</div>;
-
 }

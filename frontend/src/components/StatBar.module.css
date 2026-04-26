@@ -5,7 +5,6 @@
   margin-bottom: 24px;
 }
 
-/* FIX — StatBar tile: border + surface */
 .cell {
   background: var(--surface);
   border: 1px solid var(--border-strong);

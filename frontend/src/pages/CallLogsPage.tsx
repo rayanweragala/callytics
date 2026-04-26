@@ -181,11 +181,11 @@ export function CallLogsPage() {
         const registrations = await getDiagnosticsRegistrations();
         if (!active) return;
 
-        setSipStatuses(registrations.data.map((item) => ({
-          endpoint: item.name,
-          aor: item.name,
-          contacts: item.contactUri ? [item.contactUri] : [],
-          state: item.status === 'registered' ? 'registered' : item.status === 'unregistered' ? 'unregistered' : 'unknown',
+        setSipStatuses(registrations.extensions.map((item) => ({
+          endpoint: item.extension,
+          aor: item.extension,
+          contacts: item.registeredIp ? [item.registeredIp] : [],
+          state: item.status,
           updatedAt: Date.now(),
         })));
       } catch {

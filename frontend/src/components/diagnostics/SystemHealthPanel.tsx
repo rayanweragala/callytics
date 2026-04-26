@@ -27,7 +27,6 @@ export function SystemHealthPanel({ health, loading }: SystemHealthPanelProps) {
     <section className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <div className={styles.eyebrow}>Panel A</div>
           <h2 className={styles.title}>System Health</h2>
         </div>
         <div className={styles.meta}>{health ? `uptime ${formatUptime(health.asterisk.uptimeSeconds)}` : 'No data'}</div>

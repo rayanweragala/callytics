@@ -57,7 +57,7 @@
   --color-error:    var(--primitive-red);
   --color-info:     var(--primitive-cyan);
 
-  /* NEW — data values in tables: IPs, ports, numbers, hosts */
+  /* Data values in tables: IPs, ports, numbers, hosts */
   --color-data:     #4dc8f5;
 
   --accent:         var(--primitive-amber);
@@ -69,6 +69,12 @@
   --color-warning-tint: var(--primitive-orange-dim);
   --color-info-tint:    var(--primitive-cyan-dim);
   --color-muted-tint:   rgba(90, 96, 128, 0.12);
+
+  /* ─── DIFF ROW TINTS ─── */
+  --diff-amber-tint: rgba(245, 166, 35, 0.10);
+  --diff-red-tint:   rgba(242, 92, 84, 0.10);
+  --diff-green-tint: rgba(61, 214, 140, 0.10);
+
 
   /* ─── SIDEBAR ─── */
   --sidebar-bg:     var(--primitive-navy-950);

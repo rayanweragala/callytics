@@ -133,6 +133,8 @@ describe('DiagnosticsPage Phase 21 drill-down behavior', () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Traffic' }));
+
     await waitFor(() => expect(screen.getByText('SIP Traffic Inspector')).toBeInTheDocument());
     expect(screen.queryByText('SIP Ladder')).not.toBeInTheDocument();
 
@@ -156,6 +158,8 @@ describe('DiagnosticsPage Phase 21 drill-down behavior', () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Traffic' }));
+
     await waitFor(() => expect(screen.getByText('Recent Call Failures')).toBeInTheDocument());
 
     fireEvent.click(screen.getByText('Busy Here'));
@@ -163,7 +167,7 @@ describe('DiagnosticsPage Phase 21 drill-down behavior', () => {
     await screen.findByText('SIP Ladder');
     await waitFor(() => expect(screen.getByText('fail-call-1')).toBeInTheDocument());
 
-    const errorStrokes = container.querySelectorAll('line[stroke="var(--color-error)"]');
+    const errorStrokes = container.querySelectorAll('g[class*="arrowError"]');
     expect(errorStrokes.length).toBeGreaterThan(0);
   });
 });

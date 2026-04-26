@@ -23,7 +23,7 @@ import type {
   ContactNumber,
   SipMessage,
   SipPacket,
-  SipRegistrationItem,
+  RegistrationHealthResponse,
   SipTrunkItem,
   TrunkDiagnosticsResult,
   TrunkTestResult,
@@ -386,8 +386,8 @@ export async function testAllDiagnosticsTrunks(): Promise<ListResponse<TrunkDiag
   return response.data;
 }
 
-export async function getDiagnosticsRegistrations(): Promise<ListResponse<SipRegistrationItem>> {
-  const response = await api.get<ListResponse<SipRegistrationItem>>('/diagnostics/registrations');
+export async function getDiagnosticsRegistrations(): Promise<RegistrationHealthResponse> {
+  const response = await api.get<RegistrationHealthResponse>('/diagnostics/registrations');
   return response.data;
 }
 
@@ -587,8 +587,8 @@ export async function getCallQuality(callId: string): Promise<CallQuality | null
   try {
     const response = await api.get<CallQuality>(`/quality/${encodeURIComponent(callId)}`);
     return response.data;
-  } catch (error: any) {
-    if (error?.response?.status === 404) {
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
       return null;
     }
     return null;

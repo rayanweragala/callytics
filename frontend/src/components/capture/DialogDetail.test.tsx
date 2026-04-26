@@ -24,13 +24,15 @@ function packet(overrides: Partial<SipPacket>): SipPacket {
 
 describe('DialogDetail', () => {
   it('renders empty state when no callId is selected', () => {
-    render(<DialogDetail selectedCallId={null} selectedDialogPackets={[]} />);
+    render(<DialogDetail activeTab="headers" onActiveTabChange={vi.fn()} selectedCallId={null} selectedDialogPackets={[]} />);
     expect(screen.getByText('Select a packet to inspect')).toBeInTheDocument();
   });
 
   it('renders green verdict for completed call sequence', () => {
     render(
       <DialogDetail
+        activeTab="headers"
+        onActiveTabChange={vi.fn()}
         selectedCallId="call-1"
         selectedDialogPackets={[
           packet({ id: '1', method: 'INVITE' }),
@@ -47,6 +49,8 @@ describe('DialogDetail', () => {
   it('renders amber verdict for busy response', () => {
     render(
       <DialogDetail
+        activeTab="headers"
+        onActiveTabChange={vi.fn()}
         selectedCallId="call-2"
         selectedDialogPackets={[
           packet({ id: '1', method: 'INVITE', callId: 'call-2' }),
@@ -62,6 +66,8 @@ describe('DialogDetail', () => {
   it('renders red verdict for timeout response', () => {
     render(
       <DialogDetail
+        activeTab="headers"
+        onActiveTabChange={vi.fn()}
         selectedCallId="call-3"
         selectedDialogPackets={[
           packet({ id: '1', method: 'INVITE', callId: 'call-3' }),
