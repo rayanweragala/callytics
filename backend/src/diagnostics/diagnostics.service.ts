@@ -2,6 +2,9 @@ import { Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from '@n
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import * as net from 'node:net';
+import * as os from 'node:os';
+import * as fs from 'node:fs';
+import { execFile } from 'node:child_process';
 import { DataSource, Repository } from 'typeorm';
 import { AsteriskConfigService, type AmiQualifyResult } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
@@ -18,6 +21,7 @@ import type {
   SipMessage,
   RegistrationHealthResponse,
   TrunkDiagnosticsResult,
+  ResourcesResponse,
 } from './diagnostics.types';
 
 const REDIS_SIP_TRAFFIC_CHANNEL = 'callytics:sip-traffic';
@@ -148,11 +152,6 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
           detail: [version, uptimeSeconds !== null ? `${uptimeSeconds}s` : null].filter(Boolean).join(' · ') || 'Unknown',
         },
         {
-          label: 'Channels',
-          state: ariInfo.connected ? 'healthy' : 'degraded',
-          detail: String(activeChannels),
-        },
-        {
           label: 'PostgreSQL',
           state: postgres.reachable ? 'healthy' : 'down',
           detail: postgres.reachable ? 'Reachable' : 'Unreachable',
@@ -164,6 +163,17 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
         },
       ],
     };
+  }
+
+  async getResources(): Promise<ResourcesResponse> {
+    const [cpu, memory, disk, asterisk, network] = await Promise.all([
+      this.readCpuUsage(),
+      this.readMemory(),
+      this.readDisk(),
+      this.readAsteriskChannels(),
+      this.readNetworkIo(),
+    ]);
+    return { cpu, memory, disk, asterisk, network };
   }
 
   async testTrunk(id: number): Promise<TrunkDiagnosticsResult> {
@@ -448,7 +458,192 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     return this.asteriskConfigService.qualifyEndpoint(`trunk-${id}`);
   }
 
+  private async readCpuUsage(): Promise<ResourcesResponse['cpu']> {
+    try {
+      const parseProcStat = (raw: string): { idle: number; total: number } | null => {
+        const cpuLine = raw.split('\n').find((line) => /^cpu\s/.test(line));
+        if (!cpuLine) {
+          return null;
+        }
+        const values = cpuLine.trim().split(/\s+/).slice(1).map(Number);
+        if (values.some((v) => !Number.isFinite(v))) {
+          return null;
+        }
+        const idle = (values[3] ?? 0) + (values[4] ?? 0);
+        const total = values.reduce((sum, v) => sum + v, 0);
+        return { idle, total };
+      };
+
+      const firstRaw = await fs.promises.readFile('/proc/stat', 'utf8');
+      const first = parseProcStat(firstRaw);
+      if (!first) {
+        return { error: 'Failed to parse /proc/stat' };
+      }
+
+      await this.delay(200);
+
+      const secondRaw = await fs.promises.readFile('/proc/stat', 'utf8');
+      const second = parseProcStat(secondRaw);
+      if (!second) {
+        return { error: 'Failed to parse /proc/stat (second read)' };
+      }
+
+      const totalDelta = second.total - first.total;
+      const idleDelta = second.idle - first.idle;
+
+      if (totalDelta <= 0) {
+        return { error: 'CPU stat delta is zero' };
+      }
+
+      const usage = Math.min(100, Math.max(0, ((totalDelta - idleDelta) / totalDelta) * 100));
+      return { usage: Math.round(usage * 10) / 10 };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to read CPU usage' };
+    }
+  }
+
+  private readMemory(): ResourcesResponse['memory'] {
+    try {
+      const total = os.totalmem();
+      const free = os.freemem();
+      const used = total - free;
+      const usagePercent = Math.round((used / total) * 1000) / 10;
+      return { total, used, free, usagePercent };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to read memory' };
+    }
+  }
+
+  private readDisk(): Promise<ResourcesResponse['disk']> {
+    return new Promise((resolve) => {
+      execFile('df', ['-k', '/'], { timeout: 8000 }, (error, stdout) => {
+        if (error) {
+          resolve({ error: error.message || 'df command failed' });
+          return;
+        }
+        try {
+          const lines = stdout.trim().split('\n');
+          const dataLine = lines[1];
+          if (!dataLine) {
+            resolve({ error: 'Unexpected df output format' });
+            return;
+          }
+          const parts = dataLine.trim().split(/\s+/);
+          // Linux df -k output columns: Filesystem 1K-blocks Used Available Use% Mounted
+          // Some variants have more columns — find the numeric block count columns
+          const kbTotal = Number(parts[1]);
+          const kbUsed = Number(parts[2]);
+          const kbFree = Number(parts[3]);
+          if (!Number.isFinite(kbTotal) || !Number.isFinite(kbUsed) || !Number.isFinite(kbFree)) {
+            resolve({ error: `Failed to parse df output: ${dataLine}` });
+            return;
+          }
+          const total = kbTotal * 1024;
+          const used = kbUsed * 1024;
+          const free = kbFree * 1024;
+          const usagePercent = total > 0 ? Math.round((used / total) * 1000) / 10 : 0;
+          resolve({ total, used, free, usagePercent });
+        } catch (parseErr) {
+          resolve({ error: parseErr instanceof Error ? parseErr.message : 'Failed to parse df output' });
+        }
+      });
+    });
+  }
+
+  private async readAsteriskChannels(): Promise<ResourcesResponse['asterisk']> {
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host: this.amiHost, port: this.amiPort });
+      const actionId = `channels-${Date.now()}`;
+      let buffer = '';
+      let loggedIn = false;
+      let settled = false;
+      let channelCount = 0;
+
+      const finish = (result: ResourcesResponse['asterisk']) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        socket.end();
+        resolve(result);
+      };
+
+      socket.setTimeout(8000, () => finish({ error: 'AMI CoreShowChannels timed out' }));
+      socket.on('error', (err) => finish({ error: err.message || 'AMI connection error' }));
+
+      socket.on('connect', () => {
+        socket.write(`Action: Login\r\nUsername: ${this.amiUser}\r\nSecret: ${this.amiPass}\r\n\r\n`);
+      });
+
+      socket.on('data', (chunk) => {
+        buffer += chunk.toString('utf8');
+
+        while (buffer.includes('\r\n\r\n')) {
+          const parts = buffer.split('\r\n\r\n');
+          const raw = parts.shift() || '';
+          buffer = parts.join('\r\n\r\n');
+          const message = this.parseAmiMessage(raw);
+
+          if (!loggedIn && message.Response === 'Success' && message.Message === 'Authentication accepted') {
+            loggedIn = true;
+            socket.write(`Action: CoreShowChannels\r\nActionID: ${actionId}\r\n\r\n`);
+            continue;
+          }
+
+          if (message.ActionID !== actionId) {
+            continue;
+          }
+
+          if (message.Event === 'CoreShowChannel') {
+            channelCount += 1;
+            continue;
+          }
+
+          if (message.Event === 'CoreShowChannelsComplete') {
+            socket.write('Action: Logoff\r\n\r\n');
+            finish({ activeChannels: channelCount });
+            return;
+          }
+        }
+      });
+    });
+  }
+
+  private async readNetworkIo(): Promise<ResourcesResponse['network']> {
+    try {
+      const raw = await fs.promises.readFile('/proc/net/dev', 'utf8');
+      let bytesReceived = 0;
+      let bytesSent = 0;
+
+      for (const line of raw.split('\n')) {
+        const colonIndex = line.indexOf(':');
+        if (colonIndex === -1) {
+          continue;
+        }
+        const iface = line.slice(0, colonIndex).trim();
+        if (iface === 'lo') {
+          continue;
+        }
+        const stats = line.slice(colonIndex + 1).trim().split(/\s+/).map(Number);
+        // /proc/net/dev: rx_bytes is column 0, tx_bytes is column 8
+        const rxBytes = stats[0];
+        const txBytes = stats[8];
+        if (Number.isFinite(rxBytes)) {
+          bytesReceived += rxBytes;
+        }
+        if (Number.isFinite(txBytes)) {
+          bytesSent += txBytes;
+        }
+      }
+
+      return { bytesSent, bytesReceived };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to read /proc/net/dev' };
+    }
+  }
+
   private async initializeSipTrafficRelay(): Promise<void> {
+
     const redisPort = Number(process.env.REDIS_PORT || 6379);
     if (!Number.isFinite(redisPort) || redisPort <= 0) {
       return;

@@ -90,6 +90,11 @@
   --radius-lg:   6px;
   --radius-full: 999px;
 
+  /* ─── RESOURCE USAGE THRESHOLDS ─── */
+  --resource-ok:     var(--color-active);
+  --resource-warn:   var(--primitive-amber);
+  --resource-danger: var(--color-error);
+
   color: var(--text-primary);
   background: var(--bg-base);
   font-family: var(--font-mono);

@@ -4,6 +4,7 @@ import type {
   AudioVoiceItem,
   DiagnosticsFailureItem,
   DiagnosticsSystemHealth,
+  DiagnosticsResourcesResponse,
   ExtensionItem,
   FlowBreadcrumbItem,
   FlowDetail,
@@ -373,6 +374,11 @@ export async function getTrunkTestStatus(
 
 export async function getDiagnosticsHealth(): Promise<DiagnosticsSystemHealth> {
   const response = await api.get<DiagnosticsSystemHealth>('/diagnostics/health');
+  return response.data;
+}
+
+export async function getDiagnosticsResources(): Promise<DiagnosticsResourcesResponse> {
+  const response = await api.get<DiagnosticsResourcesResponse>('/diagnostics/resources');
   return response.data;
 }
 

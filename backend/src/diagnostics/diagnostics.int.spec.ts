@@ -8,6 +8,7 @@ describe('DiagnosticsController', () => {
   let app: INestApplication;
   const mockService = {
     getSystemHealth: jest.fn(),
+    getResources: jest.fn(),
     testTrunk: jest.fn(),
     testAllTrunks: jest.fn(),
     getSipRegistrations: jest.fn(),
@@ -33,6 +34,13 @@ describe('DiagnosticsController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockService.getSystemHealth.mockResolvedValue({ checkedAt: new Date().toISOString(), items: [] });
+    mockService.getResources.mockResolvedValue({
+      cpu: { usage: 25 },
+      memory: { total: 8000000000, used: 4000000000, free: 4000000000, usagePercent: 50 },
+      disk: { total: 100000000000, used: 40000000000, free: 60000000000, usagePercent: 40 },
+      asterisk: { activeChannels: 2 },
+      network: { bytesSent: 2500000, bytesReceived: 6000000 },
+    });
     mockService.testTrunk.mockResolvedValue({ trunkId: 1, status: 'reachable' });
     mockService.testAllTrunks.mockResolvedValue({ data: [] });
     mockService.getSipRegistrations.mockResolvedValue({ data: [] });
@@ -45,6 +53,13 @@ describe('DiagnosticsController', () => {
     const response = await request(app.getHttpServer()).get('/diagnostics/health');
     expect(response.status).toBe(200);
     expect(mockService.getSystemHealth).toHaveBeenCalled();
+  });
+
+  it('GET /diagnostics/resources returns resource metrics', async () => {
+    const response = await request(app.getHttpServer()).get('/diagnostics/resources');
+    expect(response.status).toBe(200);
+    expect(mockService.getResources).toHaveBeenCalled();
+    expect(response.body).toEqual(expect.objectContaining({ cpu: expect.any(Object) }));
   });
 
   it('POST /diagnostics/trunks/:id/test returns trunk test result', async () => {

@@ -10,6 +10,11 @@ export class DiagnosticsController {
     return this.diagnosticsService.getSystemHealth();
   }
 
+  @Get('resources')
+  getResources() {
+    return this.diagnosticsService.getResources();
+  }
+
   @Post('trunks/:id/test')
   @HttpCode(200)
   testTrunk(@Param('id', ParseIntPipe) id: number) {

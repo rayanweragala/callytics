@@ -619,3 +619,11 @@ export interface CallTraceResponse {
   startTime: string | null;
   nodes: CallNodeTraceItem[];
 }
+
+export interface DiagnosticsResourcesResponse {
+  cpu: { usage: number } | { error: string };
+  memory: { total: number; used: number; free: number; usagePercent: number } | { error: string };
+  disk: { total: number; used: number; free: number; usagePercent: number } | { error: string };
+  asterisk: { activeChannels: number } | { error: string };
+  network: { bytesSent: number; bytesReceived: number } | { error: string };
+}

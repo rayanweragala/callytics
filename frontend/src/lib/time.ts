@@ -44,3 +44,16 @@ export function formatPacketTimestamp(utcTime: string): string {
     hour12: false,
   });
 }
+
+/**
+ * Formats a byte count as human-readable size.
+ * Shows GB if value >= 1 GB, otherwise MB. One decimal place.
+ */
+export function formatBytes(bytes: number): string {
+  const gb = bytes / (1024 ** 3);
+  if (gb >= 1) {
+    return `${gb.toFixed(1)} GB`;
+  }
+  const mb = bytes / (1024 ** 2);
+  return `${mb.toFixed(1)} MB`;
+}

@@ -142,3 +142,11 @@ export interface AmiInboundRegistrationDetail {
   lastRegistration: string | null;
   expiresAt: string | null;
 }
+
+export interface ResourcesResponse {
+  cpu: { usage: number } | { error: string };
+  memory: { total: number; used: number; free: number; usagePercent: number } | { error: string };
+  disk: { total: number; used: number; free: number; usagePercent: number } | { error: string };
+  asterisk: { activeChannels: number } | { error: string };
+  network: { bytesSent: number; bytesReceived: number } | { error: string };
+}

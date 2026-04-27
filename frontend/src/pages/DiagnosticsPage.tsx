@@ -27,6 +27,7 @@ import type {
   TrunkDiagnosticsResult,
 } from '../types';
 import { SipLadderPanel } from '../components/diagnostics/SipLadderPanel';
+import { ResourcePanel } from '../components/diagnostics/ResourcePanel';
 import styles from './DiagnosticsPage.module.css';
 
 const FAILURES_PAGE_SIZE = 20;
@@ -358,6 +359,7 @@ export function DiagnosticsPage() {
             ) : (
               <SystemHealthPanel health={health} loading={healthLoading} />
             )}
+            <ResourcePanel />
           </div>
         ) : null}
 
