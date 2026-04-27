@@ -43,7 +43,6 @@ export function ExtensionsPage() {
   const [hostIp, setHostIp] = useState('127.0.0.1');
   const [sipPort, setSipPort] = useState(5080);
   const [vpnInstalled, setVpnInstalled] = useState(false);
-  const [vpnSavedId, setVpnSavedId] = useState<number | null>(null);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
@@ -117,6 +116,7 @@ export function ExtensionsPage() {
         displayName: createForm.displayName.trim() || undefined,
         transportType: createForm.transportType,
         transport_type: createForm.transportType,
+        vpnOnly: createForm.vpnOnly,
       });
       setCreateForm(emptyForm);
       setCreateOpen(false);
@@ -161,28 +161,6 @@ export function ExtensionsPage() {
       await load(limit, offset);
     } catch (error) {
       showError(getApiError(error, 'failed to update extension'));
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const handleToggleVpn = async (item: ExtensionItem) => {
-    if (!vpnInstalled) {
-      showError('Enable WireGuard VPN first');
-      return;
-    }
-    setBusyKey(`vpn-${item.id}`);
-    resetMessages();
-    const nextVpnOnly = !item.vpnOnly;
-    try {
-      const response = await updateExtension(item.id, { vpnOnly: nextVpnOnly });
-      setItems((current) => current.map((extension) => (extension.id === item.id ? response.data : extension)));
-      setEditForm((current) => ({ ...current, vpnOnly: response.data.vpnOnly }));
-      setVpnSavedId(item.id);
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      successTimerRef.current = setTimeout(() => setVpnSavedId(null), 2000);
-    } catch (error) {
-      showError(getApiError(error, 'failed to update VPN requirement'));
     } finally {
       setBusyKey(null);
     }
@@ -282,6 +260,26 @@ export function ExtensionsPage() {
               <div className={styles.formActions}>
                 <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
               </div>
+              <div className={styles.vpnToggleField}>
+                <div>
+                  <div className={styles.toggleLabel}>Require VPN</div>
+                  <div className={styles.toggleSubLabel}>Only allow registration from VPN subnet</div>
+                </div>
+                <span className={styles.tooltipWrap}>
+                  <button
+                    aria-checked={createForm.vpnOnly}
+                    aria-label="Require VPN"
+                    className={`${styles.toggleSwitch} ${createForm.vpnOnly ? styles.toggleOn : ''}`}
+                    disabled={!vpnInstalled}
+                    onClick={() => setCreateForm((current) => ({ ...current, vpnOnly: !current.vpnOnly }))}
+                    role="switch"
+                    type="button"
+                  >
+                    <span />
+                  </button>
+                  {!vpnInstalled ? <span className={styles.tooltipText}>Requires VPN to be installed</span> : null}
+                </span>
+              </div>
             </div>
             {errorText ? <ErrorMessage message={errorText} /> : null}
           </section>
@@ -294,6 +292,7 @@ export function ExtensionsPage() {
                 <th>username</th>
                 <th>display name</th>
                 <th>transport</th>
+                <th>VPN only</th>
                 <th>sip uri</th>
                 <th>created</th>
                 <th className={styles.actionsHeader}>actions</th>
@@ -303,7 +302,7 @@ export function ExtensionsPage() {
               {isLoading ? (
                 Array.from({ length: 3 }, (_, i) => (
                     <tr key={i}>
-                      {[200, 160, 140, 250, 108, 220].map((w, j) => (
+                      {[200, 160, 140, 96, 250, 108, 220].map((w, j) => (
                       <td key={j}>
                         <span className={`${styles.skeletonBar} ${styles[`skeletonW${w}`]}`} />
                       </td>
@@ -311,9 +310,9 @@ export function ExtensionsPage() {
                     </tr>
                   ))
               ) : loadError ? (
-                <tr><td colSpan={6}><ErrorMessage message={loadError} /></td></tr>
+                <tr><td colSpan={7}><ErrorMessage message={loadError} /></td></tr>
               ) : sortedItems.length === 0 ? (
-                <tr><td colSpan={6} className={styles.emptyState}>No extensions yet.</td></tr>
+                <tr><td colSpan={7} className={styles.emptyState}>No extensions yet.</td></tr>
               ) : (
                 sortedItems.map((item) => (
                   <Fragment key={item.id}>
@@ -322,7 +321,9 @@ export function ExtensionsPage() {
                       <td className={styles.displayName}>{item.displayName || '—'}</td>
                       <td>
                         <span className={styles.transportBadge}>{item.transportType === 'webrtc' ? 'WebRTC' : 'SIP'}</span>
-                        {item.vpnOnly ? <span className={styles.vpnBadge}>VPN only</span> : null}
+                      </td>
+                      <td className={styles.vpnOnlyCell}>
+                        {item.vpnOnly ? <span className={styles.vpnOnlyBadge}>VPN Only</span> : <span className={styles.vpnOnlyDash}>—</span>}
                       </td>
                       <td className={styles.dataMono}>{buildSipUri(item.username)}</td>
                       <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
@@ -338,7 +339,7 @@ export function ExtensionsPage() {
                     </tr>
                     {editingId === item.id ? (
                       <tr>
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className={styles.editorRow}>
                             <label className={styles.field}>
                               <span className={styles.fieldLabel}>username</span>
@@ -385,16 +386,15 @@ export function ExtensionsPage() {
                                   aria-checked={editForm.vpnOnly}
                                   aria-label="Require VPN"
                                   className={`${styles.toggleSwitch} ${editForm.vpnOnly ? styles.toggleOn : ''}`}
-                                  disabled={!vpnInstalled || busyKey === `vpn-${item.id}`}
-                                  onClick={() => void handleToggleVpn(item)}
+                                  disabled={!vpnInstalled}
+                                  onClick={() => setEditForm((current) => ({ ...current, vpnOnly: !current.vpnOnly }))}
                                   role="switch"
                                   type="button"
                                 >
                                   <span />
                                 </button>
-                                {!vpnInstalled ? <span className={styles.tooltipText}>Enable WireGuard VPN first</span> : null}
+                                {!vpnInstalled ? <span className={styles.tooltipText}>Requires VPN to be installed</span> : null}
                               </span>
-                              {vpnSavedId === item.id ? <span className={styles.inlineSaved}>✓</span> : null}
                             </div>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>

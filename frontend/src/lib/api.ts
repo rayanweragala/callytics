@@ -256,7 +256,7 @@ export async function listExtensions(limit = 20, offset = 0): Promise<ListRespon
   };
 }
 
-export async function createExtension(payload: { username: string; password: string; displayName?: string; transportType?: 'sip' | 'webrtc'; transport_type?: 'sip' | 'webrtc' }): Promise<DetailResponse<ExtensionItem>> {
+export async function createExtension(payload: { username: string; password: string; displayName?: string; transportType?: 'sip' | 'webrtc'; transport_type?: 'sip' | 'webrtc'; vpnOnly?: boolean }): Promise<DetailResponse<ExtensionItem>> {
   const response = await api.post<DetailResponse<ExtensionItem>>('/extensions', payload);
   return {
     ...response.data,

@@ -172,12 +172,13 @@
 }
 
 /* Column widths */
-.table th:nth-child(1) { width: 15%; }
-.table th:nth-child(2) { width: 18%; }
+.table th:nth-child(1) { width: 13%; }
+.table th:nth-child(2) { width: 16%; }
 .table th:nth-child(3) { width: 10%; }
-.table th:nth-child(4) { width: 30%; }
-.table th:nth-child(5) { width: 14%; }
-.table th:nth-child(6) { width: 13%; }
+.table th:nth-child(4) { width: 10%; }
+.table th:nth-child(5) { width: 25%; }
+.table th:nth-child(6) { width: 12%; }
+.table th:nth-child(7) { width: 14%; }
 
 .emptyState {
   text-align: center;
@@ -252,17 +253,25 @@
   text-align: center;
 }
 
-.vpnBadge {
+.vpnOnlyBadge {
   display: inline-block;
-  margin-left: 6px;
   padding: 2px 7px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
-  color: var(--color-data);
+  color: var(--accent);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+.vpnOnlyCell {
+  text-align: left;
+}
+
+.vpnOnlyDash {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .createdAt {
@@ -378,12 +387,6 @@
 
 .tooltipWrap:hover .tooltipText {
   opacity: 1;
-}
-
-.inlineSaved {
-  color: var(--color-active);
-  font-family: var(--font-mono);
-  font-size: 14px;
 }
 
 .overlay {

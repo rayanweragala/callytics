@@ -99,6 +99,31 @@ describe('ExtensionsService', () => {
       extensionsRepo.findOne.mockResolvedValue({ id: 1 });
       await expect(service.create({ username: '100', password: 'p' })).rejects.toThrow(BadRequestException);
     });
+
+    it('should create extension with vpnOnly=true when VPN is installed', async () => {
+      const dto = { username: '101', password: 'password', displayName: 'User 101', vpnOnly: true as const };
+      const entity = { ...dto, id: 2, transportType: 'sip' as const, createdAt: new Date() };
+      extensionsRepo.findOne.mockResolvedValue(null);
+      extensionsRepo.create.mockReturnValue(entity);
+      extensionsRepo.save.mockResolvedValue(entity);
+      extensionsRepo.find.mockResolvedValue([entity]);
+      vpnService.isInstalled.mockResolvedValue(true);
+
+      const result = await service.create(dto);
+
+      expect(vpnService.isInstalled).toHaveBeenCalled();
+      expect(result.data.vpnOnly).toBe(true);
+    });
+
+    it('should reject create with vpnOnly=true when VPN is not installed', async () => {
+      extensionsRepo.findOne.mockResolvedValue(null);
+      vpnService.isInstalled.mockResolvedValue(false);
+
+      await expect(service.create({ username: '102', password: 'password', vpnOnly: true })).rejects.toThrow(
+        'VPN is not installed. Enable WireGuard before restricting extensions to VPN-only.',
+      );
+      expect(extensionsRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('update', () => {

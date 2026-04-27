@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateExtensionDto {
   @IsString()
@@ -18,4 +18,8 @@ export class CreateExtensionDto {
   @IsString()
   @IsIn(['sip', 'webrtc'])
   transportType?: 'sip' | 'webrtc';
+
+  @IsOptional()
+  @IsBoolean()
+  vpnOnly?: boolean;
 }

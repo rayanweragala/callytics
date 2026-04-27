@@ -52,7 +52,7 @@ describe('ExtensionsPage coverage boost', () => {
       </MemoryRouter>
     );
 
-    await waitFor(() => expect(screen.getByText('VPN only')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('VPN Only')).toBeInTheDocument());
   });
 
   it('disables Require VPN toggle when VPN is not installed', async () => {
@@ -70,6 +70,68 @@ describe('ExtensionsPage coverage boost', () => {
     fireEvent.click(screen.getByRole('button', { name: 'edit' }));
 
     expect(screen.getByRole('switch', { name: 'Require VPN' })).toBeDisabled();
-    expect(screen.getByText('Enable WireGuard VPN first')).toBeInTheDocument();
+    expect(screen.getByText('Requires VPN to be installed')).toBeInTheDocument();
+  });
+
+  it('create form sends vpnOnly=true when toggle is enabled', async () => {
+    vi.mocked(api.listExtensions).mockResolvedValue({ data: [], total: 0 });
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnStatus).mockResolvedValue({ installed: true } as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.createExtension).mockResolvedValue({
+      data: {
+        id: 2,
+        username: '102',
+        password: 'secret',
+        displayName: 'User 102',
+        transportType: 'sip',
+        vpnOnly: true,
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <ExtensionsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /add extension/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /add extension/i }));
+
+    fireEvent.change(screen.getByLabelText('username'), { target: { value: '102' } });
+    fireEvent.change(screen.getByLabelText('password'), { target: { value: 'secret' } });
+    fireEvent.click(screen.getByRole('switch', { name: 'Require VPN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'save extension' }));
+
+    await waitFor(() => {
+      expect(api.createExtension).toHaveBeenCalledWith(expect.objectContaining({ vpnOnly: true }));
+    });
+  });
+
+  it('edit form save sends vpnOnly in update payload', async () => {
+    vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnStatus).mockResolvedValue({ installed: true } as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.updateExtension).mockResolvedValue({
+      data: {
+        ...mockExtensions.data[0],
+        vpnOnly: false,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <ExtensionsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'edit' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Require VPN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'save changes' }));
+
+    await waitFor(() => {
+      expect(api.updateExtension).toHaveBeenCalledWith(1, expect.objectContaining({ vpnOnly: false }));
+    });
   });
 });

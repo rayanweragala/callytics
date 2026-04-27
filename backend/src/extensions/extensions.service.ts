@@ -61,9 +61,16 @@ export class ExtensionsService implements OnModuleInit {
   async create(dto: CreateExtensionDto): Promise<{ data: ExtensionResponse }> {
     const username = this.normalizeRequired(dto.username, 'username');
     const password = this.normalizeRequired(dto.password, 'password');
+    const vpnOnly = Boolean(dto.vpnOnly);
     const existing = await this.extensionsRepository.findOne({ where: { username } });
     if (existing) {
       throw new BadRequestException(`Extension username ${username} already exists`);
+    }
+    if (vpnOnly) {
+      const installed = await this.vpnService.isInstalled();
+      if (!installed) {
+        throw new BadRequestException('VPN is not installed. Enable WireGuard before restricting extensions to VPN-only.');
+      }
     }
 
     const entity = this.extensionsRepository.create({
@@ -71,7 +78,7 @@ export class ExtensionsService implements OnModuleInit {
       password,
       displayName: this.normalizeOptional(dto.displayName),
       transportType: dto.transportType ?? 'sip',
-      vpnOnly: false,
+      vpnOnly,
     });
     const saved = await this.extensionsRepository.save(entity);
     await this.rebuildConfig();
