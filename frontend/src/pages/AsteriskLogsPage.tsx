@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
 import { Pagination } from '../components/common/Pagination';
+import { TruncatedText } from '../components/common/TruncatedText';
 import { listAsteriskLogs } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
@@ -47,6 +48,7 @@ export function AsteriskLogsPage() {
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
 
   const [entries, setEntries] = useState<AsteriskLogEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -240,19 +242,39 @@ export function AsteriskLogsPage() {
               {!loading && !errorText && entries.map((entry, index) => {
                 const normalizedChannel = normalizeChannel(entry.channel);
                 const channelGroupClass = normalizedChannel ? channelGroupByValue.get(normalizedChannel) ?? '' : '';
+                const rowKey = `${entry.timestamp}-${entry.module}-${index}`;
+                const isExpanded = expandedRowKey === rowKey;
                 return (
-                  <tr className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)}`.trim()} key={`${entry.timestamp}-${entry.module}-${index}`}>
-                    <td className={styles.timestamp}>{formatDateTime(entry.timestamp)}</td>
-                    <td>
-                      <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
-                    </td>
-                    <td className={styles.channel} title={normalizedChannel || '—'}>{normalizedChannel || '—'}</td>
-                    <td className={styles.module} title={entry.module}>{entry.module}</td>
-                    <td className={styles.messageCell}>
-                      <span className={styles.rawMessage}>{entry.message}</span>
-                      {entry.translation ? <span className={styles.translation}>{entry.translation}</span> : null}
-                    </td>
-                  </tr>
+                  <Fragment key={rowKey}>
+                    <tr
+                      className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)} ${isExpanded ? styles.rowExpanded : ''}`.trim()}
+                      onClick={() => setExpandedRowKey((current) => (current === rowKey ? null : rowKey))}
+                    >
+                      <td className={styles.timestamp}>{formatDateTime(entry.timestamp)}</td>
+                      <td>
+                        <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
+                      </td>
+                      <td><TruncatedText className={styles.channel} value={normalizedChannel || '—'} /></td>
+                      <td><TruncatedText className={styles.module} value={entry.module || '—'} /></td>
+                      <td className={styles.messageCell}>
+                        <TruncatedText className={styles.rawMessage} value={entry.message} />
+                        {entry.translation ? <TruncatedText className={styles.translation} value={entry.translation} /> : null}
+                      </td>
+                    </tr>
+                    {isExpanded ? (
+                      <tr className={styles.expandedRow}>
+                        <td className={styles.expandedCell} colSpan={5}>
+                          <div className={styles.expandedPanel}>
+                            <div className={styles.expandedPanelTitle}>Full Message</div>
+                            <div className={styles.expandedMessage}>{entry.message}</div>
+                            {entry.translation ? (
+                              <div className={styles.expandedTranslation}>{entry.translation}</div>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </tbody>

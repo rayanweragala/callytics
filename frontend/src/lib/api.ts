@@ -35,6 +35,12 @@ import type {
   CampaignContactsUploadResult,
   CallbackItem,
   CreatedVpnPeer,
+  FirewallBlockedIp,
+  FirewallConfig,
+  FirewallConfigUpdate,
+  FirewallEventType,
+  FirewallFeedEvent,
+  FirewallStats,
   RelayGuideStep,
   VpnPeer,
   VpnStatus,
@@ -752,6 +758,44 @@ export async function updateQueue(id: number, payload: {
 
 export async function deleteQueue(id: number): Promise<void> {
   await api.delete(`/queues/${id}`);
+}
+
+export async function getFirewallConfig(): Promise<FirewallConfig> {
+  const response = await api.get<FirewallConfig>('/firewall/config');
+  return response.data;
+}
+
+export async function updateFirewallConfig(payload: FirewallConfigUpdate): Promise<FirewallConfig> {
+  const response = await api.put<FirewallConfig>('/firewall/config', payload);
+  return response.data;
+}
+
+export async function listFirewallBlockedIps(): Promise<ListResponse<FirewallBlockedIp>> {
+  const response = await api.get<ListResponse<FirewallBlockedIp>>('/firewall/blocked-ips');
+  return response.data;
+}
+
+export async function unblockFirewallIp(ip: string): Promise<void> {
+  await api.delete(`/firewall/blocked-ips/${encodeURIComponent(ip)}`);
+}
+
+export async function whitelistFirewallIp(ip: string): Promise<FirewallBlockedIp> {
+  const response = await api.post<FirewallBlockedIp>('/firewall/whitelist', { ip });
+  return response.data;
+}
+
+export async function removeFirewallWhitelist(ip: string): Promise<void> {
+  await api.delete(`/firewall/whitelist/${encodeURIComponent(ip)}`);
+}
+
+export async function listFirewallEvents(page = 1, limit = 50, eventType?: FirewallEventType): Promise<PaginatedResponse<FirewallFeedEvent>> {
+  const response = await api.get<PaginatedResponse<FirewallFeedEvent>>('/firewall/events', { params: { page, limit, eventType } });
+  return response.data;
+}
+
+export async function getFirewallStats(): Promise<FirewallStats> {
+  const response = await api.get<FirewallStats>('/firewall/stats');
+  return response.data;
 }
 
 export async function getVpnStatus(): Promise<VpnStatus> {

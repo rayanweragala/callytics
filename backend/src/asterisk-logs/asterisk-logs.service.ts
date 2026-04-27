@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import * as fs from 'fs';
+import { FirewallService } from '../firewall/firewall.service';
 
 type AsteriskLogLevel = 'ERROR' | 'WARNING' | 'NOTICE' | 'VERBOSE' | 'DEBUG' | 'UNKNOWN';
 
@@ -64,7 +65,32 @@ const TRANSLATION_RULES: TranslationRule[] = [
 ];
 
 @Injectable()
-export class AsteriskLogsService {
+export class AsteriskLogsService implements OnModuleInit, OnModuleDestroy {
+  private tailTimer: ReturnType<typeof setInterval> | null = null;
+  private lastReadOffset = 0;
+
+  constructor(@Optional() private readonly firewallService?: FirewallService) {}
+
+  onModuleInit(): void {
+    try {
+      if (fs.existsSync(LOG_FILE_PATH)) {
+        this.lastReadOffset = fs.statSync(LOG_FILE_PATH).size;
+      }
+      this.tailTimer = setInterval(() => {
+        void this.processNewSecurityLines();
+      }, 2_000);
+    } catch {
+      this.lastReadOffset = 0;
+    }
+  }
+
+  onModuleDestroy(): void {
+    if (this.tailTimer) {
+      clearInterval(this.tailTimer);
+      this.tailTimer = null;
+    }
+  }
+
   getLogs(
     level = 'all',
     search = '',
@@ -324,5 +350,40 @@ export class AsteriskLogsService {
       return value;
     }
     return 'UNKNOWN';
+  }
+
+  private async processNewSecurityLines(): Promise<void> {
+    if (!this.firewallService || !fs.existsSync(LOG_FILE_PATH)) {
+      return;
+    }
+
+    try {
+      const stat = fs.statSync(LOG_FILE_PATH);
+      if (stat.size < this.lastReadOffset) {
+        this.lastReadOffset = 0;
+      }
+      if (stat.size === this.lastReadOffset) {
+        return;
+      }
+
+      const fd = fs.openSync(LOG_FILE_PATH, 'r');
+      try {
+        const length = stat.size - this.lastReadOffset;
+        const buffer = Buffer.alloc(length);
+        fs.readSync(fd, buffer, 0, length, this.lastReadOffset);
+        this.lastReadOffset = stat.size;
+        const lines = buffer.toString('utf8').split(/\r?\n/).filter((line) => line.trim().length > 0);
+        for (const line of lines) {
+          const event = this.firewallService.parseSecurityLog(line);
+          if (event) {
+            await this.firewallService.processLogEvent(event);
+          }
+        }
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch {
+      return;
+    }
   }
 }

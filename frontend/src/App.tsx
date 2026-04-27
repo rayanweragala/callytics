@@ -23,6 +23,7 @@ import { CampaignsPage } from './pages/CampaignsPage';
 import { CampaignDetailPage } from './pages/CampaignDetailPage';
 import { CallbacksPage } from './pages/CallbacksPage';
 import { VpnPage } from './pages/VpnPage';
+import { FirewallPage } from './pages/FirewallPage';
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/call-logs" element={<CallLogsPage />} />
           <Route path="/preflight" element={<PreflightPage />} />
+          <Route path="/firewall" element={<FirewallPage />} />
           <Route path="/vpn" element={<VpnPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/campaigns/:id" element={<CampaignDetailPage />} />

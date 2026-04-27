@@ -33,6 +33,41 @@ describe('AsteriskLogsPage', () => {
     expect(screen.getByText('No log entries match the current filter.')).toBeInTheDocument();
   });
 
+  it('adds tooltips for truncated values and toggles inline message expansion on row click', async () => {
+    const longMessage = "Request 'REGISTER' from '<sip:2001@10.20.115.95>' failed for '198.51.100.95:35846' (callid: Zn9BeVRrM4) - Failed to authenticate because the credentials did not match the endpoint configuration.";
+    const sourceFile = 'res_pjsip/pjsip_distributor.c';
+    (api.listAsteriskLogs as any).mockResolvedValueOnce({
+      entries: [{
+        timestamp: '2026-04-27T09:00:11.000Z',
+        level: 'NOTICE',
+        channel: '70',
+        module: sourceFile,
+        raw: longMessage,
+        message: longMessage,
+      }],
+      total: 1,
+      fileExists: true,
+    });
+
+    render(
+      <MemoryRouter>
+        <AsteriskLogsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTitle(sourceFile)).toBeInTheDocument());
+    const messageNode = screen.getByTitle(longMessage);
+    expect(messageNode).toBeInTheDocument();
+
+    expect(screen.queryByText('Full Message')).not.toBeInTheDocument();
+    fireEvent.click(messageNode.closest('tr') as HTMLElement);
+    expect(screen.getByText('Full Message')).toBeInTheDocument();
+    expect(screen.getAllByText(longMessage).length).toBeGreaterThan(0);
+
+    fireEvent.click(messageNode.closest('tr') as HTMLElement);
+    await waitFor(() => expect(screen.queryByText('Full Message')).not.toBeInTheDocument());
+  });
+
   it('filters by Error level and calls API with level=error', async () => {
     render(
       <MemoryRouter>

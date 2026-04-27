@@ -130,4 +130,27 @@ describe('PacketStream', () => {
     expect(errorRow).toHaveClass(styles.errorRow);
     expect(errorRow).toHaveClass(styles.selectedRow);
   });
+
+  it('adds tooltip titles for truncated from/to/call-id cells', () => {
+    const longFrom = 'sip:very-long-extension-name-1001@example.internal.domain:5080;transport=udp';
+    const longTo = 'sip:another-very-long-endpoint-2002@example.internal.domain:5080;transport=udp';
+    const longCallId = 'very-long-call-id-value-that-should-still-be-visible-on-hover-tooltip';
+    const packet = buildPacket({ from: longFrom, to: longTo, callId: longCallId });
+
+    render(
+      <PacketStream
+        {...defaultExtraProps}
+        filters={{ method: 'all', callId: '', endpoint: null, from: '', to: '' }}
+        onFiltersChange={vi.fn()}
+        onSelectCallId={vi.fn()}
+        packets={[packet]}
+        selectedCallId={null}
+        viewMode="stream"
+      />,
+    );
+
+    expect(screen.getByTitle(longFrom)).toBeInTheDocument();
+    expect(screen.getByTitle(longTo)).toBeInTheDocument();
+    expect(screen.getByTitle(longCallId)).toBeInTheDocument();
+  });
 });

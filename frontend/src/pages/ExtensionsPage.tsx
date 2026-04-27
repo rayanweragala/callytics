@@ -115,7 +115,6 @@ export function ExtensionsPage() {
         password: createForm.password.trim(),
         displayName: createForm.displayName.trim() || undefined,
         transportType: createForm.transportType,
-        transport_type: createForm.transportType,
         vpnOnly: createForm.vpnOnly,
       });
       setCreateForm(emptyForm);

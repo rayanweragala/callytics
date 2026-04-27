@@ -57,6 +57,8 @@ services:
       context: .
       dockerfile: ./docker/api/Dockerfile
     network_mode: "host"
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./asterisk/base:/etc/asterisk
       - ./asterisk/logs:/var/log/asterisk:ro
@@ -64,6 +66,7 @@ services:
       - ./storage/audio/converted:/app/storage/audio/converted
       - ./storage/audio/previews:/app/storage/audio/previews
       - ./storage/audio/tts:/app/storage/audio/tts
+      - callytics_geoip_data:/app/geoip
       - asterisk_recordings:/var/lib/asterisk/recording
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
@@ -85,6 +88,7 @@ services:
       BACKEND_PORT: 3001
       NODE_ENV: development
       RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
+      GEOIP_DIR: /app/geoip
     depends_on:
       postgres:
         condition: service_healthy
@@ -164,3 +168,4 @@ volumes:
   callytics_postgres_data:
   callytics_redis_data:
   asterisk_recordings:
+  callytics_geoip_data:

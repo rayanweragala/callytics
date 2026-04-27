@@ -66,6 +66,18 @@ Multi-party conference rooms backed by Asterisk ConfBridge.
 - Data usage counters show received and sent traffic per peer from `wg show wg0 dump`
 - VPN-only extensions show a table badge and can be toggled from the extension inline editor
 
+## SIP Firewall
+
+- `/firewall` page under SYSTEM for SIP registration and INVITE abuse visibility
+- Existing Asterisk log reader now tails `/var/log/asterisk/messages` and classifies failed registration, authentication failure, INVITE flood, and allowed registration events
+- Threshold-based auto-blocking tracks attempts per source IP within the configured time window
+- `iptables` enforcement is the default and adds host DROP rules from the backend container
+- `fail2ban` enforcement is optional and shows an inline warning when `fail2ban-client` is not available
+- Blocked IPs, security feed events, daily stats, and config are persisted in PostgreSQL
+- WebSocket events (`firewall:feed`, `firewall:blocked`, `firewall:allowed`, `firewall:stats`) keep the live feed, radar, source bars, and heatmap current
+- MaxMind GeoLite2 country lookup runs offline when the local database is present; missing GeoIP data falls back to `unknown`
+- Settings drawer controls enforcement mode, threshold, time window, block duration, whitelist, and trunk ceilings
+
 ## Inbound DID routing
 
 - `/inbound` page with inline create/edit/delete controls

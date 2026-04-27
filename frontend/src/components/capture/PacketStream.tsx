@@ -1,6 +1,7 @@
 import { useMemo, useState, type MouseEvent } from 'react';
 import { Pagination } from '../common/Pagination';
 import { SearchableSelect } from '../common/SearchableSelect';
+import { TruncatedText } from '../common/TruncatedText';
 import type { SipPacket } from '../../types';
 import styles from './PacketStream.module.css';
 import { formatPacketTimestamp } from '../../lib/time';
@@ -71,10 +72,6 @@ function getMethodPillClass(value: string): string {
   if (value === 'OPTIONS') return styles.pillOptions;
   if (value === 'ACK') return styles.pillOptions;
   return styles.pillDefault;
-}
-
-function truncate(value: string, limit: number): string {
-  return value.length > limit ? `${value.slice(0, limit)}…` : value;
 }
 
 function packetMatchesFilters(packet: SipPacket, filters: PacketStreamFilters): boolean {
@@ -319,8 +316,8 @@ export function PacketStream({
                     <span className={`${styles.methodPill} ${styles.pillOverflow}`}>+{dialog.methodChain.length - 6} more</span>
                   ) : null}
                 </span>
-                <span className={styles.secondaryText}>{truncate(dialog.from, 24)} / {truncate(dialog.to, 24)}</span>
-                <span className={styles.dataText}>{truncate(dialog.callId, 24)}</span>
+                <TruncatedText className={styles.secondaryText} value={`${dialog.from} / ${dialog.to}`} />
+                <TruncatedText className={styles.dataText} value={dialog.callId} />
                 <span className={styles.dataText}>{dialog.duration ?? '—'}</span>
               </button>
             ))}
@@ -368,8 +365,8 @@ export function PacketStream({
                   </span>
                   <span className={styles.timeCell}>{formatPacketTimestamp(packet.timestamp)}</span>
                   <span className={methodClass}>{packet.method}</span>
-                  <span>{packet.from}</span>
-                  <span>{packet.to}</span>
+                  <TruncatedText className={styles.secondaryText} value={packet.from} />
+                  <TruncatedText className={styles.secondaryText} value={packet.to} />
                   <span className={styles.codeWrap}>
                     {packet.statusCode !== undefined ? (
                       <span
@@ -381,7 +378,7 @@ export function PacketStream({
                       </span>
                     ) : '-'}
                   </span>
-                  <span>{truncate(packet.callId, 18)}</span>
+                  <TruncatedText className={styles.dataText} value={packet.callId} />
                 </button>
               );
             })}

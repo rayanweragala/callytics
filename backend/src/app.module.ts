@@ -39,6 +39,7 @@ import { CallbacksModule } from './callbacks/callbacks.module';
 import { HttpLoggingInterceptor } from './logger/http-logging.interceptor';
 import { VpnModule } from './vpn/vpn.module';
 import { VpnPeerEntity } from './vpn/entities/vpn-peer.entity';
+import { FirewallModule } from './firewall/firewall.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { VpnPeerEntity } from './vpn/entities/vpn-peer.entity';
     PreflightModule,
     CampaignsModule,
     CallbacksModule,
+    FirewallModule,
     VpnModule,
   ],
   controllers: [HealthController],

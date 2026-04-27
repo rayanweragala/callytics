@@ -157,3 +157,39 @@ Conference rooms use a fixed bridge ID derived from `roomName`. The Stasis app c
 - When enabled, `ExtensionsService` writes a managed PJSIP ACL file for that extension permitting `10.8.0.0/24` and denying everything else.
 - The generated extension endpoint references the ACL and reloads PJSIP through the existing AMI `module reload res_pjsip.so` path.
 - If WireGuard is not installed, enabling VPN-only fails before saving with a clear validation error.
+
+## Phase 35 SIP firewall architecture
+
+### Log watcher extension
+- `AsteriskLogsService` remains the single reader for `/var/log/asterisk/messages`.
+- Phase 35 adds a lightweight tail loop inside that service instead of creating a second watcher process.
+- New log lines are passed to `FirewallService.parseSecurityLog()` to classify failed registrations, authentication failures, INVITE floods, and allowed registrations.
+- Historical log viewing through `GET /asterisk/logs` stays unchanged.
+
+### Backend module
+- `FirewallModule` owns `/firewall/*` endpoints and the firewall WebSocket gateway.
+- Migration `030_phase35_sip_firewall.sql` creates `blocked_ips`, `firewall_events`, `firewall_stats`, and the singleton `firewall_config` row.
+- `FirewallService` keeps an in-memory rolling attempt window per IP, backed by persisted events and blocked-address rows.
+- Whitelisted IPs are recorded in `blocked_ips.is_whitelisted` and bypass threshold enforcement.
+
+### Enforcement
+- `iptables` mode is the default and runs `iptables -I INPUT -s <ip> -j DROP` from the backend container.
+- The backend service has `NET_ADMIN` capability in Docker Compose so `iptables` can modify rules.
+- `fail2ban` mode is opt-in and calls `fail2ban-client set asterisk banip <ip>`.
+- The UI warns inline if `fail2ban-client --version` fails; it does not block the firewall page.
+
+### GeoIP
+- The backend uses `@maxmind/geoip2-node` when a local GeoLite2 country database exists.
+- The database directory is mounted as the named Docker volume `callytics_geoip_data`.
+- On first run, a MaxMind download is attempted only when `MAXMIND_LICENSE_KEY` is provided.
+- Missing package/database/network never blocks enforcement; country fields fall back to `unknown` / `Unknown`.
+
+### Realtime events
+- `FirewallGateway` uses the existing Socket.IO server pattern.
+- Clients join with `firewall:subscribe` and leave with `firewall:unsubscribe`.
+- Events emitted:
+  - `firewall:blocked` for newly blocked IP detail
+  - `firewall:allowed` for successful known-good registration events
+  - `firewall:feed` for every security event shown in the terminal feed
+  - `firewall:stats` every 30 seconds for counters, heatmap, top sources, and trunk gauges
+- Redis publishes the same feed payloads on `callytics:firewall-events` for other consumers.

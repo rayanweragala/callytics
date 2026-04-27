@@ -19,6 +19,7 @@ What makes it different:
 - A visual call flow builder instead of hand-written dialplan files
 - Works locally even without a SIP trunk
 - Optional WireGuard VPN for remote softphones without public SIP exposure
+- Built-in SIP firewall for registration abuse detection and automatic source-IP blocking
 - Keeps Asterisk underneath, but hides most of the painful parts
 
 Built-in features already in the product include:
@@ -29,6 +30,7 @@ Built-in features already in the product include:
 - Live dashboard, diagnostics, SIP capture, and resource monitoring
 - Reports, callbacks, campaigns, and conference rooms
 - WireGuard VPN peer management and VPN-only extension registration controls
+- SIP firewall live feed, radar, blocked IP management, and threshold settings
 
 This project is open core. The local self-hosted core stays free and open source. Paid features come later and should add convenience, not take the basics away.
 

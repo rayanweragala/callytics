@@ -106,6 +106,9 @@ describe('ExtensionsPage coverage boost', () => {
     await waitFor(() => {
       expect(api.createExtension).toHaveBeenCalledWith(expect.objectContaining({ vpnOnly: true }));
     });
+    const payload = vi.mocked(api.createExtension).mock.calls[0]?.[0];
+    expect(payload).toMatchObject({ transportType: 'sip', vpnOnly: true });
+    expect(payload).not.toHaveProperty('transport_type');
   });
 
   it('edit form save sends vpnOnly in update payload', async () => {
