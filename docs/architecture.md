@@ -110,3 +110,26 @@ No new sidebar entry. Quality is accessible from within Call Logs only.
 ## Phase 31 conference architecture
 
 Conference rooms use a fixed bridge ID derived from `roomName`. The Stasis app creates the ConfBridge mixing bridge on first channel arrival, reuses that bridge for later channels with the same room name, and destroys it only after the last channel leaves and the 30-second sole-survivor grace period expires. Waiting participants hear MOH until a moderator arrives.
+
+## Phase 33 resource diagnostics architecture
+
+### REST endpoint
+- Backend exposes `GET /diagnostics/resources`
+- Response shape includes `cpu`, `memory`, `disk`, `asterisk`, and `network`
+- Each metric returns either data or an inline error payload so one failed probe does not blank the whole panel
+
+### Resource collection path
+- CPU usage is sampled from `/proc/stat` over a short interval and returned as a percentage
+- Memory totals come from Node `os.totalmem()` and `os.freemem()`
+- Disk usage for `/` comes from `df -k /`
+- Network I/O totals come from `/proc/net/dev` with loopback excluded
+
+### AMI channel count pattern
+- Active Asterisk channels are fetched through a short AMI socket session
+- The backend logs in to AMI, runs `CoreShowChannels`, counts `CoreShowChannel` events, and closes on `CoreShowChannelsComplete`
+- This keeps the resource panel independent from the ARI-backed system health summary
+
+### Frontend placement
+- The Resource Usage Panel lives inside the Diagnostics page Network tab
+- No new sidebar route was added for this feature
+- System health keeps service reachability and version status only; channel count moved to the resource panel

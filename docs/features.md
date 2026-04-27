@@ -135,7 +135,7 @@ Multi-party conference rooms backed by Asterisk ConfBridge.
 ## Network diagnostics
 
 - Dedicated `/diagnostics` page for system and network observability
-- System health panel for ARI, AMI, Asterisk, Channels, PostgreSQL, and Redis
+- System health panel for ARI, AMI, Asterisk, PostgreSQL, and Redis
 - Trunk health panel with live reachability testing and PJSIP qualify actions
 - SIP registration panel for active endpoint contacts
 - SIP traffic inspector with real-time scrolling transport events
@@ -150,6 +150,16 @@ Multi-party conference rooms backed by Asterisk ConfBridge.
   - Inline SIP ladder and packet header accordion
   - `.pcap` export for selected dialog or current filtered view
   - Existing Diagnostics Panel D SIP Traffic Inspector remains unchanged (Capture is additive)
+
+## Resource Usage Panel
+
+- Built into `/diagnostics` under the Network tab with no new sidebar entry
+- CPU arc meter with live percent refresh
+- Memory and disk usage bars with used, free, and total values
+- Asterisk active channels card backed by AMI `CoreShowChannels`
+- Network I/O totals for sent and received traffic
+- Resource metrics fetched from `GET /diagnostics/resources`
+- System health panel no longer duplicates the channel count
 
 ### RTP Quality Monitor (Phase 23)
 

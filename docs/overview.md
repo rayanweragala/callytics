@@ -20,6 +20,14 @@ What makes it different:
 - Works locally even without a SIP trunk
 - Keeps Asterisk underneath, but hides most of the painful parts
 
+Built-in features already in the product include:
+
+- Visual IVR flow builder
+- SIP extensions, trunks, and inbound DID routing
+- Audio upload, offline TTS, and call recordings
+- Live dashboard, diagnostics, SIP capture, and resource monitoring
+- Reports, callbacks, campaigns, and conference rooms
+
 This project is open core. The local self-hosted core stays free and open source. Paid features come later and should add convenience, not take the basics away.
 
 
