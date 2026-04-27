@@ -37,6 +37,8 @@ import { PreflightModule } from './preflight/preflight.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { CallbacksModule } from './callbacks/callbacks.module';
 import { HttpLoggingInterceptor } from './logger/http-logging.interceptor';
+import { VpnModule } from './vpn/vpn.module';
+import { VpnPeerEntity } from './vpn/entities/vpn-peer.entity';
 
 @Module({
   imports: [
@@ -67,6 +69,7 @@ import { HttpLoggingInterceptor } from './logger/http-logging.interceptor';
           OperatorEntity,
           QueueEntity,
           ContactNumberEntity,
+          VpnPeerEntity,
         ],
         synchronize: false,
         logging: false,
@@ -94,6 +97,7 @@ import { HttpLoggingInterceptor } from './logger/http-logging.interceptor';
     PreflightModule,
     CampaignsModule,
     CallbacksModule,
+    VpnModule,
   ],
   controllers: [HealthController],
   providers: [

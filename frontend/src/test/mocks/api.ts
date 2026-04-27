@@ -25,6 +25,7 @@ export const listExtensions = vi.fn(() => Promise.resolve({ data: [], total: 0 }
 export const createExtension = vi.fn(() => Promise.resolve({ data: {} }));
 export const updateExtension = vi.fn(() => Promise.resolve({ data: {} }));
 export const deleteExtension = vi.fn(() => Promise.resolve({ data: { id: 0, deleted: true } }));
+export const getVpnStatus = vi.fn(() => Promise.resolve({ installed: false, running: null, serverPublicKey: null, endpoint: null, subnet: null, peerCount: 0, subnetConflict: false, subnetConflictDetail: null }));
 export const listInboundRoutes = vi.fn(() => Promise.resolve({ data: [], total: 0 }));
 export const createInboundRoute = vi.fn(() => Promise.resolve({ data: {} }));
 export const updateInboundRoute = vi.fn(() => Promise.resolve({ data: {} }));
@@ -35,6 +36,14 @@ export const createTrunk = vi.fn(() => Promise.resolve({ data: {} }));
 export const updateTrunk = vi.fn(() => Promise.resolve({ data: {} }));
 export const deleteTrunk = vi.fn(() => Promise.resolve());
 export const testTrunk = vi.fn(() => Promise.resolve({ status: 'reachable', rtt_ms: 10, message: 'OK' }));
+export const listVpnPeers = vi.fn(() => Promise.resolve([]));
+export const createVpnPeer = vi.fn(() => Promise.resolve({ data: {} }));
+export const revokeVpnPeer = vi.fn(() => Promise.resolve());
+export const removeVpn = vi.fn(() => Promise.resolve({ success: true }));
+export const getVpnPeerConfig = vi.fn(() => Promise.resolve(''));
+export const getVpnPeerQrUrl = vi.fn((id: number) => `/vpn/peers/${id}/qr`);
+export const getVpnRelayGuide = vi.fn(() => Promise.resolve({ data: [] }));
+export const createVpnRelayConfig = vi.fn(() => Promise.resolve({ config: '' }));
 
 export function resetMocks() {
   vi.clearAllMocks();
@@ -66,6 +75,7 @@ vi.mock('../../lib/api', () => ({
   createExtension,
   updateExtension,
   deleteExtension,
+  getVpnStatus,
   listInboundRoutes,
   createInboundRoute,
   updateInboundRoute,
@@ -76,4 +86,12 @@ vi.mock('../../lib/api', () => ({
   updateTrunk,
   deleteTrunk,
   testTrunk,
+  listVpnPeers,
+  createVpnPeer,
+  revokeVpnPeer,
+  removeVpn,
+  getVpnPeerConfig,
+  getVpnPeerQrUrl,
+  getVpnRelayGuide,
+  createVpnRelayConfig,
 }));

@@ -5,7 +5,7 @@ import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
-import { createExtension, deleteExtension, getHostConfig, listExtensions, updateExtension } from '../lib/api';
+import { createExtension, deleteExtension, getHostConfig, getVpnStatus, listExtensions, updateExtension } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { ExtensionItem } from '../types';
@@ -16,6 +16,7 @@ interface ExtensionFormState {
   password: string;
   displayName: string;
   transportType: 'sip' | 'webrtc';
+  vpnOnly: boolean;
 }
 
 const emptyForm: ExtensionFormState = {
@@ -23,6 +24,7 @@ const emptyForm: ExtensionFormState = {
   password: '',
   displayName: '',
   transportType: 'sip',
+  vpnOnly: false,
 };
 
 export function ExtensionsPage() {
@@ -40,6 +42,8 @@ export function ExtensionsPage() {
   const [qrModal, setQrModal] = useState<{ username: string; uri: string; dataUrl: string } | null>(null);
   const [hostIp, setHostIp] = useState('127.0.0.1');
   const [sipPort, setSipPort] = useState(5080);
+  const [vpnInstalled, setVpnInstalled] = useState(false);
+  const [vpnSavedId, setVpnSavedId] = useState<number | null>(null);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
@@ -71,14 +75,16 @@ export function ExtensionsPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [extensionsResponse, hostConfig] = await Promise.all([
+      const [extensionsResponse, hostConfig, vpnStatus] = await Promise.all([
         listExtensions(nextLimit, nextOffset),
         getHostConfig(),
+        getVpnStatus(),
       ]);
       setItems(extensionsResponse.data);
       setTotal(extensionsResponse.total);
       setHostIp(hostConfig.hostIp);
       setSipPort(hostConfig.sipPort);
+      setVpnInstalled(vpnStatus.installed);
     } catch {
       setLoadError('Failed to load extensions');
     } finally {
@@ -133,6 +139,7 @@ export function ExtensionsPage() {
       password: item.password,
       displayName: item.displayName || '',
       transportType: item.transportType || 'sip',
+      vpnOnly: Boolean(item.vpnOnly),
     });
   };
 
@@ -147,12 +154,35 @@ export function ExtensionsPage() {
         displayName: editForm.displayName.trim() || undefined,
         transportType: editForm.transportType,
         transport_type: editForm.transportType,
+        vpnOnly: editForm.vpnOnly,
       });
       setEditingId(null);
       setEditForm(emptyForm);
       await load(limit, offset);
     } catch (error) {
       showError(getApiError(error, 'failed to update extension'));
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleToggleVpn = async (item: ExtensionItem) => {
+    if (!vpnInstalled) {
+      showError('Enable WireGuard VPN first');
+      return;
+    }
+    setBusyKey(`vpn-${item.id}`);
+    resetMessages();
+    const nextVpnOnly = !item.vpnOnly;
+    try {
+      const response = await updateExtension(item.id, { vpnOnly: nextVpnOnly });
+      setItems((current) => current.map((extension) => (extension.id === item.id ? response.data : extension)));
+      setEditForm((current) => ({ ...current, vpnOnly: response.data.vpnOnly }));
+      setVpnSavedId(item.id);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setVpnSavedId(null), 2000);
+    } catch (error) {
+      showError(getApiError(error, 'failed to update VPN requirement'));
     } finally {
       setBusyKey(null);
     }
@@ -292,6 +322,7 @@ export function ExtensionsPage() {
                       <td className={styles.displayName}>{item.displayName || '—'}</td>
                       <td>
                         <span className={styles.transportBadge}>{item.transportType === 'webrtc' ? 'WebRTC' : 'SIP'}</span>
+                        {item.vpnOnly ? <span className={styles.vpnBadge}>VPN only</span> : null}
                       </td>
                       <td className={styles.dataMono}>{buildSipUri(item.username)}</td>
                       <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
@@ -344,6 +375,27 @@ export function ExtensionsPage() {
                                 <option value="webrtc">WebRTC / WSS</option>
                               </select>
                             </label>
+                            <div className={styles.vpnToggleField}>
+                              <div>
+                                <div className={styles.toggleLabel}>Require VPN</div>
+                                <div className={styles.toggleSubLabel}>Only allow registration from VPN subnet</div>
+                              </div>
+                              <span className={styles.tooltipWrap}>
+                                <button
+                                  aria-checked={editForm.vpnOnly}
+                                  aria-label="Require VPN"
+                                  className={`${styles.toggleSwitch} ${editForm.vpnOnly ? styles.toggleOn : ''}`}
+                                  disabled={!vpnInstalled || busyKey === `vpn-${item.id}`}
+                                  onClick={() => void handleToggleVpn(item)}
+                                  role="switch"
+                                  type="button"
+                                >
+                                  <span />
+                                </button>
+                                {!vpnInstalled ? <span className={styles.tooltipText}>Enable WireGuard VPN first</span> : null}
+                              </span>
+                              {vpnSavedId === item.id ? <span className={styles.inlineSaved}>✓</span> : null}
+                            </div>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
                               <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>

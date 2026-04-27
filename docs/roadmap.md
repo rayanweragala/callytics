@@ -95,7 +95,8 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 31   ✓ COMPLETE  — Conference room node — ConfBridge multi-party rooms
 - Phase 32   PLANNED     — Backup and restore UI
 - Phase 33   ✓ COMPLETE  — Resource usage panel
-- Phase 34   PLANNED     — WireGuard VPN
+- Phase 34   ✓ COMPLETE  — WireGuard VPN
+- Phase 35   PLANNED     — Backup and restore
 - Phase 36+  DEFERRED    — WebRTC softphone (post-launch)
 
 ### Phase 23  RTP quality monitor

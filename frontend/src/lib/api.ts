@@ -34,6 +34,10 @@ import type {
   CampaignContactAttemptItem,
   CampaignContactsUploadResult,
   CallbackItem,
+  CreatedVpnPeer,
+  RelayGuideStep,
+  VpnPeer,
+  VpnStatus,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -247,6 +251,7 @@ export async function listExtensions(limit = 20, offset = 0): Promise<ListRespon
     data: response.data.data.map((item) => ({
       ...item,
       transportType: item.transportType || 'sip',
+      vpnOnly: Boolean(item.vpnOnly),
     })),
   };
 }
@@ -258,17 +263,19 @@ export async function createExtension(payload: { username: string; password: str
     data: {
       ...response.data.data,
       transportType: response.data.data.transportType || 'sip',
+      vpnOnly: Boolean(response.data.data.vpnOnly),
     },
   };
 }
 
-export async function updateExtension(id: number, payload: { username?: string; password?: string; displayName?: string; transportType?: 'sip' | 'webrtc'; transport_type?: 'sip' | 'webrtc' }): Promise<DetailResponse<ExtensionItem>> {
+export async function updateExtension(id: number, payload: { username?: string; password?: string; displayName?: string; transportType?: 'sip' | 'webrtc'; transport_type?: 'sip' | 'webrtc'; vpnOnly?: boolean }): Promise<DetailResponse<ExtensionItem>> {
   const response = await api.put<DetailResponse<ExtensionItem>>(`/extensions/${id}`, payload);
   return {
     ...response.data,
     data: {
       ...response.data.data,
       transportType: response.data.data.transportType || 'sip',
+      vpnOnly: Boolean(response.data.data.vpnOnly),
     },
   };
 }
@@ -745,4 +752,47 @@ export async function updateQueue(id: number, payload: {
 
 export async function deleteQueue(id: number): Promise<void> {
   await api.delete(`/queues/${id}`);
+}
+
+export async function getVpnStatus(): Promise<VpnStatus> {
+  const response = await api.get<VpnStatus>('/vpn/status');
+  return response.data;
+}
+
+export async function listVpnPeers(): Promise<VpnPeer[]> {
+  const response = await api.get<VpnPeer[]>('/vpn/peers');
+  return response.data;
+}
+
+export async function createVpnPeer(name: string): Promise<DetailResponse<CreatedVpnPeer>> {
+  const response = await api.post<DetailResponse<CreatedVpnPeer>>('/vpn/peers', { name });
+  return response.data;
+}
+
+export async function revokeVpnPeer(id: number): Promise<void> {
+  await api.delete(`/vpn/peers/${id}`);
+}
+
+export async function removeVpn(): Promise<{ success: true }> {
+  const response = await api.delete<{ success: true }>('/vpn');
+  return response.data;
+}
+
+export async function getVpnPeerConfig(id: number): Promise<string> {
+  const response = await api.get<string>(`/vpn/peers/${id}/config`, { responseType: 'text' });
+  return response.data;
+}
+
+export function getVpnPeerQrUrl(id: number): string {
+  return `${API_BASE}/vpn/peers/${id}/qr`;
+}
+
+export async function getVpnRelayGuide(): Promise<{ data: RelayGuideStep[] }> {
+  const response = await api.get<{ data: RelayGuideStep[] }>('/vpn/relay-guide');
+  return response.data;
+}
+
+export async function createVpnRelayConfig(payload: { vpsPublicKey: string; vpsPublicIp: string }): Promise<{ config: string }> {
+  const response = await api.post<{ config: string }>('/vpn/relay-config', payload);
+  return response.data;
 }

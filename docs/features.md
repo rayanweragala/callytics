@@ -54,6 +54,17 @@ Multi-party conference rooms backed by Asterisk ConfBridge.
 - QR code provisioning modal for `sip:<username>@<host>:5080`
 - Backend-triggered PJSIP reload after extension changes
 - Host IP and SIP port come from backend `GET /config/host` so provisioning URIs and QR codes use the real machine address instead of `localhost`
+- Optional VPN-only extension restriction writes a per-extension PJSIP ACL that permits `10.8.0.0/24` and denies non-VPN registrations
+
+## WireGuard VPN
+
+- Optional `/vpn` page under SYSTEM for remote softphone access without exposing SIP directly
+- Built-in mode starts the `wireguard` Docker Compose service through the `vpn` profile
+- External relay mode provides a backend-driven setup guide for VPS-based WireGuard relay deployments
+- Peer management creates WireGuard peers, assigns `10.8.0.x` addresses, revokes peers without hard-deleting records, and shows handshake status
+- QR onboarding and `.conf` downloads let iOS, Android, and desktop WireGuard clients connect quickly
+- Data usage counters show received and sent traffic per peer from `wg show wg0 dump`
+- VPN-only extensions show a table badge and can be toggled from the extension inline editor
 
 ## Inbound DID routing
 

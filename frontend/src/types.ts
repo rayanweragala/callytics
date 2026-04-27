@@ -392,7 +392,51 @@ export interface ExtensionItem {
   password: string;
   displayName: string | null;
   transportType: 'sip' | 'webrtc';
+  vpnOnly: boolean;
   createdAt: string;
+}
+
+export interface VpnStatus {
+  installed: boolean;
+  running: boolean | null;
+  serverPublicKey: string | null;
+  serverPublicKeyError: string | null;
+  endpoint: string | null;
+  subnet: string | null;
+  peerCount: number;
+  subnetConflict: boolean;
+  subnetConflictDetail: string | null;
+}
+
+export interface VpnPeer {
+  id: number;
+  name: string;
+  assignedIp: string;
+  publicKey: string;
+  status: 'active' | 'idle' | 'offline';
+  lastHandshake: string | null;
+  bytesReceived: number;
+  bytesSent: number;
+  createdAt: string;
+}
+
+export interface CreatedVpnPeer extends VpnPeer {
+  privateKey: string;
+  config: string;
+}
+
+export interface RelayGuideCommand {
+  command: string;
+  explanation: string;
+  verification: string | null;
+  verificationExpected: string | null;
+}
+
+export interface RelayGuideStep {
+  stepNumber: number;
+  title: string;
+  explanation: string;
+  commands: RelayGuideCommand[];
 }
 
 export interface OperatorItem {

@@ -70,6 +70,9 @@ export function SidebarNav() {
           </div>
           <div className={styles.group}>
             <div className={styles.groupLabel}>SYSTEM</div>
+            <NavLink to="/vpn" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              vpn
+            </NavLink>
             <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               preflight
             </NavLink>

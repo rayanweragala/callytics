@@ -252,6 +252,19 @@
   text-align: center;
 }
 
+.vpnBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .createdAt {
   color: var(--color-data);
   font-size: 14px;
@@ -282,6 +295,95 @@
 .successText {
   margin-top: 14px;
   color: var(--color-active);
+}
+
+.vpnToggleField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 230px;
+  padding: 6px 0;
+}
+
+.toggleLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggleSubLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 3px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transition: transform 0.15s;
+}
+
+.toggleOn {
+  background: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.toggleOn span {
+  transform: translateX(18px);
+}
+
+.toggleSwitch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tooltipWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltipText {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 190px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.tooltipWrap:hover .tooltipText {
+  opacity: 1;
+}
+
+.inlineSaved {
+  color: var(--color-active);
+  font-family: var(--font-mono);
+  font-size: 14px;
 }
 
 .overlay {

@@ -65,6 +65,7 @@ services:
       - ./storage/audio/previews:/app/storage/audio/previews
       - ./storage/audio/tts:/app/storage/audio/tts
       - asterisk_recordings:/var/lib/asterisk/recording
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       ARI_URL: http://127.0.0.1:8088
       ARI_PASSWORD: callytics
@@ -135,6 +136,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  wireguard:
+    image: linuxserver/wireguard
+    profiles: [vpn]
+    network_mode: "bridge"
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    ports:
+      - 51820:51820/udp
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      SERVERURL: ${WIREGUARD_SERVERURL:-auto}
+      SERVERPORT: 51820
+      INTERNAL_SUBNET: 10.8.0.0/24
+      PEERS: 0
+    volumes:
+      - ./wireguard-config:/config
+    # Assumption: 10.8.0.0/24 does not overlap the host LAN or Docker bridge subnet.
     restart: unless-stopped
 
 volumes:

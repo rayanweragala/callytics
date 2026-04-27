@@ -17,6 +17,9 @@ export class SipExtensionEntity {
   @Column({ name: 'transport_type', type: 'varchar', length: 20, default: 'sip' })
   transportType!: 'sip' | 'webrtc';
 
+  @Column({ name: 'vpn_only', type: 'boolean', default: false })
+  vpnOnly!: boolean;
+
   @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
   createdAt!: Date;
 }

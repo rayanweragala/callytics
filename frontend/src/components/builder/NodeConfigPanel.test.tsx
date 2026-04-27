@@ -140,7 +140,7 @@ describe('NodeConfigPanel', () => {
       <NodeConfigPanel
         {...baseProps}
         selectedNode={extensionNode}
-        extensions={[{ id: 1, username: '2001', password: 'x', displayName: 'Desk 2001', transportType: 'sip', createdAt: '2024-01-01' }]}
+        extensions={[{ id: 1, username: '2001', password: 'x', displayName: 'Desk 2001', transportType: 'sip', createdAt: '2024-01-01', vpnOnly: false }]}
         contactNumbers={[{ id: 1, label: 'Main PSTN', number: '+94112223344', trunkId: 2, createdAt: '2024-01-01' }]}
       />,
     );
@@ -154,7 +154,7 @@ describe('NodeConfigPanel', () => {
       <NodeConfigPanel
         {...baseProps}
         selectedNode={pstnNode}
-        extensions={[{ id: 1, username: '2001', password: 'x', displayName: 'Desk 2001', transportType: 'sip', createdAt: '2024-01-01' }]}
+        extensions={[{ id: 1, username: '2001', password: 'x', displayName: 'Desk 2001', transportType: 'sip', createdAt: '2024-01-01', vpnOnly: false }]}
         contactNumbers={[{ id: 1, label: 'Main PSTN', number: '+94112223344', trunkId: 2, createdAt: '2024-01-01' }]}
       />,
     );
@@ -178,7 +178,7 @@ describe('NodeConfigPanel', () => {
           {...baseProps}
           selectedNode={mockNode('conference', config)}
           extensions={[
-            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01', vpnOnly: false },
           ]}
           operators={[
             { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
@@ -214,7 +214,7 @@ describe('NodeConfigPanel', () => {
           {...baseProps}
           selectedNode={mockNode('conference', config)}
           extensions={[
-            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01', vpnOnly: false },
           ]}
           operators={[
             { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
@@ -253,7 +253,7 @@ describe('NodeConfigPanel', () => {
           {...baseProps}
           selectedNode={mockNode('conference', config)}
           extensions={[
-            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01', vpnOnly: false },
           ]}
           operators={[
             { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },
@@ -290,7 +290,7 @@ describe('NodeConfigPanel', () => {
           {...baseProps}
           selectedNode={mockNode('conference', config)}
           extensions={[
-            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01' },
+            { id: 11, username: '2001', password: 'x', displayName: 'Alice', transportType: 'sip', createdAt: '2024-01-01', vpnOnly: false },
           ]}
           operators={[
             { id: 21, name: 'Main Operator', status: 'available', extension: undefined, contactNumber: { id: 1, label: 'Main', number: '+94770000000', trunkId: 1, createdAt: '2024-01-01' }, hasPIN: true, createdAt: '2024-01-01' },

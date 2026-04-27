@@ -42,6 +42,7 @@
   --bg-surface:     var(--primitive-navy-800);
   --bg-elevated:    var(--primitive-navy-700);
   --bg-overlay:     var(--primitive-navy-600);
+  --modal-overlay:  rgba(0, 0, 0, 0.7);
 
   --border-subtle:  var(--primitive-navy-600);
   --border-default: var(--primitive-navy-500);
@@ -94,6 +95,8 @@
   --resource-ok:     var(--color-active);
   --resource-warn:   var(--primitive-amber);
   --resource-danger: var(--color-error);
+  --explainer-border-bad: rgba(242,92,84,0.30);
+  --explainer-border-good: rgba(61,214,140,0.30);
 
   color: var(--text-primary);
   background: var(--bg-base);

@@ -4,11 +4,22 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ExtensionsService } from './extensions.service';
 import { SipExtensionEntity } from './entities/sip-extension.entity';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
+import { VpnService } from '../vpn/vpn.service';
+
+jest.mock('fs', () => ({
+  promises: {
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    writeFile: jest.fn().mockResolvedValue(undefined),
+    readdir: jest.fn().mockResolvedValue([]),
+    unlink: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 describe('ExtensionsService', () => {
   let service: ExtensionsService;
-  let extensionsRepo: any;
-  let asteriskConfigService: any;
+  let extensionsRepo: typeof mockRepo;
+  let asteriskConfigService: typeof mockAsteriskConfigService;
+  let vpnService: typeof mockVpnService;
 
   const mockRepo = {
     findAndCount: jest.fn(),
@@ -24,6 +35,10 @@ describe('ExtensionsService', () => {
     writeExtensionsConfig: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockVpnService = {
+    isInstalled: jest.fn().mockResolvedValue(true),
+  };
+
   const mockDataSource = {
     query: jest.fn(),
   };
@@ -35,12 +50,14 @@ describe('ExtensionsService', () => {
         { provide: getRepositoryToken(SipExtensionEntity), useValue: mockRepo },
         { provide: getDataSourceToken(), useValue: mockDataSource },
         { provide: AsteriskConfigService, useValue: mockAsteriskConfigService },
+        { provide: VpnService, useValue: mockVpnService },
       ],
     }).compile();
 
     service = module.get<ExtensionsService>(ExtensionsService);
     extensionsRepo = module.get(getRepositoryToken(SipExtensionEntity));
     asteriskConfigService = module.get(AsteriskConfigService);
+    vpnService = module.get(VpnService);
   });
 
   afterEach(() => {
@@ -95,6 +112,48 @@ describe('ExtensionsService', () => {
       const result = await service.update(1, dto);
 
       expect(result.data.password).toBe('new');
+    });
+
+    it('should save VPN-only ACL config and trigger PJSIP reload through syncExtensions', async () => {
+      const entity = {
+        id: 1,
+        username: '100',
+        password: 'old',
+        displayName: null,
+        transportType: 'sip',
+        vpnOnly: false,
+        createdAt: new Date(),
+      };
+      extensionsRepo.findOne.mockResolvedValue(entity);
+      extensionsRepo.save.mockResolvedValue({ ...entity, vpnOnly: true });
+      extensionsRepo.find.mockResolvedValue([{ ...entity, vpnOnly: true }]);
+      vpnService.isInstalled.mockResolvedValue(true);
+
+      const result = await service.update(1, { vpnOnly: true });
+
+      expect(result.data.vpnOnly).toBe(true);
+      expect(asteriskConfigService.syncExtensions).toHaveBeenCalledWith([
+        expect.objectContaining({
+          endpointFlags: expect.arrayContaining(['acl = 100-vpn-acl', '#include pjsip_callytics_vpn_100.conf']),
+        }),
+      ]);
+    });
+
+    it('should fail VPN-only update when VPN is not installed', async () => {
+      const entity = {
+        id: 1,
+        username: '100',
+        password: 'old',
+        displayName: null,
+        transportType: 'sip',
+        vpnOnly: false,
+        createdAt: new Date(),
+      };
+      extensionsRepo.findOne.mockResolvedValue(entity);
+      vpnService.isInstalled.mockResolvedValue(false);
+
+      await expect(service.update(1, { vpnOnly: true })).rejects.toThrow('VPN is not installed. Enable WireGuard before restricting extensions to VPN-only.');
+      expect(extensionsRepo.save).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if not found', async () => {
