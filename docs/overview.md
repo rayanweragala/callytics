@@ -31,6 +31,7 @@ Built-in features already in the product include:
 - Reports, callbacks, campaigns, and conference rooms
 - WireGuard VPN peer management and VPN-only extension registration controls
 - SIP firewall live feed, radar, blocked IP management, and threshold settings
+- Backup and restore management with scheduled archives and retention controls
 
 This project is open core. The local self-hosted core stays free and open source. Paid features come later and should add convenience, not take the basics away.
 
@@ -69,3 +70,15 @@ Current implementation note:
   - Hunt/transfer waiter architecture (event-driven, no timers)
   - Migration consolidation: all SQL migrations now in root migrations/ folder
   - call_logs table migration added (023_phase_call_logs.sql)
+- Phase 36 adds a System "backup & restore" page (`/backup`) for manual archives, uploaded restores, and scheduled retention-managed backups.
+  - New state:
+    - Sidebar SYSTEM now shows `backup & restore` between `vpn` and `preflight`.
+    - Backend exposes `POST /backup`, `GET /backup`, `DELETE /backup/:id`, `GET /backup/:id/download`, `POST /backup/restore`, `GET /backup/config`, and `PUT /backup/config`.
+    - New SQL migration `backend/migrations/032_phase36_backup.sql` creates `backup_history` and the singleton `backup_config` row.
+    - Backend archives are written into the named Docker volume mounted at `/app/backups`.
+    - Manual backup uses `pg_dump` for the database, optionally tars the shared recordings volume, and packages both into one `.tar.gz`.
+    - Restore can replay the DB and recordings separately, then rebuilds managed telephony config and signals runtime services to restart.
+  - Old state:
+    - No backup route, no persisted backup history/config tables, and no in-product restore flow.
+  - Why changed:
+    - Operators need a repeatable backup path before upgrading or moving the stack, without leaving the SYSTEM area or scripting exports by hand.

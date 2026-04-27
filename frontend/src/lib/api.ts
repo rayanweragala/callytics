@@ -34,6 +34,9 @@ import type {
   CampaignContactAttemptItem,
   CampaignContactsUploadResult,
   CallbackItem,
+  BackupConfig,
+  BackupConfigUpdate,
+  BackupHistoryItem,
   CreatedVpnPeer,
   FirewallBlockedIp,
   FirewallConfig,
@@ -51,6 +54,18 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 const api = axios.create({
   baseURL: API_BASE,
 });
+
+function parseContentDispositionFilename(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const plainMatch = value.match(/filename="([^"]+)"/i) ?? value.match(/filename=([^;]+)/i);
+  return plainMatch?.[1]?.trim() || null;
+}
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -732,6 +747,49 @@ export async function listQueues(page = 1, limit = 10): Promise<PaginatedRespons
     ...response.data,
     totalPages: Math.max(1, Math.ceil(response.data.total / response.data.limit)),
   };
+}
+
+export async function createBackup(payload: { includeRecordings: boolean }): Promise<DetailResponse<BackupHistoryItem>> {
+  const response = await api.post<DetailResponse<BackupHistoryItem>>('/backup', payload);
+  return response.data;
+}
+
+export async function listBackups(page = 1, limit = 10): Promise<PaginatedResponse<BackupHistoryItem>> {
+  const response = await api.get<PaginatedResponse<BackupHistoryItem>>('/backup', { params: { page, limit } });
+  return response.data;
+}
+
+export async function deleteBackup(id: number): Promise<void> {
+  await api.delete(`/backup/${id}`);
+}
+
+export function getBackupDownloadUrl(id: number): string {
+  return `${API_BASE}/backup/${id}/download`;
+}
+
+export async function fetchBackupArchive(id: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get(`/backup/${id}/download`, { responseType: 'blob' });
+  const filename = parseContentDispositionFilename(response.headers['content-disposition']) || `backup-${id}.tar.gz`;
+  return { blob: response.data as Blob, filename };
+}
+
+export async function restoreBackupArchive(file: File, options: { restoreDb: boolean; restoreRecordings: boolean }): Promise<{ success: true }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post<{ success: true }>('/backup/restore', formData, {
+    params: options,
+  });
+  return response.data;
+}
+
+export async function getBackupConfig(): Promise<BackupConfig> {
+  const response = await api.get<BackupConfig>('/backup/config');
+  return response.data;
+}
+
+export async function updateBackupConfig(payload: BackupConfigUpdate): Promise<BackupConfig> {
+  const response = await api.put<BackupConfig>('/backup/config', payload);
+  return response.data;
 }
 
 export async function createQueue(payload: {

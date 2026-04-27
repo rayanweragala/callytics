@@ -93,11 +93,11 @@ If v1.0 does not install cleanly and run locally without telephony expertise, it
 - Phase 29   PLANNED     — Blacklist / whitelist — number rules page
 - Phase 30   PLANNED     — Callback node — caller leaves number, system calls back
 - Phase 31   ✓ COMPLETE  — Conference room node — ConfBridge multi-party rooms
-- Phase 32   PLANNED     — Backup and restore UI
+- Phase 36   ✓ COMPLETE  — Backup and restore
 - Phase 33   ✓ COMPLETE  — Resource usage panel
 - Phase 34   ✓ COMPLETE  — WireGuard VPN
 - Phase 35   ✓ COMPLETE  — SIP firewall
-- Phase 36+  DEFERRED    — WebRTC softphone (post-launch)
+- Phase 37+  DEFERRED    — WebRTC softphone (post-launch)
 
 ### Phase 23  RTP quality monitor
 

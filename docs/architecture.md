@@ -193,3 +193,29 @@ Conference rooms use a fixed bridge ID derived from `roomName`. The Stasis app c
   - `firewall:feed` for every security event shown in the terminal feed
   - `firewall:stats` every 30 seconds for counters, heatmap, top sources, and trunk gauges
 - Redis publishes the same feed payloads on `callytics:firewall-events` for other consumers.
+
+## Phase 36 backup and restore architecture
+
+### Storage layout
+- Backup archives are written by the backend into `/app/backups`.
+- Docker Compose mounts that path from the named volume `callytics_backup_data`, so archives survive container rebuilds.
+- Recordings remain on the shared named volume mounted at `/var/lib/asterisk/recording`.
+
+### Archive creation path
+- `BackupModule` owns `/backup/*` endpoints, the backup WebSocket gateway, and the schedule tick.
+- Manual and scheduled backups create a `backup_history` row first, mark it `running`, then export PostgreSQL with `pg_dump -Fc`.
+- When recordings are included, the backend tars the shared recordings volume contents and packages that tarball alongside `database.dump` and a small manifest into one `.tar.gz` archive.
+- Finished archives update `backup_history` with final size and `complete` or `failed` status.
+
+### Restore path
+- Restore accepts a multipart-uploaded `.tar.gz` archive and extracts it into a temporary workspace.
+- Database restore uses `pg_restore --clean --if-exists --no-owner --no-privileges` against the live PostgreSQL container.
+- Recordings restore wipes the mounted recordings directory contents and extracts the archived recording tree back into place.
+- After a DB restore, the backend rebuilds managed trunk, extension, VPN ACL, and inbound-route config files from the restored rows before signaling runtime services to restart.
+
+### Scheduling and realtime events
+- `backup_config` is a singleton row with enable flag, interval, optional custom cron string, recordings toggle, and retention count.
+- The backend schedule tick runs once per minute, checks whether the configured cron matches the current minute, runs a backup when due, and trims history/files beyond retention.
+- `BackupGateway` uses the existing Socket.IO room pattern and emits:
+  - `backup:progress`, `backup:complete`, `backup:error`
+  - `restore:progress`, `restore:complete`, `restore:error`

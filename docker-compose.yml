@@ -68,6 +68,7 @@ services:
       - ./storage/audio/tts:/app/storage/audio/tts
       - callytics_geoip_data:/app/geoip
       - asterisk_recordings:/var/lib/asterisk/recording
+      - callytics_backup_data:/app/backups
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       ARI_URL: http://127.0.0.1:8088
@@ -169,3 +170,4 @@ volumes:
   callytics_redis_data:
   asterisk_recordings:
   callytics_geoip_data:
+  callytics_backup_data:

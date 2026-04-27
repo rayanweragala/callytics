@@ -20,6 +20,7 @@
   gap: 14px;
   background: transparent;
   color: var(--text-secondary);
+  font-size: 13px;
   padding: 14px 20px;
 }
 
@@ -54,8 +55,8 @@
 .refreshButton {
   height: 36px;
   border: none;
-  background: var(--primitive-amber);
-  color: var(--primitive-navy-950);
+  background: var(--accent);
+  color: var(--text-inverse);
   padding: 0 16px;
 }
 
@@ -73,8 +74,8 @@
 .secondaryButton:hover,
 .durationButton:hover,
 .whitelistButton:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .unblockButton:hover {
@@ -96,14 +97,14 @@
 
 .panel {
   background: var(--bg-surface);
-  padding: 16px;
+  padding: 20px;
   min-width: 0;
 }
 
 .panelHeader {
-  color: var(--primitive-amber);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: 0.10em;
   margin-bottom: 14px;
   text-transform: uppercase;
@@ -185,7 +186,7 @@
 .counterLabel {
   color: var(--text-secondary);
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   margin: 4px 0 18px;
   text-transform: uppercase;
 }
@@ -364,7 +365,7 @@
   gap: 8px;
   background: var(--bg-surface);
   border-color: var(--border-strong);
-  padding: 18px;
+  padding: 20px;
   animation: cardIn 180ms ease-out;
 }
 
@@ -423,9 +424,9 @@
 }
 
 .drawerEyebrow {
-  color: var(--primitive-amber);
+  color: var(--accent);
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
@@ -450,7 +451,7 @@
 }
 
 .savedFlashActive {
-  color: var(--primitive-amber);
+  color: var(--accent);
 }
 
 .optionGrid,
@@ -480,13 +481,13 @@
 }
 
 .optionCardActive {
-  border-color: var(--primitive-amber);
+  border-color: var(--accent);
   background: var(--primitive-amber-dim);
 }
 
 .warningCard {
   background: var(--primitive-amber-dim);
-  color: var(--primitive-amber);
+  color: var(--accent);
   margin: 12px 0;
   padding: 12px;
 }
@@ -499,12 +500,12 @@
 }
 
 .sliderLabel strong {
-  color: var(--primitive-amber);
+  color: var(--accent);
 }
 
 .slider {
   width: 100%;
-  accent-color: var(--primitive-amber);
+  accent-color: var(--accent);
 }
 
 .durationButtons {
@@ -513,9 +514,9 @@
 }
 
 .durationActive {
-  border-color: var(--primitive-amber);
+  border-color: var(--accent);
   background: var(--primitive-amber-dim);
-  color: var(--primitive-amber);
+  color: var(--accent);
 }
 
 .tagInputRow {
@@ -535,7 +536,7 @@
 }
 
 .input:focus {
-  border-color: var(--primitive-amber);
+  border-color: var(--accent);
   outline: none;
 }
 

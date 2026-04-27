@@ -443,12 +443,12 @@ export function VpnPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>NAME</th>
-                <th>ASSIGNED IP</th>
-                <th>STATUS</th>
-                <th>LAST HANDSHAKE</th>
-                <th>DATA USAGE</th>
-                <th className={styles.actionsHeader}>ACTIONS</th>
+                <th>name</th>
+                <th>assigned ip</th>
+                <th>status</th>
+                <th>last handshake</th>
+                <th>data usage</th>
+                <th className={styles.actionsHeader}>actions</th>
               </tr>
             </thead>
             <tbody>

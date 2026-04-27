@@ -24,6 +24,7 @@ import { CampaignDetailPage } from './pages/CampaignDetailPage';
 import { CallbacksPage } from './pages/CallbacksPage';
 import { VpnPage } from './pages/VpnPage';
 import { FirewallPage } from './pages/FirewallPage';
+import { BackupPage } from './pages/BackupPage';
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/preflight" element={<PreflightPage />} />
           <Route path="/firewall" element={<FirewallPage />} />
           <Route path="/vpn" element={<VpnPage />} />
+          <Route path="/backup" element={<BackupPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />

@@ -425,6 +425,44 @@ export interface CreatedVpnPeer extends VpnPeer {
   config: string;
 }
 
+export type BackupType = 'full' | 'db_only' | 'recordings_only';
+export type BackupStatus = 'pending' | 'running' | 'complete' | 'failed';
+export type BackupInterval = 'daily' | 'weekly' | 'custom';
+
+export interface BackupHistoryItem {
+  id: number;
+  filename: string;
+  sizeBytes: number;
+  type: BackupType;
+  status: BackupStatus;
+  createdAt: string;
+  notes: string | null;
+}
+
+export interface BackupConfig {
+  id: number;
+  enabled: boolean;
+  interval: BackupInterval;
+  cronExpression: string | null;
+  includeRecordings: boolean;
+  retentionCount: number;
+  updatedAt: string;
+  nextRunAt: string | null;
+}
+
+export interface BackupConfigUpdate {
+  enabled?: boolean;
+  interval?: BackupInterval;
+  cronExpression?: string | null;
+  includeRecordings?: boolean;
+  retentionCount?: number;
+}
+
+export interface BackupProgressEvent {
+  percentage: number;
+  step: string;
+}
+
 export interface RelayGuideCommand {
   command: string;
   explanation: string;

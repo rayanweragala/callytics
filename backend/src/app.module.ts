@@ -40,6 +40,9 @@ import { HttpLoggingInterceptor } from './logger/http-logging.interceptor';
 import { VpnModule } from './vpn/vpn.module';
 import { VpnPeerEntity } from './vpn/entities/vpn-peer.entity';
 import { FirewallModule } from './firewall/firewall.module';
+import { BackupModule } from './backup/backup.module';
+import { BackupHistoryEntity } from './backup/entities/backup-history.entity';
+import { BackupConfigEntity } from './backup/entities/backup-config.entity';
 
 @Module({
   imports: [
@@ -71,6 +74,8 @@ import { FirewallModule } from './firewall/firewall.module';
           QueueEntity,
           ContactNumberEntity,
           VpnPeerEntity,
+          BackupHistoryEntity,
+          BackupConfigEntity,
         ],
         synchronize: false,
         logging: false,
@@ -100,6 +105,7 @@ import { FirewallModule } from './firewall/firewall.module';
     CallbacksModule,
     FirewallModule,
     VpnModule,
+    BackupModule,
   ],
   controllers: [HealthController],
   providers: [

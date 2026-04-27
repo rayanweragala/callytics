@@ -76,6 +76,9 @@ export function SidebarNav() {
             <NavLink to="/vpn" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               vpn
             </NavLink>
+            <NavLink to="/backup" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              backup & restore
+            </NavLink>
             <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               preflight
             </NavLink>

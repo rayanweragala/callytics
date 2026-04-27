@@ -78,6 +78,15 @@ Multi-party conference rooms backed by Asterisk ConfBridge.
 - MaxMind GeoLite2 country lookup runs offline when the local database is present; missing GeoIP data falls back to `unknown`
 - Settings drawer controls enforcement mode, threshold, time window, block duration, whitelist, and trunk ceilings
 
+## Backup & restore
+
+- `/backup` page under SYSTEM for archive creation, restore, retention, and schedule settings
+- Manual backup action exports PostgreSQL with `pg_dump`, optionally bundles the shared recordings volume, and writes a single `.tar.gz` archive
+- Backup history is persisted in `backup_history` with status, size, type, and timestamp metadata
+- Backup schedule is persisted in `backup_config` with enable toggle, interval, optional custom cron, recordings toggle, and retention count
+- Restore accepts uploaded `.tar.gz` archives, can restore the database and recordings independently, and rebuilds managed telephony config after DB restore
+- WebSocket events (`backup:progress`, `backup:complete`, `backup:error`, `restore:progress`, `restore:complete`, `restore:error`) keep the inline terminal logs live
+
 ## Inbound DID routing
 
 - `/inbound` page with inline create/edit/delete controls
@@ -148,7 +157,7 @@ Multi-party conference rooms backed by Asterisk ConfBridge.
 - Recording retention settings
 - Dashboard refresh and event noise filters
 - SIP settings page
-- Backup and restore entry point for future versions
+- Backup and restore entry point under SYSTEM
 
 ## Shared UI components
 

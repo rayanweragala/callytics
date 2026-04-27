@@ -16,7 +16,7 @@
 .notInstalledCard {
   display: grid;
   gap: 18px;
-  padding: 28px;
+  padding: 20px;
   background: transparent;
 }
 
@@ -44,7 +44,7 @@
 .optionCard {
   display: grid;
   gap: 12px;
-  padding: 24px;
+  padding: 20px;
   background: transparent;
 }
 
@@ -93,7 +93,7 @@
 
 .tabActive {
   color: var(--text-primary);
-  border-bottom-color: var(--primitive-amber);
+  border-bottom-color: var(--accent);
 }
 
 .tabContent {
@@ -148,7 +148,7 @@
 }
 
 .warningText {
-  color: var(--primitive-amber);
+  color: var(--accent);
   font-family: var(--font-mono);
 }
 
@@ -183,7 +183,7 @@
 }
 
 .input:focus {
-  border-color: var(--primitive-amber);
+  border-color: var(--accent);
   outline: none;
 }
 
@@ -201,11 +201,12 @@
 
 .primaryButton {
   height: 36px;
-  border: 1px solid var(--primitive-amber);
-  background: var(--primitive-amber);
+  border: 1px solid var(--accent);
+  background: var(--accent);
   color: var(--text-inverse);
   padding: 0 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .primaryButton:disabled {
@@ -227,7 +228,8 @@
 .inlineCopy {
   height: 28px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .secondaryLargeButton {
@@ -238,8 +240,8 @@
 .secondaryButton:hover,
 .secondaryLargeButton:hover,
 .inlineCopy:hover {
-  color: var(--primitive-amber);
-  border-color: var(--primitive-amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .revokeButton:hover {
@@ -256,8 +258,8 @@
   height: 36px;
   border: none;
   border-radius: var(--radius-md);
-  background: var(--primitive-amber);
-  color: var(--primitive-navy-950);
+  background: var(--accent);
+  color: var(--text-inverse);
   font-family: var(--font-mono);
   padding: 0 16px;
   cursor: pointer;
@@ -273,10 +275,11 @@
 }
 
 .table th {
-  color: var(--primitive-amber);
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.10em;
   text-align: left;
+  text-transform: uppercase;
   padding: 12px 14px;
 }
 
@@ -301,9 +304,11 @@
   display: inline-flex;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 2px 8px;
+  padding: 2px 7px;
   font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .statusactive {
@@ -395,7 +400,7 @@
 }
 
 .accordionHeader span {
-  color: var(--primitive-amber);
+  color: var(--accent);
   font-family: var(--font-mono);
 }
 
@@ -440,7 +445,7 @@
 .verifyLabel {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   margin-bottom: 6px;
 }
