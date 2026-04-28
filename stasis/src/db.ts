@@ -8,8 +8,8 @@ const pool = new Pool({
   password: process.env.DB_PASS || 'callytics',
 });
 
-export async function query(sql: string, params?: any[]) {
-  const result = await pool.query(sql, params);
+export async function query(sql: string, params?: readonly unknown[]) {
+  const result = await pool.query(sql, params as unknown[]);
   return result.rows;
 }
 

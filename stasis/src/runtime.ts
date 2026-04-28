@@ -14,6 +14,9 @@ interface FlowStackFrame {
 
 async function insertNodeLog(session: CallSession, node: { nodeKey: string; type: string }): Promise<void> {
   try {
+    // TODO(arch): Stasis should not write directly to DB.
+    // This should be refactored to emit a Redis event and let NestJS handle the write.
+    // Tracked as known technical debt — defer until post Phase 39.
     await query(
       `
         INSERT INTO call_node_logs (call_uuid, flow_id, node_key, node_type, entered_at)
@@ -33,6 +36,9 @@ async function updateNodeLog(
   errorMessage: string | null,
 ): Promise<void> {
   try {
+    // TODO(arch): Stasis should not write directly to DB.
+    // This should be refactored to emit a Redis event and let NestJS handle the write.
+    // Tracked as known technical debt — defer until post Phase 39.
     await query(
       `
         UPDATE call_node_logs
