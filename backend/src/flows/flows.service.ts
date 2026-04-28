@@ -977,6 +977,8 @@ export class FlowsService implements OnModuleInit {
     flowId: number,
     manager: DataSource['manager'] = this.dataSource.manager,
   ): Promise<number> {
+    // TODO(perf): N+1 query here. Each parent traversal step performs a separate lookup.
+    // Consider a recursive CTE to resolve the root flow in one query.
     let currentFlowId: number | null = flowId;
     const seen = new Set<number>();
 
@@ -1041,6 +1043,8 @@ export class FlowsService implements OnModuleInit {
     manager: DataSource['manager'] = this.dataSource.manager,
     visited = new Set<number>(),
   ): Promise<FlowVersionSnapshot> {
+    // TODO(perf): N+1 query here. Recursive subtree expansion loads each flow and subflow chain separately.
+    // Consider batch loading subtree rows before snapshot assembly.
     if (visited.has(rootFlowId)) {
       throw new BadRequestException(`Flow ${rootFlowId} has a circular subflow tree`);
     }

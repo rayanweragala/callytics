@@ -147,6 +147,8 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
       createdAt: new Date(String(row.created_at)),
       updatedAt: new Date(String(row.updated_at)),
     }));
+    // TODO(perf): N+1 query here. toResponse() performs per-operator status + join lookups.
+    // Consider batch loading status/link data for paginated lists.
     const responses = await Promise.all(items.map(async (item) => this.toResponse(item)));
     return { data: responses, total, page: safePage, limit: safeLimit };
   }

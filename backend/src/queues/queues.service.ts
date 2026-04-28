@@ -68,8 +68,45 @@ export class QueuesService {
     return rows as QueueOperatorRow[];
   }
 
+  private async loadOperatorsForQueues(queueIds: number[]): Promise<Map<number, QueueOperatorRow[]>> {
+    if (queueIds.length === 0) {
+      return new Map<number, QueueOperatorRow[]>();
+    }
+    const rows = await this.dataSource.query(
+      `SELECT qo.queue_id AS "queueId", o.id, o.name
+       FROM queue_operators qo
+       JOIN operators o ON o.id = qo.operator_id
+       WHERE qo.queue_id = ANY($1::int[])
+       ORDER BY qo.queue_id ASC, o.name ASC`,
+      [queueIds],
+    ) as Array<{ queueId: number; id: number; name: string }>;
+
+    const grouped = new Map<number, QueueOperatorRow[]>();
+    for (const row of rows) {
+      const list = grouped.get(row.queueId) || [];
+      list.push({ id: row.id, name: row.name });
+      grouped.set(row.queueId, list);
+    }
+    return grouped;
+  }
+
   private async toResponse(item: QueueEntity): Promise<QueueResponse> {
     const operators = await this.loadOperatorsForQueue(item.id);
+    return {
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      waitAudioFileId: item.waitAudioFileId,
+      maxWaitSeconds: item.maxWaitSeconds,
+      pinRetryAttempts: item.pinRetryAttempts,
+      operatorCount: operators.length,
+      operatorIds: operators.map((op) => op.id),
+      operators,
+      createdAt: item.createdAt.toISOString(),
+    };
+  }
+
+  private toResponseWithOperators(item: QueueEntity, operators: QueueOperatorRow[]): QueueResponse {
     return {
       id: item.id,
       name: item.name,
@@ -115,7 +152,8 @@ export class QueuesService {
       createdAt: new Date(String(row.created_at)),
       updatedAt: new Date(String(row.updated_at)),
     }));
-    const responses = await Promise.all(items.map((item) => this.toResponse(item)));
+    const operatorMap = await this.loadOperatorsForQueues(items.map((item) => item.id));
+    const responses = items.map((item) => this.toResponseWithOperators(item, operatorMap.get(item.id) || []));
     return { data: responses, total, page: safePage, limit: safeLimit };
   }
 

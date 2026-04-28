@@ -35,14 +35,15 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
   }
 
   parseSipPacket(line: string): SipPacketDto | null {
-    let payload: any;
+    let payload: unknown;
     try {
       payload = JSON.parse(line);
     } catch {
       return null;
     }
 
-    const layers = payload?.layers ?? payload;
+    const payloadRecord = this.asRecord(payload);
+    const layers = this.asRecord(payloadRecord?.layers) ?? payloadRecord;
     const callId = this.readValue(layers, ['sip.Call-ID', 'sip.call_id', 'sip.call-id', 'call_id']);
     if (!callId) {
       return null;
@@ -73,54 +74,63 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
     if (!this.redis?.isOpen) {
       return;
     }
+    try {
+      const id = await this.redis.xAdd(SIP_CAPTURE_STREAM, '*', {
+        timestamp: packet.timestamp,
+        method: packet.method,
+        from: packet.from,
+        to: packet.to,
+        callId: packet.callId,
+        direction: packet.direction,
+        statusCode: packet.statusCode === undefined ? '' : String(packet.statusCode),
+        rawJson: packet.rawJson,
+      });
 
-    const id = await this.redis.xAdd(SIP_CAPTURE_STREAM, '*', {
-      timestamp: packet.timestamp,
-      method: packet.method,
-      from: packet.from,
-      to: packet.to,
-      callId: packet.callId,
-      direction: packet.direction,
-      statusCode: packet.statusCode === undefined ? '' : String(packet.statusCode),
-      rawJson: packet.rawJson,
-    });
+      packet.id = id;
+      AppLogger.redisPublish(SIP_CAPTURE_STREAM, {
+        callId: packet.callId,
+        method: packet.method,
+        direction: packet.direction,
+      });
 
-    packet.id = id;
-    AppLogger.redisPublish(SIP_CAPTURE_STREAM, {
-      callId: packet.callId,
-      method: packet.method,
-      direction: packet.direction,
-    });
-
-    await this.redis.xTrim(SIP_CAPTURE_STREAM, 'MAXLEN', SIP_CAPTURE_MAXLEN);
+      await this.redis.xTrim(SIP_CAPTURE_STREAM, 'MAXLEN', SIP_CAPTURE_MAXLEN);
+    } catch (error) {
+      this.logger.error(`capture redis write failed callId=${packet.callId}`, error instanceof Error ? error.stack : String(error));
+      throw error;
+    }
   }
 
   async persistPacket(packet: SipPacketDto): Promise<void> {
     const normalizedCallId = packet.callId?.trim() ? packet.callId.trim() : null;
     const capturedAt = this.toIsoTimestamp(packet.timestamp);
 
-    if (capturedAt) {
+    try {
+      if (capturedAt) {
+        const startedAt = Date.now();
+        await this.dataSource.query(
+          `
+          INSERT INTO sip_packets (call_id, packet_data, captured_at)
+          VALUES ($1, $2::jsonb, $3::timestamptz)
+          `,
+          [normalizedCallId, JSON.stringify(packet), capturedAt],
+        );
+        AppLogger.dbQuery('insert', 'sip_packets', startedAt);
+        return;
+      }
+
       const startedAt = Date.now();
       await this.dataSource.query(
         `
         INSERT INTO sip_packets (call_id, packet_data, captured_at)
-        VALUES ($1, $2::jsonb, $3::timestamptz)
+        VALUES ($1, $2::jsonb, NOW())
         `,
-        [normalizedCallId, JSON.stringify(packet), capturedAt],
+        [normalizedCallId, JSON.stringify(packet)],
       );
       AppLogger.dbQuery('insert', 'sip_packets', startedAt);
-      return;
+    } catch (error) {
+      this.logger.error(`capture db write failed callId=${packet.callId}`, error instanceof Error ? error.stack : String(error));
+      throw error;
     }
-
-    const startedAt = Date.now();
-    await this.dataSource.query(
-      `
-      INSERT INTO sip_packets (call_id, packet_data, captured_at)
-      VALUES ($1, $2::jsonb, NOW())
-      `,
-      [normalizedCallId, JSON.stringify(packet)],
-    );
-    AppLogger.dbQuery('insert', 'sip_packets', startedAt);
   }
 
   async findPacketsByCallId(callId: string): Promise<SipPacketDto[]> {
@@ -393,5 +403,12 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
     }
 
     return 'in';
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+    return value as Record<string, unknown>;
   }
 }
