@@ -6,6 +6,10 @@ import { HuntConfigPanel } from '../panels/HuntConfigPanel';
 import styles from './NodeConfigPanel.module.css';
 import pageStyles from '../../pages/FlowEditorPage.module.css';
 
+// TODO(cleanup): VITE_API_BASE_URL base URL constant is redeclared
+// multiple times inside this file. Consolidate to a single
+// module-level constant in a future cleanup pass.
+
 type BuilderEdgeData = {
   branchKey: string | null;
   condition: string | null;

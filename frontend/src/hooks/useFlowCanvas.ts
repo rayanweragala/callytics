@@ -541,8 +541,7 @@ export function useFlowCanvas(): UseFlowCanvasResult {
   );
 
   // Assign the forward ref so decorateEditorNodes can call deleteNode
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (deleteNodeRef as any) = deleteNode;
+  deleteNodeRef = deleteNode;
 
   // ── Edge operations ───────────────────────────────────────────────────────────
 
