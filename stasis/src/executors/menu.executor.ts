@@ -2,7 +2,7 @@ import { stasisLogger } from "../logger";
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 import { resolveAudioMediaPath } from '../audioResolver';
-import { resolveNodeTimeoutMs } from '../timeoutResolver';
+import { INTER_DIGIT_TIMEOUT_MS, resolveNodeTimeoutMs } from '../timeoutResolver';
 
 type PlaybackTarget =
   | { kind: 'channel'; id: string; play: (opts: { media: string }, playback: { id: string; stop: () => Promise<void> }) => Promise<void> }
@@ -69,6 +69,13 @@ function resolveMenuDigit(node: FlowNode, rawDigit: string): string {
   return 'invalid';
 }
 
+function hasDoubleDigitMenuBranch(node: FlowNode): boolean {
+  const configuredBranches = Array.isArray(node.config.branches)
+    ? node.config.branches.map((value) => String(value || '').trim())
+    : [];
+  return configuredBranches.some((value) => /^\d{2}$/.test(value));
+}
+
 async function playResolvedPrompt(
   channel: {
     id: string;
@@ -107,6 +114,7 @@ async function collectMenuAttempt(
   ariClient: unknown,
 ): Promise<MenuAttemptResult> {
   const timeoutMs = resolveNodeTimeoutMs(node, session, 5000);
+  const doubleDigitMode = hasDoubleDigitMenuBranch(node);
   const client = ariClient as {
     Playback: () => { id: string; stop: () => Promise<void> };
     on: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
@@ -121,6 +129,8 @@ async function collectMenuAttempt(
     const playback = client.Playback();
     let finished = false;
     let timer: NodeJS.Timeout | null = null;
+    let interDigitTimer: NodeJS.Timeout | null = null;
+    let collectedDigits = '';
 
     const cleanup = () => {
       client.removeListener('ChannelDtmfReceived', onDtmf);
@@ -128,6 +138,7 @@ async function collectMenuAttempt(
       client.removeListener('StasisEnd', onHangup);
       client.removeListener('ChannelDestroyed', onHangup);
       if (timer) clearTimeout(timer);
+      if (interDigitTimer) clearTimeout(interDigitTimer);
     };
 
     const stopPlaybackSafely = async () => {
@@ -150,7 +161,22 @@ async function collectMenuAttempt(
       if (event.channel?.id && event.channel.id !== channel.id) return;
       const rawDigit = String(event.digit || '');
       stasisLogger.log(`[menu] ChannelDtmfReceived channel=${channel.id} digit=${rawDigit}`);
-      settle(resolveMenuDigit(node, rawDigit));
+      if (!doubleDigitMode || !/^\d$/.test(rawDigit)) {
+        settle(resolveMenuDigit(node, rawDigit));
+        return;
+      }
+      collectedDigits += rawDigit;
+      if (collectedDigits.length >= 2) {
+        settle(resolveMenuDigit(node, collectedDigits.slice(0, 2)));
+        return;
+      }
+      if (interDigitTimer) {
+        clearTimeout(interDigitTimer);
+      }
+      interDigitTimer = setTimeout(
+        () => settle(resolveMenuDigit(node, collectedDigits)),
+        INTER_DIGIT_TIMEOUT_MS,
+      );
     };
 
     const onHangup = async (event: { channel?: { id?: string } }) => {

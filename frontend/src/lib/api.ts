@@ -107,6 +107,7 @@ export interface SaveFlowPayload {
   description?: string;
   slug?: string;
   versionMessage?: string;
+  autoSave?: boolean;
   nodes: Array<{
     nodeKey: string;
     type: string;

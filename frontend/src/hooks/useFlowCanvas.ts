@@ -3,6 +3,7 @@ import {
   addEdge,
   Connection,
   Edge,
+  IsValidConnection,
   Node,
   NodeDragHandler,
   OnSelectionChangeParams,
@@ -19,6 +20,7 @@ type BuilderEdgeData = {
   branchKey: string | null;
   condition: string | null;
   sourceNodeType: string;
+  isAsyncWebhookEdge?: boolean;
   isSubflowJump?: boolean;
   subflowJumpLabel?: string;
   onDelete?: (edgeId: string) => void;
@@ -33,11 +35,46 @@ const menuRoutableBranchSet = new Set(menuBranchOptions);
 
 export { SUBFLOW_JUMP_NODE_ID_PREFIX, menuBranchOptions, menuRoutableBranchSet };
 
+const TERMINAL_NODE_TYPES = new Set<BuilderNodeType>(['hangup', 'voicemail', 'callback', 'queue_login']);
+const WEBHOOK_EDGE_DASH_STYLE = { strokeDasharray: '6 3' };
+const START_ALLOWED_TARGET_TYPES = new Set<BuilderNodeType>([
+  'play_audio',
+  'menu',
+  'business_hours',
+  'transfer',
+  'hunt',
+  'queue',
+  'hangup',
+  'conference',
+  'webhook',
+  'callback',
+  'voicemail',
+]);
+const GET_DIGITS_ALLOWED_SOURCE_TYPES = new Set<BuilderNodeType>([
+  'start',
+  'play_audio',
+  'menu',
+  'business_hours',
+  'webhook',
+]);
+const QUEUE_LOGIN_ALLOWED_SOURCE_TYPES = new Set<BuilderNodeType>([
+  'start',
+  'menu',
+  'play_audio',
+  'get_digits',
+]);
+const VOICEMAIL_BLOCKED_SOURCE_TYPES = new Set<BuilderNodeType>([
+  'queue_login',
+  'hunt',
+  'transfer',
+  'queue',
+]);
+
 function sanitizeMenuBranches(value: unknown): string[] {
   if (!Array.isArray(value)) return ['1', '2'];
   const branches = value
     .map((item) => String(item || '').trim())
-    .filter((item) => menuRoutableBranchSet.has(item));
+    .filter((item) => /^(?:\d{1,2}|\*|#)$/.test(item));
   return branches.length > 0 ? Array.from(new Set(branches)) : ['1', '2'];
 }
 
@@ -45,6 +82,72 @@ function resolveNodeDimension(value: unknown, fallback: number): number {
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
   return numeric;
+}
+
+function isWebhookConnection(sourceType: BuilderNodeType, targetType: BuilderNodeType): boolean {
+  return sourceType === 'webhook' || targetType === 'webhook';
+}
+
+export function isValidBuilderConnection(
+  connection: Pick<Connection, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>,
+  nodes: Array<Node<FlowNodeData>>,
+): boolean {
+  if (!connection.source || !connection.target || connection.source === connection.target) {
+    return false;
+  }
+  const sourceNode = nodes.find((node) => node.id === connection.source);
+  const targetNode = nodes.find((node) => node.id === connection.target);
+  if (!sourceNode || !targetNode) {
+    return false;
+  }
+  const sourceType = sourceNode.data?.type;
+  const targetType = targetNode.data.type;
+
+  if (targetType === 'webhook') {
+    return true;
+  }
+
+  if (!sourceType) {
+    return false;
+  }
+
+  if (TERMINAL_NODE_TYPES.has(sourceType)) {
+    return false;
+  }
+
+  if (sourceType === 'webhook') {
+    if (targetType === 'start') {
+      return false;
+    }
+    return true;
+  }
+  if (sourceType === 'start' && !START_ALLOWED_TARGET_TYPES.has(targetType)) {
+    return false;
+  }
+  if (sourceType === 'start' && (targetType === 'get_digits' || targetType === 'queue_login')) {
+    return false;
+  }
+  if (targetType === 'get_digits' && !GET_DIGITS_ALLOWED_SOURCE_TYPES.has(sourceType)) {
+    return false;
+  }
+  if (targetType === 'queue_login' && !QUEUE_LOGIN_ALLOWED_SOURCE_TYPES.has(sourceType)) {
+    return false;
+  }
+  if (targetType === 'voicemail' && VOICEMAIL_BLOCKED_SOURCE_TYPES.has(sourceType)) {
+    return false;
+  }
+  return true;
+}
+
+function toBuilderConnectionShape(
+  connection: Pick<Edge | Connection, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>,
+): Pick<Connection, 'source' | 'target' | 'sourceHandle' | 'targetHandle'> {
+  return {
+    source: connection.source ?? null,
+    target: connection.target ?? null,
+    sourceHandle: connection.sourceHandle ?? null,
+    targetHandle: connection.targetHandle ?? null,
+  };
 }
 
 function isGroupNode(node: Node<FlowNodeData>): boolean {
@@ -138,9 +241,11 @@ export function attachEdgeMetadata(
   }
   return edges.map((edge) => {
     const sourceNodeType = nodes.find((node) => node.id === edge.source)?.data.type || 'hangup';
+    const targetNodeType = nodes.find((node) => node.id === edge.target)?.data.type || 'hangup';
     const condition = edge.data?.condition ?? null;
     const siblings = grouped.get(`${edge.source}|${edge.target}`) || [edge];
     const parallelIndex = siblings.findIndex((sibling) => sibling.id === edge.id);
+    const isAsyncWebhookEdge = isWebhookConnection(sourceNodeType, targetNodeType);
     return {
       ...edge,
       type: 'flowEdge',
@@ -151,11 +256,15 @@ export function attachEdgeMetadata(
         branchKey: edge.data?.branchKey || condition || 'default',
         condition,
         sourceNodeType,
+        isAsyncWebhookEdge,
         parallelIndex,
         parallelTotal: siblings.length,
         onDelete: () => onDelete(edge.id),
       },
-      style: { stroke: edge.selected ? 'var(--color-active)' : 'var(--border-strong)' },
+      style: {
+        stroke: edge.selected ? 'var(--color-active)' : 'var(--border-strong)',
+        ...(isAsyncWebhookEdge ? WEBHOOK_EDGE_DASH_STYLE : {}),
+      },
     };
   });
 }
@@ -221,7 +330,7 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
   function typeConfig(t: BuilderNodeType): Record<string, unknown> {
     if (t === 'start') return { queue_login_default_input_timeout_ms: 10000 };
     if (t === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
-    if (t === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
+    if (t === 'get_digits') return { variable_name: '', timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
     if (t === 'menu') return {
       timeout_ms: 5000,
       prompt_path: '',
@@ -247,7 +356,16 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       },
     };
     if (t === 'transfer') return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '' };
-    if (t === 'voicemail') return { mailbox_name: 'main', max_duration_seconds: 60, prompt_audio_file_id: null };
+    if (t === 'voicemail')
+      return {
+        mailbox_name: 'main',
+        max_duration_seconds: 60,
+        start_audio_id: null,
+        end_audio_id: null,
+        send_to_webhook: false,
+        webhook_url: '',
+        webhook_secret: '',
+      };
     if (t === 'hunt') return {
       destinations: [{ target_type: 'extension', target_value: '101' }],
       strategy: 'sequential',
@@ -338,6 +456,7 @@ export interface UseFlowCanvasResult {
   deleteNode: (nodeId: string) => void;
   deleteEdge: (edgeId: string) => void;
   onConnect: (connection: Connection) => void;
+  isValidConnection: IsValidConnection;
   onEdgeClick: (event: React.MouseEvent, edge: Edge<BuilderEdgeData>) => void;
   onReconnect: (oldEdge: Edge<BuilderEdgeData>, newConnection: Connection) => void;
   onReconnectStart: () => void;
@@ -494,9 +613,19 @@ export function useFlowCanvas(): UseFlowCanvasResult {
 
   const deleteNode = useCallback(
     (nodeId: string) => {
+      const removedNodeIds = new Set<string>();
       setNodes((current) => {
         const target = current.find((node) => node.id === nodeId);
         if (!target || target.data.type === 'start') return current;
+        removedNodeIds.add(nodeId);
+
+        if (target.data.type === 'menu') {
+          current.forEach((node) => {
+            if (String(node.data.config.groupId || '').trim() === nodeId) {
+              removedNodeIds.add(node.id);
+            }
+          });
+        }
 
         if (target.data.type === 'group') {
           const nextNodes = current.flatMap((node) => {
@@ -515,7 +644,7 @@ export function useFlowCanvas(): UseFlowCanvasResult {
         }
 
         return decorateNodes(
-          current.filter((node) => node.id !== nodeId),
+          current.filter((node) => !removedNodeIds.has(node.id)),
           {
             editingGroupId,
             onDelete: (id: string) => deleteNodeRef(id),
@@ -528,13 +657,13 @@ export function useFlowCanvas(): UseFlowCanvasResult {
       });
       setEdges((current) =>
         attachEdgeMetadata(
-          current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+          current.filter((edge) => !removedNodeIds.has(edge.source) && !removedNodeIds.has(edge.target)),
           nodes,
           deleteEdge,
         ),
       );
-      setSelectedNodeId((current) => (current === nodeId ? null : current));
-      setSelectedNodeIds((current) => current.filter((value) => value !== nodeId));
+      setSelectedNodeId((current) => (current && removedNodeIds.has(current) ? null : current));
+      setSelectedNodeIds((current) => current.filter((value) => !removedNodeIds.has(value)));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [deleteEdge, editingGroupId, handleGroupLabelChange, handleGroupLabelDoubleClick, handleGroupLabelSubmit, handleOpenSubmenuCallback, nodes, setEdges, setNodes],
@@ -547,9 +676,13 @@ export function useFlowCanvas(): UseFlowCanvasResult {
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (!isValidBuilderConnection(connection, nodes)) {
+        return;
+      }
       const sourceNodeType = nodes.find((node) => node.id === connection.source)?.data.type || 'hangup';
       const targetNodeType = nodes.find((node) => node.id === connection.target)?.data.type || 'hangup';
-      const menuBranch = sourceNodeType === 'menu' ? String(connection.sourceHandle || 'complete') : null;
+      const isAsyncWebhookEdge = isWebhookConnection(sourceNodeType, targetNodeType);
+      const menuBranch = sourceNodeType === 'menu' ? String(connection.sourceHandle || 'default') : null;
       const condition =
         sourceNodeType === 'get_digits'
           ? 'default'
@@ -562,16 +695,13 @@ export function useFlowCanvas(): UseFlowCanvasResult {
         sourceNodeType === 'hunt'
           ? 'no answer'
           : sourceNodeType === 'menu'
-          ? menuBranch || 'complete'
+          ? menuBranch || 'default'
           : sourceNodeType === 'business_hours'
           ? String(connection.sourceHandle || 'closed')
           : condition || 'default';
       const newKey = makeEdgeKey(connection.source, connection.target, connection.sourceHandle, condition);
 
       setEdges((current) => {
-        if (sourceNodeType === 'webhook') {
-          return current;
-        }
         if (sourceNodeType === 'hunt') {
           const existingFromSource = current.filter((edge) => edge.source === connection.source);
           const hasExistingNonWebhookRoute = existingFromSource.some((edge) => {
@@ -581,9 +711,6 @@ export function useFlowCanvas(): UseFlowCanvasResult {
           if (targetNodeType !== 'webhook' && hasExistingNonWebhookRoute) {
             return current;
           }
-        }
-        if (targetNodeType === 'webhook' && current.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
-          return current;
         }
         const duplicate = current.find(
           (edge) =>
@@ -596,8 +723,11 @@ export function useFlowCanvas(): UseFlowCanvasResult {
             label: undefined,
             type: 'flowEdge',
             reconnectable: true,
-            style: { stroke: 'var(--border-strong)' },
-            data: { branchKey, condition, sourceNodeType },
+            style: {
+              stroke: 'var(--border-strong)',
+              ...(isAsyncWebhookEdge ? WEBHOOK_EDGE_DASH_STYLE : {}),
+            },
+            data: { branchKey, condition, sourceNodeType, isAsyncWebhookEdge },
           },
           current,
         );
@@ -628,6 +758,9 @@ export function useFlowCanvas(): UseFlowCanvasResult {
 
   const onReconnect = useCallback(
     (oldEdge: Edge<BuilderEdgeData>, newConnection: Connection) => {
+      if (!isValidBuilderConnection(newConnection, nodes)) {
+        return;
+      }
       const oldCondition = oldEdge.data?.condition ?? null;
       const duplicateKey = makeEdgeKey(
         newConnection.source,
@@ -646,9 +779,6 @@ export function useFlowCanvas(): UseFlowCanvasResult {
           nodes.find((node) => node.id === (newConnection.source || oldEdge.source))?.data.type ||
           oldEdge.data?.sourceNodeType ||
           'hangup';
-        if (sourceNodeType === 'webhook') {
-          return current;
-        }
         const reconnected = reconnectEdge(oldEdge, newConnection, current).map((edge) =>
           edge.id === oldEdge.id
             ? {
@@ -669,6 +799,11 @@ export function useFlowCanvas(): UseFlowCanvasResult {
   );
 
   const onReconnectStart = useCallback(() => {}, []);
+
+  const isValidConnection = useCallback<IsValidConnection>(
+    (connection) => isValidBuilderConnection(toBuilderConnectionShape(connection), nodes),
+    [nodes],
+  );
 
   // ── Node drag/drop ────────────────────────────────────────────────────────────
 
@@ -862,6 +997,7 @@ export function useFlowCanvas(): UseFlowCanvasResult {
     deleteNode,
     deleteEdge,
     onConnect,
+    isValidConnection,
     onEdgeClick,
     onReconnect,
     onReconnectStart,

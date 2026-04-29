@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFlowCanvas, buildCanvasNode, attachEdgeMetadata } from './useFlowCanvas';
+import { useFlowCanvas, buildCanvasNode, attachEdgeMetadata, isValidBuilderConnection } from './useFlowCanvas';
 import { layoutFlow } from '../utils/layoutFlow';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -202,4 +202,23 @@ describe('attachEdgeMetadata', () => {
     const result = attachEdgeMetadata(edges as never, nodes as never, vi.fn());
     expect(result[0].type).toBe('flowEdge');
   });
+});
+
+describe('isValidBuilderConnection', () => {
+  it.each(['hangup', 'voicemail', 'callback', 'queue_login'])(
+    'rejects outgoing connections from %s source nodes',
+    (sourceType) => {
+      const nodes = [
+        makeNode('source', 'flowNode', sourceType),
+        makeNode('target', 'flowNode', 'play_audio'),
+      ];
+
+      expect(
+        isValidBuilderConnection(
+          { source: 'source', target: 'target', sourceHandle: null, targetHandle: null },
+          nodes as never,
+        ),
+      ).toBe(false);
+    },
+  );
 });

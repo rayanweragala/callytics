@@ -128,6 +128,13 @@ interface FlowNodeInput {
 const TIMEOUT_MIN_MS = 1000;
 const TIMEOUT_MAX_MS = 120000;
 const TIMEOUT_CAPABLE_NODE_TYPES = new Set(['get_digits', 'menu', 'transfer', 'webhook', 'queue_login', 'callback']);
+const TERMINAL_NODE_TYPES = new Set(['hangup', 'voicemail', 'callback', 'queue_login']);
+const START_ALLOWED_TARGET_TYPES = new Set(['play_audio', 'menu', 'business_hours', 'transfer', 'hunt', 'queue', 'hangup', 'conference', 'webhook', 'callback', 'voicemail']);
+const GET_DIGITS_ALLOWED_SOURCE_TYPES = new Set(['start', 'play_audio', 'menu', 'business_hours', 'webhook']);
+const QUEUE_LOGIN_ALLOWED_SOURCE_TYPES = new Set(['start', 'menu', 'play_audio', 'get_digits']);
+const VOICEMAIL_BLOCKED_SOURCE_TYPES = new Set(['queue_login', 'hunt', 'transfer', 'queue']);
+const IMMEDIATE_HANGUP_PUBLISH_MESSAGE =
+  'This flow hangs up immediately on every caller. Add at least one action node between Start and Hangup before publishing.';
 
 function parseTimeoutMs(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
@@ -176,7 +183,46 @@ function validateHuntTargetValue(nodeKey: string, targetType: string, targetValu
   }
 }
 
+function isPositiveId(value: unknown): boolean {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isInteger(numeric) && numeric > 0;
+}
+
+function isValidDigitConditionValue(value: string): boolean {
+  return /^(?:\d{1,2}|\*|#|timeout|invalid|default)$/.test(value.trim());
+}
+
+function isValidMenuBranchValue(value: string): boolean {
+  return /^(?:\d{1,2}|\*|#)$/.test(value.trim());
+}
+
+function isImmediateHangupSnapshot(snapshot: FlowVersionSnapshot): boolean {
+  if (snapshot.nodes.length !== 2 || snapshot.edges.length !== 1) {
+    return false;
+  }
+  const startNode = snapshot.nodes.find((node) => node.type === 'start');
+  const hangupNode = snapshot.nodes.find((node) => node.type === 'hangup');
+  if (!startNode || !hangupNode) {
+    return false;
+  }
+  return (
+    snapshot.edges[0].sourceNodeKey === startNode.nodeKey &&
+    snapshot.edges[0].targetNodeKey === hangupNode.nodeKey
+  );
+}
+
 export function validateNodeConfig(node: FlowNodeInput): void {
+  if (node.type === 'play_audio' && !isPositiveId(node.config?.audio_file_id)) {
+    throw new BadRequestException(`Node ${node.nodeKey}: audio_file_id is required`);
+  }
+  if (node.type === 'get_digits') {
+    if (!String(node.config?.variable_name || '').trim()) {
+      throw new BadRequestException(`Node ${node.nodeKey}: variable_name is required`);
+    }
+    if (node.config?.timeout_ms === undefined || node.config?.timeout_ms === null || node.config?.timeout_ms === '') {
+      throw new BadRequestException(`Node ${node.nodeKey}: timeout_ms is required`);
+    }
+  }
   if (node.type === 'transfer') {
     const targetType = String(node.config?.target_type || '').trim();
     const targetValue = String(node.config?.target_value || '').trim();
@@ -219,6 +265,11 @@ export function validateNodeConfig(node: FlowNodeInput): void {
     if (!Array.isArray(branches) || branches.length === 0) {
       throw new BadRequestException(`Node ${node.nodeKey}: branches must have at least one entry`);
     }
+    for (const branch of branches) {
+      if (!isValidMenuBranchValue(String(branch || ''))) {
+        throw new BadRequestException(`Node ${node.nodeKey}: branch keys must be 1-2 digits, *, or #`);
+      }
+    }
   }
   if (node.type === 'queue_login') {
     if (!node.config?.queue_id) {
@@ -255,10 +306,8 @@ export function validateNodeConfig(node: FlowNodeInput): void {
     if (!['ani', 'dtmf'].includes(numberSource)) {
       throw new BadRequestException(`Node ${node.nodeKey}: number_source must be ani or dtmf`);
     }
-
-    const confirmationAudioId = Number(node.config?.confirmation_audio_id || 0);
-    if (!Number.isInteger(confirmationAudioId) || confirmationAudioId <= 0) {
-      throw new BadRequestException(`Node ${node.nodeKey}: confirmation_audio_id is required`);
+    if (!String(node.config?.destination_value || '').trim()) {
+      throw new BadRequestException(`Node ${node.nodeKey}: destination_value is required`);
     }
 
     if (numberSource === 'dtmf') {
@@ -284,6 +333,19 @@ export function validateNodeConfig(node: FlowNodeInput): void {
         throw error;
       }
       throw new BadRequestException('Webhook node: url is not a valid URL');
+    }
+  }
+  if (node.type === 'voicemail') {
+    if (!isPositiveId(node.config?.start_audio_id)) {
+      throw new BadRequestException(`Node ${node.nodeKey}: start_audio_id is required`);
+    }
+  }
+  if (node.type === 'business_hours') {
+    const schedule = node.config?.schedule;
+    const hasEnabledSchedule = schedule && typeof schedule === 'object' && !Array.isArray(schedule)
+      && Object.values(schedule as Record<string, unknown>).some((entry) => Boolean((entry as Record<string, unknown>)?.enabled));
+    if (!hasEnabledSchedule) {
+      throw new BadRequestException(`Node ${node.nodeKey}: at least one enabled schedule is required`);
     }
   }
 }
@@ -352,14 +414,36 @@ export function validateEdgesConfig(
   const nodeTypeMap = new Map(nodes.map((n) => [n.nodeKey, n.type]));
   for (const edge of edges) {
     const sourceType = nodeTypeMap.get(edge.sourceNodeKey);
-    if (sourceType === 'webhook') {
-      throw new BadRequestException('Webhook nodes cannot have outgoing edges — they are side-effect targets only.');
+    const targetType = nodeTypeMap.get(edge.targetNodeKey);
+    if (!sourceType || !targetType) {
+      throw new BadRequestException(`Edge from ${edge.sourceNodeKey} to ${edge.targetNodeKey}: nodes must exist`);
+    }
+    if (TERMINAL_NODE_TYPES.has(sourceType)) {
+      throw new BadRequestException(`Edge from ${edge.sourceNodeKey}: ${sourceType} nodes cannot have outgoing edges`);
+    }
+    if (sourceType === 'start' && !START_ALLOWED_TARGET_TYPES.has(targetType)) {
+      throw new BadRequestException(`Edge from ${edge.sourceNodeKey} to ${edge.targetNodeKey}: start cannot connect to ${targetType}`);
+    }
+    if (targetType === 'get_digits' && !GET_DIGITS_ALLOWED_SOURCE_TYPES.has(sourceType)) {
+      throw new BadRequestException(`Edge to ${edge.targetNodeKey}: get_digits can only receive from start, play_audio, menu, business_hours, or webhook`);
+    }
+    if (targetType === 'queue_login' && !QUEUE_LOGIN_ALLOWED_SOURCE_TYPES.has(sourceType)) {
+      throw new BadRequestException(`Edge to ${edge.targetNodeKey}: queue_login can only receive from start, menu, play_audio, or get_digits`);
+    }
+    if (targetType === 'voicemail' && VOICEMAIL_BLOCKED_SOURCE_TYPES.has(sourceType)) {
+      throw new BadRequestException(`Edge to ${edge.targetNodeKey}: voicemail cannot receive from ${sourceType}`);
     }
     if (sourceType && BRANCHING_NODE_TYPES.has(sourceType)) {
       if (!edge.condition || !String(edge.condition).trim()) {
         throw new BadRequestException(
           `Edge from ${edge.sourceNodeKey} to ${edge.targetNodeKey}: condition is required for ${sourceType} source nodes`,
         );
+      }
+      if (sourceType === 'menu' && String(edge.condition) !== 'complete' && !isValidMenuBranchValue(String(edge.condition))) {
+        throw new BadRequestException(`Edge from ${edge.sourceNodeKey} to ${edge.targetNodeKey}: menu conditions must be 1-2 digits, *, or #`);
+      }
+      if (sourceType === 'get_digits' && !isValidDigitConditionValue(String(edge.condition))) {
+        throw new BadRequestException(`Edge from ${edge.sourceNodeKey} to ${edge.targetNodeKey}: get_digits conditions must be 1-2 digits, *, #, timeout, invalid, or default`);
       }
     }
   }
@@ -539,6 +623,65 @@ export class FlowsService implements OnModuleInit {
         };
       }
 
+      if (dto.autoSave) {
+        if (flow.parentFlowId === null) {
+          const rootSnapshot = await this.buildSnapshotForSave(flow, normalizedNodes, dto.edges, manager);
+          latestVersion.snapshot = rootSnapshot as unknown as Record<string, unknown>;
+          latestVersion.nodeCount = rootSnapshot.nodes.length;
+          await manager.save(FlowVersionEntity, latestVersion);
+          await this.saveNodesAndEdges(manager, versionIdToUpdate, normalizedNodes, dto.edges);
+
+          const persistedFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: flow.id } });
+          const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: versionIdToUpdate } });
+          return {
+            data: await this.buildFlowDetail(persistedFlow, persistedVersion, manager),
+          };
+        }
+
+        const subflowSnapshot = this.buildSnapshotFromPayload(normalizedNodes, dto.edges);
+        latestVersion.snapshot = subflowSnapshot as unknown as Record<string, unknown>;
+        latestVersion.nodeCount = subflowSnapshot.nodes.length;
+        await manager.save(FlowVersionEntity, latestVersion);
+        await this.saveNodesAndEdges(manager, versionIdToUpdate, normalizedNodes, dto.edges);
+
+        const rootFlowId = await this.getRootFlowId(flow.id, manager);
+        const rootFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: rootFlowId } });
+        const rootVersionId = rootFlow.currentVersionId ?? (await this.getLatestVersion(rootFlowId, manager))?.id;
+        if (rootVersionId) {
+          const fullSnapshot = await this.buildFullTreeSnapshot(rootFlowId, manager);
+          const rootVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: rootVersionId } });
+          rootVersion.snapshot = fullSnapshot as unknown as Record<string, unknown>;
+          rootVersion.nodeCount = fullSnapshot.nodes.length;
+          await manager.save(FlowVersionEntity, rootVersion);
+          await this.saveNodesAndEdges(
+            manager,
+            rootVersion.id,
+            fullSnapshot.nodes.map((node) => ({
+              nodeKey: node.nodeKey,
+              type: node.type,
+              label: node.label ?? undefined,
+              positionX: node.positionX,
+              positionY: node.positionY,
+              config: node.config,
+              groupId: node.groupId,
+              subflowId: node.subflowId,
+            })),
+            fullSnapshot.edges.map((edge) => ({
+              sourceNodeKey: edge.sourceNodeKey,
+              targetNodeKey: edge.targetNodeKey,
+              branchKey: edge.branchKey,
+              condition: edge.condition,
+            })),
+          );
+        }
+
+        const persistedFlow = await manager.findOneOrFail(CallFlowEntity, { where: { id: flow.id } });
+        const persistedVersion = await manager.findOneOrFail(FlowVersionEntity, { where: { id: versionIdToUpdate } });
+        return {
+          data: await this.buildFlowDetail(persistedFlow, persistedVersion, manager),
+        };
+      }
+
       if (flow.parentFlowId === null) {
         const rootSnapshot = await this.buildSnapshotForSave(flow, normalizedNodes, dto.edges, manager);
         const previousRootVersion = await this.getLatestVersion(flow.id, manager);
@@ -649,6 +792,9 @@ export class FlowsService implements OnModuleInit {
       }
 
       const snapshot = await this.buildFullTreeSnapshot(rootFlowId, manager);
+      if (isImmediateHangupSnapshot(snapshot)) {
+        throw new BadRequestException(IMMEDIATE_HANGUP_PUBLISH_MESSAGE);
+      }
       const previousVersion = await this.getLatestVersion(rootFlowId, manager);
       if (this.snapshotsAreEqual(previousVersion?.snapshot as unknown as FlowVersionSnapshot | null, snapshot)) {
         return { data: this.mapFlowVersionSummary(previousVersion as FlowVersionEntity) };

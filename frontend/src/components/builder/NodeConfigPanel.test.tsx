@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { Node as FlowNode } from 'reactflow';
+import type { Edge, Node as FlowNode } from 'reactflow';
 import { NodeConfigPanel } from './NodeConfigPanel';
 import type { FlowNodeData, AudioFileItem } from '../../types';
 
@@ -122,6 +122,91 @@ describe('NodeConfigPanel', () => {
     expect(screen.queryByText('At least one branch is required')).not.toBeInTheDocument();
   });
 
+  it('renders explicit submenu action and branch routing states for menu nodes', () => {
+    const onOpenSubmenuAction = vi.fn();
+    const node = {
+      ...mockNode('menu', {
+        prompt_audio_file_id: 1,
+        timeout_ms: 5000,
+        branches: ['1', '2'],
+      }),
+      data: {
+        ...mockNode('menu', {
+          prompt_audio_file_id: 1,
+          timeout_ms: 5000,
+          branches: ['1', '2'],
+        }).data,
+        subflowId: null,
+      },
+    };
+
+    render(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedNode={node}
+        nodes={[
+          node,
+          {
+            id: 'play-1',
+            type: 'flowNode',
+            position: { x: 0, y: 0 },
+            data: { type: 'play_audio', label: 'Main prompt', config: {} } as FlowNodeData,
+          },
+        ]}
+        edges={[
+          {
+            id: 'menu-branch-2',
+            source: 'node-1',
+            target: 'play-1',
+            data: { branchKey: '2', condition: '2', sourceNodeType: 'menu' },
+          } as any,
+        ]}
+        menuExtra={{
+          submenuNodeOptionsLoading: false,
+          submenuStartNodeKey: 'start',
+          selectedMenuLocalEdgeBranches: new Set(['2']),
+          selectedMenuSubmenuTargets: { '1': 'start' },
+        }}
+        onOpenSubmenuAction={onOpenSubmenuAction}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Create submenu' })).toBeInTheDocument();
+    expect(screen.getByText('branch routing')).toBeInTheDocument();
+    expect(screen.getByText('start')).toBeInTheDocument();
+    expect(screen.getByText('main flow')).toBeInTheDocument();
+    expect(screen.getByText('Main prompt')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create submenu' }));
+    expect(onOpenSubmenuAction).toHaveBeenCalledWith('node-1');
+  });
+
+  it('shows open submenu when subflow already exists', () => {
+    const node = {
+      ...mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] }),
+      data: {
+        ...mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] }).data,
+        subflowId: 77,
+      },
+    };
+
+    render(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedNode={node}
+        menuExtra={{
+          submenuNodeOptionsLoading: false,
+          submenuStartNodeKey: 'start',
+          selectedMenuLocalEdgeBranches: new Set(),
+          selectedMenuSubmenuTargets: { '1': 'start' },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Open submenu' })).toBeInTheDocument();
+    expect(screen.getByText('Submenu #77')).toBeInTheDocument();
+  });
+
   it('renders prompt audio field for queue_login node', () => {
     const node = mockNode('queue_login', { queue_id: 1, prompt_audio_file_id: null });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
@@ -132,6 +217,85 @@ describe('NodeConfigPanel', () => {
     const node = mockNode('queue', { queue_id: 1, prompt_audio_file_id: null });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
     expect(screen.getByText('prompt audio')).toBeInTheDocument();
+  });
+
+  it('always shows voicemail webhook toggle without requiring a webhook node edge', () => {
+    const node = mockNode('voicemail', {
+      mailbox_name: 'main',
+      max_duration_seconds: 60,
+      start_audio_id: 1,
+      send_to_webhook: false,
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+
+    expect(screen.getByLabelText('Send recording with webhook request')).toBeInTheDocument();
+  });
+
+  it('shows voicemail webhook URL and optional secret fields when enabled', () => {
+    const node = mockNode('voicemail', {
+      mailbox_name: 'main',
+      max_duration_seconds: 60,
+      start_audio_id: 1,
+      send_to_webhook: true,
+      webhook_url: 'https://example.com/hook',
+      webhook_secret: 'secret',
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+
+    expect(screen.getByText('Webhook URL')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('https://example.com/hook')).toBeInTheDocument();
+    expect(screen.getByText('Secret (optional)')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('secret')).toBeInTheDocument();
+  });
+
+  it('renders editable get_digits edge condition input with current 2-digit value', () => {
+    const onEdgeConditionChange = vi.fn();
+    const selectedEdge = {
+      id: 'edge-1',
+      source: 'digits-1',
+      target: 'hangup-1',
+      data: { branchKey: '16', condition: '16', sourceNodeType: 'get_digits' },
+    } as Edge<any>;
+    const selectedEdgeSourceNode = mockNode('get_digits', { variable_name: 'digits', timeout_ms: 5000 });
+    selectedEdgeSourceNode.id = 'digits-1';
+
+    render(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedEdge={selectedEdge}
+        selectedEdgeSourceNode={selectedEdgeSourceNode}
+        onEdgeConditionChange={onEdgeConditionChange}
+      />,
+    );
+
+    const input = screen.getByDisplayValue('16');
+    expect(input).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '99' } });
+    expect(onEdgeConditionChange).toHaveBeenCalledWith('99');
+  });
+
+  it('shows inline validation when a get_digits edge condition exceeds 2 digits', () => {
+    const selectedEdge = {
+      id: 'edge-1',
+      source: 'digits-1',
+      target: 'hangup-1',
+      data: { branchKey: '123', condition: '123', sourceNodeType: 'get_digits' },
+    } as Edge<any>;
+    const selectedEdgeSourceNode = mockNode('get_digits', { variable_name: 'digits', timeout_ms: 5000 });
+    selectedEdgeSourceNode.id = 'digits-1';
+
+    render(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedEdge={selectedEdge}
+        selectedEdgeSourceNode={selectedEdgeSourceNode}
+      />,
+    );
+
+    expect(screen.getByText('Use 1-2 digits, *, #, timeout, invalid, or default')).toBeInTheDocument();
   });
 
   it('callback destination labels follow destination type', () => {

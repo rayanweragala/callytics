@@ -17,7 +17,7 @@ import { executeQueue } from "../executors/queue.executor";
 import { executeCallbackNode } from "./callback.executor";
 import { executeConference } from "./conference.executor";
 import { logEvent } from "../logger";
-import { resolveNodeTimeoutMs } from "../timeoutResolver";
+import { INTER_DIGIT_TIMEOUT_MS, resolveNodeTimeoutMs } from "../timeoutResolver";
 
 type PlaybackTarget =
   | {
@@ -235,11 +235,16 @@ async function executeGetDigits(
       listener: (event: { channel?: { id?: string }; digit?: string }) => void,
     ) => void;
   };
+  const hasDoubleDigitCondition = session.flow.edges.some(
+    (edge) => edge.sourceNodeKey === node.nodeKey && /^\d{2}$/.test(String(edge.condition || '')),
+  );
 
   return new Promise(async (resolve, reject) => {
     const playback = client.Playback();
     let finished = false;
     let timer: NodeJS.Timeout | null = null;
+    let interDigitTimer: NodeJS.Timeout | null = null;
+    let collectedDigits = '';
 
     const cleanup = () => {
       client.removeListener("ChannelDtmfReceived", onDtmf);
@@ -247,6 +252,7 @@ async function executeGetDigits(
       client.removeListener("StasisEnd", onHangup);
       client.removeListener("ChannelDestroyed", onHangup);
       if (timer) clearTimeout(timer);
+      if (interDigitTimer) clearTimeout(interDigitTimer);
     };
 
     const stopPlaybackSafely = async () => {
@@ -260,6 +266,10 @@ async function executeGetDigits(
       if (finished) return;
       finished = true;
       cleanup();
+      const variableName = String(node.config.variable_name || '').trim();
+      if (variableName && /^\d+$/.test(value)) {
+        session.variables[variableName] = value;
+      }
       logEvent("GetDigitsResult", { channelId: channel.id, result: value });
       resolve(value);
       void stopPlaybackSafely();
@@ -270,8 +280,24 @@ async function executeGetDigits(
       digit?: string;
     }) => {
       if (event.channel?.id && event.channel.id !== channel.id) return;
-      logEvent("DtmfReceived", { channelId: channel.id, digit: String(event.digit || "") });
-      settle(String(event.digit || "default"));
+      const digit = String(event.digit || "").trim();
+      if (!digit) {
+        return;
+      }
+      logEvent("DtmfReceived", { channelId: channel.id, digit });
+      if (!hasDoubleDigitCondition || !/^\d$/.test(digit)) {
+        settle(digit);
+        return;
+      }
+      collectedDigits += digit;
+      if (collectedDigits.length >= 2) {
+        settle(collectedDigits.slice(0, 2));
+        return;
+      }
+      if (interDigitTimer) {
+        clearTimeout(interDigitTimer);
+      }
+      interDigitTimer = setTimeout(() => settle(collectedDigits), INTER_DIGIT_TIMEOUT_MS);
     };
 
     const onHangup = async (event: { channel?: { id?: string } }) => {

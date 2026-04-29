@@ -223,7 +223,7 @@ export interface CallbackNodeConfig {
   dtmf_prompt_audio_id?: number | null;
   dtmf_max_digits?: number;
   timeout_ms?: number | null;
-  confirmation_audio_id: number | null;
+  confirmation_audio_id?: number | null;
   destination_type?: 'extension' | 'pstn' | 'operator' | 'caller';
   destination_value?: string | null;
   destination_trunk_id?: number | null;
@@ -241,6 +241,8 @@ export interface FlowNodeData {
   label: string;
   type: BuilderNodeType;
   config: Record<string, unknown>;
+  hasValidationError?: boolean;
+  validationIssues?: string[];
   onDelete?: () => void;
   onLabelChange?: (value: string) => void;
   onLabelSubmit?: () => void;

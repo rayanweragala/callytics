@@ -353,3 +353,34 @@
   font-size: 12px;
   font-family: var(--font-mono);
 }
+
+.asyncCard {
+  border-style: dashed;
+}
+
+.asyncList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.asyncItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asyncBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1px 6px;
+}
+
+.asyncText {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}

@@ -1,3 +1,4 @@
+import { createHmac } from 'crypto';
 import { stasisLogger } from "../logger";
 import { resolveAudioMediaPath } from '../audioResolver';
 import { CallSession } from '../callSession';
@@ -17,7 +18,11 @@ interface RecordingFinishedEvent {
 interface VoicemailConfig {
   mailbox_name?: string;
   max_duration_seconds?: number;
-  prompt_audio_file_id?: number | null;
+  start_audio_id?: number | null;
+  end_audio_id?: number | null;
+  send_to_webhook?: boolean;
+  webhook_url?: string;
+  webhook_secret?: string;
 }
 
 async function waitForPlaybackFinished(
@@ -62,7 +67,7 @@ async function playPromptIfConfigured(
   node: FlowNode,
   ariClient: unknown,
 ): Promise<void> {
-  const promptPath = await resolveAudioMediaPath(node.config, 'prompt_audio_file_id', 'prompt_audio_path');
+  const promptPath = await resolveAudioMediaPath(node.config, 'start_audio_id', 'start_audio_path');
   if (!promptPath) {
     return;
   }
@@ -70,6 +75,22 @@ async function playPromptIfConfigured(
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
   await channel.play({ media: 'sound:' + promptPath }, playback);
+  await waitForPlaybackFinished(ariClient, playback.id, channel.id);
+}
+
+async function playOutroIfConfigured(
+  channel: { id: string; play: (opts: { media: string }, playback: { id: string }) => Promise<void> },
+  node: FlowNode,
+  ariClient: unknown,
+): Promise<void> {
+  const outroPath = await resolveAudioMediaPath(node.config, 'end_audio_id', 'end_audio_path');
+  if (!outroPath) {
+    return;
+  }
+
+  const playbackFactory = ariClient as { Playback: () => { id: string } };
+  const playback = playbackFactory.Playback();
+  await channel.play({ media: 'sound:' + outroPath }, playback);
   await waitForPlaybackFinished(ariClient, playback.id, channel.id);
 }
 
@@ -173,6 +194,57 @@ async function persistVoicemailRecording(
   );
 }
 
+function fireVoicemailWebhookAsync(
+  config: VoicemailConfig,
+  session: CallSession,
+  node: FlowNode,
+  payload: {
+    recording_file_path: string;
+    recording_duration_seconds: number;
+  },
+): void {
+  const url = String(config.webhook_url || '').trim();
+  if (!url) {
+    return;
+  }
+
+  const secret = String(config.webhook_secret || '').trim();
+  const body = {
+    call_uuid: session.callUuid,
+    channel_id: session.channelId,
+    caller_number: session.callerNumber,
+    flow_id: session.flow.id,
+    flow_name: session.flow.name,
+    node_key: node.nodeKey,
+    node_label: node.label,
+    mailbox_name: String(config.mailbox_name || 'main').trim() || 'main',
+    timestamp: new Date().toISOString(),
+    variables: { ...session.variables },
+    ...payload,
+  };
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (secret) {
+    headers['X-Voicemail-Signature'] = createHmac('sha256', secret).update(JSON.stringify(body)).digest('hex');
+  }
+
+  void (async () => {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      stasisLogger.log(`[voicemail] webhook fired url=${url} status=${response.status} call=${session.callUuid}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      stasisLogger.warn(`[voicemail] webhook failed url=${url} err=${message} call=${session.callUuid}`);
+    }
+  })();
+}
+
 export async function executeVoicemail(
   channel: { id: string; play: (opts: { media: string }, playback: { id: string }) => Promise<void> },
   node: FlowNode,
@@ -216,6 +288,12 @@ export async function executeVoicemail(
   }
   
   await persistVoicemailRecording(session, channel.id, recordingName, startedAt, durationSeconds);
+  const filePath = `/var/spool/asterisk/recording/${recordingName}.ulaw`;
+  fireVoicemailWebhookAsync(config, session, node, {
+    recording_file_path: filePath,
+    recording_duration_seconds: durationSeconds,
+  });
+  await playOutroIfConfigured(channel, node, ariClient);
   stasisLogger.log(`[voicemail] mailbox=${mailboxName} call=${session.callUuid} recording=${recordingName}`);
   return 'done';
 }

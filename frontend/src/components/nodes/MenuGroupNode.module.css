@@ -9,6 +9,22 @@
   color: var(--color-warning);
 }
 
+.invalid {
+  border-color: color-mix(in srgb, var(--color-error) 45%, var(--border-default));
+}
+
+.validationDot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-error);
+  box-shadow: 0 0 0 2px var(--bg-surface);
+  z-index: 2;
+}
+
 .selected {
   border-color: currentColor;
 }

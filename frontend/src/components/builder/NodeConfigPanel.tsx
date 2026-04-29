@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Edge, Node } from 'reactflow';
 import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ConferenceNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
@@ -5,6 +6,12 @@ import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
 import styles from './NodeConfigPanel.module.css';
 import pageStyles from '../../pages/FlowEditorPage.module.css';
+import {
+  conditionValues,
+  isValidDigitConditionValue,
+  isValidMenuBranchValue,
+  sanitizeMenuBranches,
+} from '../../pages/FlowEditorPage.helpers';
 
 // TODO(cleanup): VITE_API_BASE_URL base URL constant is redeclared
 // multiple times inside this file. Consolidate to a single
@@ -18,9 +25,6 @@ type BuilderEdgeData = {
   onDelete?: (edgeId: string) => void;
 };
 
-const menuBranchOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
-const menuRoutableBranchSet = new Set(menuBranchOptions);
-const conditionValues = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#', 'timeout', 'invalid', 'default'];
 const businessHoursDays: Array<{ key: string; label: string }> = [
   { key: 'monday', label: 'Mon' },
   { key: 'tuesday', label: 'Tue' },
@@ -30,14 +34,7 @@ const businessHoursDays: Array<{ key: string; label: string }> = [
   { key: 'saturday', label: 'Sat' },
   { key: 'sunday', label: 'Sun' },
 ];
-
-function sanitizeMenuBranches(value: unknown): string[] {
-  if (!Array.isArray(value)) return ['1', '2'];
-  const branches = value
-    .map((item) => String(item || '').trim())
-    .filter((item) => menuRoutableBranchSet.has(item));
-  return branches.length > 0 ? Array.from(new Set(branches)) : ['1', '2'];
-}
+const quickMenuBranchOptions = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
 
 export interface NodeConfigPanelMenuExtra {
   submenuNodeOptionsLoading: boolean;
@@ -52,6 +49,7 @@ export interface NodeConfigPanelProps {
   selectedEdgeSourceNode: Node<FlowNodeData> | null;
   audioItems: AudioFileItem[];
   nodes: Array<Node<FlowNodeData>>;
+  edges?: Array<Edge<BuilderEdgeData>>;
   onLabelChange: (value: string) => void;
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
@@ -59,6 +57,7 @@ export interface NodeConfigPanelProps {
   onEdgeConditionChange: (value: string | null) => void;
   onMenuBranchToggle: (branch: string, checked: boolean) => void;
   onMenuSubflowTargetChange: (branch: string, targetNodeKey: string | null) => void;
+  onOpenSubmenuAction?: (nodeId: string) => void;
   
   menuExtra: NodeConfigPanelMenuExtra;
   flowDefaultTimeout?: number;
@@ -90,12 +89,14 @@ export function NodeConfigPanel({
   selectedEdgeSourceNode,
   audioItems,
   nodes,
+  edges = [],
   onLabelChange,
   onConfigChange,
   onConfigValueChange,
   onConfigReplace,
   onEdgeConditionChange,
   onMenuBranchToggle,
+  onOpenSubmenuAction,
   menuExtra,
   flowDefaultTimeout = 10000,
   queueItems,
@@ -131,8 +132,11 @@ export function NodeConfigPanel({
     { value: 'pstn', label: 'PSTN Number' },
   ];
   const conditionOptions = conditionValues.map((value) => ({ value, label: value }));
-  const selectedVoicemailAudio = selectedConfig.prompt_audio_file_id
-    ? audioItems.find((item) => item.id === Number(selectedConfig.prompt_audio_file_id))
+  const selectedVoicemailIntroAudio = selectedConfig.start_audio_id
+    ? audioItems.find((item) => item.id === Number(selectedConfig.start_audio_id))
+    : null;
+  const selectedVoicemailOutroAudio = selectedConfig.end_audio_id
+    ? audioItems.find((item) => item.id === Number(selectedConfig.end_audio_id))
     : null;
 
   const playAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.audio_file_id));
@@ -146,12 +150,11 @@ export function NodeConfigPanel({
     if (!selectedEdge || !selectedEdgeSourceNode) return [] as Array<{ value: string; label: string }>;
     if (selectedEdgeSourceNode.data.type === 'menu') {
       const menuBranches = sanitizeMenuBranches(selectedEdgeSourceNode.data.config.branches);
-      return [...menuBranches, 'complete'].map((value) => ({ value, label: value }));
+      return menuBranches.map((value) => ({ value, label: value }));
     }
     if (selectedEdgeSourceNode.data.type === 'get_digits') return conditionOptions;
     return [] as Array<{ value: string; label: string }>;
   })();
-
   return (
     <>
       {/* Config panel header */}
@@ -178,14 +181,33 @@ export function NodeConfigPanel({
           (selectedEdgeSourceNode.data.type === 'get_digits' || selectedEdgeSourceNode.data.type === 'menu') ? (
             <label className={styles.field}>
               <span className={styles.fieldLabel}>condition</span>
-              <SearchableSelect
-                options={edgeConditionOptions}
-                value={selectedEdge.data?.condition || selectedEdge.data?.branchKey || null}
-                onChange={onEdgeConditionChange}
-                placeholder="select condition"
+              <input
+                className={styles.input}
+                list={selectedEdgeSourceNode.data.type === 'get_digits' ? 'get-digits-condition-options' : 'menu-condition-options'}
+                value={selectedEdge.data?.condition || selectedEdge.data?.branchKey || ''}
+                onChange={(event) => onEdgeConditionChange(event.target.value || null)}
+                placeholder={selectedEdgeSourceNode.data.type === 'get_digits' ? '1, 16, *, #, timeout, invalid' : '1, 16, *, #'}
               />
-              {saveAttempted && !selectedEdge.data?.condition && !selectedEdge.data?.branchKey ? (
-                <span className={styles.inlineError}>Condition is required</span>
+              {selectedEdgeSourceNode.data.type === 'get_digits' ? (
+                <datalist id="get-digits-condition-options">
+                  {edgeConditionOptions.map((option) => <option key={option.value} value={option.value} />)}
+                </datalist>
+              ) : (
+                <datalist id="menu-condition-options">
+                  {edgeConditionOptions.map((option) => <option key={option.value} value={option.value} />)}
+                </datalist>
+              )}
+              {!(
+                selectedEdgeSourceNode.data.type === 'menu'
+                  ? (String(selectedEdge.data?.condition || selectedEdge.data?.branchKey || '') === 'complete'
+                    || isValidMenuBranchValue(String(selectedEdge.data?.condition || selectedEdge.data?.branchKey || '')))
+                  : isValidDigitConditionValue(String(selectedEdge.data?.condition || selectedEdge.data?.branchKey || ''))
+              ) ? (
+                <span className={styles.inlineError}>
+                  {selectedEdgeSourceNode.data.type === 'get_digits'
+                    ? 'Use 1-2 digits, *, #, timeout, invalid, or default'
+                    : 'Use 1-2 digits, *, or #'}
+                </span>
               ) : null}
             </label>
           ) : null}
@@ -249,6 +271,18 @@ export function NodeConfigPanel({
           {selectedNode.data.type === 'get_digits' ? (
             <>
               <label className={styles.field}>
+                <span className={styles.fieldLabel}>variable name</span>
+                <input
+                  className={styles.input}
+                  value={String(selectedConfig.variable_name || '')}
+                  onChange={(event) => onConfigChange('variable_name', event.target.value)}
+                  placeholder="captured_digits"
+                />
+                {saveAttempted && !String(selectedConfig.variable_name || '').trim() ? (
+                  <span className={styles.inlineError}>Variable name is required</span>
+                ) : null}
+              </label>
+              <label className={styles.field}>
                 <span className={styles.fieldLabel}>prompt audio</span>
                 <SearchableSelect
                   options={audioOptions}
@@ -280,6 +314,9 @@ export function NodeConfigPanel({
                   onChange={(event) => onConfigChange('timeout_ms', event.target.value)}
                   placeholder="use flow default"
                 />
+                {saveAttempted && (selectedConfig.timeout_ms === null || selectedConfig.timeout_ms === undefined || selectedConfig.timeout_ms === '') ? (
+                  <span className={styles.inlineError}>Timeout is required</span>
+                ) : null}
               </label>
             </>
           ) : null}
@@ -293,9 +330,12 @@ export function NodeConfigPanel({
               audioOptions={audioOptions}
               promptAudioSelected={promptAudioSelected}
               menuExtra={menuExtra}
+              nodes={nodes}
+              edges={edges}
               onConfigChange={onConfigChange}
               onConfigValueChange={onConfigValueChange}
               onMenuBranchToggle={onMenuBranchToggle}
+              onOpenSubmenuAction={onOpenSubmenuAction}
               saveAttempted={saveAttempted}
             />
           ) : null}
@@ -611,6 +651,9 @@ export function NodeConfigPanel({
                       }}
                       placeholder="select extension"
                     />
+                    {saveAttempted && !String(callbackConfig.destination_value || '').trim() ? (
+                      <span className={styles.inlineError}>Destination is required</span>
+                    ) : null}
                   </label>
                 ) : null}
                 {destinationType === 'pstn' ? (
@@ -629,6 +672,9 @@ export function NodeConfigPanel({
                         }}
                         placeholder="select PSTN contact"
                       />
+                      {saveAttempted && !String(callbackConfig.destination_value || '').trim() ? (
+                        <span className={styles.inlineError}>Destination is required</span>
+                      ) : null}
                     </label>
                     <label className={styles.field}>
                       <span className={styles.fieldLabel}>trunk</span>
@@ -647,11 +693,8 @@ export function NodeConfigPanel({
                     options={audioOptions}
                     value={callbackConfig.confirmation_audio_id ? String(callbackConfig.confirmation_audio_id) : null}
                     onChange={(value) => onConfigValueChange('confirmation_audio_id', value ? Number(value) : null)}
-                    placeholder="select confirmation audio"
+                    placeholder="optional confirmation audio"
                   />
-                  {saveAttempted && Number(callbackConfig.confirmation_audio_id || 0) <= 0 ? (
-                    <span className={styles.inlineError}>Confirmation audio is required</span>
-                  ) : null}
                 </label>
                 {(() => {
                   const srcPath = callbackConfirmationAudioItem?.previewUrl || callbackConfirmationAudioItem?.originalUrl;
@@ -682,18 +725,72 @@ export function NodeConfigPanel({
                 />
               </label>
               <label className={styles.field}>
-                <span className={styles.fieldLabel}>prompt audio</span>
+                <span className={styles.fieldLabel}>intro message</span>
                 <SearchableSelect
                   options={audioOptions}
-                  value={selectedConfig.prompt_audio_file_id ? String(selectedConfig.prompt_audio_file_id) : null}
-                  onChange={(value) => onConfigValueChange('prompt_audio_file_id', value ? Number(value) : null)}
-                  placeholder="optional voicemail prompt"
+                  value={selectedConfig.start_audio_id ? String(selectedConfig.start_audio_id) : null}
+                  onChange={(value) => onConfigValueChange('start_audio_id', value ? Number(value) : null)}
+                  placeholder="select intro message"
                 />
+                <span className={styles.meta}>Played to the caller before the beep. Example: 'Please leave a message after the tone.'</span>
+                {saveAttempted && Number(selectedConfig.start_audio_id || 0) <= 0 ? (
+                  <span className={styles.inlineError}>Intro message is required</span>
+                ) : null}
               </label>
               {(() => {
-                const srcPath = selectedVoicemailAudio?.previewUrl || selectedVoicemailAudio?.originalUrl;
-                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailAudio.id} src={`${BASE}${srcPath}`} /> : null;
+                const srcPath = selectedVoicemailIntroAudio?.previewUrl || selectedVoicemailIntroAudio?.originalUrl;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailIntroAudio.id} src={`${BASE}${srcPath}`} /> : null;
               })()}
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>outro message</span>
+                <SearchableSelect
+                  options={audioOptions}
+                  value={selectedConfig.end_audio_id ? String(selectedConfig.end_audio_id) : null}
+                  onChange={(value) => onConfigValueChange('end_audio_id', value ? Number(value) : null)}
+                  placeholder="optional outro message"
+                />
+                <span className={styles.meta}>Played after the recording ends. If not set, the call hangs up silently.</span>
+              </label>
+              {(() => {
+                const srcPath = selectedVoicemailOutroAudio?.previewUrl || selectedVoicemailOutroAudio?.originalUrl;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailOutroAudio.id} src={`${BASE}${srcPath}`} /> : null;
+              })()}
+              <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedConfig.send_to_webhook)}
+                  onChange={(event) => onConfigValueChange('send_to_webhook', event.target.checked)}
+                />
+                <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>
+                  Send recording with webhook request
+                </span>
+              </label>
+              {Boolean(selectedConfig.send_to_webhook) ? (
+                <>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>Webhook URL</span>
+                    <input
+                      className={styles.input}
+                      value={String(selectedConfig.webhook_url || '')}
+                      onChange={(event) => onConfigChange('webhook_url', event.target.value)}
+                      placeholder="https://your-server.com/voicemail-hook"
+                    />
+                    <span className={styles.meta}>Stasis sends the saved recording path, call metadata, and duration to this URL.</span>
+                    {saveAttempted && !String(selectedConfig.webhook_url || '').trim() ? (
+                      <span className={styles.inlineError}>Webhook URL is required</span>
+                    ) : null}
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>Secret (optional)</span>
+                    <input
+                      className={styles.input}
+                      value={String(selectedConfig.webhook_secret || '')}
+                      onChange={(event) => onConfigChange('webhook_secret', event.target.value)}
+                      placeholder="shared signing key"
+                    />
+                  </label>
+                </>
+              ) : null}
             </>
           ) : null}
 
@@ -769,9 +866,12 @@ interface MenuConfigProps {
   audioOptions: Array<{ value: string; label: string }>;
   promptAudioSelected: boolean;
   menuExtra: NodeConfigPanelMenuExtra;
+  nodes: Array<Node<FlowNodeData>>;
+  edges: Array<Edge<BuilderEdgeData>>;
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
   onMenuBranchToggle: (branch: string, checked: boolean) => void;
+  onOpenSubmenuAction?: (nodeId: string) => void;
   saveAttempted?: boolean;
 }
 
@@ -783,17 +883,42 @@ function MenuConfig({
   audioOptions,
   promptAudioSelected,
   menuExtra,
+  nodes,
+  edges,
   onConfigChange,
+  onConfigValueChange,
   onMenuBranchToggle,
+  onOpenSubmenuAction,
   saveAttempted = false,
 }: MenuConfigProps) {
   const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const [branchDraft, setBranchDraft] = useState('');
   const menuPromptItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
   const timeoutItem = audioItems.find((a) => String(a.id) === String(selectedConfig.timeout_prompt_audio_id));
   const invalidItem = audioItems.find((a) => String(a.id) === String(selectedConfig.invalid_prompt_audio_id));
   const failureItem = audioItems.find((a) => String(a.id) === String(selectedConfig.final_failure_audio_id));
 
   const { submenuNodeOptionsLoading, submenuStartNodeKey, selectedMenuLocalEdgeBranches, selectedMenuSubmenuTargets } = menuExtra;
+  const localRouteLabels = selectedMenuBranches.reduce<Record<string, string>>((acc, branch) => {
+    const matchingEdge = edges.find((edge) => {
+      if (edge.source !== selectedNode.id) return false;
+      const resolved = String(edge.data?.condition || edge.data?.branchKey || '').trim();
+      return resolved === branch;
+    });
+    if (!matchingEdge) return acc;
+    const targetNode = nodes.find((node) => node.id === matchingEdge.target);
+    acc[branch] = targetNode ? targetNode.data.label || targetNode.id : matchingEdge.target;
+    return acc;
+  }, {});
+  const addMenuBranch = (rawValue: string) => {
+    const nextValue = rawValue.trim();
+    if (!isValidMenuBranchValue(nextValue) || selectedMenuBranches.includes(nextValue)) {
+      return;
+    }
+    onConfigValueChange('branches', [...selectedMenuBranches, nextValue]);
+    setBranchDraft('');
+  };
+  const removeMenuBranch = (branch: string) => onMenuBranchToggle(branch, false);
 
   return (
     <>
@@ -896,46 +1021,105 @@ function MenuConfig({
       <div className={styles.field}>
         <span className={styles.fieldLabel}>branches</span>
         <div className={styles.menuBranchList}>
-          {menuBranchOptions.map((branch) => {
-            const checked = selectedMenuBranches.includes(branch);
-            return (
-              <div className={styles.menuBranchGroup} key={branch}>
-                <label className={styles.menuBranchOption}>
-                  <input
-                    checked={checked}
-                    onChange={(event) => onMenuBranchToggle(branch, event.target.checked)}
-                    type="checkbox"
-                  />
-                  <span className={styles.menuBranchLabel}>{branch}</span>
-                </label>
-              </div>
-            );
-          })}
+          {selectedMenuBranches.map((branch) => (
+            <div className={styles.menuBranchGroup} key={branch}>
+              <span className={styles.menuBranchLabel}>{branch}</span>
+              <button type="button" className={styles.input} style={{ width: 28, padding: 0 }} onClick={() => removeMenuBranch(branch)}>×</button>
+            </div>
+          ))}
         </div>
+        <div className={styles.menuBranchList}>
+          {quickMenuBranchOptions.map((branch) => (
+            <button
+              key={`quick-${branch}`}
+              type="button"
+              className={styles.input}
+              style={{ width: 'auto', padding: '0 10px', opacity: selectedMenuBranches.includes(branch) ? 0.5 : 1 }}
+              onClick={() => addMenuBranch(branch)}
+            >
+              + {branch}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            className={styles.input}
+            value={branchDraft}
+            onChange={(event) => setBranchDraft(event.target.value)}
+            placeholder="add 1-2 digit branch"
+          />
+          <button type="button" className={styles.input} style={{ width: 'auto', padding: '0 10px' }} onClick={() => addMenuBranch(branchDraft)}>
+            add
+          </button>
+        </div>
+        {branchDraft.trim() && !isValidMenuBranchValue(branchDraft.trim()) ? (
+          <span className={styles.inlineError}>Use 1-2 digits, *, or #</span>
+        ) : null}
         {saveAttempted && selectedMenuBranches.length === 0 ? (
           <span className={styles.inlineError}>At least one branch is required</span>
         ) : null}
       </div>
       <div className={styles.field}>
-        <span className={styles.fieldLabel}>submenu branch targets</span>
-        {selectedNode.data.subflowId ? (
-          <div className={styles.menuBranchList}>
-            {selectedMenuBranches.map((branch) => (
-              <div className={styles.menuBranchGroup} key={`submenu-target-${branch}`}>
-                <span className={styles.menuBranchLabel}>{branch}</span>
-                <div className={styles.meta}>
-                  {selectedMenuLocalEdgeBranches.has(branch)
-                    ? 'disabled — routed by local edge'
-                    : submenuNodeOptionsLoading
-                    ? 'loading submenu start...'
-                    : `auto: ${selectedMenuSubmenuTargets[branch] || submenuStartNodeKey || 'start'}`}
-                </div>
-              </div>
-            ))}
+        <span className={styles.fieldLabel}>submenu</span>
+        <div className={styles.menuActionRow}>
+          <button
+            type="button"
+            className={styles.input}
+            style={{ width: 'auto', padding: '0 12px' }}
+            onClick={() => onOpenSubmenuAction?.(selectedNode.id)}
+          >
+            {selectedNode.data.subflowId ? 'Open submenu' : 'Create submenu'}
+          </button>
+          <div className={styles.meta}>
+            {selectedNode.data.subflowId
+              ? `Submenu #${selectedNode.data.subflowId}`
+              : 'Creates a submenu flow for this menu and opens it.'}
           </div>
-        ) : (
-          <div className={styles.meta}>Save flow once to create submenu, then map branches here.</div>
-        )}
+        </div>
+      </div>
+      <div className={styles.field}>
+        <span className={styles.fieldLabel}>branch routing</span>
+        <div className={styles.routeList}>
+          {selectedMenuBranches.map((branch) => {
+            const hasLocalRoute = selectedMenuLocalEdgeBranches.has(branch);
+            const submenuTarget = selectedMenuSubmenuTargets[branch];
+            const routeType = hasLocalRoute
+              ? 'main flow'
+              : submenuTarget
+              ? 'submenu'
+              : submenuNodeOptionsLoading
+              ? 'loading'
+              : 'missing';
+            const routeDetail = hasLocalRoute
+              ? localRouteLabels[branch] || 'connected node'
+              : submenuTarget
+              ? submenuTarget
+              : submenuNodeOptionsLoading
+              ? 'loading submenu start...'
+              : selectedNode.data.subflowId
+              ? 'no route selected'
+              : 'create submenu or draw a local edge';
+            const toneClass =
+              routeType === 'submenu'
+                ? styles.routeToneSubmenu
+                : routeType === 'main flow'
+                ? styles.routeToneMain
+                : routeType === 'loading'
+                ? styles.routeToneLoading
+                : styles.routeToneMissing;
+
+            return (
+              <div className={styles.routeRow} key={`route-${branch}`}>
+                <span className={styles.menuBranchLabel}>{branch}</span>
+                <span className={`${styles.routeBadge} ${toneClass}`}>{routeType}</span>
+                <div className={styles.routeDetail}>{routeDetail}</div>
+              </div>
+            );
+          })}
+        </div>
+        {selectedMenuBranches.length === 0 ? (
+          <div className={styles.meta}>Add branches first, then route each branch to the main flow or submenu.</div>
+        ) : null}
       </div>
       <div className={styles.meta}>subflow: {selectedNode.data.subflowId ? `#${selectedNode.data.subflowId}` : 'created on save'}</div>
     </>

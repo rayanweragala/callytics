@@ -5,6 +5,7 @@ interface EdgeData {
   branchKey?: string;
   condition?: string | null;
   sourceNodeType?: string;
+  isAsyncWebhookEdge?: boolean;
   parallelIndex?: number;
   parallelTotal?: number;
   isSubflowJump?: boolean;
@@ -24,6 +25,7 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
     selected,
     markerEnd,
     data,
+    style,
   } = props;
 
   const parallelOffset = ((data?.parallelIndex || 0) - (((data?.parallelTotal || 1) - 1) / 2)) * 18;
@@ -54,6 +56,14 @@ export function FlowCanvasEdge(props: EdgeProps<EdgeData>) {
         d={edgePath}
         fill="none"
         markerEnd={markerEnd}
+        style={style}
+      />
+      <path
+        className="react-flow__edge-interaction"
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={24}
       />
       {showLabel ? (
         <EdgeLabelRenderer>

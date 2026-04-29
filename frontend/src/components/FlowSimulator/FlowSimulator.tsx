@@ -17,6 +17,12 @@ interface StepRecord {
   type: string;
 }
 
+interface AsyncEventRecord {
+  nodeId: string;
+  label: string;
+  detail: string;
+}
+
 interface SubmenuFrame {
   menuNodeId: string;
   menuLabel: string;
@@ -32,6 +38,7 @@ interface FlowFrame {
 interface SimState {
   currentNodeId: string;
   visited: StepRecord[];
+  asyncEvents: AsyncEventRecord[];
   done: boolean;
   doneReason?: string;
   isDeadEnd?: boolean;
@@ -201,6 +208,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
     setSimState({
       currentNodeId: startNode.id,
       visited: [],
+      asyncEvents: [],
       done: false,
       submenuStack: [],
       flowStack: [{ flowId: 0, nodes, edges, label: 'Main Flow' }],
@@ -403,16 +411,20 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
     const nodeType = node.data.type;
     const outgoing = getOutgoingEdges(node.id, currentFrame.edges);
 
-    if ((nodeType === 'start' || nodeType === 'group') && outgoing.length > 0) {
+    if ((nodeType === 'start' || nodeType === 'group' || nodeType === 'webhook') && outgoing.length > 0) {
       const nextTarget = resolveAutoAdvance(node, currentFrame.edges);
       if (!nextTarget) return;
 
       setSimState((prev) => {
         if (!prev || prev.done || prev.currentNodeId !== node.id) return prev;
+        const webhookEvent = nodeType === 'webhook'
+          ? [{ nodeId: node.id, label: node.data.label || node.id, detail: `⟳ async ${String(node.data.config?.method || 'POST')} ${String(node.data.config?.url || '')}` }]
+          : [];
         return {
           ...prev,
           currentNodeId: nextTarget,
           visited: [...prev.visited, { nodeId: node.id, label: node.data.label || node.id, type: nodeType }],
+          asyncEvents: [...prev.asyncEvents, ...webhookEvent],
           isDeadEnd: false,
         };
       });
@@ -461,6 +473,23 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
                 <span className={styles.chipLabel}>{step.label}</span>
               </div>
               {index < simState.visited.length - 1 ? <span className={styles.pathArrow}>→</span> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAsyncEvents = () => {
+    if (!simState || simState.asyncEvents.length === 0) return null;
+    return (
+      <div className={`${styles.card} ${styles.asyncCard}`}>
+        <div className={styles.cardLabel}>parallel async events</div>
+        <div className={styles.asyncList}>
+          {simState.asyncEvents.map((event, index) => (
+            <div key={`${event.nodeId}-${index}`} className={styles.asyncItem}>
+              <span className={styles.asyncBadge}>⟳ async</span>
+              <span className={styles.asyncText}>{event.detail}</span>
             </div>
           ))}
         </div>
@@ -572,17 +601,13 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
 
         {type === 'webhook' ? (
           <div>
+            <div className={styles.cardNodeType}><span className={styles.asyncBadge}>⟳ async</span> parallel side-effect</div>
             <div className={styles.cardNodeType}>URL: {String(cfg.url || '—')}</div>
             <div className={styles.cardNodeType}>Method: {String(cfg.method || 'POST')}</div>
-            <div className={styles.mutedText}>Webhook will not be called in simulation</div>
-            <div className={styles.branchList}>
-              {branches.map((branch) => (
-                <button key={branch} className={styles.branchButton} onClick={() => advanceToBranch(branch)} type="button"><strong>{branch}</strong></button>
-              ))}
-              {branches.length === 0 ? (
-                <button className={styles.branchButton} onClick={() => advanceToBranch('default')} type="button"><strong>next</strong></button>
-              ) : null}
-            </div>
+            <div className={styles.mutedText}>Main flow continues immediately. Webhook is shown in parallel async events.</div>
+            {branches.length === 0 ? (
+              <div className={styles.mutedText}>No outgoing branch configured from webhook.</div>
+            ) : null}
           </div>
         ) : null}
 
@@ -639,6 +664,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
           ) : simState.done ? (
             <>
               {renderVisitedPath(`path taken (${simState.visited.length} nodes)`) }
+              {renderAsyncEvents()}
               <div className={`${styles.card} ${styles.doneCard}`}>
                 <div className={styles.cardLabel}>simulation complete</div>
                 <div className={styles.cardNodeType}>{simState.doneReason || 'Call ended'}</div>
@@ -650,6 +676,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
           ) : (
             <>
               {renderVisitedPath('visited path')}
+              {renderAsyncEvents()}
               {renderCurrentStep()}
               <div style={{ marginTop: 8 }}>
                 <button className={styles.branchButton} onClick={resetSim} type="button"><strong>reset</strong></button>

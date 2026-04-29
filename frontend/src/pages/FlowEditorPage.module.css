@@ -437,6 +437,14 @@
   line-height: 1.3;
 }
 
+.paletteDescription {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 /* ── Canvas panel ───────────────────────────────────────────────────────────── */
 .canvasPanel {
   background: var(--bg-base);

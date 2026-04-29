@@ -2,7 +2,7 @@ import { Handle, NodeProps, Position } from 'reactflow';
 import type { FlowNodeData } from '../../types';
 import styles from './MenuGroupNode.module.css';
 
-const MENU_ROUTABLE_BRANCHES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
+const MENU_ROUTABLE_BRANCHES = /^(?:\d{1,2}|\*|#)$/;
 const DEFAULT_BRANCHES = ['1', '2'];
 
 function getActiveBranches(config: Record<string, unknown>): string[] {
@@ -12,7 +12,7 @@ function getActiveBranches(config: Record<string, unknown>): string[] {
 
   const values = config.branches
     .map((value) => String(value || '').trim())
-    .filter((value) => MENU_ROUTABLE_BRANCHES.includes(value));
+    .filter((value) => MENU_ROUTABLE_BRANCHES.test(value));
 
   return values.length > 0 ? values : DEFAULT_BRANCHES;
 }
@@ -27,7 +27,7 @@ export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData & { dif
 
   return (
     <div
-      className={`${styles.node} ${selected ? styles.selected : ''}`}
+      className={`${styles.node} ${selected ? styles.selected : ''} ${data.hasValidationError ? styles.invalid : ''}`}
       style={diffStyle}
       onDoubleClick={() => data.onOpenSubmenu?.()}
       role="button"
@@ -39,6 +39,7 @@ export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData & { dif
         }
       }}
     >
+      {data.hasValidationError ? <span className={styles.validationDot} title={data.validationIssues?.join(', ')} /> : null}
       <span className={styles.accent} />
       <Handle className={styles.handle} type="target" position={Position.Left} />
       <div className={styles.body}>
@@ -75,10 +76,6 @@ export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData & { dif
               <Handle className={styles.branchHandle} id={branch} type="source" position={Position.Right} />
             </div>
           ))}
-          <div className={styles.branchRow}>
-            <span className={styles.branchLabel}>on complete</span>
-            <Handle className={styles.branchHandle} id="complete" type="source" position={Position.Right} />
-          </div>
         </div>
 
         <div className={styles.footer}>

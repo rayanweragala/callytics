@@ -29,7 +29,8 @@ export function HuntNode({ data, selected }: NodeProps<FlowNodeData & { diffColo
   const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
 
   return (
-    <div className={`${styles.node} ${selected ? styles.selected : ''}`} style={diffStyle}>
+    <div className={`${styles.node} ${selected ? styles.selected : ''} ${data.hasValidationError ? styles.invalid : ''}`} style={diffStyle}>
+      {data.hasValidationError ? <span className={styles.validationDot} title={data.validationIssues?.join(', ')} /> : null}
       <span className={styles.accent} />
       <div className={styles.body}>
         <div className={styles.type}>hunt</div>

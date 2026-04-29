@@ -13,6 +13,22 @@
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
+.invalid {
+  border-color: color-mix(in srgb, var(--color-error) 45%, var(--border-default));
+}
+
+.validationDot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-error);
+  box-shadow: 0 0 0 2px var(--bg-surface);
+  z-index: 2;
+}
+
 /* hover: slightly elevated */
 .node:hover {
   background: var(--bg-elevated);
@@ -152,4 +168,23 @@
 
 .webhookSideEffect {
   border-style: dashed;
+}
+
+.webhookAccent {
+  background: repeating-linear-gradient(
+    to bottom,
+    currentColor 0,
+    currentColor 6px,
+    transparent 6px,
+    transparent 10px
+  );
+}
+
+.asyncLabel {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: var(--text-muted);
 }

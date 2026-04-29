@@ -15,6 +15,7 @@ interface WebhookConfig {
 export function fireWebhookAsync(
   node: FlowNode,
   session: CallSession,
+  extraPayload?: Record<string, unknown>,
 ): void {
   const config = (node.config || {}) as WebhookConfig;
   const url = String(config.url || '').trim();
@@ -30,6 +31,7 @@ export function fireWebhookAsync(
     caller_number: session.callerNumber,
     flow_id: session.flow.id,
     timestamp: new Date().toISOString(),
+    ...(extraPayload || {}),
   };
 
   if (config.include_digits) {
@@ -52,29 +54,29 @@ export function fireWebhookAsync(
     headers['X-Caller-Number'] = session.callerNumber;
   }
 
-  void (async () => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    try {
-      const fetchOptions: RequestInit = {
-        method,
-        headers,
-        signal: controller.signal,
-      };
+  const fetchOptions: RequestInit = {
+    method,
+    headers,
+    signal: controller.signal,
+  };
 
-      if (method === 'POST') {
-        fetchOptions.body = JSON.stringify(payload);
-      }
+  if (method === 'POST') {
+    fetchOptions.body = JSON.stringify(payload);
+  }
 
-      const response = await fetch(url, fetchOptions);
+  void fetch(url, fetchOptions)
+    .then((response) => {
       stasisLogger.log(`[webhook] fired url=${url} status=${response.status}`);
-    } catch (error) {
+    })
+    .catch((error) => {
       const isAbort = error instanceof Error && error.name === 'AbortError';
       const message = error instanceof Error ? error.message : String(error);
       stasisLogger.warn(`[webhook] ${isAbort ? 'timeout' : 'failed'} url=${url} err=${message}`);
-    } finally {
+    })
+    .finally(() => {
       clearTimeout(timer);
-    }
-  })();
+    });
 }

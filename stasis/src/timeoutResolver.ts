@@ -3,6 +3,7 @@ import { FlowNode } from './flowLoader';
 
 const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 120000;
+export const INTER_DIGIT_TIMEOUT_MS = 4000;
 
 export function parseValidTimeoutMs(value: unknown): number | null {
   const numeric = typeof value === 'number' ? value : Number(value);

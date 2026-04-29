@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { validateFlowBeforeSave, validateFlowTimeoutConfig } from './FlowEditorPage.helpers';
+import { buildMenuSubmenuTargets, isImmediateHangupFlow, validateFlowBeforeSave, validateFlowTimeoutConfig } from './FlowEditorPage.helpers';
 import type { Node, Edge } from 'reactflow';
 import type { FlowNodeData } from '../types';
 
@@ -45,6 +45,20 @@ describe('validateFlowBeforeSave — terminal node types (no outgoing required)'
 
   it('hangup with no outgoing edge: no error', async () => {
     const nodes = [startNode, makeNode('h1', 'hangup')];
+    const edges = [startEdge];
+    const result = await validateFlowBeforeSave(nodes, edges);
+    expect(result).toBeNull();
+  });
+
+  it('voicemail with no outgoing edge: no error', async () => {
+    const nodes = [startNode, makeNode('vm1', 'voicemail')];
+    const edges = [startEdge];
+    const result = await validateFlowBeforeSave(nodes, edges);
+    expect(result).toBeNull();
+  });
+
+  it('callback with no outgoing edge: no error', async () => {
+    const nodes = [startNode, makeNode('cb1', 'callback')];
     const edges = [startEdge];
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
@@ -141,6 +155,18 @@ describe('validateFlowBeforeSave — nodes that require outgoing edges', () => {
     const result = await validateFlowBeforeSave(nodes, edges);
     expect(result).toBeNull();
   });
+
+  it('start to voicemail does not count as immediate hangup publish block', () => {
+    const nodes = [makeNode('start', 'start'), makeNode('vm1', 'voicemail')];
+    const edges = [makeEdge('start', 'vm1')];
+    expect(isImmediateHangupFlow(nodes, edges)).toBe(false);
+  });
+
+  it('start to hangup still counts as immediate hangup even when extra nodes exist', () => {
+    const nodes = [makeNode('start', 'start'), makeNode('h1', 'hangup'), makeNode('pa1', 'play_audio')];
+    const edges = [makeEdge('start', 'h1')];
+    expect(isImmediateHangupFlow(nodes, edges)).toBe(true);
+  });
 });
 
 describe('validateFlowTimeoutConfig', () => {
@@ -222,5 +248,29 @@ describe('validateFlowTimeoutConfig', () => {
     const result = validateFlowTimeoutConfig(nodes, { isSubflow: true });
     expect(result.errors).toEqual([]);
     expect(result.warningCount).toBe(1);
+  });
+});
+
+describe('buildMenuSubmenuTargets', () => {
+  it('auto-assigns submenu start to branches without local edges', () => {
+    const result = buildMenuSubmenuTargets({
+      configuredBranches: ['1', '2'],
+      currentTargets: {},
+      localEdgeBranches: new Set(['2']),
+      submenuStartNodeKey: 'start',
+    });
+
+    expect(result).toEqual({ '1': 'start' });
+  });
+
+  it('removes submenu targets for branches now handled by local edges', () => {
+    const result = buildMenuSubmenuTargets({
+      configuredBranches: ['1', '2'],
+      currentTargets: { '1': 'start', '2': 'start' },
+      localEdgeBranches: new Set(['2']),
+      submenuStartNodeKey: 'start',
+    });
+
+    expect(result).toEqual({ '1': 'start' });
   });
 });

@@ -35,14 +35,17 @@ function toneClass(type: FlowNodeData['type']): string {
 
 export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { diffColor?: string }>) {
   const isWebhookNode = data.type === 'webhook';
+  const isTerminalNode = data.type === 'hangup' || data.type === 'voicemail' || data.type === 'callback' || data.type === 'queue_login';
   const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
 
   return (
-    <div className={`${styles.node} ${toneClass(data.type)} ${selected ? styles.selected : ''} ${isWebhookNode ? styles.webhookSideEffect : ''}`} style={diffStyle}>
-      <span className={styles.accent} />
+    <div className={`${styles.node} ${toneClass(data.type)} ${selected ? styles.selected : ''} ${isWebhookNode ? styles.webhookSideEffect : ''} ${data.hasValidationError ? styles.invalid : ''}`} style={diffStyle}>
+      {data.hasValidationError ? <span className={styles.validationDot} title={data.validationIssues?.join(', ')} /> : null}
+      <span className={`${styles.accent} ${isWebhookNode ? styles.webhookAccent : ''}`} />
       <div className={styles.body}>
         <div className={styles.type}>{data.type}</div>
         <div className={styles.label}>{isWebhookNode ? `⚡ ${data.label}` : data.label}</div>
+        {isWebhookNode ? <div className={styles.asyncLabel}>async</div> : null}
         {data.type === 'get_digits' && typeof data.config.timeout_ms === 'number' ? (
           <div className={styles.meta}>timeout: {Math.round(Number(data.config.timeout_ms) / 1000)}s</div>
         ) : null}
@@ -58,7 +61,7 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { di
           </div>
         ) : null}
         {data.type === 'voicemail' ? (
-          <div className={styles.meta}>{String(data.config.mailbox_name || 'main')}</div>
+          <div className={styles.meta}>{isNaN(Number(data.config.start_audio_id)) ? 'intro missing' : 'intro set'}</div>
         ) : null}
         {data.type === 'callback' ? (
           <div className={styles.meta}>{String((data.config as Record<string, unknown>).number_source || 'ani')}</div>
@@ -79,7 +82,12 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { di
           ×
         </button>
       ) : null}
-      <Handle className={styles.handle} type="target" position={data.type === 'callback' ? Position.Top : Position.Left} />
+      <Handle
+        className={styles.handle}
+        type="target"
+        position={data.type === 'callback' ? Position.Top : Position.Left}
+        isConnectableStart={false}
+      />
       {data.type === 'business_hours' ? (
         <>
           <Handle
@@ -88,6 +96,7 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { di
             type="source"
             position={Position.Right}
             style={{ top: '35%' }}
+            isConnectableEnd={false}
           />
           <Handle
             className={`${styles.handle} ${styles.handleClosed}`}
@@ -95,10 +104,11 @@ export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { di
             type="source"
             position={Position.Right}
             style={{ top: '70%' }}
+            isConnectableEnd={false}
           />
         </>
-      ) : isWebhookNode ? null : (
-        <Handle className={styles.handle} id={data.type === 'voicemail' || data.type === 'callback' ? 'done' : undefined} type="source" position={data.type === 'callback' ? Position.Bottom : Position.Right} />
+      ) : isTerminalNode ? null : (
+        <Handle className={styles.handle} type="source" position={Position.Right} isConnectableEnd={false} />
       )}
     </div>
   );

@@ -1629,13 +1629,11 @@ describe("FlowsService", () => {
       expect(() => validateEdgesConfig([], nodes)).not.toThrow();
     });
 
-    it("rejects when webhook has outgoing edge to queue", () => {
+    it("allows webhook to route to another node", () => {
       const edges = [
         { sourceNodeKey: "wh1", targetNodeKey: "q1", condition: "default" },
       ];
-      expect(() => validateEdgesConfig(edges, nodes)).toThrow(
-        BadRequestException,
-      );
+      expect(() => validateEdgesConfig(edges, nodes)).not.toThrow();
     });
 
     it("passes when node has normal routing edge plus webhook edge", () => {

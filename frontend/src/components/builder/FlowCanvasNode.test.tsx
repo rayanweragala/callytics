@@ -1,8 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { FlowCanvasNode } from './FlowCanvasNode';
 import styles from './FlowCanvasNode.module.css';
 import type { FlowNodeData } from '../../types';
+
+vi.mock('reactflow', () => ({
+  Handle: (props: Record<string, unknown>) => (
+    <div
+      data-testid={`handle-${String(props.type)}-${String(props.id || 'default')}`}
+      data-connectable-start={String(props.isConnectableStart ?? '')}
+      data-connectable-end={String(props.isConnectableEnd ?? '')}
+    />
+  ),
+  Position: {
+    Left: 'left',
+    Right: 'right',
+    Top: 'top',
+  },
+}));
+
+import { FlowCanvasNode } from './FlowCanvasNode';
 
 function createProps(config: Record<string, unknown> = {}) {
   return {
@@ -33,5 +49,27 @@ describe('FlowCanvasNode conference rendering', () => {
     render(<FlowCanvasNode {...createProps({ roomName: 'SalesRoom1' })} />);
 
     expect(screen.getByText('SalesRoom1')).toBeInTheDocument();
+  });
+
+  it('prevents starting connections from target handles', () => {
+    render(<FlowCanvasNode {...createProps({ roomName: 'SalesRoom1' })} />);
+
+    expect(screen.getByTestId('handle-target-default')).toHaveAttribute('data-connectable-start', 'false');
+  });
+
+  it('does not render a source handle for terminal nodes', () => {
+    render(
+      <FlowCanvasNode
+        {...createProps()}
+        data={{
+          type: 'hangup',
+          label: 'hangup',
+          config: {},
+        } as FlowNodeData}
+      />,
+    );
+
+    expect(screen.getByTestId('handle-target-default')).toBeInTheDocument();
+    expect(screen.queryByTestId('handle-source-default')).not.toBeInTheDocument();
   });
 });

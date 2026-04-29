@@ -23,22 +23,14 @@ type BuilderEdgeData = {
 export const menuBranchOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
 export const menuRoutableBranchSet = new Set(menuBranchOptions);
 export const conditionValues = [
-  '0',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
+  ...Array.from({ length: 100 }, (_, index) => String(index)),
+  ...Array.from({ length: 100 }, (_, index) => String(index).padStart(2, '0')),
   '*',
   '#',
   'timeout',
   'invalid',
   'default',
-];
+].filter((value, index, array) => array.indexOf(value) === index);
 export const SUBFLOW_JUMP_NODE_ID_PREFIX = '__submenu_jump_anchor__';
 export const QUEUE_LOGIN_TIMEOUT_MIN_MS = 1000;
 export const QUEUE_LOGIN_TIMEOUT_MAX_MS = 120000;
@@ -71,7 +63,7 @@ export function sanitizeMenuBranches(value: unknown): string[] {
   if (!Array.isArray(value)) return ['1', '2'];
   const branches = value
     .map((item) => String(item || '').trim())
-    .filter((item) => menuRoutableBranchSet.has(item));
+    .filter((item) => isValidMenuBranchValue(item));
   return branches.length > 0 ? Array.from(new Set(branches)) : ['1', '2'];
 }
 
@@ -79,7 +71,7 @@ export function sanitizeMenuSubmenuTargets(value: unknown): Record<string, strin
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const entries = Object.entries(value as Record<string, unknown>)
     .map(([branch, target]) => [String(branch || '').trim(), String(target || '').trim()] as const)
-    .filter(([branch, target]) => menuRoutableBranchSet.has(branch) && Boolean(target));
+    .filter(([branch, target]) => isValidMenuBranchValue(branch) && Boolean(target));
   return Object.fromEntries(entries);
 }
 
@@ -88,7 +80,206 @@ export function resolveMenuBranchValue(
   condition: string | null | undefined
 ): string | null {
   const resolved = String(condition || branchKey || '').trim();
-  return menuRoutableBranchSet.has(resolved) ? resolved : null;
+  return isValidMenuBranchValue(resolved) ? resolved : null;
+}
+
+export function buildMenuSubmenuTargets(options: {
+  configuredBranches: string[];
+  currentTargets: Record<string, string>;
+  localEdgeBranches: Set<string>;
+  submenuStartNodeKey: string | null;
+}): Record<string, string> {
+  const {
+    configuredBranches,
+    currentTargets,
+    localEdgeBranches,
+    submenuStartNodeKey,
+  } = options;
+  const nextTargets = { ...currentTargets };
+
+  for (const branch of Object.keys(nextTargets)) {
+    if (localEdgeBranches.has(branch) || !configuredBranches.includes(branch)) {
+      delete nextTargets[branch];
+    }
+  }
+
+  if (!submenuStartNodeKey) {
+    return nextTargets;
+  }
+
+  for (const branch of configuredBranches) {
+    if (localEdgeBranches.has(branch)) {
+      continue;
+    }
+    nextTargets[branch] = submenuStartNodeKey;
+  }
+
+  return nextTargets;
+}
+
+export interface FlowNodeValidationIssue {
+  nodeId: string;
+  nodeLabel: string;
+  nodeType: BuilderNodeType;
+  issues: string[];
+}
+
+export function isValidDigitConditionValue(value: string): boolean {
+  return /^(?:\d{1,2}|\*|#|timeout|invalid|default)$/.test(value.trim());
+}
+
+export function isValidMenuBranchValue(value: string): boolean {
+  return /^(?:\d{1,2}|\*|#)$/.test(value.trim());
+}
+
+function isPositiveId(value: unknown): boolean {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isInteger(numeric) && numeric > 0;
+}
+
+function hasEnabledBusinessHoursSchedule(config: Record<string, unknown>): boolean {
+  const schedule = config.schedule;
+  if (!schedule || typeof schedule !== 'object' || Array.isArray(schedule)) {
+    return false;
+  }
+  return Object.values(schedule as Record<string, unknown>).some((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return false;
+    }
+    return Boolean((entry as Record<string, unknown>).enabled);
+  });
+}
+
+function hasWebhookPredecessor(
+  nodeId: string,
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+): boolean {
+  const nodeTypeMap = new Map(nodes.map((node) => [node.id, node.data.type]));
+  return edges.some((edge) => edge.target === nodeId && nodeTypeMap.get(edge.source) === 'webhook');
+}
+
+export function validateNodeConfigurations(
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+): FlowNodeValidationIssue[] {
+  return nodes
+    .filter((node) => node.data.type !== 'start' && node.data.type !== 'hangup' && node.data.type !== 'group')
+    .map((node) => {
+      const config = (node.data.config || {}) as Record<string, unknown>;
+      const issues: string[] = [];
+
+      switch (node.data.type) {
+        case 'play_audio':
+          if (!isPositiveId(config.audio_file_id)) {
+            issues.push('audio file is required');
+          }
+          break;
+        case 'get_digits':
+          if (!String(config.variable_name || '').trim()) {
+            issues.push('variable name is required');
+          }
+          if (config.timeout_ms === null || config.timeout_ms === undefined || config.timeout_ms === '') {
+            issues.push('timeout is required');
+          }
+          break;
+        case 'menu':
+          if (sanitizeMenuBranches(config.branches).length === 0) {
+            issues.push('at least one branch is required');
+          }
+          if (!isPositiveId(config.prompt_audio_file_id)) {
+            issues.push('prompt audio is required');
+          }
+          break;
+        case 'transfer':
+          if (!String(config.target_value || config.destination || '').trim()) {
+            issues.push('destination is required');
+          }
+          break;
+        case 'hunt': {
+          const destinations = Array.isArray(config.destinations) ? config.destinations : [];
+          const hasDestination = destinations.some((entry) => String((entry as Record<string, unknown>)?.target_value || '').trim().length > 0);
+          if (!hasDestination) {
+            issues.push('at least one destination is required');
+          }
+          break;
+        }
+        case 'queue':
+        case 'queue_login':
+          if (!isPositiveId(config.queue_id)) {
+            issues.push('queue is required');
+          }
+          break;
+        case 'voicemail':
+          if (!isPositiveId(config.start_audio_id)) {
+            issues.push('intro message is required');
+          }
+          if (Boolean(config.send_to_webhook) && !hasWebhookPredecessor(node.id, nodes, edges)) {
+            issues.push('send recording to webhook requires a webhook directly before this node');
+          }
+          break;
+        case 'webhook': {
+          const url = String(config.url || '').trim();
+          if (!url) {
+            issues.push('URL is required');
+          } else {
+            try {
+              const parsed = new URL(url);
+              if (!['http:', 'https:'].includes(parsed.protocol)) {
+                issues.push('URL must use http or https');
+              }
+            } catch {
+              issues.push('URL must be valid');
+            }
+          }
+          break;
+        }
+        case 'callback':
+          if (!String(config.number_source || '').trim()) {
+            issues.push('caller number source is required');
+          }
+          if (!String(config.destination_value || '').trim()) {
+            issues.push('destination is required');
+          }
+          break;
+        case 'conference':
+          if (!String(config.roomName || config.room_name || '').trim()) {
+            issues.push('room name is required');
+          }
+          break;
+        case 'business_hours':
+          if (!hasEnabledBusinessHoursSchedule(config)) {
+            issues.push('at least one schedule is required');
+          }
+          break;
+        default:
+          break;
+      }
+
+      return {
+        nodeId: node.id,
+        nodeLabel: node.data.label || node.id,
+        nodeType: node.data.type,
+        issues,
+      };
+    })
+    .filter((issue) => issue.issues.length > 0);
+}
+
+export function isImmediateHangupFlow(
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+): boolean {
+  const realNodes = nodes.filter((node) => node.data.type !== 'group');
+  if (realNodes.length !== 2 || edges.length !== 1) {
+    return false;
+  }
+  const startNode = realNodes.find((node) => node.data.type === 'start');
+  const hangupNode = realNodes.find((node) => node.data.type === 'hangup');
+  if (!startNode || !hangupNode) {
+    return false;
+  }
+  return edges[0].source === startNode.id && edges[0].target === hangupNode.id;
 }
 
 // ─── Node dimension helpers ───────────────────────────────────────────────────
@@ -118,7 +309,7 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
   if (type === 'start')
     return { queue_login_default_input_timeout_ms: QUEUE_LOGIN_TIMEOUT_DEFAULT_MS };
   if (type === 'play_audio') return { audio_file_path: '', audio_file_id: '' };
-  if (type === 'get_digits') return { timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
+  if (type === 'get_digits') return { variable_name: '', timeout_ms: 5000, prompt_path: '', prompt_audio_file_id: '' };
   if (type === 'menu')
     return {
       timeout_ms: 5000,
@@ -148,7 +339,7 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
   if (type === 'transfer')
     return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '' };
   if (type === 'voicemail')
-    return { mailbox_name: 'main', max_duration_seconds: 60, prompt_audio_file_id: null };
+    return { mailbox_name: 'main', max_duration_seconds: 60, start_audio_id: null, end_audio_id: null, send_to_webhook: false };
   if (type === 'hunt')
     return {
       destinations: [{ target_type: 'extension', target_value: '101' }],
@@ -378,7 +569,7 @@ export function createSavePayload(
       const sourceNodeType = nodeTypeMap.get(edge.source);
       const branchKey = String(edge.data?.branchKey || edge.data?.condition || 'default');
       if (sourceNodeType !== 'menu') return true;
-      return branchKey === 'complete' || menuRoutableBranchSet.has(branchKey);
+      return branchKey === 'complete' || isValidMenuBranchValue(branchKey);
     })
     .map((edge) => ({
       sourceNodeKey: edge.source,
@@ -407,7 +598,7 @@ export async function validateFlowBeforeSave(
       const sourceNodeType = nodeTypeMap.get(edge.source);
       const branchKey = String(edge.data?.branchKey || edge.data?.condition || 'default');
       if (sourceNodeType !== 'menu') return true;
-      return branchKey === 'complete' || menuRoutableBranchSet.has(branchKey);
+      return branchKey === 'complete' || isValidMenuBranchValue(branchKey);
     })
     .map((edge) => ({
       sourceNodeKey: edge.source,
@@ -443,7 +634,7 @@ export async function validateFlowBeforeSave(
     const routedBranches = new Set(
       outgoing
         .map((item) => String(item.condition || item.branchKey || '').trim())
-        .filter((item) => menuRoutableBranchSet.has(item))
+        .filter((item) => isValidMenuBranchValue(item))
     );
     const missing: string[] = [];
     for (const branch of configuredBranches) {
@@ -598,7 +789,7 @@ export function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
       const sourceNodeType = nodeTypeMap.get(edge.sourceNodeKey) || 'hangup';
       if (sourceNodeType !== 'menu') return true;
       const branchKey = edge.condition || edge.branchKey || '';
-      return branchKey === 'complete' || menuRoutableBranchSet.has(branchKey);
+      return branchKey === 'complete' || isValidMenuBranchValue(branchKey);
     })
     .map((edge) => {
       const sourceNodeType = nodeTypeMap.get(edge.sourceNodeKey) || 'hangup';
