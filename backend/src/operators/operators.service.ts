@@ -52,6 +52,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
   private redisClient: RedisClientType | null = null;
   private pinColumnAvailable: boolean | null = null;
   private callbackColumnsAvailable: boolean | null = null;
+  private readonly runtimePins = new Map<number, string>();
 
   constructor(
     @InjectRepository(OperatorEntity)
@@ -180,6 +181,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
 
     const saved = await this.operatorsRepository.save(entity);
     await this.storePlainPinIfSupported(saved.id, pin);
+    this.runtimePins.set(saved.id, pin);
     return { data: await this.toResponse(saved, pin) };
   }
 
@@ -218,6 +220,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
     const saved = await this.operatorsRepository.save(entity);
     if (dto.pin !== undefined) {
       await this.storePlainPinIfSupported(saved.id, dto.pin.trim());
+      this.runtimePins.set(saved.id, dto.pin.trim());
     }
     return { data: await this.toResponse(saved) };
   }
@@ -230,6 +233,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
 
     await this.operatorsRepository.delete({ id });
     await this.cleanupRedis(id);
+    this.runtimePins.delete(id);
 
     return { data: { id, deleted: true } };
   }
@@ -363,6 +367,10 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
 
     const row = rows[0] || {};
 
+    const persistedPin = includePin ? (row.operator_pin ? String(row.operator_pin) : null) : null;
+    if (persistedPin) {
+      this.runtimePins.set(item.id, persistedPin);
+    }
     return {
       id: item.id,
       name: item.name,
@@ -383,7 +391,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
           }
         : null,
       hasPIN: Boolean(item.pinHash),
-      pin: pin ?? (includePin ? (row.operator_pin ? String(row.operator_pin) : null) : null),
+      pin: pin ?? persistedPin ?? this.runtimePins.get(item.id) ?? null,
       callbackNumber: item.callbackNumber || null,
       callbackTrunkId: item.callbackTrunkId ?? null,
       createdAt: item.createdAt.toISOString(),

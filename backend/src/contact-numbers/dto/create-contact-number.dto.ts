@@ -9,9 +9,8 @@ export class CreateContactNumberDto {
   @IsNotEmpty()
   number!: string;
 
-  @IsOptional()
   @IsInt()
-  trunk_id?: number;
+  trunk_id!: number;
 
   @IsOptional()
   @IsString()

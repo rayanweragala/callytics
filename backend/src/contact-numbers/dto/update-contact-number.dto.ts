@@ -9,9 +9,8 @@ export class UpdateContactNumberDto {
   @IsString()
   number?: string;
 
-  @IsOptional()
   @IsInt()
-  trunk_id?: number | null;
+  trunk_id?: number;
 
   @IsOptional()
   @IsString()

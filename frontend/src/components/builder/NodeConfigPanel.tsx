@@ -314,8 +314,12 @@ export function NodeConfigPanel({
                   onChange={(event) => onConfigChange('timeout_ms', event.target.value)}
                   placeholder="use flow default"
                 />
-                {saveAttempted && (selectedConfig.timeout_ms === null || selectedConfig.timeout_ms === undefined || selectedConfig.timeout_ms === '') ? (
-                  <span className={styles.inlineError}>Timeout is required</span>
+                {saveAttempted
+                && selectedConfig.timeout_ms !== null
+                && selectedConfig.timeout_ms !== undefined
+                && selectedConfig.timeout_ms !== ''
+                && (Number(selectedConfig.timeout_ms) < 1000 || Number(selectedConfig.timeout_ms) > 120000) ? (
+                  <span className={styles.inlineError}>Timeout must be between 1000 and 120000 ms</span>
                 ) : null}
               </label>
             </>
@@ -381,7 +385,10 @@ export function NodeConfigPanel({
                     <SearchableSelect
                       options={extensionOptions}
                       value={targetValue || null}
-                      onChange={(value) => onConfigValueChange('target_value', value || '')}
+                      onChange={(value) => {
+                        onConfigValueChange('target_type', 'extension');
+                        onConfigValueChange('target_value', value || '');
+                      }}
                       placeholder="select extension"
                     />
                   </label>
@@ -422,7 +429,10 @@ export function NodeConfigPanel({
                       className={styles.input}
                       placeholder="sip:john@external.com"
                       value={targetValue}
-                      onChange={(event) => onConfigChange('target_value', event.target.value)}
+                      onChange={(event) => {
+                        onConfigValueChange('target_type', 'sip_uri');
+                        onConfigChange('target_value', event.target.value);
+                      }}
                     />
                   </label>
                 ) : null}
@@ -1309,7 +1319,11 @@ function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioIt
             onChange={(event) => onConfigValueChange('input_timeout_ms', event.target.value ? Number(event.target.value) : null)}
             placeholder="10000"
           />
-          {saveAttempted && (Number(config['input_timeout_ms'] || 0) < 1000 || Number(config['input_timeout_ms'] || 0) > 120000) ? (
+          {saveAttempted
+          && config['input_timeout_ms'] !== null
+          && config['input_timeout_ms'] !== undefined
+          && config['input_timeout_ms'] !== ''
+          && (Number(config['input_timeout_ms']) < 1000 || Number(config['input_timeout_ms']) > 120000) ? (
             <span className={styles.inlineError}>Custom input timeout must be between 1000 and 120000 ms</span>
           ) : null}
         </label>

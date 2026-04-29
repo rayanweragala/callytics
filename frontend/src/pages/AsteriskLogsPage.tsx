@@ -216,11 +216,11 @@ export function AsteriskLogsPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>timestamp</th>
-                <th>level</th>
-                <th>channel</th>
-                <th>module</th>
-                <th>message</th>
+                <th className={styles.timestampCol}>timestamp</th>
+                <th className={styles.levelCol}>level</th>
+                <th className={styles.channelCol}>channel</th>
+                <th className={styles.moduleCol}>module</th>
+                <th className={styles.messageCol}>message</th>
               </tr>
             </thead>
             <tbody>
@@ -250,13 +250,13 @@ export function AsteriskLogsPage() {
                       className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)} ${isExpanded ? styles.rowExpanded : ''}`.trim()}
                       onClick={() => setExpandedRowKey((current) => (current === rowKey ? null : rowKey))}
                     >
-                      <td className={styles.timestamp}>{formatDateTime(entry.timestamp)}</td>
-                      <td>
+                      <td className={`${styles.timestamp} ${styles.timestampCol}`}>{formatDateTime(entry.timestamp)}</td>
+                      <td className={styles.levelCol}>
                         <span className={`${styles.levelBadge} ${levelBadgeClass(entry.level)}`.trim()}>{entry.level}</span>
                       </td>
-                      <td><TruncatedText className={styles.channel} value={normalizedChannel || '—'} /></td>
-                      <td><TruncatedText className={styles.module} value={entry.module || '—'} /></td>
-                      <td className={styles.messageCell}>
+                      <td className={styles.channelCol}><TruncatedText className={styles.channel} value={normalizedChannel || '—'} /></td>
+                      <td className={styles.moduleCol}><TruncatedText className={styles.module} value={entry.module || '—'} /></td>
+                      <td className={`${styles.messageCell} ${styles.messageCol}`}>
                         <TruncatedText className={styles.rawMessage} value={entry.message} />
                         {entry.translation ? <TruncatedText className={styles.translation} value={entry.translation} /> : null}
                       </td>

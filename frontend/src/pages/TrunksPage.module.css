@@ -48,7 +48,8 @@
   background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   margin-top: 0;
 }
 
@@ -94,6 +95,7 @@
   background: var(--surface-elevated);
   border-top: 1px solid var(--border-subtle);
   margin-top: -1px;
+  position: relative;
 }
 
 .field {
@@ -395,9 +397,9 @@
   width: 180px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: var(--surface-elevated);
+  background: var(--primitive-navy-800);
   padding: 4px 0;
-  z-index: 20;
+  z-index: 1200;
 }
 
 .menuItem {
@@ -430,6 +432,7 @@
 
 .expandedRow td {
   padding: 0;
+  overflow: visible;
 }
 
 .expandedCell {
@@ -443,12 +446,52 @@
   border-top: 1px solid var(--border-strong);
 }
 
+.expandedPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.editPanelHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .expandedPanelTitle {
   font-size: 14px;
   letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 12px;
+  margin-bottom: 0;
+}
+
+.panelCloseButton {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panelCloseButton:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.editorRow .panelCloseButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 
 .expandedFieldsRow {

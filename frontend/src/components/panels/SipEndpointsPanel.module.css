@@ -3,7 +3,6 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   padding: 20px;
-  height: 760px;
   display: flex;
   flex-direction: column;
 }
@@ -27,6 +26,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  max-height: 300px;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

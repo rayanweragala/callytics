@@ -64,6 +64,7 @@ export function OperatorsPage() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
 
   const showError = (msg: string | null) => {
     setErrorText(msg);
@@ -163,6 +164,29 @@ export function OperatorsPage() {
       pin: '',
     });
   };
+
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm);
+  };
+
+  useEffect(() => {
+    if (editingId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      closeEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editingId]);
 
   const handleUpdate = async () => {
     if (editingId === null) return;
@@ -279,18 +303,6 @@ export function OperatorsPage() {
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>PIN (optional)</span>
-              <input
-                className={styles.input}
-                type="password"
-                placeholder="set a 4-6 digit PIN"
-                value={createForm.pin}
-                onChange={(e) => { showError(null); setCreateForm((f) => ({ ...f, pin: e.target.value })); }}
-                disabled={creating}
-              />
-              <span className={styles.inlineHint}>Optional — a random PIN will be generated if omitted.</span>
-            </label>
-            <label className={styles.field}>
               <span className={styles.fieldLabel}>Callback Number (PSTN)</span>
               <input
                 className={styles.input}
@@ -307,6 +319,17 @@ export function OperatorsPage() {
                 value={createForm.callbackTrunkId || null}
                 onChange={(v) => { showError(null); setCreateForm((f) => ({ ...f, callbackTrunkId: v || '' })); }}
                 placeholder="No callback trunk"
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>PIN (optional)</span>
+              <input
+                className={styles.input}
+                type="password"
+                placeholder="set a 4-6 digit PIN"
+                value={createForm.pin}
+                onChange={(e) => { showError(null); setCreateForm((f) => ({ ...f, pin: e.target.value })); }}
+                disabled={creating}
               />
             </label>
             <div className={styles.formActions}>
@@ -377,16 +400,18 @@ export function OperatorsPage() {
                     <td>
                       <div className={styles.pinCell}>
                         <span className={`${styles.dataMono} ${revealedPins.has(op.id) ? styles.pinRevealedValue : ''}`}>
-                          {revealedPins.has(op.id) ? op.pin || '••••••' : '••••••'}
+                          {op.pin ? (revealedPins.has(op.id) ? op.pin : '••••') : '—'}
                         </span>
-                        <button
-                          className={styles.pinToggle}
-                          type="button"
-                          onClick={() => togglePinVisibility(op.id)}
-                          aria-label={revealedPins.has(op.id) ? `Hide PIN for ${op.name}` : `Show PIN for ${op.name}`}
-                        >
-                          {revealedPins.has(op.id) ? '[hide]' : '[show]'}
-                        </button>
+                        {op.pin ? (
+                          <button
+                            className={styles.pinToggle}
+                            type="button"
+                            onClick={() => togglePinVisibility(op.id)}
+                            aria-label={revealedPins.has(op.id) ? `Hide PIN for ${op.name}` : `Show PIN for ${op.name}`}
+                          >
+                            {revealedPins.has(op.id) ? '[hide]' : '[show]'}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                     <td><StatusBadge status={op.status} /></td>
@@ -403,7 +428,11 @@ export function OperatorsPage() {
                   {editingId === op.id ? (
                     <tr className={styles.editRow}>
                       <td className={styles.editCell} colSpan={7}>
-                        <div className={styles.editPanel}>
+                        <div className={styles.editPanel} ref={editPanelRef}>
+                          <div className={styles.editPanelHeader}>
+                            <span className={styles.panelTitle}>edit operator</span>
+                            <button className={styles.panelCloseButton} type="button" onClick={closeEdit} aria-label="Close edit panel">×</button>
+                          </div>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>name</span>
                             <input
@@ -432,18 +461,6 @@ export function OperatorsPage() {
                             />
                           </label>
                           <label className={styles.field}>
-                            <span className={styles.fieldLabel}>PIN (optional)</span>
-                            <input
-                              className={styles.input}
-                              type="password"
-                              placeholder={op.hasPIN ? 'leave blank to keep existing PIN' : 'set a 4-6 digit PIN'}
-                              value={editForm.pin}
-                              onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, pin: e.target.value })); }}
-                              disabled={saving}
-                            />
-                            <span className={styles.inlineHint}>{op.hasPIN ? 'Leave blank to keep the current PIN hash.' : 'Optional — a random PIN will be generated if omitted.'}</span>
-                          </label>
-                          <label className={styles.field}>
                             <span className={styles.fieldLabel}>Callback Number (PSTN)</span>
                             <input
                               className={styles.input}
@@ -462,8 +479,19 @@ export function OperatorsPage() {
                               placeholder="No callback trunk"
                             />
                           </label>
+                          <label className={styles.field}>
+                            <span className={styles.fieldLabel}>PIN (optional)</span>
+                            <input
+                              className={styles.input}
+                              type="password"
+                              placeholder={op.hasPIN ? 'leave blank to keep existing PIN' : 'set a 4-6 digit PIN'}
+                              value={editForm.pin}
+                              onChange={(e) => { showError(null); setEditForm((f) => ({ ...f, pin: e.target.value })); }}
+                              disabled={saving}
+                            />
+                          </label>
                           <div className={styles.formActions}>
-                            <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
+                            <button className={styles.secondaryButton} type="button" onClick={closeEdit} disabled={saving}>cancel</button>
                             <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()} disabled={saving}>
                               {saving ? 'saving…' : 'save changes'}
                             </button>

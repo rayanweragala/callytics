@@ -307,6 +307,11 @@ export async function deleteExtension(id: number): Promise<DeleteFlowResponse> {
   return response.data;
 }
 
+export async function getExtensionQrContent(id: number): Promise<{ data: { content: string } }> {
+  const response = await api.get<{ data: { content: string } }>(`/extensions/${id}/qr-content`);
+  return response.data;
+}
+
 export async function listInboundRoutes(did?: string, limit = 20, offset = 0): Promise<ListResponse<InboundRouteItem>> {
   const params: Record<string, string | number> = { limit, offset };
   if (did) params.did = did;

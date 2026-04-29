@@ -34,14 +34,14 @@
 
 .dialogHead {
   display: grid;
-  grid-template-columns: 100px 1fr 180px 160px 80px;
+  grid-template-columns: 100px 1fr minmax(240px, 1.7fr) 160px 80px;
   gap: 10px;
   align-items: center;
 }
 
 .dialogRow {
   display: grid;
-  grid-template-columns: 100px 1fr 180px 160px 80px;
+  grid-template-columns: 100px 1fr minmax(240px, 1.7fr) 160px 80px;
   gap: 10px;
   align-items: start;
   min-height: 48px;

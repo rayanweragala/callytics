@@ -138,6 +138,20 @@ export class ExtensionsService implements OnModuleInit {
     return { data: { id, deleted: true } };
   }
 
+  async getQrContent(id: number): Promise<{ data: { content: string } }> {
+    const extension = await this.extensionsRepository.findOne({ where: { id } });
+    if (!extension) {
+      throw new NotFoundException(`Extension ${id} not found`);
+    }
+    const hostIp = process.env.HOST_IP || '127.0.0.1';
+    const content = [
+      `sip:${extension.username}@${hostIp}:5080`,
+      `password:${extension.password}`,
+      'transport:udp',
+    ].join('\n');
+    return { data: { content } };
+  }
+
   private async rebuildConfig(): Promise<void> {
     const extensions = await this.extensionsRepository.find({ order: { username: 'ASC' } });
     await this.syncVpnAclFiles(extensions);

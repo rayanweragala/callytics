@@ -51,7 +51,7 @@ export class ContactNumbersService {
     const entity = this.contactNumbersRepository.create({
       label: this.normalizeRequired(dto.label, 'label'),
       number: this.normalizePhoneNumber(this.normalizeRequired(dto.number, 'number'), country),
-      trunkId: dto.trunk_id ?? null,
+      trunkId: dto.trunk_id,
       notes: this.normalizeOptional(dto.notes),
     });
 
@@ -68,7 +68,7 @@ export class ContactNumbersService {
       const country = this.normalizeCountryCode(dto.country);
       entity.number = this.normalizePhoneNumber(this.normalizeRequired(dto.number, 'number'), country);
     }
-    if (dto.trunk_id !== undefined) entity.trunkId = dto.trunk_id ?? null;
+    if (dto.trunk_id !== undefined) entity.trunkId = dto.trunk_id;
     if (dto.notes !== undefined) entity.notes = this.normalizeOptional(dto.notes);
 
     const saved = await this.contactNumbersRepository.save(entity);

@@ -1,4 +1,4 @@
-import { Fragment, FormEvent, useEffect, useMemo, useState } from 'react';
+import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
@@ -55,10 +55,16 @@ export function ContactNumbersPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [trunkError, setTrunkError] = useState<string | null>(null);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
 
   const trunkOptions = useMemo(
     () => trunks.map((trunk) => ({ value: String(trunk.id), label: trunk.name })),
     [trunks],
+  );
+  const countryOptions = useMemo(
+    () => COUNTRY_OPTIONS.map((option) => ({ value: option.code, label: `${option.code} — ${option.label}` })),
+    [],
   );
 
   const trunkMap = useMemo(() => new Map(trunks.map((trunk) => [trunk.id, trunk.name])), [trunks]);
@@ -87,14 +93,19 @@ export function ContactNumbersPage() {
       setError('Label and number are required');
       return;
     }
+    if (!form.trunkId) {
+      setTrunkError('A trunk is required to make outbound calls');
+      return;
+    }
     setCreating(true);
     setError(null);
+    setTrunkError(null);
     try {
       await createContactNumber({
         label,
         number,
         country: form.country || 'US',
-        trunk_id: form.trunkId ? Number(form.trunkId) : undefined,
+        trunk_id: Number(form.trunkId),
         notes: form.notes.trim() || undefined,
       });
       await load(1);
@@ -109,6 +120,7 @@ export function ContactNumbersPage() {
   };
 
   const openEdit = (item: ContactNumber) => {
+    setTrunkError(null);
     setEditingId(item.id);
     setEditForm({
       label: item.label,
@@ -119,16 +131,45 @@ export function ContactNumbersPage() {
     });
   };
 
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(EMPTY_FORM);
+    setTrunkError(null);
+  };
+
+  useEffect(() => {
+    if (editingId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      closeEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editingId]);
+
   const submitEdit = async () => {
     if (editingId === null) return;
+    if (!editForm.trunkId) {
+      setTrunkError('A trunk is required to make outbound calls');
+      return;
+    }
     setSaving(true);
     setError(null);
+    setTrunkError(null);
     try {
       const res = await updateContactNumber(editingId, {
         label: editForm.label.trim(),
         number: editForm.number.trim(),
         country: editForm.country || 'US',
-        trunk_id: editForm.trunkId ? Number(editForm.trunkId) : null,
+        trunk_id: Number(editForm.trunkId),
         notes: editForm.notes.trim() || undefined,
       });
       setItems((prev) => prev.map((item) => (item.id === editingId ? res.data : item)));
@@ -185,15 +226,12 @@ export function ContactNumbersPage() {
           </label>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>country</span>
-            <select className={`${styles.input} ${styles.select}`} value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}>
-              {COUNTRY_OPTIONS.map((option) => (
-                <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
-              ))}
-            </select>
+            <SearchableSelect options={countryOptions} value={form.country || null} onChange={(value) => setForm((prev) => ({ ...prev, country: value || 'US' }))} placeholder="select country" />
           </label>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>trunk</span>
-            <SearchableSelect options={trunkOptions} value={form.trunkId || null} onChange={(value) => setForm((prev) => ({ ...prev, trunkId: value || '' }))} placeholder="optional trunk" />
+            <span className={styles.fieldLabel}>trunk *</span>
+            <SearchableSelect options={trunkOptions} value={form.trunkId || null} onChange={(value) => { setTrunkError(null); setForm((prev) => ({ ...prev, trunkId: value || '' })); }} placeholder="select trunk" />
+            {trunkError && !editingId ? <span className={styles.inlineValidationError}>{trunkError}</span> : null}
           </label>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>notes</span>
@@ -245,7 +283,11 @@ export function ContactNumbersPage() {
                   {editingId === item.id ? (
                     <tr>
                       <td colSpan={6}>
-                        <div className={styles.editPanel}>
+                        <div className={styles.editPanel} ref={editPanelRef}>
+                          <div className={styles.editPanelHeader}>
+                            <span className={styles.fieldLabel}>edit contact</span>
+                            <button className={styles.panelCloseButton} type="button" onClick={closeEdit} aria-label="Close edit panel">×</button>
+                          </div>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>label</span>
                             <input className={styles.input} value={editForm.label} onChange={(event) => setEditForm((prev) => ({ ...prev, label: event.target.value }))} />
@@ -256,22 +298,19 @@ export function ContactNumbersPage() {
                           </label>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>country</span>
-                            <select className={`${styles.input} ${styles.select}`} value={editForm.country} onChange={(event) => setEditForm((prev) => ({ ...prev, country: event.target.value }))}>
-                              {COUNTRY_OPTIONS.map((option) => (
-                                <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
-                              ))}
-                            </select>
+                            <SearchableSelect options={countryOptions} value={editForm.country || null} onChange={(value) => setEditForm((prev) => ({ ...prev, country: value || 'US' }))} placeholder="select country" />
                           </label>
                           <label className={styles.field}>
-                            <span className={styles.fieldLabel}>trunk</span>
-                            <SearchableSelect options={trunkOptions} value={editForm.trunkId || null} onChange={(value) => setEditForm((prev) => ({ ...prev, trunkId: value || '' }))} placeholder="optional trunk" />
+                            <span className={styles.fieldLabel}>trunk *</span>
+                            <SearchableSelect options={trunkOptions} value={editForm.trunkId || null} onChange={(value) => { setTrunkError(null); setEditForm((prev) => ({ ...prev, trunkId: value || '' })); }} placeholder="select trunk" />
+                            {trunkError && editingId === item.id ? <span className={styles.inlineValidationError}>{trunkError}</span> : null}
                           </label>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>notes</span>
                             <input className={styles.input} value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
                           </label>
                           <div className={styles.actions}>
-                            <button className={styles.secondaryButton} type="button" onClick={() => setEditingId(null)} disabled={saving}>cancel</button>
+                            <button className={styles.secondaryButton} type="button" onClick={closeEdit} disabled={saving}>cancel</button>
                             <button className={styles.primaryButton} type="button" onClick={() => void submitEdit()} disabled={saving}>{saving ? 'saving…' : 'save'}</button>
                           </div>
                         </div>

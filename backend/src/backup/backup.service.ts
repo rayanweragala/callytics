@@ -31,6 +31,7 @@ import type {
 
 const BACKUP_DIR = process.env.BACKUP_DIR || '/app/backups';
 const RECORDINGS_DIR = process.env.RECORDINGS_DIR || '/var/lib/asterisk/recording';
+const AUDIO_STORAGE_DIR = process.env.AUDIO_STORAGE_DIR || '/app/storage/audio';
 const SCHEDULED_NOTE = 'scheduled backup';
 const MANUAL_NOTE = 'manual backup';
 const ASTERISK_SERVICE_NAME = 'asterisk';
@@ -95,6 +96,7 @@ export class BackupService implements OnModuleInit {
       const dumpPath = join(tempDir, 'database.dump');
       const manifestPath = join(tempDir, 'manifest.json');
       const recordingsArchivePath = join(tempDir, 'recordings.tar.gz');
+      const audioArchivePath = join(tempDir, 'audio.tar.gz');
 
       this.emitBackupProgress(18, 'exporting PostgreSQL database');
       await this.runDatabaseDump(dumpPath);
@@ -102,6 +104,7 @@ export class BackupService implements OnModuleInit {
       const manifest = {
         createdAt: new Date().toISOString(),
         includeRecordings,
+        includeAudioFiles: includeRecordings,
         type: includeRecordings ? 'full' : 'db_only',
       };
       await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
@@ -110,7 +113,10 @@ export class BackupService implements OnModuleInit {
       if (includeRecordings) {
         this.emitBackupProgress(52, 'archiving recordings volume');
         await this.runTarCommand(['-czf', recordingsArchivePath, '-C', RECORDINGS_DIR, '.']);
+        this.emitBackupProgress(64, 'archiving audio files');
+        await this.runTarCommand(['-czf', audioArchivePath, '-C', AUDIO_STORAGE_DIR, '.']);
         packageFiles.push('recordings.tar.gz');
+        packageFiles.push('audio.tar.gz');
       }
 
       this.emitBackupProgress(80, 'packaging backup archive');
@@ -152,6 +158,7 @@ export class BackupService implements OnModuleInit {
       const extractedDir = join(tempDir, 'extracted');
       const dumpPath = join(extractedDir, 'database.dump');
       const recordingsArchivePath = join(extractedDir, 'recordings.tar.gz');
+      const audioArchivePath = join(extractedDir, 'audio.tar.gz');
 
       this.emitRestoreProgress(8, 'staging uploaded backup archive');
       await fs.mkdir(extractedDir, { recursive: true });
@@ -174,10 +181,17 @@ export class BackupService implements OnModuleInit {
         await fs.access(recordingsArchivePath).catch(() => {
           throw new BadRequestException('backup archive does not include recordings data');
         });
+        await fs.access(audioArchivePath).catch(() => {
+          throw new BadRequestException('backup archive does not include audio data');
+        });
         this.emitRestoreProgress(76, 'restoring recordings volume');
         await fs.rm(RECORDINGS_DIR, { recursive: true, force: true });
         await fs.mkdir(RECORDINGS_DIR, { recursive: true });
         await this.runTarCommand(['-xzf', recordingsArchivePath, '-C', RECORDINGS_DIR]);
+        this.emitRestoreProgress(84, 'restoring audio files');
+        await fs.rm(AUDIO_STORAGE_DIR, { recursive: true, force: true });
+        await fs.mkdir(AUDIO_STORAGE_DIR, { recursive: true });
+        await this.runTarCommand(['-xzf', audioArchivePath, '-C', AUDIO_STORAGE_DIR]);
       }
 
       this.emitRestoreProgress(90, 'signaling runtime services to restart');

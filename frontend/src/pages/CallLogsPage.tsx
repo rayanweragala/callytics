@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
+import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ExecutionTracePanel } from '../components/ExecutionTracePanel/ExecutionTracePanel';
 import { QualityDrawer } from '../components/quality/QualityDrawer';
 import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
@@ -16,6 +17,13 @@ import styles from './CallLogsPage.module.css';
 
 const PAGE_LIMIT = 10;
 const SIP_PAGE_SIZE = 10;
+const END_REASON_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'completed', label: 'completed' },
+  { value: 'no-answer', label: 'no-answer' },
+  { value: 'busy', label: 'busy' },
+  { value: 'failed', label: 'failed' },
+];
 
 function formatDuration(value: number | null): string {
   if (value === null || value < 0) return '—';
@@ -279,20 +287,24 @@ export function CallLogsPage() {
   }, [sipPage, sipStatuses]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const hasActiveFilters = Boolean(searchInput.trim() || dateFrom || dateTo || endReason || direction !== 'all');
+  const showLiveExecutionPanel = liveCalls.length > 0;
 
   return (
     <PageLayout subtitle="monitor" title="Call Logs">
       <div className={styles.page}>
-        <section className={styles.topGrid}>
-          <LiveExecutionPanel
-            liveCalls={pagedLiveCalls}
-            liveTotal={liveCalls.length}
-            page={livePage}
-            setPage={setLivePage}
-            expandedCalls={expandedCalls}
-            timelineEvents={timelineEvents}
-            toggleCall={(callId) => setExpandedCalls((current) => ({ ...current, [callId]: !current[callId] }))}
-          />
+        <section className={`${styles.topGrid} ${showLiveExecutionPanel ? '' : styles.topGridSingle}`}>
+          {showLiveExecutionPanel ? (
+            <LiveExecutionPanel
+              liveCalls={pagedLiveCalls}
+              liveTotal={liveCalls.length}
+              page={livePage}
+              setPage={setLivePage}
+              expandedCalls={expandedCalls}
+              timelineEvents={timelineEvents}
+              toggleCall={(callId) => setExpandedCalls((current) => ({ ...current, [callId]: !current[callId] }))}
+            />
+          ) : null}
           <SipEndpointsPanel
             sipStatuses={pagedSipStatuses}
             loading={false}
@@ -311,13 +323,29 @@ export function CallLogsPage() {
           />
           <input className={styles.input} type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
           <input className={styles.input} type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          <select className={styles.input} value={endReason} onChange={(event) => setEndReason(event.target.value)}>
-            <option value="">All</option>
-            <option value="completed">completed</option>
-            <option value="no-answer">no-answer</option>
-            <option value="busy">busy</option>
-            <option value="failed">failed</option>
-          </select>
+          <SearchableSelect
+            options={END_REASON_OPTIONS}
+            value={endReason}
+            onChange={(value) => setEndReason(value || '')}
+            placeholder="All"
+          />
+          {hasActiveFilters ? (
+            <button
+              className={styles.clearFiltersButton}
+              type="button"
+              onClick={() => {
+                setSearchInput('');
+                setSearch('');
+                setDateFrom('');
+                setDateTo('');
+                setEndReason('');
+                setDirection('all');
+                setPage(1);
+              }}
+            >
+              Clear filters
+            </button>
+          ) : null}
         </div>
 
         <div className={styles.filterPills}>
@@ -355,7 +383,11 @@ export function CallLogsPage() {
                   const to = shiftIso(item.endedAt ?? item.startedAt, 10000);
                   const hasLogsDrillDown = Boolean(item.callUuid && from && to);
                   return (
-                    <tr key={`${item.id}-${item.callUuid}`}>
+                    <tr
+                      key={`${item.id}-${item.callUuid}`}
+                      className={styles.logRow}
+                      onClick={() => setTraceCallUuid(item.callUuid)}
+                    >
                       <td className={styles.mono}>{item.callerNumber || '—'}</td>
                       <td className={styles.mono}>{item.calleeNumber || '—'}</td>
                       <td className={styles.flowName}>{item.flowName || '—'}</td>

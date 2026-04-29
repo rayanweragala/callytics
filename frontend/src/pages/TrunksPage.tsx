@@ -210,6 +210,8 @@ export function TrunksPage() {
   const outboundPollRef = useRef<number | null>(null);
   const inboundPollRef = useRef<number | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const testPanelRef = useRef<HTMLDivElement | null>(null);
+  const editPanelRef = useRef<HTMLFormElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const page = Math.floor(offset / limit) + 1;
@@ -264,6 +266,26 @@ export function TrunksPage() {
   }, [openMenuId]);
 
   useEffect(() => {
+    if (!activeTestPanel) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (testPanelRef.current?.contains(target)) {
+        return;
+      }
+      setActiveTestPanel(null);
+      resetOutboundTest();
+      resetInboundTest();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [activeTestPanel]);
+
+  useEffect(() => {
     void listAllAudio()
       .then((response) => {
         const options = response.data.map((file: AudioFileItem) => ({
@@ -298,6 +320,24 @@ export function TrunksPage() {
     setEditForm(emptyForm);
     showError(null);
   };
+
+  useEffect(() => {
+    if (editingId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      hideEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editingId]);
 
   const openCreate = () => {
     resetMessages();
@@ -525,6 +565,12 @@ export function TrunksPage() {
       resetOutboundTest();
       resetInboundTest();
     }
+  };
+
+  const closeTestPanel = () => {
+    setActiveTestPanel(null);
+    resetOutboundTest();
+    resetInboundTest();
   };
 
   const pollOutboundStatus = (trunkId: number, testCallId: string) => {
@@ -848,8 +894,11 @@ export function TrunksPage() {
                     {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'outbound' ? (
                       <tr className={styles.expandedRow}>
                         <td className={styles.expandedCell} colSpan={8}>
-                          <div className={styles.expandedPanel}>
-                            <div className={styles.expandedPanelTitle}>Test Outbound Call — {item.name}</div>
+                          <div className={styles.expandedPanel} ref={testPanelRef} data-trunk-test-panel="true">
+                            <div className={styles.expandedPanelHeader}>
+                              <div className={styles.expandedPanelTitle}>Test Outbound Call — {item.name}</div>
+                              <button className={styles.panelCloseButton} onClick={closeTestPanel} type="button" aria-label="Close test panel">×</button>
+                            </div>
                             <div className={styles.expandedFieldsRow}>
                               <label className={`${styles.field} ${styles.expandedFieldCountry}`}>
                                 <span className={styles.fieldLabel}>country</span>
@@ -906,8 +955,11 @@ export function TrunksPage() {
                     {activeTestPanel?.trunkId === item.id && activeTestPanel.type === 'inbound' ? (
                       <tr className={styles.expandedRow}>
                         <td className={styles.expandedCell} colSpan={8}>
-                          <div className={styles.expandedPanel}>
-                            <div className={styles.expandedPanelTitle}>Test Inbound Call — {item.name}</div>
+                          <div className={styles.expandedPanel} ref={testPanelRef} data-trunk-test-panel="true">
+                            <div className={styles.expandedPanelHeader}>
+                              <div className={styles.expandedPanelTitle}>Test Inbound Call — {item.name}</div>
+                              <button className={styles.panelCloseButton} onClick={closeTestPanel} type="button" aria-label="Close test panel">×</button>
+                            </div>
                             <div className={styles.expandedInboundRow}>
                               <div className={styles.expandedDescription}>Generates a synthetic inbound call through this trunk into your inbound routing.</div>
                               <button
@@ -931,7 +983,11 @@ export function TrunksPage() {
                     {editingId === item.id ? (
                       <tr className={styles.expandedRow}>
                         <td className={styles.expandedCell} colSpan={8}>
-                          <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)}>
+                          <form className={styles.editorRow} onSubmit={(event) => void handleUpdate(event)} ref={editPanelRef}>
+                            <div className={styles.editPanelHeader}>
+                              <span className={styles.panelTitle}>edit trunk</span>
+                              <button className={styles.panelCloseButton} onClick={hideEdit} type="button" aria-label="Close edit panel">×</button>
+                            </div>
                             <label className={styles.field}>
                               <span className={styles.fieldLabel}>trunk name</span>
                               <input className={styles.input} required value={editForm.name} onChange={(event) => {

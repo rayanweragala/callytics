@@ -21,40 +21,36 @@
 
 .filters {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
   padding: 0;
   margin-bottom: 8px;
 }
 
-.filterField {
+.filterPills {
   display: flex;
-  flex-direction: column;
   gap: 6px;
-  min-width: 220px;
 }
 
-.filterLabel {
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-}
-
-.select {
-  border: 1px solid var(--border-strong);
+.filterPill {
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  background: var(--bg);
-  color: var(--text-primary);
-  min-height: 34px;
-  padding: 0 10px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 12px;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.select:focus {
+.filterPill:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.filterPillActive {
+  color: var(--accent);
   border-color: var(--accent);
 }
 

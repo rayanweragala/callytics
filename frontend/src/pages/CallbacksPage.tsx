@@ -17,6 +17,13 @@ const ACTIVE_STATUSES = new Set<CallbackItem['status']>([
   'dialing_customer',
   'bridged',
 ]);
+const STATUS_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'cancelled', label: 'Cancelled' },
+] as const;
 
 type ExecuteState = 'idle' | 'loading' | 'saved';
 
@@ -143,24 +150,26 @@ export function CallbacksPage() {
       </div>
 
       <div className={styles.filters}>
-        <label className={styles.filterField}>
-          <span className={styles.filterLabel}>status</span>
-          <select
-            className={styles.select}
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All</option>
-            <option value="pending">Pending</option>
-            <option value="dialing">Dialing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </label>
+        <div className={styles.filterPills} role="tablist" aria-label="Callback status filter">
+          {STATUS_OPTIONS.map((option) => {
+            const active = statusFilter === option.value;
+            return (
+              <button
+                key={option.value || 'all'}
+                className={`${styles.filterPill} ${active ? styles.filterPillActive : ''}`}
+                onClick={() => {
+                  setStatusFilter(option.value);
+                  setPage(1);
+                }}
+                role="tab"
+                aria-selected={active}
+                type="button"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className={styles.tableCard}>

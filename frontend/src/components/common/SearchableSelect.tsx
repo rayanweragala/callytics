@@ -18,7 +18,7 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'sele
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const [dropdownMinWidth, setDropdownMinWidth] = useState<number | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number; minWidth: number } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -52,13 +52,26 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'sele
     const trigger = triggerRef.current;
     if (!trigger) return;
 
-    const updateMinWidth = () => setDropdownMinWidth(trigger.offsetWidth);
-    updateMinWidth();
+    const updatePosition = () => {
+      const rect = trigger.getBoundingClientRect();
+      setDropdownStyle({
+        top: rect.bottom + 8,
+        left: rect.left,
+        minWidth: rect.width,
+      });
+    };
+    updatePosition();
 
-    const observer = new ResizeObserver(updateMinWidth);
+    const observer = new ResizeObserver(updatePosition);
     observer.observe(trigger);
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
   }, [open, disabled]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -110,7 +123,10 @@ export function SearchableSelect({ options, value, onChange, placeholder = 'sele
         <span className={styles.triggerText}>{selectedOption?.label || placeholder}</span>
       </button>
       {open && !disabled ? (
-        <div className={styles.dropdown} style={dropdownMinWidth ? { minWidth: `${dropdownMinWidth}px` } : undefined}>
+        <div
+          className={styles.dropdown}
+          style={dropdownStyle ? { top: `${dropdownStyle.top}px`, left: `${dropdownStyle.left}px`, minWidth: `${dropdownStyle.minWidth}px` } : undefined}
+        >
           <input
             className={styles.searchInput}
             onChange={(event) => setQuery(event.target.value)}

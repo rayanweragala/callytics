@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useCallback, useEffect, useState } from 'react';
+import { FormEvent, Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
@@ -62,20 +62,17 @@ function OperatorPickerRow({
         })}
       </div>
       {unselected.length > 0 ? (
-        <select
-          className={styles.select}
-          value=""
-          onChange={(e) => {
-            const id = Number(e.target.value);
-            if (id && !selectedIds.includes(id)) onChange([...selectedIds, id]);
-          }}
-          style={{ marginTop: selectedIds.length > 0 ? 8 : 0 }}
-        >
-          <option value="">add operator</option>
-          {unselected.map((op) => (
-            <option key={op.id} value={op.id}>{op.name}</option>
-          ))}
-        </select>
+        <div style={{ marginTop: selectedIds.length > 0 ? 8 : 0 }}>
+          <SearchableSelect
+            options={unselected.map((op) => ({ value: String(op.id), label: op.name }))}
+            value={null}
+            placeholder="add operator"
+            onChange={(value) => {
+              const id = Number(value);
+              if (id && !selectedIds.includes(id)) onChange([...selectedIds, id]);
+            }}
+          />
+        </div>
       ) : null}
     </div>
   );
@@ -104,6 +101,7 @@ export function QueuesPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [errorText, setErrorText] = useState<string | null>(null);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
@@ -185,6 +183,24 @@ export function QueuesPage() {
     setEditState(null);
     setErrorText(null);
   };
+
+  useEffect(() => {
+    if (!editState) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      cancelEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editState]);
 
   const handleSave = async () => {
     if (!editState) return;
@@ -390,7 +406,11 @@ export function QueuesPage() {
                   {editState?.queueId === q.id ? (
                     <tr>
                       <td colSpan={6}>
-                        <div className={styles.editorRow}>
+                        <div className={styles.editorRow} ref={editPanelRef}>
+                          <div className={styles.editPanelHeader}>
+                            <span className={styles.panelTitle}>edit queue</span>
+                            <button className={styles.panelCloseButton} type="button" onClick={cancelEdit} aria-label="Close edit panel">×</button>
+                          </div>
                           <div className={styles.formGrid}>
                             <div className={styles.formRow}>
                               <label className={styles.field}>

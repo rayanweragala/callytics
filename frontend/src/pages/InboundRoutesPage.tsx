@@ -41,6 +41,7 @@ export function InboundRoutesPage() {
   const [total, setTotal] = useState(0);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const showError = (msg: string | null) => {
@@ -124,6 +125,29 @@ export function InboundRoutesPage() {
       flowId: String(item.flowId),
     });
   };
+
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm);
+  };
+
+  useEffect(() => {
+    if (editingId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      closeEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editingId]);
 
   const handleUpdate = async () => {
     if (editingId === null) return;
@@ -266,7 +290,11 @@ export function InboundRoutesPage() {
                   {editingId === item.id ? (
                     <tr>
                       <td colSpan={5}>
-                        <div className={styles.editorRow}>
+                        <div className={styles.editorRow} ref={editPanelRef}>
+                          <div className={styles.editPanelHeader}>
+                            <span className={styles.panelTitle}>edit route</span>
+                            <button className={styles.panelCloseButton} onClick={closeEdit} type="button" aria-label="Close edit panel">×</button>
+                          </div>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>did</span>
                             <input className={`${styles.input} ${styles.dataMono}`} value={editForm.did} onChange={(event) => {
@@ -281,7 +309,7 @@ export function InboundRoutesPage() {
                               setEditForm((current) => ({ ...current, label: event.target.value }));
                             }} />
                           </label>
-                          <label className={styles.field}>
+                          <label className={`${styles.field} ${styles.editFieldFullSpan}`}>
                             <span className={styles.fieldLabel}>flow</span>
                             <SearchableSelect options={flowOptions} placeholder="select flow" value={editForm.flowId || null} onChange={(value) => {
                               resetMessages();
@@ -289,7 +317,7 @@ export function InboundRoutesPage() {
                             }} />
                           </label>
                           <div className={styles.formActions}>
-                            <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
+                            <button className={styles.secondaryButton} onClick={closeEdit} type="button">cancel</button>
                             <button className={styles.primaryButton} disabled={!editForm.flowId} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                           </div>
                         </div>

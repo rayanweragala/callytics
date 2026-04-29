@@ -56,6 +56,7 @@ export function CampaignsPage() {
   const navigate = useNavigate();
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const saveFeedbackTimer = useRef<number | null>(null);
+  const editPanelRef = useRef<HTMLElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -196,6 +197,24 @@ export function CampaignsPage() {
     setEditingCampaign(null);
     resetForm();
   };
+
+  useEffect(() => {
+    if (!editingCampaign) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      closeForm();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editingCampaign]);
 
   const clearInlineConfirm = () => {
     setConfirmDeleteId(null);
@@ -373,8 +392,13 @@ export function CampaignsPage() {
       </div>
         {formOpen ? (
           <>
-            <section className={styles.formPanel}>
-              <div className={styles.panelTitle}>{editingCampaign ? 'edit campaign' : 'new campaign'}</div>
+            <section className={styles.formPanel} ref={editPanelRef}>
+              <div className={styles.editPanelHeader}>
+                <div className={styles.panelTitle}>{editingCampaign ? 'edit campaign' : 'new campaign'}</div>
+                {editingCampaign ? (
+                  <button className={styles.panelCloseButton} type="button" onClick={closeForm} aria-label="Close edit panel">×</button>
+                ) : null}
+              </div>
               <div id="campaign-form">
                 <div className={styles.formGrid}>
                 <label className={styles.field}>
@@ -419,15 +443,12 @@ export function CampaignsPage() {
 
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>default country</span>
-                  <select
-                    className={`${styles.input} ${styles.select}`}
+                  <SearchableSelect
+                    options={COUNTRY_OPTIONS.map((option) => ({ value: option.code, label: `${option.code} — ${option.label}` }))}
                     value={defaultCountry}
-                    onChange={(event) => setDefaultCountry(event.target.value)}
-                  >
-                    {COUNTRY_OPTIONS.map((option) => (
-                      <option key={option.code} value={option.code}>{option.code} — {option.label}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setDefaultCountry(value || 'US')}
+                    placeholder="select country"
+                  />
                 </label>
 
                 <label className={`${styles.field} ${styles.scheduledField}`}>

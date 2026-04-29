@@ -36,14 +36,12 @@
 }
 
 .dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  position: fixed;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: 6px;
   padding: 8px;
-  z-index: 20;
+  z-index: 1200;
 }
 
 .searchInput {

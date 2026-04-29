@@ -439,7 +439,7 @@ export function BackupPage() {
           <div className={styles.sectionHeader}>
             <div>
               <div className={styles.sectionTitle}>Backups</div>
-              <div className={styles.sectionHint}>Create archives, download them, or restore from saved files.</div>
+              <div className={styles.sectionHint}>Create archives of database, recordings, and audio files, then download or restore them.</div>
             </div>
             <div className={styles.headerActions}>
               <ToggleSwitch

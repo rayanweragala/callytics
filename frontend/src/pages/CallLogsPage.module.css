@@ -25,6 +25,10 @@
   gap: 12px;
 }
 
+.topGridSingle {
+  grid-template-columns: 1fr;
+}
+
 .panel {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -35,9 +39,10 @@
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 170px 170px 180px;
+  grid-template-columns: minmax(220px, 1fr) 170px 170px 180px auto;
   gap: 8px;
   margin: 0 0 8px;
+  align-items: center;
 }
 
 .filterPills {
@@ -80,6 +85,21 @@
 
 .input:focus {
   border-color: var(--accent);
+}
+
+.clearFiltersButton {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  justify-self: end;
+  padding: 0;
+}
+
+.clearFiltersButton:hover {
+  text-decoration: underline;
 }
 
 .table {
@@ -144,6 +164,14 @@
 
 .traceCell {
   text-align: right;
+}
+
+.logRow {
+  cursor: pointer;
+}
+
+.logRow:hover {
+  background: var(--surface-elevated);
 }
 
 .emptyState {

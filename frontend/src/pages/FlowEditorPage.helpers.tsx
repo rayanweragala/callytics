@@ -552,13 +552,18 @@ export function serializeNodeForSave(node: Node<FlowNodeData>) {
           resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 150)
         ),
       }
-    : node.data.type === 'menu'
+      : node.data.type === 'menu'
       ? {
           ...node.data.config,
           branches: sanitizeMenuBranches(node.data.config.branches),
           submenu_branch_targets: sanitizeMenuSubmenuTargets(
             node.data.config.submenu_branch_targets
           ),
+        }
+      : node.data.type === 'transfer'
+      ? {
+          ...node.data.config,
+          target_type: String((node.data.config as Record<string, unknown>).target_type || 'extension'),
         }
       : node.data.config;
   return {

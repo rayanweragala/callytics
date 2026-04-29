@@ -201,7 +201,7 @@ export function HuntConfigPanel({
             className={styles.input}
             type="number"
             value={String(Number(config.attempt_timeout_ms || 20000))}
-            onChange={(event) => updateConfig({ attempt_timeout_ms: Number(event.target.value) || 0 })}
+            onChange={(event) => updateConfig({ attempt_timeout_ms: event.target.value ? Number(event.target.value) : null })}
           />
         </label>
       ) : null}
@@ -212,7 +212,7 @@ export function HuntConfigPanel({
           className={styles.input}
           type="number"
           value={String(Number(config.total_timeout_ms || 60000))}
-          onChange={(event) => updateConfig({ total_timeout_ms: Number(event.target.value) || 0 })}
+          onChange={(event) => updateConfig({ total_timeout_ms: event.target.value ? Number(event.target.value) : null })}
         />
       </label>
 

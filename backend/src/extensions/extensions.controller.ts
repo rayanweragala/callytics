@@ -29,4 +29,9 @@ export class ExtensionsController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.extensionsService.remove(id);
   }
+
+  @Get(':id/qr-content')
+  getQrContent(@Param('id', ParseIntPipe) id: number) {
+    return this.extensionsService.getQrContent(id);
+  }
 }

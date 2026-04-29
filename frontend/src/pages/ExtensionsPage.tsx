@@ -3,9 +3,10 @@ import QRCode from 'qrcode';
 import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Pagination } from '../components/common/Pagination';
+import { SearchableSelect } from '../components/common/SearchableSelect';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
-import { createExtension, deleteExtension, getHostConfig, getVpnStatus, listExtensions, updateExtension } from '../lib/api';
+import { createExtension, deleteExtension, getExtensionQrContent, getHostConfig, getVpnStatus, listExtensions, updateExtension } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { ExtensionItem } from '../types';
@@ -26,6 +27,10 @@ const emptyForm: ExtensionFormState = {
   transportType: 'sip',
   vpnOnly: false,
 };
+const TRANSPORT_OPTIONS = [
+  { value: 'sip', label: 'SIP / UDP' },
+  { value: 'webrtc', label: 'WebRTC / WSS' },
+];
 
 export function ExtensionsPage() {
   const [items, setItems] = useState<ExtensionItem[]>([]);
@@ -41,13 +46,13 @@ export function ExtensionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [qrModal, setQrModal] = useState<{ username: string; uri: string; dataUrl: string } | null>(null);
   const [hostIp, setHostIp] = useState('127.0.0.1');
-  const [sipPort, setSipPort] = useState(5080);
   const [vpnInstalled, setVpnInstalled] = useState(false);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const showError = (msg: string | null) => {
@@ -66,8 +71,8 @@ export function ExtensionsPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const sortedItems = useMemo(() => [...items].sort((a, b) => a.username.localeCompare(b.username)), [items]);
 
-  function buildSipUri(username: string): string {
-    return `sip:${username}@${hostIp}:${sipPort}`;
+function buildSipUri(username: string): string {
+    return `sip:${username}@${hostIp}:5080;transport=udp`;
   }
 
   const load = async (nextLimit = limit, nextOffset = offset) => {
@@ -82,7 +87,6 @@ export function ExtensionsPage() {
       setItems(extensionsResponse.data);
       setTotal(extensionsResponse.total);
       setHostIp(hostConfig.hostIp);
-      setSipPort(hostConfig.sipPort);
       setVpnInstalled(vpnStatus.installed);
     } catch {
       setLoadError('Failed to load extensions');
@@ -142,6 +146,29 @@ export function ExtensionsPage() {
     });
   };
 
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm);
+  };
+
+  useEffect(() => {
+    if (editingId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (editPanelRef.current?.contains(target)) {
+        return;
+      }
+      closeEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editingId]);
+
   const handleUpdate = async () => {
     if (editingId === null) return;
     setBusyKey(`edit-${editingId}`);
@@ -189,7 +216,8 @@ export function ExtensionsPage() {
     setBusyKey(`qr-${item.id}`);
     resetMessages();
     try {
-      const uri = buildSipUri(item.username);
+      const qrResponse = await getExtensionQrContent(item.id);
+      const uri = qrResponse.data.content;
       const dataUrl = await QRCode.toDataURL(uri, { width: 220, margin: 1 });
       setQrModal({ username: item.username, uri, dataUrl });
     } catch (error) {
@@ -244,17 +272,15 @@ export function ExtensionsPage() {
               </label>
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>transport</span>
-                <select
-                  className={styles.input}
+                <SearchableSelect
+                  options={TRANSPORT_OPTIONS}
                   value={createForm.transportType}
-                  onChange={(event) => {
+                  onChange={(value) => {
                     resetMessages();
-                    setCreateForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
+                    setCreateForm((current) => ({ ...current, transportType: value === 'webrtc' ? 'webrtc' : 'sip' }));
                   }}
-                >
-                  <option value="sip">SIP / UDP</option>
-                  <option value="webrtc">WebRTC / WSS</option>
-                </select>
+                  placeholder="select transport"
+                />
               </label>
               <div className={styles.formActions}>
                 <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
@@ -339,7 +365,11 @@ export function ExtensionsPage() {
                     {editingId === item.id ? (
                       <tr>
                         <td colSpan={7}>
-                          <div className={styles.editorRow}>
+                          <div className={styles.editorRow} ref={editPanelRef}>
+                            <div className={styles.editPanelHeader}>
+                              <span className={styles.panelTitle}>edit extension</span>
+                              <button className={styles.panelCloseButton} onClick={closeEdit} type="button" aria-label="Close edit panel">×</button>
+                            </div>
                             <label className={styles.field}>
                               <span className={styles.fieldLabel}>username</span>
                               <input className={`${styles.input} ${styles.dataMono}`} value={editForm.username} onChange={(event) => {
@@ -363,17 +393,15 @@ export function ExtensionsPage() {
                             </label>
                             <label className={styles.field}>
                               <span className={styles.fieldLabel}>transport</span>
-                              <select
-                                className={styles.input}
+                              <SearchableSelect
+                                options={TRANSPORT_OPTIONS}
                                 value={editForm.transportType}
-                                onChange={(event) => {
+                                onChange={(value) => {
                                   resetMessages();
-                                  setEditForm((current) => ({ ...current, transportType: event.target.value === 'webrtc' ? 'webrtc' : 'sip' }));
+                                  setEditForm((current) => ({ ...current, transportType: value === 'webrtc' ? 'webrtc' : 'sip' }));
                                 }}
-                              >
-                                <option value="sip">SIP / UDP</option>
-                                <option value="webrtc">WebRTC / WSS</option>
-                              </select>
+                                placeholder="select transport"
+                              />
                             </label>
                             <div className={styles.vpnToggleField}>
                               <div>
@@ -396,7 +424,7 @@ export function ExtensionsPage() {
                               </span>
                             </div>
                             <div className={styles.formActions}>
-                              <button className={styles.secondaryButton} onClick={() => setEditingId(null)} type="button">cancel</button>
+                              <button className={styles.secondaryButton} onClick={closeEdit} type="button">cancel</button>
                               <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
                           </div>

@@ -107,15 +107,16 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
 
   async getSystemHealth(): Promise<DiagnosticsSystemHealth> {
     const checkedAt = new Date().toISOString();
-    const [ariInfo, channels, ami, postgres, redis] = await Promise.all([
+    const [ariInfo, channels, ami, postgres, redis, amiUptimeSeconds] = await Promise.all([
       this.fetchAriInfo(),
       this.fetchAriChannels(),
       this.asteriskConfigService.checkAmiConnection(),
       this.checkPostgres(),
       this.checkRedis(),
+      this.fetchAmiUptimeSeconds(),
     ]);
 
-    const uptimeSeconds = this.extractUptimeSeconds(ariInfo.data);
+    const uptimeSeconds = amiUptimeSeconds ?? this.extractUptimeSeconds(ariInfo.data);
     const version = this.extractVersion(ariInfo.data);
     const activeChannels = Array.isArray(channels.data) ? channels.data.length : 0;
 
@@ -609,6 +610,70 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private async fetchAmiUptimeSeconds(): Promise<number | null> {
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host: this.amiHost, port: this.amiPort });
+      const actionId = `uptime-${Date.now()}`;
+      let buffer = '';
+      let loggedIn = false;
+      let settled = false;
+      let commandOutput = '';
+
+      const finish = (value: number | null) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        socket.end();
+        resolve(value);
+      };
+
+      socket.setTimeout(8000, () => finish(null));
+      socket.on('error', () => finish(null));
+
+      socket.on('connect', () => {
+        socket.write(`Action: Login\r\nUsername: ${this.amiUser}\r\nSecret: ${this.amiPass}\r\n\r\n`);
+      });
+
+      socket.on('data', (chunk) => {
+        buffer += chunk.toString('utf8');
+
+        while (buffer.includes('\r\n\r\n')) {
+          const parts = buffer.split('\r\n\r\n');
+          const raw = parts.shift() || '';
+          buffer = parts.join('\r\n\r\n');
+          const message = this.parseAmiMessage(raw);
+
+          if (!loggedIn && message.Response === 'Success' && message.Message === 'Authentication accepted') {
+            loggedIn = true;
+            socket.write(`Action: Command\r\nActionID: ${actionId}\r\nCommand: core show uptime seconds\r\n\r\n`);
+            continue;
+          }
+
+          if (message.ActionID !== actionId) {
+            continue;
+          }
+
+          if (message.Output) {
+            commandOutput += `${message.Output}\n`;
+          }
+
+          if (message.Output && message.Output.includes('--END COMMAND--')) {
+            const match = commandOutput.match(/System uptime:\s*(\d+)\s*seconds/i);
+            socket.write('Action: Logoff\r\n\r\n');
+            finish(match ? Number(match[1]) : null);
+            return;
+          }
+          if (message.Response === 'Error') {
+            socket.write('Action: Logoff\r\n\r\n');
+            finish(null);
+            return;
+          }
+        }
+      });
+    });
+  }
+
   private async readNetworkIo(): Promise<ResourcesResponse['network']> {
     try {
       const raw = await fs.promises.readFile('/proc/net/dev', 'utf8');
@@ -828,7 +893,7 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
 
     const system = data.system as Record<string, unknown> | undefined;
     const status = data.status as Record<string, unknown> | undefined;
-    const rawUptime = system?.uptime_seconds ?? status?.uptime_seconds ?? status?.uptime;
+    const rawUptime = system?.uptime ?? system?.uptime_seconds ?? status?.uptime_seconds ?? status?.uptime;
     if (typeof rawUptime === 'number') {
       return Math.max(0, Math.round(rawUptime));
     }

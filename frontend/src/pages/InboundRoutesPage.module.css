@@ -34,8 +34,7 @@
   text-transform: lowercase;
 }
 
-.formGrid,
-.editorRow {
+.formGrid {
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -51,10 +50,44 @@
 }
 
 .editorRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   padding: 12px 16px;
   background: var(--surface-elevated);
   border-top: 1px solid var(--border-subtle);
   margin-top: -1px;
+  align-items: start;
+  position: relative;
+}
+
+.editPanelHeader {
+  grid-column: 1 / -1;
+  width: 100%;
+  display: block;
+  margin-bottom: 2px;
+  padding-right: 40px;
+}
+
+.panelCloseButton {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.panelCloseButton:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
 }
 
 .field {
@@ -195,6 +228,11 @@
 .formActions {
   flex-shrink: 0;
   flex-wrap: nowrap;
+}
+
+.editorRow .formActions,
+.editFieldFullSpan {
+  grid-column: 1 / -1;
 }
 
 .field :global(.container) {

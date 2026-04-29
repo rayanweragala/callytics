@@ -41,7 +41,20 @@ export async function runSqlMigrations(dataSource: DataSource): Promise<void> {
       .filter(Boolean);
 
     for (const statement of statements) {
-      await dataSource.query(statement);
+      try {
+        await dataSource.query(statement);
+      } catch (error: unknown) {
+        const err = error as { code?: string; message?: string };
+        const normalized = statement.replace(/\s+/g, ' ').trim().toLowerCase();
+        const isOperatorsPinAdd =
+          normalized === 'alter table operators add column if not exists pin text';
+        if (err?.code === '54011' && isOperatorsPinAdd) {
+          // In some legacy databases, Postgres errors before IF NOT EXISTS can short-circuit.
+          // Skip this additive column migration so boot can continue.
+          continue;
+        }
+        throw error;
+      }
     }
   }
 }

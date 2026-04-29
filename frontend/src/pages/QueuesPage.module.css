@@ -62,6 +62,32 @@
   margin-top: -1px;
 }
 
+.editPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panelCloseButton {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panelCloseButton:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
 .actionsHeader {
   text-align: right;
 }

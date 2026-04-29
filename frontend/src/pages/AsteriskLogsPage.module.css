@@ -36,24 +36,34 @@
 
 .table {
   width: 100%;
-  table-layout: fixed;
+  table-layout: auto;
   border-collapse: collapse;
 }
 
-.table th:nth-child(1) {
+.timestampCol {
   width: 164px;
+  min-width: 164px;
+  max-width: 164px;
 }
 
-.table th:nth-child(2) {
-  width: 88px;
+.levelCol {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
 }
 
-.table th:nth-child(3) {
-  width: 96px;
+.channelCol {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
 }
 
-.table th:nth-child(4) {
-  width: 170px;
+.moduleCol {
+  width: 140px;
+}
+
+.messageCol {
+  width: auto;
 }
 
 .row {
