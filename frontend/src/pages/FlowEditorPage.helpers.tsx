@@ -202,6 +202,22 @@ export function validateNodeConfigurations(
           if (!hasDestination) {
             issues.push('at least one destination is required');
           }
+          const strategy = String(config.strategy || 'sequential').trim().toLowerCase();
+          if (strategy === 'order') {
+            const seen = new Set<number>();
+            destinations.forEach((entry) => {
+              const order = Number((entry as Record<string, unknown>)?.order);
+              if (!Number.isInteger(order) || order <= 0) {
+                issues.push('every destination must have an order number');
+                return;
+              }
+              if (seen.has(order)) {
+                issues.push('destination order numbers must be unique');
+                return;
+              }
+              seen.add(order);
+            });
+          }
           break;
         }
         case 'queue':

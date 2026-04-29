@@ -5,15 +5,18 @@ import { onCustomerHangup } from '../engine/queueManager';
 import { createClient, RedisClientType } from 'redis';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { logEvent } from '../logger';
+import { beginNodeRecording } from '../bridgeRecording';
 
 interface QueueConfig {
   queue_id?: number;
   prompt_audio_file_id?: number | null;
   prompt_path?: string | null;
+  record_call?: boolean;
 }
 
 interface QueueRow {
   id: number;
+  name: string;
   max_wait_seconds: number;
   wait_audio_file_id: number | null;
 }
@@ -96,7 +99,7 @@ export async function executeQueue(
   }
 
   const queueRows = await query(
-    'SELECT id, max_wait_seconds, wait_audio_file_id FROM queues WHERE id = $1',
+    'SELECT id, name, max_wait_seconds, wait_audio_file_id FROM queues WHERE id = $1',
     [queueId],
   ) as QueueRow[];
 
@@ -151,6 +154,10 @@ export async function executeQueue(
           const bridge = await ari.bridges.create({ type: 'mixing' });
           await ari.bridges.addChannel({ bridgeId: bridge.id, channel: channelId });
           await ari.bridges.addChannel({ bridgeId: bridge.id, channel: operatorChannelId });
+          if (Boolean(config.record_call)) {
+            const queueName = String(queueRow.name || queueId).replace(/[^a-zA-Z0-9_-]/g, '_');
+            await beginNodeRecording(session, bridge.id, `${session.callUuid}-queue-${queueName}-${Date.now()}`, 'queue');
+          }
 
           logEvent('QueueConnected', { customerChannelId: channelId, operatorId, bridgeId: bridge.id, queueId });
 

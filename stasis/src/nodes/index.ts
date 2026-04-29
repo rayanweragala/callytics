@@ -18,6 +18,7 @@ import { executeCallbackNode } from "./callback.executor";
 import { executeConference } from "./conference.executor";
 import { logEvent } from "../logger";
 import { INTER_DIGIT_TIMEOUT_MS, resolveNodeTimeoutMs } from "../timeoutResolver";
+import { beginNodeRecording } from "../bridgeRecording";
 
 type PlaybackTarget =
   | {
@@ -609,14 +610,6 @@ async function executeTransfer(
   };
 
   if (session.inboundBridge) {
-    if (session.recording && !session.recording.endedAt) {
-      try {
-        await stopLiveRecording(session.recording.name);
-      } catch (error) {
-        logEvent("RecordingStopFailed", { callId: session.callUuid, fileName: session.recording.fileName, error });
-      }
-      session.recording.endedAt = new Date();
-    }
     try {
       await client.bridges.destroy({ bridgeId: session.inboundBridge.id });
       logEvent("BridgeDestroyed", { bridgeId: session.inboundBridge.id, channelCountAtDestroy: 1 });
@@ -763,6 +756,9 @@ async function executeTransfer(
       bridgeId: bridge.id,
       channel: outboundChannel.id,
     });
+    if (Boolean(targetConfig.record_call)) {
+      await beginNodeRecording(session, bridge.id, `${session.callUuid}-transfer-${Date.now()}`, 'transfer');
+    }
     const endedChannelId = await waitForChannelEnd(ariClient, [
       channel.id,
       outboundChannel.id,

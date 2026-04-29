@@ -734,12 +734,6 @@ async function start(): Promise<void> {
         try {
           await channel.answer();
           session.inboundBridge = await createInboundBridge(client, channel.id);
-          if (session.inboundBridge) {
-            session.recording = await startBridgeRecording(
-              session.inboundBridge.id,
-              channel.id,
-            );
-          }
           try {
             await client.applications.subscribe({
               applicationName: ARI_APP,

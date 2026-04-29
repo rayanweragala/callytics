@@ -20,6 +20,7 @@ function strategyLabel(config: Record<string, unknown>): string {
   const raw = String(config.strategy || 'sequential').trim().toLowerCase();
   if (raw === 'group') return 'group';
   if (raw === 'random') return 'random';
+  if (raw === 'order') return 'order';
   return 'sequential';
 }
 

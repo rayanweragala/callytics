@@ -19,7 +19,9 @@ const strategyOptions: SearchableSelectOption[] = [
   { value: 'sequential', label: 'Sequential' },
   { value: 'random', label: 'Random' },
   { value: 'group', label: 'Group' },
+  { value: 'order', label: 'Order' },
 ];
+
 
 function normalizeDestinations(config: Record<string, unknown>): HuntDestination[] {
   if (!Array.isArray(config.destinations) || config.destinations.length === 0) {
@@ -37,6 +39,7 @@ function normalizeDestinations(config: Record<string, unknown>): HuntDestination
       target_type: targetType,
       target_value: targetValue,
       trunk_id: item.trunk_id ? Number(item.trunk_id) : undefined,
+      order: Number.isFinite(Number(item.order)) ? Math.trunc(Number(item.order)) : undefined,
     });
     return acc;
   }, []);
@@ -57,7 +60,22 @@ export function HuntConfigPanel({
 }: HuntConfigPanelProps) {
   const strategy = String(config.strategy || 'sequential');
   const isGroup = strategy === 'group';
+  const isOrder = strategy === 'order';
   const destinations = normalizeDestinations(config);
+  const destinationRows = destinations
+    .map((destination, originalIndex) => ({ destination, originalIndex }))
+    .sort((a, b) => {
+      if (!isOrder) return a.originalIndex - b.originalIndex;
+      const av = typeof a.destination.order === 'number' ? a.destination.order : Number.MAX_SAFE_INTEGER;
+      const bv = typeof b.destination.order === 'number' ? b.destination.order : Number.MAX_SAFE_INTEGER;
+      return av - bv;
+    });
+  const orderCounts = destinations.reduce<Record<number, number>>((acc, destination) => {
+    if (typeof destination.order === 'number' && destination.order > 0) {
+      acc[destination.order] = (acc[destination.order] || 0) + 1;
+    }
+    return acc;
+  }, {});
   const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const holdAudioItem = audioItems.find((item) => String(item.id) === String(config.hold_audio_file_id));
   const busyAudioItem = audioItems.find((item) => String(item.id) === String(config.busy_audio_file_id));
@@ -106,14 +124,16 @@ export function HuntConfigPanel({
       <div className={styles.field}>
         <span className={styles.fieldLabel}>destinations</span>
         <div className={styles.destinationsList}>
-          {destinations.map((destination, index) => (
-            <div className={styles.destinationCard} key={`${nodeId}-destination-${index}`}>
+          {destinationRows.map(({ destination, originalIndex }) => {
+            const duplicateOrder = typeof destination.order === 'number' && destination.order > 0 && (orderCounts[destination.order] || 0) > 1;
+            return (
+            <div className={styles.destinationCard} key={`${nodeId}-destination-${originalIndex}`}>
               <div className={styles.destinationRow}>
                 <div className={styles.targetTypeCell}>
                   <select
                     className={styles.targetTypeSelect}
                     value={destination.target_type}
-                    onChange={(event) => updateDestination(index, {
+                    onChange={(event) => updateDestination(originalIndex, {
                       target_type: event.target.value === 'pstn' ? 'pstn' : 'extension',
                       target_value: '',
                       trunk_id: undefined,
@@ -128,7 +148,7 @@ export function HuntConfigPanel({
                     <SearchableSelect
                       options={extensionOptions}
                       value={destination.target_value || null}
-                      onChange={(value) => updateDestination(index, { ...destination, target_type: 'extension', target_value: value || '', trunk_id: undefined })}
+                      onChange={(value) => updateDestination(originalIndex, { ...destination, target_type: 'extension', target_value: value || '', trunk_id: undefined })}
                       placeholder="select extension"
                     />
                   ) : (
@@ -137,7 +157,7 @@ export function HuntConfigPanel({
                       value={destination.target_value || null}
                       onChange={(value) => {
                         const matchedContact = contacts.find((item) => item.number === value);
-                        updateDestination(index, {
+                        updateDestination(originalIndex, {
                           ...destination,
                           target_type: 'pstn',
                           target_value: value || '',
@@ -148,12 +168,28 @@ export function HuntConfigPanel({
                     />
                   )}
                 </div>
-                <button className={styles.removeButton} disabled={destinations.length <= 1} onClick={() => removeDestination(index)} type="button" aria-label="remove destination">
+                <button className={styles.removeButton} disabled={destinations.length <= 1} onClick={() => removeDestination(originalIndex)} type="button" aria-label="remove destination">
                   ×
                 </button>
               </div>
+              {isOrder ? (
+                <div className={styles.orderLine}>
+                  <span className={styles.orderLabel}>ORDER</span>
+                  <input
+                    className={`${styles.input} ${styles.orderInput}`}
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="#"
+                    value={destination.order ?? ''}
+                    onChange={(event) => updateDestination(originalIndex, { ...destination, order: event.target.value ? Math.max(1, Number.parseInt(event.target.value, 10)) : undefined })}
+                  />
+                </div>
+              ) : null}
+              {isOrder && duplicateOrder ? <span className={styles.orderError}>Order # already used</span> : null}
             </div>
-          ))}
+            );
+          })}
         </div>
         <button className={styles.addButton} onClick={addDestination} type="button">add destination</button>
       </div>
@@ -221,6 +257,21 @@ export function HuntConfigPanel({
           placeholder="select fallback node"
         />
       </label>
+
+      <div className={styles.toggleField}>
+        <span className={styles.toggleLabel}>Record call</span>
+        <button
+          aria-checked={Boolean(config.record_call)}
+          aria-label="Record call"
+          className={`${styles.toggleSwitch} ${Boolean(config.record_call) ? styles.toggleOn : ''}`}
+          onClick={() => updateConfig({ record_call: !Boolean(config.record_call) })}
+          role="switch"
+          type="button"
+        >
+          <span />
+        </button>
+      </div>
+      <span className={styles.meta}>Records the conversation when a destination answers.</span>
     </div>
   );
 }

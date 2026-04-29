@@ -479,6 +479,20 @@ export function NodeConfigPanel({
                     placeholder="select fallback node"
                   />
                 </label>
+                <div className={styles.toggleField}>
+                  <span className={styles.toggleLabel}>Record call</span>
+                  <button
+                    aria-checked={Boolean(transferConfig.record_call)}
+                    aria-label="Record call"
+                    className={`${styles.toggleSwitch} ${Boolean(transferConfig.record_call) ? styles.toggleOn : ''}`}
+                    onClick={() => onConfigValueChange('record_call', !Boolean(transferConfig.record_call))}
+                    role="switch"
+                    type="button"
+                  >
+                    <span />
+                  </button>
+                </div>
+                <span className={styles.meta}>Records the conversation after the call is transferred.</span>
               </>
             );
           })() : null}
@@ -1383,6 +1397,20 @@ function QueueConfigPanel({ config, queueItems, audioItems, audioOptions, onConf
         const srcPath = promptItem?.previewUrl || promptItem?.originalUrl;
         return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${BASE}${srcPath}`} /> : null;
       })()}
+      <div className={styles.toggleField}>
+        <span className={styles.toggleLabel}>Record call</span>
+        <button
+          aria-checked={Boolean(config['record_call'])}
+          aria-label="Record call"
+          className={`${styles.toggleSwitch} ${Boolean(config['record_call']) ? styles.toggleOn : ''}`}
+          onClick={() => onConfigValueChange('record_call', !Boolean(config['record_call']))}
+          role="switch"
+          type="button"
+        >
+          <span />
+        </button>
+      </div>
+      <span className={styles.meta}>Records the conversation when an agent answers.</span>
     </>
   );
 }

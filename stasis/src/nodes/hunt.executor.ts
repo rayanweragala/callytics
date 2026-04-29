@@ -4,6 +4,7 @@ import { resolveAudioMediaPath } from '../audioResolver';
 import { FlowNode } from '../flowLoader';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { logEvent } from '../logger';
+import { beginNodeRecording } from '../bridgeRecording';
 
 interface HuntExecutorChannel {
   id: string;
@@ -18,6 +19,8 @@ interface AriLike {
   channels: {
     originate: (params: { endpoint: string; app: string; appArgs: string; callerId: string; timeout: number; channelId?: string }) => Promise<void>;
     hangup: (params: { channelId: string }) => Promise<void>;
+    startMoh?: (params: { channelId: string; mohClass?: string }) => Promise<void>;
+    stopMoh?: (params: { channelId: string }) => Promise<void>;
   };
   bridges: {
     addChannel: (params: { bridgeId: string; channel: string }) => Promise<void>;
@@ -338,6 +341,7 @@ interface HuntDestinationConfig {
   target_type: 'extension' | 'pstn';
   target_value: string;
   trunk_id?: number;
+  order?: number;
 }
 
 function normalizeDestinations(config: Record<string, unknown>): HuntDestinationConfig[] {
@@ -354,10 +358,12 @@ function normalizeDestinations(config: Record<string, unknown>): HuntDestination
       const targetType = item.target_type === 'pstn' ? 'pstn' : item.target_type === 'extension' ? 'extension' : '';
       const targetValue = String(item.target_value || '').trim();
       if (!targetType || !targetValue) return null;
+      const parsedOrder = Number(item.order);
       return {
         target_type: targetType,
         target_value: targetValue,
         trunk_id: item.trunk_id ? Number(item.trunk_id) : undefined,
+        order: Number.isFinite(parsedOrder) ? Math.trunc(parsedOrder) : undefined,
       } as HuntDestinationConfig;
     })
     .filter((value): value is HuntDestinationConfig => Boolean(value));
@@ -528,13 +534,28 @@ export async function executeHunt(
   const client = ariClient as AriLike;
   const bridgeId = getSessionBridgeId(session);
   const destinationConfigs = normalizeDestinations(node.config);
-  const destinations = await resolveDestinations(destinationConfigs);
   const strategy = String(node.config.strategy || 'sequential').trim().toLowerCase();
+  const orderedDestinationConfigs = strategy === 'order'
+    ? [...destinationConfigs].sort((a, b) => {
+      const aOrder = typeof a.order === 'number' ? a.order : 0;
+      const bOrder = typeof b.order === 'number' ? b.order : 0;
+      return aOrder - bOrder;
+    })
+    : destinationConfigs;
+  if (strategy === 'order') {
+    orderedDestinationConfigs.forEach((destination) => {
+      if (typeof destination.order !== 'number') {
+        logEvent('HuntOrderMissingValue', { channelId: channel.id, destination: destination.target_value, fallbackOrder: 0 });
+      }
+    });
+  }
+  const destinations = await resolveDestinations(orderedDestinationConfigs);
   const attemptTimeoutMs = Math.max(1, Number(node.config.attempt_timeout_ms) || 20000);
   const totalTimeoutMs = Math.max(1, Number(node.config.total_timeout_ms) || 60000);
   const startTime = Date.now();
   let lastDestination: HuntDestinationConfig | null = null;
   let holdLoop: HoldLoopController | null = null;
+  let holdMohMode: 'none' | 'auto' | 'default' = 'none';
   let pendingChannels: HuntExecutorChannel[] = [];
   let inboundEnded = false;
 
@@ -556,21 +577,46 @@ export async function executeHunt(
   const holdMedia = await resolveOptionalBridgeMedia(node.config, 'hold_audio_file_id', 'hold_audio_file_path');
   const busyMedia = await resolveOptionalBridgeMedia(node.config, 'busy_audio_file_id', 'busy_audio_file_path');
 
-  const startHold = () => {
-    if (!holdMedia || holdLoop) {
+  const startHold = async () => {
+    if (holdLoop || holdMohMode !== 'none') {
       return;
     }
-    logEvent('HuntHoldStarted', { channelId: channel.id, media: holdMedia });
-    holdLoop = startHoldLoop(client, bridgeId, channel.id, holdMedia);
+
+    if (holdMedia) {
+      logEvent('HuntHoldStarted', { channelId: channel.id, media: holdMedia });
+      holdLoop = startHoldLoop(client, bridgeId, channel.id, holdMedia);
+      return;
+    }
+
+    try {
+      await client.channels.startMoh?.({ channelId: channel.id });
+      holdMohMode = 'auto';
+      logEvent('HuntMohStarted', { channelId: channel.id, mohClass: null });
+      return;
+    } catch {
+      // fall through
+    }
+
+    try {
+      await client.channels.startMoh?.({ channelId: channel.id, mohClass: 'default' });
+      holdMohMode = 'default';
+      logEvent('HuntMohStarted', { channelId: channel.id, mohClass: 'default' });
+      return;
+    } catch {
+      logEvent('HuntHoldUnavailable', { channelId: channel.id, warning: 'No hold audio available for hunt group, caller may hear silence' });
+    }
   };
 
   const stopHold = async () => {
-    if (!holdLoop) {
-      return;
+    if (holdLoop) {
+      await holdLoop.stop();
+      holdLoop = null;
+      logEvent('HuntHoldStopped', { channelId: channel.id });
     }
-    await holdLoop.stop();
-    holdLoop = null;
-    logEvent('HuntHoldStopped', { channelId: channel.id });
+    if (holdMohMode !== 'none') {
+      await client.channels.stopMoh?.({ channelId: channel.id }).catch(() => undefined);
+      holdMohMode = 'none';
+    }
   };
 
   const finalizeAnswer = async (answeredChannel: HuntExecutorChannel): Promise<string> => {
@@ -579,6 +625,10 @@ export async function executeHunt(
     pendingChannels = [answeredChannel];
     logEvent('HuntAnsweredBridgeAdd', { inboundChannelId: channel.id, outboundChannelId: answeredChannel.id, bridgeId });
     await client.bridges.addChannel({ bridgeId, channel: answeredChannel.id });
+    if (Boolean(node.config.record_call)) {
+      const ts = Date.now();
+      await beginNodeRecording(session, bridgeId, `${session.callUuid}-hunt-${ts}`, 'hunt');
+    }
     const endedChannelId = await waitForChannelEnd(client, [channel.id, answeredChannel.id]);
     if (endedChannelId === channel.id) {
       await hangupChannels([answeredChannel]);
@@ -590,7 +640,7 @@ export async function executeHunt(
 
   try {
     if (strategy === 'group') {
-      startHold();
+      await startHold();
       const createResults = await Promise.allSettled(
         destinations.map(async (destination) => {
           logEvent('HuntGroupOriginate', { destination: destination.dial, timeoutMs: totalTimeoutMs });
@@ -649,9 +699,10 @@ export async function executeHunt(
         return 'hangup';
       }
 
+      const baseDestinations = strategy === 'order' ? orderedDestinationConfigs : destinationConfigs;
       const destinationEntry = strategy === 'random'
-        ? nextRandomDestination(destinationConfigs, lastDestination)
-        : destinationConfigs[sequentialIndex % destinationConfigs.length] || { target_type: 'extension', target_value: '' };
+        ? nextRandomDestination(baseDestinations, lastDestination)
+        : baseDestinations[sequentialIndex % baseDestinations.length] || { target_type: 'extension', target_value: '' };
       sequentialIndex += 1;
       lastDestination = destinationEntry;
       const destination = destinations.find((item) => item.raw.target_type === destinationEntry.target_type && item.raw.target_value === destinationEntry.target_value)?.dial || '';
@@ -660,7 +711,7 @@ export async function executeHunt(
       }
       const dialTimeoutMs = Math.min(attemptTimeoutMs, remainingMs);
 
-      startHold();
+      await startHold();
       logEvent('HuntDialing', { strategy, destination, attemptTimeoutMs: dialTimeoutMs, remainingMs });
 
       let attemptResult: HuntAttemptResult | null = null;

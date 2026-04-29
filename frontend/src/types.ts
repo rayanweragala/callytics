@@ -205,12 +205,14 @@ export interface TransferNodeConfig {
   on_no_answer?: string;
   waiting_sound_id?: number | null;
   no_answer_sound_id?: number | null;
+  record_call?: boolean;
 }
 
 export interface HuntDestination {
   target_type: 'extension' | 'pstn';
   target_value: string;
   trunk_id?: number;
+  order?: number;
 }
 
 export interface HuntNodeConfig {
