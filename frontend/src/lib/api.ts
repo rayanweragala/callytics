@@ -224,7 +224,7 @@ export async function getAudio(id: number): Promise<AudioDetailResponse> {
 }
 
 export async function listAudioVoices(): Promise<AudioVoicesResponse> {
-  const response = await api.get<AudioVoicesResponse>('/audio/voices');
+  const response = await api.get<AudioVoicesResponse>('/audio/tts/voices');
   return response.data;
 }
 
@@ -236,12 +236,12 @@ export async function uploadAudio(file: File, name?: string): Promise<AudioDetai
   return response.data;
 }
 
-export async function createTts(payload: { name: string; text: string; voice: string; speed?: number }): Promise<AudioDetailResponse> {
+export async function createTts(payload: { name: string; text: string; voice: string; speed?: number; pitch?: number; normalizeVolume?: boolean }): Promise<AudioDetailResponse> {
   const response = await api.post<AudioDetailResponse>('/audio/tts', payload);
   return response.data;
 }
 
-export async function previewTts(payload: { text: string; voice: string; speed?: number }): Promise<Blob> {
+export async function previewTts(payload: { text: string; voice: string; speed?: number; pitch?: number; normalizeVolume?: boolean }): Promise<Blob> {
   const response = await api.post('/audio/tts/preview', payload, { responseType: 'blob' });
   return response.data as Blob;
 }

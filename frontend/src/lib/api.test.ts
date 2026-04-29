@@ -106,7 +106,7 @@ describe('api library', () => {
   it('listAudioVoices calls correct endpoint', async () => {
     (axios.get as any).mockResolvedValue({ data: [] });
     await api.listAudioVoices();
-    expect(axios.get).toHaveBeenCalledWith('/audio/voices');
+    expect(axios.get).toHaveBeenCalledWith('/audio/tts/voices');
   });
 
   it('uploadAudio calls correct endpoint', async () => {

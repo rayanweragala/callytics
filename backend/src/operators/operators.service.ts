@@ -115,7 +115,9 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const offset = (safePage - 1) * safeLimit;
+    const includePinColumn = await this.hasPinColumn();
     const includeCallbackColumns = await this.hasCallbackColumns();
+    const pinColumnSelect = includePinColumn ? ',\n        pin' : '';
     const callbackColumnSelect = includeCallbackColumns
       ? `,
         callback_number,
@@ -129,7 +131,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
         name,
         pin_hash,
         extension_id,
-        contact_number_id${callbackColumnSelect},
+        contact_number_id${pinColumnSelect}${callbackColumnSelect},
         created_at,
         updated_at
       FROM operators
@@ -150,7 +152,11 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
     }));
     // TODO(perf): N+1 query here. toResponse() performs per-operator status + join lookups.
     // Consider batch loading status/link data for paginated lists.
-    const responses = await Promise.all(items.map(async (item) => this.toResponse(item)));
+    const responses = await Promise.all(items.map(async (item, index) => {
+      const row = rows[index] as Record<string, unknown> | undefined;
+      const pin = includePinColumn && row ? (row.pin ? String(row.pin) : null) : null;
+      return this.toResponse(item, pin);
+    }));
     return { data: responses, total, page: safePage, limit: safeLimit };
   }
 

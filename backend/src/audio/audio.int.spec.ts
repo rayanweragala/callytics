@@ -67,14 +67,14 @@ describe('Audio API', () => {
     const audioService = app.get(AudioService);
     const before = await request(app.getHttpServer()).get('/audio');
 
-    jest.spyOn(audioService, 'previewTts').mockImplementation(async (_text, _voice, _speed, res: any) => {
+    jest.spyOn(audioService, 'previewTts').mockImplementation(async (_text, _voice, _speed, _pitch, _normalizeVolume, res: any) => {
       res.write(Buffer.from('RIFFfakeWAVE'));
       res.end();
     });
 
     const response = await request(app.getHttpServer())
       .post('/audio/tts/preview')
-      .send({ text: 'Preview me', voice: 'en_US-lessac-medium', speed: 1.1 });
+      .send({ text: 'Preview me', voice: 'en_US-lessac-medium', speed: 1.1, pitch: 2, normalizeVolume: true });
     const after = await request(app.getHttpServer()).get('/audio');
 
     expect(response.status).toBe(200);

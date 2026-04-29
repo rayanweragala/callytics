@@ -80,14 +80,18 @@ describe('AudioService', () => {
   });
 
   describe('listVoices', () => {
-    it('should return list of voices from JSON file', async () => {
-      const voicesJson = JSON.stringify({ 'en-US-1': {}, 'en-US-2': {} });
-      jest.spyOn(fs, 'readFile').mockResolvedValue(voicesJson);
+    it('should return list of voices from installed model files', async () => {
+      jest.spyOn(fs, 'readdir').mockResolvedValue([
+        'en_US-lessac-medium.onnx',
+        'en_US-lessac-medium.onnx.json',
+        'README.md',
+      ] as any);
 
       const result = await service.listVoices();
 
-      expect(result.data).toHaveLength(2);
-      expect(result.data[0].id).toBe('en-US-1');
+      expect(result.data).toEqual([
+        { value: 'en_US-lessac-medium', label: 'English US — Lessac (Medium)' },
+      ]);
     });
   });
 
@@ -158,7 +162,7 @@ describe('AudioService', () => {
 
   describe('previewTts', () => {
     it('should throw BadRequestException if text is empty', async () => {
-      await expect(service.previewTts('  ', 'voice', 1, {} as any)).rejects.toThrow(BadRequestException);
+      await expect(service.previewTts('  ', 'voice', 1, 0, true, {} as any)).rejects.toThrow(BadRequestException);
     });
 
     it('should handle ffmpeg failure', async () => {
@@ -185,7 +189,7 @@ describe('AudioService', () => {
         .mockReturnValueOnce(mockPiper)
         .mockReturnValueOnce(mockFfmpeg);
 
-      await expect(service.previewTts('text', 'voice', 1, res as any)).rejects.toThrow(BadRequestException);
+      await expect(service.previewTts('text', 'voice', 1, 0, true, res as any)).rejects.toThrow(BadRequestException);
     });
   });
 

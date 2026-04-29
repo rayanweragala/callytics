@@ -13,28 +13,9 @@ import { formatDateTime } from '../lib/time';
 import styles from './AudioPage.module.css';
 
 const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const DEFAULT_TTS_VOICE = 'en_US-lessac-medium';
 type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
 type PreviewState = 'idle' | 'busy' | 'failed';
-
-
-
-function humanizeVoice(id: string): string {
-  const match = id.match(/^([a-z]{2})_([A-Z]{2})-([^-]+)-(.+)$/i);
-  if (!match) return id;
-  const [, languageCode, regionCode, voiceName, quality] = match;
-  const languages: Record<string, string> = {
-    ar: 'Arabic', bg: 'Bulgarian', ca: 'Catalan', cs: 'Czech', cy: 'Welsh', da: 'Danish', de: 'German',
-    el: 'Greek', en: 'English', es: 'Spanish', eu: 'Basque', fa: 'Persian', fi: 'Finnish', fr: 'French',
-    hi: 'Hindi', hu: 'Hungarian', id: 'Indonesian', is: 'Icelandic', it: 'Italian', ka: 'Georgian',
-    kk: 'Kazakh', ku: 'Kurdish', lb: 'Luxembourgish', lv: 'Latvian', ml: 'Malayalam', ne: 'Nepali',
-    nl: 'Dutch', no: 'Norwegian', pl: 'Polish', pt: 'Portuguese', ro: 'Romanian', ru: 'Russian',
-    sk: 'Slovak', sl: 'Slovenian', sq: 'Albanian', sr: 'Serbian', sv: 'Swedish', sw: 'Swahili',
-    te: 'Telugu', tr: 'Turkish', uk: 'Ukrainian', ur: 'Urdu', vi: 'Vietnamese', zh: 'Chinese',
-  };
-  const voiceLabel = voiceName.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
-  const qualityLabel = quality.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
-  return `${languages[languageCode.toLowerCase()] || languageCode.toUpperCase()} (${regionCode.toUpperCase()}) — ${voiceLabel} ${qualityLabel}`;
-}
 
 export function AudioPage() {
   const uploadTimerRef = useRef<number | null>(null);
@@ -48,17 +29,18 @@ export function AudioPage() {
   const [voices, setVoices] = useState<AudioVoiceItem[]>([]);
   const [uploadName, setUploadName] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [ttsName, setTtsName] = useState('');
   const [ttsText, setTtsText] = useState('');
-  const [ttsVoice, setTtsVoice] = useState('en_US-lessac-medium');
+  const [ttsVoice, setTtsVoice] = useState(DEFAULT_TTS_VOICE);
   const [ttsSpeed, setTtsSpeed] = useState(1);
+  const [ttsPitch, setTtsPitch] = useState(0);
+  const [normalizeVolume, setNormalizeVolume] = useState(true);
   const [uploadState, setUploadState] = useState<ActionState>('idle');
   const [ttsState, setTtsState] = useState<ActionState>('idle');
   const [previewState, setPreviewState] = useState<PreviewState>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [ttsFieldErrors, setTtsFieldErrors] = useState<{ name?: string; text?: string }>({});
+  const [ttsFieldErrors, setTtsFieldErrors] = useState<{ text?: string }>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
@@ -81,8 +63,9 @@ export function AudioPage() {
       setTotalPages(audioResponse.totalPages);
       setVoices(voicesResponse.data);
       
-      if (voicesResponse.data.length > 0 && !voicesResponse.data.find((v) => v.id === ttsVoice)) {
-        setTtsVoice(voicesResponse.data[0].id);
+      if (voicesResponse.data.length > 0 && !voicesResponse.data.find((v) => v.value === ttsVoice)) {
+        const defaultVoice = voicesResponse.data.find((v) => v.value === DEFAULT_TTS_VOICE);
+        setTtsVoice((defaultVoice || voicesResponse.data[0]).value);
       }
     } catch {
       // ignore
@@ -162,20 +145,19 @@ export function AudioPage() {
     }
   };
 
-  const validateTts = (mode: 'preview' | 'save'): boolean => {
-    const nextErrors: { name?: string; text?: string } = {};
-    if (mode === 'save' && !ttsName.trim()) nextErrors.name = 'asset name is required';
+  const validateTts = (): boolean => {
+    const nextErrors: { text?: string } = {};
     if (!ttsText.trim()) nextErrors.text = 'prompt text is required';
     setTtsFieldErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
   const handlePreview = async () => {
-    if (!validateTts('preview')) return;
+    if (!validateTts()) return;
     setPreviewState('busy');
     showPreviewError(null);
     try {
-      const blob = await requestTtsPreview({ voice: ttsVoice, text: ttsText, speed: ttsSpeed });
+      const blob = await requestTtsPreview({ voice: ttsVoice, text: ttsText, speed: ttsSpeed, pitch: ttsPitch, normalizeVolume });
       if (!blob.size) throw new Error('preview returned empty audio');
       clearPreview();
       const nextUrl = URL.createObjectURL(blob);
@@ -190,15 +172,16 @@ export function AudioPage() {
   };
 
   const handleTts = async () => {
-    if (!validateTts('save')) return;
+    if (!validateTts()) return;
     setTtsState('busy');
     setTtsError(null);
     try {
-      await createTts({ name: ttsName.trim(), text: ttsText, voice: ttsVoice, speed: ttsSpeed });
+      await createTts({ name: '', text: ttsText, voice: ttsVoice, speed: ttsSpeed, pitch: ttsPitch, normalizeVolume });
       clearPreview();
-      setTtsName('');
       setTtsText('');
       setTtsSpeed(1);
+      setTtsPitch(0);
+      setNormalizeVolume(true);
       setTtsFieldErrors({});
       await load(page, limit);
       setTtsState('saved');
@@ -226,7 +209,7 @@ export function AudioPage() {
     }
   };
 
-  const voiceOptions = useMemo(() => voices.map(v => ({ value: v.id, label: humanizeVoice(v.id) })), [voices]);
+  const voiceOptions = useMemo(() => voices.map(v => ({ value: v.value, label: v.label })), [voices]);
 
   return (
     <div className={styles.page}>
@@ -250,25 +233,43 @@ export function AudioPage() {
 
         <section className={styles.panel}>
           <div className={styles.panelTitle}>piper tts</div>
-          <div className={styles.form}>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>asset name</span>
-              <input className={styles.input} value={ttsName} onChange={(e) => { setTtsName(e.target.value); clearTtsFeedback(); setTtsFieldErrors(c => ({ ...c, name: undefined })); }} />
-              {ttsFieldErrors.name && <div className={styles.fieldError}>{ttsFieldErrors.name}</div>}
-            </label>
+          <div className={styles.ttsFormGrid}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>voice</span>
               <SearchableSelect options={voiceOptions} value={ttsVoice} onChange={(v) => { clearTtsFeedback(); setTtsVoice(v || ''); }} />
             </label>
+            <div className={styles.normalizeToggleField}>
+              <div>
+                <div className={styles.toggleLabel}>Normalize volume</div>
+                <div className={styles.toggleSubLabel}>Run generated audio through loudnorm</div>
+              </div>
+              <button
+                aria-checked={normalizeVolume}
+                aria-label="Normalize volume"
+                className={`${styles.toggleSwitch} ${normalizeVolume ? styles.toggleOn : ''}`}
+                onClick={() => { clearTtsFeedback(); setNormalizeVolume((current) => !current); }}
+                role="switch"
+                type="button"
+              >
+                <span />
+              </button>
+            </div>
             <label className={styles.field}>
               <div className={styles.sliderHeader}>
-                <span className={styles.fieldLabel}>speed</span>
-                <span className={styles.sliderValue}>{ttsSpeed.toFixed(1)}×</span>
+                <span className={styles.fieldLabel}>Speed</span>
+                <span className={styles.sliderValue}>{ttsSpeed.toFixed(1)}</span>
               </div>
               <input type="range" min={0.5} max={2} step={0.1} value={ttsSpeed} onChange={(e) => { clearTtsFeedback(); setTtsSpeed(Number(e.target.value)); }} />
             </label>
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>prompt</span>
+              <div className={styles.sliderHeader}>
+                <span className={styles.fieldLabel}>Pitch</span>
+                <span className={styles.sliderValue}>{ttsPitch}</span>
+              </div>
+              <input type="range" min={-10} max={10} step={1} value={ttsPitch} onChange={(e) => { clearTtsFeedback(); setTtsPitch(Number(e.target.value)); }} />
+            </label>
+            <label className={`${styles.field} ${styles.fullWidth}`}>
+              <span className={styles.fieldLabel}>text</span>
               <textarea className={styles.textarea} value={ttsText} onChange={(e) => { setTtsText(e.target.value); clearTtsFeedback(); setTtsFieldErrors(c => ({ ...c, text: undefined })); }} />
               {ttsFieldErrors.text && <div className={styles.fieldError}>{ttsFieldErrors.text}</div>}
             </label>

@@ -377,7 +377,7 @@ export interface AudioFileItem {
 }
 
 export interface AudioVoiceItem {
-  id: string;
+  value: string;
   label: string;
 }
 

@@ -17,7 +17,7 @@ vi.mock('../lib/api', () => {
       totalPages: 1,
     })),
     listAudioVoices: vi.fn(() => Promise.resolve({
-      data: [{ id: 'v1', name: 'Voice 1', language: 'en-US' }],
+      data: [{ value: 'v1', label: 'Voice 1' }],
       total: 1,
     })),
     uploadAudio: vi.fn(),

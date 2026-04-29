@@ -82,9 +82,6 @@ export function SidebarNav() {
             <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               preflight
             </NavLink>
-            <NavLink to="/settings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              settings
-            </NavLink>
           </div>
         </nav>
       <div className={styles.version}>v{appVersion}</div>

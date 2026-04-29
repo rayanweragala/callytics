@@ -26,6 +26,11 @@ export interface AudioResponse {
   updatedAt: string;
 }
 
+export interface AudioVoiceResponse {
+  value: string;
+  label: string;
+}
+
 @Injectable()
 export class AudioService implements OnModuleInit {
   private readonly storageRoot = join(process.cwd(), '..', 'storage');
@@ -71,13 +76,13 @@ export class AudioService implements OnModuleInit {
     return { data: await this.toResponse(item) };
   }
 
-  async listVoices(): Promise<{ data: Array<{ id: string; label: string }>; total: number }> {
-    const catalogPath = join(process.cwd(), 'src', 'audio', 'voices.json');
-    const catalogRaw = await fs.readFile(catalogPath, 'utf8');
-    const catalog = JSON.parse(catalogRaw) as Record<string, unknown>;
-    const voices = Object.keys(catalog)
+  async listVoices(): Promise<{ data: AudioVoiceResponse[]; total: number }> {
+    const files = await fs.readdir(this.voicesDir);
+    const voices = files
+      .filter((file) => file.endsWith('.onnx'))
+      .map((file) => basename(file, '.onnx'))
       .sort((a, b) => a.localeCompare(b))
-      .map((voice) => ({ id: voice, label: voice }));
+      .map((voice) => ({ value: voice, label: this.humanizeVoice(voice) }));
     return { data: voices, total: voices.length };
   }
 
@@ -111,21 +116,30 @@ export class AudioService implements OnModuleInit {
     return { data: await this.toResponse(processed) };
   }
 
-  async createTts(name: string, text: string, voice: string, speed = 1): Promise<{ data: AudioResponse }> {
+  async createTts(name: string, text: string, voice: string, speed = 1, pitch = 0, normalizeVolume = true): Promise<{ data: AudioResponse }> {
     const trimmedText = text.trim();
     if (!trimmedText) throw new BadRequestException('text is required');
 
     await this.ensureVoice(voice);
     const normalizedSpeed = this.normalizeSpeed(speed);
+    const normalizedPitch = this.normalizePitch(pitch);
 
     const idPrefix = randomUUID();
-    const rawTtsPath = join(this.ttsDir, `${idPrefix}.wav`);
+    const rawTtsPath = join(this.ttsDir, `${idPrefix}.raw.wav`);
+    const finalTtsPath = join(this.ttsDir, `${idPrefix}.wav`);
     const modelPath = join(this.voicesDir, `${voice}.onnx`);
     const configPath = join(this.voicesDir, `${voice}.onnx.json`);
 
-    await this.runCommand('piper', this.buildPiperArgs(modelPath, configPath, normalizedSpeed.lengthScale, rawTtsPath), {
+    await this.runCommand('piper', this.buildPiperArgs(modelPath, configPath, normalizedSpeed.lengthScale, normalizedPitch.noiseScale, rawTtsPath), {
       stdin: trimmedText,
     });
+
+    if (normalizeVolume) {
+      await this.normalizeAudio(rawTtsPath, finalTtsPath);
+      await this.removeIfExists(rawTtsPath);
+    } else {
+      await fs.rename(rawTtsPath, finalTtsPath);
+    }
 
     const asset = this.audioRepository.create({
       name: name.trim() || `tts-${idPrefix}`,
@@ -133,7 +147,7 @@ export class AudioService implements OnModuleInit {
       originalFilename: `${idPrefix}.wav`,
       mimeType: 'audio/wav',
       durationMs: null,
-      storagePathOriginal: rawTtsPath,
+      storagePathOriginal: finalTtsPath,
       storagePathConverted: null,
       storagePathPreview: null,
       conversionStatus: 'processing',
@@ -143,16 +157,17 @@ export class AudioService implements OnModuleInit {
     });
 
     const saved = await this.audioRepository.save(asset);
-    const processed = await this.processAudio(saved.id, rawTtsPath);
+    const processed = await this.processAudio(saved.id, finalTtsPath);
     return { data: await this.toResponse(processed) };
   }
 
-  async previewTts(text: string, voice: string, speed = 1, res: Response): Promise<void> {
+  async previewTts(text: string, voice: string, speed = 1, pitch = 0, normalizeVolume = true, res: Response): Promise<void> {
     const trimmedText = text.trim();
     if (!trimmedText) throw new BadRequestException('text is required');
 
     await this.ensureVoice(voice);
     const normalizedSpeed = this.normalizeSpeed(speed);
+    const normalizedPitch = this.normalizePitch(pitch);
     const modelPath = join(this.voicesDir, `${voice}.onnx`);
     const configPath = join(this.voicesDir, `${voice}.onnx.json`);
 
@@ -164,16 +179,20 @@ export class AudioService implements OnModuleInit {
         configPath,
         '--length_scale',
         String(normalizedSpeed.lengthScale),
+        '--noise_scale',
+        String(normalizedPitch.noiseScale),
         '--output_raw',
       ]);
-      const ffmpeg = spawn('ffmpeg', [
+      const ffmpegArgs = [
         '-f', 's16le',
         '-ar', '22050',
         '-ac', '1',
         '-i', 'pipe:0',
+        ...(normalizeVolume ? ['-af', 'loudnorm'] : []),
         '-f', 'wav',
         'pipe:1',
-      ]);
+      ];
+      const ffmpeg = spawn('ffmpeg', ffmpegArgs);
       let stderr = '';
       let settled = false;
 
@@ -388,18 +407,72 @@ export class AudioService implements OnModuleInit {
       throw new BadRequestException('speed must be between 0.5 and 2.0');
     }
 
+    const lengthScale = Number(numericSpeed.toFixed(1));
     return {
-      speed: Number(numericSpeed.toFixed(1)),
-      lengthScale: Number((1 / numericSpeed).toFixed(4)),
+      speed: lengthScale,
+      lengthScale,
     };
   }
 
-  private buildPiperArgs(modelPath: string, configPath: string, lengthScale: number, outputFile?: string): string[] {
-    const args = ['--model', modelPath, '--config', configPath, '--length_scale', String(lengthScale)];
+  private normalizePitch(pitch?: number): { pitch: number; noiseScale: number } {
+    const numericPitch = Number(pitch ?? 0);
+    if (!Number.isFinite(numericPitch) || numericPitch < -10 || numericPitch > 10) {
+      throw new BadRequestException('pitch must be between -10 and 10');
+    }
+
+    const noiseScale = Math.round(numericPitch);
+    return {
+      pitch: noiseScale,
+      noiseScale,
+    };
+  }
+
+  private buildPiperArgs(modelPath: string, configPath: string, lengthScale: number, noiseScale: number, outputFile?: string): string[] {
+    const args = [
+      '--model',
+      modelPath,
+      '--config',
+      configPath,
+      '--length_scale',
+      String(lengthScale),
+      '--noise_scale',
+      String(noiseScale),
+    ];
     if (outputFile) {
       args.push('--output_file', outputFile);
     }
     return args;
+  }
+
+  private async normalizeAudio(inputPath: string, outputPath: string): Promise<void> {
+    await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-af', 'loudnorm', outputPath]);
+  }
+
+  private humanizeVoice(voice: string): string {
+    const match = voice.match(/^([a-z]{2})_([A-Z]{2})-([^-]+)-(.+)$/i);
+    if (!match) return voice;
+
+    const [, languageCode, regionCode, voiceName, quality] = match;
+    const languages: Record<string, string> = {
+      ar: 'Arabic', bg: 'Bulgarian', ca: 'Catalan', cs: 'Czech', cy: 'Welsh', da: 'Danish', de: 'German',
+      el: 'Greek', en: 'English', es: 'Spanish', eu: 'Basque', fa: 'Persian', fi: 'Finnish', fr: 'French',
+      hi: 'Hindi', hu: 'Hungarian', id: 'Indonesian', is: 'Icelandic', it: 'Italian', ka: 'Georgian',
+      kk: 'Kazakh', ku: 'Kurdish', lb: 'Luxembourgish', lv: 'Latvian', ml: 'Malayalam', ne: 'Nepali',
+      nl: 'Dutch', no: 'Norwegian', pl: 'Polish', pt: 'Portuguese', ro: 'Romanian', ru: 'Russian',
+      sk: 'Slovak', sl: 'Slovenian', sq: 'Albanian', sr: 'Serbian', sv: 'Swedish', sw: 'Swahili',
+      te: 'Telugu', tr: 'Turkish', uk: 'Ukrainian', ur: 'Urdu', vi: 'Vietnamese', zh: 'Chinese',
+    };
+    const voiceLabel = this.toTitleCase(voiceName.replace(/_/g, ' '));
+    const qualityLabel = this.toTitleCase(quality.replace(/_/g, ' '));
+    return `${languages[languageCode.toLowerCase()] || languageCode.toUpperCase()} ${regionCode.toUpperCase()} — ${voiceLabel} (${qualityLabel})`;
+  }
+
+  private toTitleCase(value: string): string {
+    return value
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   private async ensureVoice(voice: string): Promise<void> {

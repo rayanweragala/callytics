@@ -22,6 +22,11 @@ export class AudioController {
     return this.audioService.listVoices();
   }
 
+  @Get('tts/voices')
+  ttsVoices() {
+    return this.audioService.listVoices();
+  }
+
   @Get(':id')
   getOne(@Param('id', ParseIntPipe) id: number) {
     return this.audioService.getOne(id);
@@ -35,7 +40,7 @@ export class AudioController {
 
   @Post('tts')
   createTts(@Body() dto: CreateTtsDto) {
-    return this.audioService.createTts(dto.name, dto.text, dto.voice, dto.speed);
+    return this.audioService.createTts(dto.name, dto.text, dto.voice, dto.speed, dto.pitch, dto.normalizeVolume);
   }
 
   @Post('tts/preview')
@@ -43,7 +48,7 @@ export class AudioController {
   async previewTts(@Body() dto: PreviewTtsDto, @Res() res: Response) {
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader('Content-Disposition', 'inline');
-    await this.audioService.previewTts(dto.text, dto.voice, dto.speed, res);
+    await this.audioService.previewTts(dto.text, dto.voice, dto.speed, dto.pitch, dto.normalizeVolume, res);
   }
 
   @Delete(':id')

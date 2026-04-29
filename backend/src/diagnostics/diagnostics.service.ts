@@ -618,6 +618,7 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
       let loggedIn = false;
       let settled = false;
       let commandOutput = '';
+      let sawCommandResponse = false;
 
       const finish = (value: number | null) => {
         if (settled) {
@@ -654,8 +655,24 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
             continue;
           }
 
+          if (message.Response === 'Error') {
+            socket.write('Action: Logoff\r\n\r\n');
+            finish(null);
+            return;
+          }
+
+          if (message.Response === 'Follows' || message.Response === 'Success') {
+            sawCommandResponse = true;
+          }
+
           if (message.Output) {
             commandOutput += `${message.Output}\n`;
+            const lineMatch = message.Output.match(/System uptime:\s*(\d+)\s*seconds/i);
+            if (lineMatch) {
+              socket.write('Action: Logoff\r\n\r\n');
+              finish(Number(lineMatch[1]));
+              return;
+            }
           }
 
           if (message.Output && message.Output.includes('--END COMMAND--')) {
@@ -664,9 +681,11 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
             finish(match ? Number(match[1]) : null);
             return;
           }
-          if (message.Response === 'Error') {
+
+          if (sawCommandResponse && message.Event === 'CommandComplete') {
+            const match = commandOutput.match(/System uptime:\s*(\d+)\s*seconds/i);
             socket.write('Action: Logoff\r\n\r\n');
-            finish(null);
+            finish(match ? Number(match[1]) : null);
             return;
           }
         }
