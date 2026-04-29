@@ -144,11 +144,7 @@ export class ExtensionsService implements OnModuleInit {
       throw new NotFoundException(`Extension ${id} not found`);
     }
     const hostIp = process.env.HOST_IP || '127.0.0.1';
-    const content = [
-      `sip:${extension.username}@${hostIp}:5080`,
-      `password:${extension.password}`,
-      'transport:udp',
-    ].join('\n');
+    const content = `sip:${extension.username}@${hostIp}:5080\npassword:${extension.password}\ntransport:udp`;
     return { data: { content } };
   }
 

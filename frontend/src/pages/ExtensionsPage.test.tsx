@@ -3,6 +3,13 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ExtensionsPage } from './ExtensionsPage';
 import { MemoryRouter } from 'react-router-dom';
 import * as api from '../lib/api';
+import QRCode from 'qrcode';
+
+vi.mock('qrcode', () => ({
+  default: {
+    toDataURL: vi.fn(() => Promise.resolve('data:image/png;base64,qr')),
+  },
+}));
 
 vi.mock('../lib/api', () => ({
   listExtensions: vi.fn(),
@@ -11,6 +18,7 @@ vi.mock('../lib/api', () => ({
   createExtension: vi.fn(),
   updateExtension: vi.fn(),
   deleteExtension: vi.fn(),
+  getExtensionQrContent: vi.fn(),
 }));
 
 describe('ExtensionsPage coverage boost', () => {
@@ -136,5 +144,27 @@ describe('ExtensionsPage coverage boost', () => {
     await waitFor(() => {
       expect(api.updateExtension).toHaveBeenCalledWith(1, expect.objectContaining({ vpnOnly: false }));
     });
+  });
+
+  it('passes raw newline QR content to generator and displays each line', async () => {
+    const qrContent = 'sip:101@10.20.115.95:5080\npassword:secret\ntransport:udp';
+    vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.getExtensionQrContent).mockResolvedValue({ data: { content: qrContent } });
+
+    render(
+      <MemoryRouter>
+        <ExtensionsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'qr' }));
+
+    await waitFor(() => {
+      expect(QRCode.toDataURL).toHaveBeenCalledWith(qrContent, { width: 220, margin: 1 });
+    });
+    expect(screen.getByText((_content, element) => element?.textContent === qrContent)).toBeInTheDocument();
   });
 });

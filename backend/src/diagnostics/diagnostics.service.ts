@@ -577,7 +577,8 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
       });
 
       socket.on('data', (chunk) => {
-        buffer += chunk.toString('utf8');
+        const response = chunk.toString('utf8');
+        buffer += response;
 
         while (buffer.includes('\r\n\r\n')) {
           const parts = buffer.split('\r\n\r\n');
@@ -617,8 +618,6 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
       let buffer = '';
       let loggedIn = false;
       let settled = false;
-      let commandOutput = '';
-      let sawCommandResponse = false;
 
       const finish = (value: number | null) => {
         if (settled) {
@@ -647,7 +646,7 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
 
           if (!loggedIn && message.Response === 'Success' && message.Message === 'Authentication accepted') {
             loggedIn = true;
-            socket.write(`Action: Command\r\nActionID: ${actionId}\r\nCommand: core show uptime seconds\r\n\r\n`);
+            socket.write(`Action: CoreStatus\r\nActionID: ${actionId}\r\n\r\n`);
             continue;
           }
 
@@ -655,37 +654,21 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
             continue;
           }
 
-          if (message.Response === 'Error') {
-            socket.write('Action: Logoff\r\n\r\n');
-            finish(null);
-            return;
-          }
-
-          if (message.Response === 'Follows' || message.Response === 'Success') {
-            sawCommandResponse = true;
-          }
-
-          if (message.Output) {
-            commandOutput += `${message.Output}\n`;
-            const lineMatch = message.Output.match(/System uptime:\s*(\d+)\s*seconds/i);
-            if (lineMatch) {
-              socket.write('Action: Logoff\r\n\r\n');
-              finish(Number(lineMatch[1]));
-              return;
+          if (message.Response) {
+            let uptime = message.CoreUpTime ? parseInt(message.CoreUpTime, 10) : NaN;
+            
+            if (Number.isNaN(uptime)) {
+              if (message.CoreStartupDate && message.CoreStartupTime) {
+                const startupStr = `${message.CoreStartupDate}T${message.CoreStartupTime}Z`;
+                const startupDate = new Date(startupStr);
+                if (!Number.isNaN(startupDate.getTime())) {
+                  uptime = Math.floor((Date.now() - startupDate.getTime()) / 1000);
+                }
+              }
             }
-          }
 
-          if (message.Output && message.Output.includes('--END COMMAND--')) {
-            const match = commandOutput.match(/System uptime:\s*(\d+)\s*seconds/i);
             socket.write('Action: Logoff\r\n\r\n');
-            finish(match ? Number(match[1]) : null);
-            return;
-          }
-
-          if (sawCommandResponse && message.Event === 'CommandComplete') {
-            const match = commandOutput.match(/System uptime:\s*(\d+)\s*seconds/i);
-            socket.write('Action: Logoff\r\n\r\n');
-            finish(match ? Number(match[1]) : null);
+            finish(Number.isNaN(uptime) ? null : Math.max(0, uptime));
             return;
           }
         }
