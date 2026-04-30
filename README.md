@@ -1,158 +1,64 @@
 # callytics
-Self-hosted open source call center platform. Install with one npm command.
-> Full documentation in /docs
 
+Self-hosted open source call center platform. One command installs everything on Linux via Docker.
 
-Current completed implementation phases:
+![callytics](frontend/public/callytics-logo.png)
 
-- Phase 1: project skeleton, Docker Compose, and Asterisk base config
-- Phase 2: Asterisk 20 from source, ARI and AMI verified, Stasis app connected
-- Phase 3: NestJS backend running with PostgreSQL and health endpoint
-- Phase 4: Stasis flow execution engine, schema migration, seed flow, and node executors
-- Phase 5: diagnostics UI, SIP status panel, Redis pub/sub telemetry, Socket.io relay
-- Phase 6: React Flow builder UI with flow list, editor canvas, config panel, node and edge editing
-- Phase 7: thin-slice backend REST API for flow CRUD powering the builder
-- Phase 8: audio management, ffmpeg conversion, offline Piper TTS, static media serving, and builder audio asset integration
-- Phase 9: end-to-end live call verification with database-backed audio assets and `.ulaw` telephony playback
-- Phase 10: conditional routing, transfer node execution, DTMF capture fix, Stasis hangup-extension guard, and seed overwrite protection
-- Phase 11: call recordings, bridge-based recording/playback fix, recordings page, recording download support, and diagnostics panel pagination
-- Phase 12: hunt group node execution with sequential, random, and group dialing strategies
-- Phase 13: SIP extension management, QR provisioning, and DID-based inbound routing
-- Phase 14 — SIP Trunks + Audio Improvements + UI Polish
-  - SIP Trunks UI: inline add/edit form, provider presets, enabled/disabled status
-  - Trunk reachability test: real TCP socket check, structured backend logging
-  - Audio TTS speed control slider (0.5×–2.0×), stored on audio_files
-  - Audio preview-before-save: streams Piper stdout directly, no DB write
-  - Generate button renamed to save
-  - Unified date-time format across all pages (DD Mon YYYY, HH:MM)
-  - Themed ConfirmDialog component replacing browser window.confirm
-  - Trunks inline form layout fix, Created column white-space nowrap on all tables
-  - API error messages now surface backend reason via getApiError utility
-  - Error and success banners auto-dismiss after 6 seconds
+## What it is
 
-Phase 15 — Test Suite
-- Unit tests: edgeResolver, flowLoader, runtime logic, executors
-- Integration tests: flows API
-- edgeResolver extracted to stasis/src/engine/edgeResolver.ts
-- flowLoader extracted to stasis/src/flowLoader.ts
-- Jest configured for stasis and backend
-- menu executor extracted to stasis/src/executors/menu.executor.ts
-- Documentation updated to reflect modularised execution engine
+callytics is a self-hosted call center platform for developers and small businesses who need programmable IVR, call routing, SIP trunks, and a live operations dashboard without Twilio pricing or FreePBX complexity.
 
-- Phase 16 — Flow Builder: Node Groups + Menu Node + Versioning
-- Phase 17 — Unit + Integration Tests + Coverage
-- Phase 18 — Network Diagnostics Page + SIP Traffic Inspector + Trunk Health + Global Skeleton Loading
-  - Dedicated /diagnostics page for system and network observability
-  - Real-time SIP traffic inspector with auto-scroll and pause control
-  - Automated trunk reachability and AMI-based PJSIP qualify testing
-  - Live SIP endpoint registration status monitoring
-  - Recent call failure analysis with flow and destination resolution
-  - Unified skeleton loading across all core management pages
-  - Comprehensive node config validation for Transfer and Menu nodes
-- Phase 19 — Templates Marketplace + Execution Trace + Business Hours + Voicemail
-- IVR Template Marketplace (3 pre-built templates: clinic, restaurant, dispatch)
-- Per-call execution trace viewer (node-by-node timeline)
-- Historical call log table with search and filtering
-- Business Hours node (timezone-aware schedule routing)
-- Voicemail node (ARI recording with zero-duration guard)
+It is built around Asterisk ARI + Stasis, so call flows are database-driven and update instantly from the UI, with no manual dialplan editing required.
 
-- Menu node: new node type with branching options, executor in stasis
-- Node groups: multi-select nodes and group/ungroup via toolbar
-- group_id FK added to flow_nodes (migration: 005_menu_group.sql)
-- Flow versioning: save a named version with commit message
-- flow_versions table: message, snapshot JSON, node_count, version_number
-- Version list in flow editor: timestamp, message, node count
-- One-click restore to any prior version
-- New shared components: FlowBreadcrumb, FlowTreePanel, MenuGroupNode,
-  ErrorBoundary, ErrorMessage, Loading, PageLayout,
-  SipEndpointsPanel, LiveExecutionPanel
-- New pages: CallLogsPage, SettingsPage, NotFoundPage (placeholders)
-- New page: Templates (`/templates`) for one-click template import into Flow Builder
-- FlowCanvasEdge updated for new edge styles
-- apiError utility for consistent API error message extraction
+## Features
 
-Current important infrastructure state:
+- Visual IVR flow builder with 13 node types
+- SIP extensions, trunks, and inbound DID routing
+- Outbound call campaigns with CSV upload and sliding window dialer
+- Call queues and operator management
+- Hunt groups with sequential, random, and group dial strategies
+- Conference rooms via Asterisk ConfBridge
+- Callback node for caller-requested callbacks
+- Audio upload, ffmpeg conversion, and offline Piper TTS
+- Call recordings with browser preview and download
+- Live dashboard with active calls, queue status, and recent events
+- Call logs with execution trace and RTP quality scoring
+- SIP capture with live packet stream, ladder diagrams, and pcap export
+- Network diagnostics with trunk testing, SIP registration status, and resource usage
+- Asterisk log viewer with plain-English translation
+- WireGuard VPN with peer management and QR onboarding
+- SIP firewall with auto-blocking, live feed, and GeoIP
+- Backup and restore with scheduling and retention
+- IVR templates with one-click import and JSON import
+- Network preflight wizard
 
-- `asterisk`: `network_mode: host`
-- `stasis`: `network_mode: host`
-- `stasis` uses `ARI_URL=http://127.0.0.1:8088`
-- `stasis` uses `DB_HOST=127.0.0.1`
-- `backend`: `network_mode: host`
-- `backend` uses `DB_HOST=127.0.0.1`
-- `backend` uses `REDIS_HOST=127.0.0.1` and `REDIS_PORT=6380`
-- `backend` now also mounts the shared `./asterisk/base` config directory at `/etc/asterisk` so NestJS can regenerate PJSIP and inbound dialplan snippets from database state on startup and after UI changes
-- `stasis` uses host-local Redis at `127.0.0.1:6380`
+## Quick start
 
-Current audio management capabilities:
+```bash
+git clone https://github.com/rayanweragala/callytics.git
+cd callytics
+cp .env.example .env
+docker compose up -d
+```
 
-- Upload audio through the backend and convert it with `ffmpeg` into telephony and browser-preview WAV outputs
-- Generate offline TTS with bundled Piper using the `en_US-lessac-medium` voice model
-- Browse and manage assets in the frontend audio library at `/audio`
-- Preview converted audio in the browser before assigning it to nodes
-- Resolve database-backed audio assets in the Stasis runtime through `audio_file_id`
+Then open `http://localhost:3000`
 
-Current backend audio endpoints:
+## Requirements
 
-- `GET /audio?page=X&limit=Y`
-- `GET /audio/:id`
-- `POST /audio/upload`
-- `POST /audio/tts`
-- `POST /audio/tts/preview`
-- `GET /audio/voices`
-- `DELETE /audio/:id`
-- Static media at `/media/audio/...`
+- Linux only (Ubuntu 22.04+ recommended)
+- Docker and Docker Compose
+- Ports: 3000 (UI), 3001 (API), 5080 (SIP), 8088 (ARI), 51820/udp (WireGuard optional)
 
-Current recording capabilities:
+## Tech stack
 
-- Stasis automatically records inbound calls through ARI bridge recording and persists metadata to `call_recordings`
-- The backend exposes paginated recording list/detail/stream/download/delete endpoints plus an internal persistence endpoint
-- The frontend provides a `/recordings` page with inline preview playback, download, delete, and pagination
-- Recording files are written by Asterisk into a shared Docker volume and read by the backend from the mirrored mount path
+- Asterisk 20
+- Node.js
+- NestJS
+- React + Vite
+- PostgreSQL
+- Redis
+- Docker Compose
 
-Current backend recording endpoints:
+## License
 
-- `GET /recordings?page=X&limit=Y`
-- `GET /recordings/:id`
-- `GET /recordings/:id/stream`
-- `GET /recordings/:id/download`
-- `DELETE /recordings/:id`
-- `POST /recordings/internal`
-
-Current extension and inbound routing endpoints:
-
-- `GET /extensions`
-- `POST /extensions`
-- `PUT /extensions/:id`
-- `DELETE /extensions/:id`
-- `GET /inbound-routes`
-- `GET /inbound-routes?did=<did>`
-- `POST /inbound-routes`
-- `PUT /inbound-routes/:id`
-- `DELETE /inbound-routes/:id`
-- `GET /trunks`
-- `POST /trunks`
-- `PUT /trunks/:id`
-- `DELETE /trunks/:id`
-- `POST /trunks/:id/test`
-- `GET /config/host`
-- `GET /diagnostics/health`
-- `POST /diagnostics/trunks/:id/test`
-- `POST /diagnostics/trunks/test-all`
-- `GET /diagnostics/registrations`
-- `GET /diagnostics/failures`
-
-Current API pagination:
-
-- `GET /audio` returns `{ data, total, page, limit, totalPages }`
-- `GET /flows` returns `{ data, total, page, limit, totalPages }`
-- `GET /recordings` returns `{ data, total, page, limit, totalPages }`
-- diagnostics socket pagination now returns `{ data, total }` for the live execution panel and SIP endpoints panel using `limit=10`
-
-Current asset/runtime notes:
-
-- `backend/voices/` contains the bundled Piper voice model files used during backend image build
-- Host-exposed Redis now uses `127.0.0.1:6380` rather than `6379`
-- `asterisk_recordings` is mounted into Asterisk at both `/var/lib/asterisk/recording` and `/var/spool/asterisk/recording`; ARI writes under `/var/spool/asterisk/recording` while the backend reads the same named volume at `/var/lib/asterisk/recording`
-- Phase 14 adds database-backed `sip_trunks` management and generates `/etc/asterisk/pjsip_callytics_trunks.conf` from enabled rows on startup and CRUD changes
-- Backend-managed `pjsip.conf` include placement now removes any older managed include position and re-appends both `#include pjsip_callytics_extensions.conf` and `#include pjsip_callytics_trunks.conf` as the final top-level lines in the file. Older Phase 13 behavior moved the extensions include away from the broken in-template position and kept it near the file start; trunk support now standardizes both managed includes at file end so they remain top-level and ordered.
-- Generated extension objects now use the same object name for endpoint and AOR (for example `[2001]` endpoint + `[2001]` AOR with `aors=2001`), matching the known-good static `test-phone` pattern and fixing registrar lookups for softphone registration
+MIT
