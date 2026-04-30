@@ -7,8 +7,11 @@ export function SidebarNav() {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.brandArea}>
-        <div className={styles.brand}>CALLYTICS</div>
-        <div className={styles.label}>CONTROL ROOM</div>
+        <img
+          src="/callytics-logo.png"
+          alt="Callytics"
+          className={styles.logo}
+        />
       </div>
       <nav className={styles.nav} aria-label="Primary navigation">
           <div className={styles.group}>

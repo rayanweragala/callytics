@@ -34,8 +34,7 @@ export default defineConfig({
       'link',
       {
         rel: 'icon',
-        type: 'image/svg+xml',
-        href: '/callytics/favicon.svg',
+        href: '/callytics/favicon.ico',
       },
     ],
   ],

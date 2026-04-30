@@ -12,28 +12,15 @@
 }
 
 .brandArea {
-  padding: 20px 16px;
-  border-bottom: 1px solid var(--border-strong);
+  padding: 16px 16px 8px;
   flex-shrink: 0;
 }
 
-.brand {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-top: 3px;
+.logo {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: auto;
 }
 
 .nav {
@@ -141,10 +128,6 @@
     border-bottom: none;
     border-right: 1px solid var(--border-subtle);
     flex-shrink: 0;
-  }
-
-  .label {
-    display: none;
   }
 
   .nav {
