@@ -16,7 +16,56 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
+}
+
+.importJsonHeaderButton {
+  background: var(--accent);
+  color: var(--bg-base);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 30px;
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.importJsonHeaderButton:hover {
+  filter: brightness(1.04);
+}
+
+.importJsonPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  padding: 16px;
+}
+
+.panelCloseButton {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.panelTitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .table {
@@ -47,6 +96,13 @@
 .descriptionCell {
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+.previewText {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .emptyState {
@@ -84,6 +140,189 @@
 .secondaryButton:disabled {
   opacity: 0.7;
   cursor: default;
+}
+
+.jsonTextarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  background: color-mix(in srgb, var(--primitive-navy-900) 90%, black);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.inlineError {
+  color: var(--color-error);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.panelActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.formatToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.formatToggleIcon {
+  display: inline-block;
+  transform: rotate(0deg);
+}
+
+.formatToggleIconOpen {
+  transform: rotate(90deg);
+}
+
+.formatCodeBlock {
+  margin: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--primitive-navy-700);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.modalCancelButton,
+.modalImportButton {
+  height: 30px;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.modalCancelButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+
+.modalImportButton {
+  background: var(--accent);
+  color: var(--bg-base);
+  border: 1px solid var(--accent);
+}
+
+.modalImportButton:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.guideSection {
+  margin-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+
+.guideToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.guideIcon {
+  display: inline-block;
+  transform: rotate(0deg);
+}
+
+.guideIconExpanded {
+  transform: rotate(90deg);
+}
+
+.guideSteps {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.accordionItem {
+  background: transparent;
+  overflow: visible;
+}
+
+.accordionHeader {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 32px 1fr 24px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.accordionItemOpen .accordionHeader {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 0;
+}
+
+.accordionHeader span {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.accordionHeader strong {
+  color: var(--text-primary);
+}
+
+.accordionHeader em {
+  color: var(--text-secondary);
+  font-style: normal;
+  text-align: right;
+}
+
+.accordionBody {
+  display: grid;
+  gap: 14px;
+  border-left: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: transparent;
+  padding: 16px;
+}
+
+.accordionBody p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.accordionBody code {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
 }
 
 @media (max-width: 1100px) {

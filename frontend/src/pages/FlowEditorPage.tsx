@@ -1,6 +1,6 @@
 import { getApiError } from '../lib/apiError';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactFlow, {
   Background,
   Connection,
@@ -140,9 +140,17 @@ type PendingLeaveAction =
 
 export function FlowEditorPage() {
   const { id = '' } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const isDraftRoute = id === 'new';
   const initialRouteFlowId = Number(id || 0);
+  const draftPrefill = (location.state as {
+    prefillTemplate?: {
+      name?: string;
+      nodes?: FlowDetail['nodes'];
+      edges?: FlowDetail['edges'];
+    };
+  } | null)?.prefillTemplate;
 
   // ── Canvas refs ──────────────────────────────────────────────────────────────
   const canvasPanelRef = useRef<HTMLDivElement | null>(null);
@@ -405,9 +413,30 @@ export function FlowEditorPage() {
     const load = async () => {
       if (isDraftRoute) {
         const draftFlow = createDraftFlow();
-        const draftNodes = decorateEditorNodes([{ id: 'start', type: 'flowNode', position: { x: 120, y: 140 }, data: { label: 'Start', type: 'start', config: {}, subflowId: null }, draggable: false }], null);
+        const draftSourceFlow: FlowDetail = {
+          ...draftFlow,
+          name: String(draftPrefill?.name || draftFlow.name),
+          nodes: Array.isArray(draftPrefill?.nodes) ? draftPrefill.nodes : [],
+          edges: Array.isArray(draftPrefill?.edges) ? draftPrefill.edges : [],
+        };
+        const defaultDraftNodes: Array<Node<FlowNodeData>> = [
+          {
+            id: 'start',
+            type: 'flowNode',
+            position: { x: 120, y: 140 },
+            data: { label: 'Start', type: 'start', config: {}, subflowId: null },
+            draggable: false,
+          },
+        ];
+        const mappedDraftNodes = draftSourceFlow.nodes.length > 0
+          ? mapFlowToNodes(draftSourceFlow)
+          : defaultDraftNodes;
+        const mappedDraftEdges = draftSourceFlow.edges.length > 0
+          ? attachEdgeMetadata(mapFlowToEdges(draftSourceFlow), mappedDraftNodes, handleDeleteEdgeWithUserTracking)
+          : [];
+        const draftNodes = decorateEditorNodes(mappedDraftNodes, null);
         if (!active) return;
-        setFlow(draftFlow); setBreadcrumb([]); setNodes(draftNodes); setEdges([]); setSavedSnapshot(null);
+        setFlow(draftSourceFlow); setBreadcrumb([]); setNodes(draftNodes); setEdges(mappedDraftEdges); setSavedSnapshot(null);
         userEditedRef.current = false;
         setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null); setIsInitialized(true); return;
       }
@@ -424,7 +453,7 @@ export function FlowEditorPage() {
     };
     void load();
     return () => { active = false; };
-  }, [currentFlowId, isDraftRoute]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentFlowId, draftPrefill, isDraftRoute]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNodesChangeWithUserTracking = useCallback((changes: NodeChange[]) => {
     const hasUserEdit = changes.some((change) => (
@@ -722,14 +751,14 @@ export function FlowEditorPage() {
   // Main flow changes auto-save with debounce to avoid excessive API calls.
   useEffect(() => {
     if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current);
-    if (!hasUnsavedChanges || !isInitialized || !flow || isSubflow) {
+    if (!hasUnsavedChanges || !isInitialized || !flow || isSubflow || isDraft || flow.id <= 0) {
       return () => { if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); };
     }
     autoSaveTimer.current = window.setTimeout(() => {
       void saveFlow(undefined, { auto: true });
     }, AUTO_SAVE_DEBOUNCE_MS);
     return () => { if (autoSaveTimer.current) window.clearTimeout(autoSaveTimer.current); };
-  }, [hasUnsavedChanges, isInitialized, flow, isSubflow, versionSaveState, saveState, confirmLeaveOpen, compareVersion, nodeValidationIssues.length]);
+  }, [hasUnsavedChanges, isInitialized, flow, isSubflow, isDraft, versionSaveState, saveState, confirmLeaveOpen, compareVersion, nodeValidationIssues.length]);
 
   // ── Config panel handlers ────────────────────────────────────────────────────
   const handleLabelChange = (value: string) => {
