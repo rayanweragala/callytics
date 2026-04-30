@@ -26,9 +26,9 @@ It is built around Asterisk ARI + Stasis, so call flows are database-driven and 
 - SIP capture with live packet stream, ladder diagrams, and pcap export
 - Network diagnostics with trunk testing, SIP registration status, and resource usage
 - Asterisk log viewer with plain-English translation
-- WireGuard VPN with peer management and QR onboarding
 - SIP firewall with auto-blocking, live feed, and GeoIP
 - Backup and restore with scheduling and retention
+- WireGuard VPN with peer management, QR onboarding, and VPN-only extension controls
 - IVR templates with one-click import and JSON import
 - Network preflight wizard
 

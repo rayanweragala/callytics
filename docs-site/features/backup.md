@@ -1,48 +1,19 @@
 # Backup & Restore
 
-## Exactly what a backup includes
+Backup & Restore gives admins a controlled way to protect the system configuration and call data. A manual backup can be created when needed, and each backup can include the database and call recordings so the important operational state is captured together.
 
-`backend/src/backup/backup.service.ts` creates `.tar.gz` archives.
+Scheduled backups help reduce the risk of data loss by running automatically at a configurable interval. Retention settings keep storage under control by removing older backups after the chosen limit.
 
-Always included:
+Restore operations support uploaded backup archives and let admins choose whether to restore the database, recordings, or both. During long-running backup and restore work, the UI shows live progress so operators know what stage the operation is in.
 
-- `database.dump`
-  - format: PostgreSQL custom archive (`pg_dump -Fc`)
-- `manifest.json`
-  - includes `createdAt`, `includeRecordings`, backup `type`
+## Capabilities
 
-Optional (when `includeRecordings=true`):
-
-- `recordings.tar.gz`
-  - created from `RECORDINGS_DIR` (default `/var/lib/asterisk/recording`)
-
-## Restore sequence
-
-`restoreBackup()` performs this order:
-
-1. Validate uploaded file exists and ends with `.tar.gz`.
-2. Stage upload into temp directory.
-3. Extract archive with `tar -xzf`.
-4. If DB restore selected:
-   - require `database.dump`
-   - run `pg_restore --clean --if-exists --no-owner --no-privileges ...`
-   - rebuild managed telephony configs from DB state.
-5. If recordings restore selected:
-   - require `recordings.tar.gz`
-   - clear recordings dir
-   - extract recordings tar into recordings dir.
-6. Restart affected runtime services through Docker socket API:
-   - DB restore: `asterisk` + `stasis`
-   - recordings-only restore: `asterisk`
-
-## Where archives are stored before download
-
-- Final backup files are written to `BACKUP_DIR` (default `/app/backups`, mounted as `callytics_backup_data`).
-- Temporary workspaces use OS temp dirs via `fs.mkdtemp(...)` under `os.tmpdir()` and are removed after completion.
-
-## Limitations from current implementation
-
-- Backup archive includes DB dump + optional recordings + manifest only.
-- It does not package arbitrary host files outside those artifacts.
-- Restore requires selecting at least one target (`restoreDb` or `restoreRecordings`).
-- DB restore and recordings restore are independent toggles; missing required artifact for a selected toggle fails restore.
+- Manual backup creation from the admin UI
+- Database backup support
+- Call recording backup support
+- Scheduled backups with configurable interval
+- Retention policy for older backups
+- Restore from an uploaded backup archive
+- Independent database restore toggle
+- Independent recordings restore toggle
+- Live progress feed during backup and restore operations

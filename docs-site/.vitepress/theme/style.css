@@ -399,15 +399,19 @@ a {
   min-width: 32px;
   border: 1px solid rgba(107, 114, 153, 0.42);
   border-radius: 8px;
-  background: rgba(21, 26, 45, 0.92);
+  background-color: rgba(21, 26, 45, 0.92);
   backdrop-filter: blur(8px);
   color: var(--ct-muted);
 }
 
 .vp-doc div[class*='language-'] button.copy:hover {
   border-color: rgba(91, 184, 245, 0.45);
-  background: rgba(91, 184, 245, 0.12);
+  background-color: rgba(91, 184, 245, 0.12);
   color: var(--ct-text);
+}
+
+.vp-doc div[class*='language-'] code span {
+  color: inherit !important;
 }
 
 .vp-doc .custom-block {
