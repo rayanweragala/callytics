@@ -39,18 +39,16 @@ export default defineConfig({
     ],
   ],
 
-    vite: {
+  vite: {
     server: {
       host: true,
-      allowedHosts: [
-        'unhealed-wilfred-unfathomed.ngrok-free.dev',
-      ],
+      allowedHosts: ['unhealed-wilfred-unfathomed.ngrok-free.dev'],
     },
   },
 
   themeConfig: {
-    logo: null,
-    siteTitle: 'callytics',
+    logo: '/callytics-icon.png',
+    siteTitle: 'Callytics',
 
     nav: [
       { text: 'Guide', link: '/guide/' },
@@ -89,6 +87,8 @@ export default defineConfig({
             { text: 'IVR Flow Builder', link: '/features/ivr' },
             { text: 'Queues & Operators', link: '/features/queues' },
             { text: 'Outbound Campaigns', link: '/features/campaigns' },
+            { text: 'SIP Capture', link: '/features/capture' },
+            { text: 'Diagnostics', link: '/features/diagnostics' },
             { text: 'WireGuard VPN', link: '/features/vpn' },
             { text: 'SIP Firewall', link: '/features/firewall' },
             { text: 'Backup & Restore', link: '/features/backup' },
@@ -121,7 +121,7 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'callytics — open source call center platform',
+      copyright: '© 2026 Callytics — open source call center platform',
     },
 
     editLink: undefined,

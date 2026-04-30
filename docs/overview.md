@@ -1,84 +1,27 @@
 # callytics overview
 
-`callytics` is a self-hosted call center platform for Linux that installs with one npm command and runs on `localhost`.
+`callytics` is a self-hosted open source call center platform for Linux teams that want programmable telephony without managed per-minute platform pricing. It is built for developers and small businesses that need IVR, SIP extensions, trunk connectivity, outbound campaigns, and real-time operational visibility in one deployable stack.
 
-It exists because the current choices are rough. Hosted tools like Twilio, Genesys, and similar products are expensive fast. FreePBX and raw Asterisk are powerful, but they ask users to learn PBX concepts, edit config files, and debug telephony issues by hand.
+The key differentiator is the ARI + Stasis execution model: call flows are stored in the database and executed by a Node runtime, so updates are applied from the UI instantly without hand-editing dialplans. This keeps Asterisk as the proven telephony engine while replacing manual PBX operations with application-level workflow control.
 
-The goal is not to replace everything Asterisk can do. The goal is to wrap the common small-business call center setup in a product that is easier to install, easier to understand, and easier to change.
+## What is built
 
-The main users are:
-
-- Small businesses that need IVR, routing, voicemail, and basic reporting without enterprise pricing
-- Developers who want a local phone system they can test and automate
-- Agencies setting up phone systems for clients
-- Startups that need a working call flow before they can pay for a hosted stack
-
-What makes it different:
-
-- One command install instead of a manual PBX setup
-- A visual call flow builder instead of hand-written dialplan files
-- Works locally even without a SIP trunk
-- Optional WireGuard VPN for remote softphones without public SIP exposure
-- Built-in SIP firewall for registration abuse detection and automatic source-IP blocking
-- Keeps Asterisk underneath, but hides most of the painful parts
-
-Built-in features already in the product include:
-
-- Visual IVR flow builder
-- SIP extensions, trunks, and inbound DID routing
-- Audio upload, offline TTS, and call recordings
-- Live dashboard, diagnostics, SIP capture, and resource monitoring
-- Reports, callbacks, campaigns, and conference rooms
-- WireGuard VPN peer management and VPN-only extension registration controls
-- SIP firewall live feed, radar, blocked IP management, and threshold settings
-- Backup and restore management with scheduled archives and retention controls
-
-This project is open core. The local self-hosted core stays free and open source. Paid features come later and should add convenience, not take the basics away.
-
-
-Current implementation note:
-
-- The core runtime path is now proven end to end through Asterisk 20, ARI, PostgreSQL-backed flow loading, and the Node.js Stasis execution engine.
-- During first-call debugging both `asterisk` and `stasis` were moved to `network_mode: host`. This replaced the older bridge-networked Stasis setup because ARI connectivity broke after Asterisk moved to host networking.
-- Asterisk log storage is now bind-mounted from host `./asterisk/logs` into both runtime services that need it:
-  - New state: `asterisk` mounts `./asterisk/logs:/var/log/asterisk` and `backend` mounts `./asterisk/logs:/var/log/asterisk:ro`.
-  - Old state: neither service mounted `/var/log/asterisk` from the host, so log files were only container-local.
-  - Why changed: Phase 24 adds a UI log viewer backed by `GET /asterisk/logs`, so backend must read the same persisted `messages` file that Asterisk writes.
-- Phase 8 adds a working audio management slice: a frontend audio library page, upload and offline TTS generation, browser preview playback, and backend-managed conversion/storage.
-- Offline TTS is now bundled and functional inside the backend container rather than remaining a future plan.
-- NestJS now serves generated and uploaded media from `/media/audio/...` so the browser can preview the same assets that back the telephony runtime.
-- Phase 25 adds a System "preflight wizard" page (`/preflight`) to run install-time network and service checks before live calls.
-  - New state:
-    - Sidebar SYSTEM now shows `preflight` above `settings`.
-    - Backend exposes `POST /preflight/run` and `GET /preflight/history`.
-    - New SQL migration `backend/migrations/025_phase25.sql` creates `preflight_runs` (`id`, `ran_at`, `summary`, `checks`).
-    - Each run stores all 12 check outcomes in JSON and history is capped to the newest 10 rows.
-    - Frontend run panel supports manual runs, pass/warn/fail banner, and 30-second auto re-check while summary is warn/fail.
-    - Frontend history panel shows timestamped summaries with expandable per-check details.
-  - Old state:
-    - No preflight route, no preflight API endpoints, and no persisted preflight history table.
-  - Why changed:
-    - Users need a single post-install preflight to validate ARI/AMI/SIP/RTP, Redis/Postgres, external IP/NAT/STUN, disk capacity, and SIP ALG advisory before handling production calls.
-- Phase 26: COMPLETE
-  - Outbound call campaigns (create, CSV upload, schedule, sliding window dialer)
-  - Campaign contacts with retry logic
-  - Call logs direction filter and campaign name column
-  - Contact numbers E.164 normalization
-  - Trunk from_user space stripping
-  - Hunt node: attempt channel force-hangup on timeout, orphan leg guard
-  - Transfer node: waiting sound loop, no-answer sound, caller-disconnect cleanup
-  - Hunt/transfer waiter architecture (event-driven, no timers)
-  - Migration consolidation: all SQL migrations now in root migrations/ folder
-  - call_logs table migration added (023_phase_call_logs.sql)
-- Phase 36 adds a System "backup & restore" page (`/backup`) for manual archives, uploaded restores, and scheduled retention-managed backups.
-  - New state:
-    - Sidebar SYSTEM now shows `backup & restore` between `vpn` and `preflight`.
-    - Backend exposes `POST /backup`, `GET /backup`, `DELETE /backup/:id`, `GET /backup/:id/download`, `POST /backup/restore`, `GET /backup/config`, and `PUT /backup/config`.
-    - New SQL migration `backend/migrations/032_phase36_backup.sql` creates `backup_history` and the singleton `backup_config` row.
-    - Backend archives are written into the named Docker volume mounted at `/app/backups`.
-    - Manual backup uses `pg_dump` for the database, optionally tars the shared recordings volume, and packages both into one `.tar.gz`.
-    - Restore can replay the DB and recordings separately, then rebuilds managed telephony config and signals runtime services to restart.
-  - Old state:
-    - No backup route, no persisted backup history/config tables, and no in-product restore flow.
-  - Why changed:
-    - Operators need a repeatable backup path before upgrading or moving the stack, without leaving the SYSTEM area or scripting exports by hand.
+- Visual IVR flow builder with 13 node types gives operators a drag-and-drop canvas to build and publish call logic without editing telephony config files.
+- SIP extensions, trunks, and inbound DID routing provide full endpoint provisioning, provider connectivity, and number-to-flow mapping from the web UI.
+- Outbound campaigns with CSV import and a sliding-window dialer let teams run controlled outbound calling with scheduling and retry handling.
+- Queue and operator management adds call distribution controls for live agent workflows and queue-backed routing.
+- Hunt groups support sequential, random, and group dialing strategies for multi-destination failover and parallel ringing.
+- Conference rooms powered by Asterisk ConfBridge enable multi-party sessions with moderator and participant handling.
+- Callback flow support lets callers request a callback and routes those requests back into managed outbound processing.
+- Audio upload, ffmpeg conversion, and offline Piper TTS provide local prompt creation without external TTS dependencies.
+- Call recording capture with browser streaming and downloads gives operators direct access to stored call media.
+- Live dashboard surfaces active calls, queue status, and recent runtime events for day-to-day operations.
+- Call logs include execution traces and RTP quality scoring so teams can debug flow behavior and voice quality from one view.
+- SIP capture adds live packet streaming, ladder visualization, and `.pcap` export for protocol-level troubleshooting.
+- Diagnostics tools include trunk tests, SIP registration checks, and host resource metrics for runtime health monitoring.
+- Asterisk log viewing with plain-English translation reduces telephony troubleshooting friction for non-specialist users.
+- WireGuard VPN management adds peer lifecycle controls and QR onboarding for secure remote softphone access.
+- SIP firewall capabilities provide auto-blocking, live security feed updates, and GeoIP-aware monitoring for abuse detection.
+- Backup and restore includes manual/scheduled archives plus retention controls for operational recovery.
+- IVR template import supports one-click template loading and JSON import for faster flow bootstrapping.
+- A network preflight wizard runs installation readiness checks before production call traffic goes live.

@@ -1,24 +1,28 @@
 # Getting Started
 
-`callytics` is a self-hosted call center platform for Linux that installs with one command. It wraps the power of Asterisk in a modern, developer-friendly stack including a visual IVR builder, outbound dialer, and a built-in SIP firewall.
+`callytics` is a self-hosted open source call center platform for Linux teams that need programmable IVR, SIP routing, and live monitoring without managed telephony platform lock-in.
 
-## Why callytics?
+## Quick start
 
-Telephony is traditionally hard. You usually have two choices:
-1. **Hosted APIs (Twilio, Genesys):** Great to start, but bills scale fast with per-minute and per-feature pricing.
-2. **Raw PBX (FreePBX, Asterisk):** Powerful and free, but requires editing complex config files and deep telephony knowledge.
+```bash
+git clone https://github.com/rayanweragala/callytics.git
+cd callytics
+cp .env.example .env
+docker compose up -d
+```
 
-Callytics bridges this gap. It gives you the control and cost-savings of a self-hosted Asterisk stack with the ease of use of a modern web application.
+Then open `http://localhost:3000`.
 
-## Core Features
-- **Visual IVR Builder:** Drag-and-drop call flows. Changes apply instantly without reloading Asterisk.
-- **Outbound Campaigns:** Load contacts via CSV and run automated dialing schedules.
-- **WireGuard VPN:** Securely connect remote softphones without exposing SIP ports to the public internet.
-- **SIP Firewall:** Automatic source-IP blocking based on registration failure thresholds.
-- **Resource Monitoring:** Live CPU, memory, and disk telemetry for your telephony node.
+## What you get
 
-## Who is it for?
-- **Small Businesses:** Need IVR, routing, and basic reporting without enterprise pricing.
-- **Developers:** Want a local phone system they can test and automate.
-- **Agencies:** Setting up phone systems for multiple clients on private infrastructure.
-- **Startups:** Need a working call flow quickly before upgrading to a hosted stack.
+- Visual IVR flow builder with publishable flow versions
+- SIP extensions, trunks, and inbound DID routing
+- Outbound campaigns with CSV upload and scheduling
+- Live dashboard, call logs, SIP capture, and diagnostics
+- WireGuard VPN, SIP firewall, and backup/restore tooling
+
+## Who this is for
+
+- Developers building and testing programmable call flows locally
+- Small businesses running self-hosted inbound and outbound call operations
+- Teams that want Asterisk power without manual PBX-heavy workflows

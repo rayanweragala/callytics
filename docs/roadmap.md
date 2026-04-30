@@ -1,168 +1,40 @@
 # Roadmap
 
-## v1.0
+## Shipped
 
-Minimum useful product:
+- Visual IVR flow builder with 13 node types
+- SIP extensions, trunks, and inbound DID routing
+- Outbound call campaigns with CSV upload and sliding window dialer
+- Call queues and operator management
+- Hunt groups with sequential, random, and group dial strategies
+- Conference rooms via Asterisk ConfBridge
+- Callback node for caller-requested callbacks
+- Audio upload, ffmpeg conversion, and offline Piper TTS
+- Call recordings with browser preview and download
+- Live dashboard with active calls, queue status, and recent events
+- Call logs with execution trace and RTP quality scoring
+- SIP capture with live packet stream, ladder diagrams, and pcap export
+- Network diagnostics with trunk testing, SIP registration status, and resource usage
+- Asterisk log viewer with plain-English translation
+- WireGuard VPN with peer management and QR onboarding
+- SIP firewall with auto-blocking, live feed, and GeoIP
+- Backup and restore with scheduling and retention
+- IVR templates with one-click import and JSON import
+- Network preflight wizard
 
-- Linux install through the npm-led setup flow
-- Docker-based local runtime
-- Single local admin user
-- React web UI on `localhost`
-- Visual IVR builder with core nodes:
-  - start
-  - play audio
-  - menu
-  - condition
-  - transfer
-  - queue
-  - voicemail
-  - hangup
-- Audio upload and conversion
-- Offline TTS prompt generation
-- Draft and publish flow versions
-- ARI Stasis app for call flow execution
-- Optional SIP trunk setup
-- Local softphone support when SIP trunk is skipped
-- Live dashboard with active calls, queues, and recent events
-- Basic reports:
-  - call volume
-  - answered calls
-  - missed calls
-  - voicemail activity
-- Safe uninstall and reinstall behavior
+## Post-launch
 
-If v1.0 does not install cleanly and run locally without telephony expertise, it misses the point.
+- Settings page with theme switching
+- Attendant Console node
+- WebRTC softphone
+- Supervisor barge/whisper
+- S3 recording archiving
+- Webhook HMAC signing
+- Multi-user RBAC
+- Canvas replay mode
+- CDR export
+- Prometheus metrics export
 
+## Cloud version
 
-## Current completed foundation phases
-
-- Phase 1: workspace skeleton, Docker Compose, and base Asterisk config
-- Phase 2: Asterisk 20 built from source, ARI and AMI verified, Stasis app connectivity working
-- Phase 3: NestJS backend running in Docker with PostgreSQL health check and `/health` endpoint
-- Phase 4: Stasis flow execution engine, schema migration, seed flow, flow loader, session manager, and node executors
-- Phase 5: diagnostics UI completed: SIP status panel, Redis-to-Socket.io event relay, and live execution timeline
-- Phase 6: React Flow builder UI completed with live backend persistence
-- Phase 7: thin-slice backend REST API for flow CRUD implemented for the builder
-- Phase 8: audio management completed with `audio_files`, ffmpeg conversion, offline Piper TTS, `/audio` page, builder audio picker integration, Stasis audio resolver, and shared pagination/search UI
-- Phase 9: end-to-end live call verification completed with database-backed audio assets, Stasis flow execution, DTMF capture, and Asterisk playback fixed through `.ulaw` telephony assets
-- Phase 10: conditional edge routing and transfer-node execution completed; `get_digits` now subscribes correctly to DTMF on the live ARI channel, ignores `h`-extension Stasis re-entry, and the Stasis seed path now skips any existing flow 1 with saved nodes instead of overwriting user-built routing
-- Phase 11: call recording completed with a `call_recordings` table, NestJS `RecordingsModule`, bridge-based ARI recording, a `/recordings` frontend page with inline preview/download/delete actions, and diagnostics pagination for the live execution and SIP panels
-- Phase 12: hunt group node, retry semantics, builder canvas minimap/layout improvements, and diagnostics live execution expanded-row layout fix completed
-  - Hunt group node: sequential, random, group strategies
-  - Hold audio loop during dialing, busy audio between retries
-  - on_no_answer routing on exhaustion
-  - Destination normalization (bare extension → PJSIP/ prefix)
-  - Failed originate treated as retry attempt, not fatal error
-  - get_digits implicit fallback: unmatched digit → invalid → default edge
-  - Canvas mini-map with per-node-type accent colors
-  - Canvas auto-layout via dagre (tidy layout button)
-  - Diagnostics live execution expanded row layout fix
-- Phase 16 Part A: flow builder node groups + multi-select completed
-  - Added visual `group` nodes and group/ungroup toolbar actions
-  - Shift+click multi-select now drives grouping actions
-  - Persisted group membership via `flow_nodes.group_id`
-  - Flow load/save maps backend `groupId` to React Flow `parentId`
-- Phase 16 Part B: flow versioning completed
-  - Added `flow_versions` metadata fields: `message`, `snapshot`, `node_count`
-  - Added version endpoints: `GET /flows/:id/versions`, `GET /flows/:id/versions/:versionId`, `POST /flows/:id/versions`, `POST /flows/:id/versions/:versionId/restore`
-  - Editor save path now creates committed versions visible in the versions drawer
-  - Added compare and restore UX in the flow editor versions panel
-  - Restore applies snapshot content and writes a new version message (`Restored from vN`)
-- Phase 17: full test suite, coverage thresholds, GitHub Actions CI, and hunt-answer flow stabilization completed
-  - Test suite totals: Stasis 58, Backend 85, Frontend 126
-  - CI workflow added at `.github/workflows/ci.yml` for `dev` and `main` push/PR validation
-  - Coverage gates now enforced across all three apps (`stasis`, `backend`, `frontend`)
-  - Hunt executor behavior aligned with outbound Stasis-entry answer detection to reduce missed-bridge races
-- Phase 21: SIP diagnostics ladder + persistent SIP message history completed
-  - Stasis now includes Call-ID in SIP traffic telemetry when available
-  - Backend persists SIP traffic rows into `sip_messages` and exposes diagnostics read endpoints
-  - Diagnostics UI supports Call-ID drill-down from Panel D and Panel E into right-side SIP ladder panel
-- Phase 22A  ✓ COMPLETE — Live call timeline
-- Phase 22B  ✓ COMPLETE — SIP Capture page (commit: c9cee21)
-- Phase 31: conference room node completed
-  - ConfBridge-based multi-party rooms
-  - Automatic MOH for participants waiting on a moderator
-  - Moderator can be an extension or PSTN operator
-  - Sole-survivor grace period with auto-hangup
-- Phase 23   IN PROGRESS — RTP quality monitor
-- Phase 24   PLANNED     — Asterisk log viewer (plain-English translation)
-- Phase 25   PLANNED     — Trunk failover — auto-route via backup trunk on failure
-- Phase 26   PLANNED     — Network preflight wizard — NAT / RTP / STUN checker
-- Phase 27   PLANNED     — Outbound call campaigns — CSV upload + flow + scheduler
-- Phase 28   PLANNED     — Call scheduler — single outbound call at specific datetime
-- Phase 29   PLANNED     — Blacklist / whitelist — number rules page
-- Phase 30   PLANNED     — Callback node — caller leaves number, system calls back
-- Phase 31   ✓ COMPLETE  — Conference room node — ConfBridge multi-party rooms
-- Phase 36   ✓ COMPLETE  — Backup and restore
-- Phase 33   ✓ COMPLETE  — Resource usage panel
-- Phase 34   ✓ COMPLETE  — WireGuard VPN
-- Phase 35   ✓ COMPLETE  — SIP firewall
-- Phase 37+  DEFERRED    — WebRTC softphone (post-launch)
-
-### Phase 23  RTP quality monitor
-
-Scope:
-- rtp.conf added to Asterisk Dockerfile (rtcpstats=yes, rtcpinterval=5000)
-- New RTCP event handlers in stasis (RTCPReceived + RTCPSent)
-- MOS score calculation via simplified E-model (pure function, mosScore.ts)
-- Redis stream: callytics:rtp-quality (XTRIM maxlen 1000)
-- New call_quality DB table (per-call, SERIAL PK, upsert on call_id)
-- New QualityModule in backend (Redis consumer + REST endpoint)
-- MOS badge column on Call Logs page (green/amber/red/grey)
-- Quality drawer on Call Logs — same drawer pattern as ExecutionTrace
-  — MOS score, jitter, packet loss, RTT with plain-English labels
-  — "View in Capture" link pre-filtered by Call-ID
-- No new sidebar entry — quality lives inside Call Logs
-
-Root cause note:
-  rtp.conf was absent from the container pre-Phase 23. make samples in the
-  Dockerfile skipped it. RTCP events were never emitted. Fixed by appending
-  rtcpstats=yes to /etc/asterisk/rtp.conf in the Dockerfile build step.
-
-Diagnostic flow this completes:
-  Call Logs (MOS badge) → Quality drawer → View in Capture (Phase 22B)
-
-Key decisions:
-- Post-call only (RTCP is a call-end summary, not a live stream)
-- Separate call_quality table (not columns on call_logs)
-- MOS computed from the worse of RTCPReceived / RTCPSent directions
-- REST not WebSocket — quality data is static after call end
-
-Important infrastructure change made during Phase 4:
-
-- Old state: `stasis` on bridge networking while `asterisk` used host networking
-- New state: both `asterisk` and `stasis` use `network_mode: host`
-- Reason: the bridge-networked Stasis container could not reliably reach ARI once Asterisk moved to host networking
-
-## v2.0
-
-What gets added once people are using it:
-
-- Multi-user accounts and basic roles
-- Ring groups and better queue controls
-- Business hours editor tied to flow conditions
-- Flow templates for common setups
-- CSV export for all main reports
-- Better SIP provider presets
-- Backup and restore from the UI
-- Flow rollback history and publish notes
-- More detailed flow analytics and node drop-off reporting
-- Audio usage tracking and replace-in-place prompt updates
-- Health diagnostics page for Docker, Asterisk, and trunk status
-
-## v3.0
-
-Fuller vision:
-
-- Hosted cloud version
-- Team collaboration with shared workspaces
-- Audit logs and enterprise auth features
-- White-label agency mode
-- Managed SIP provider marketplace
-- API keys and webhook integrations
-- CRM and helpdesk integration points
-- Smarter reporting with retention controls and scheduled exports
-- High availability deployment path for paid users
-- Advanced call apps if ARI becomes necessary
-
-The v3.0 vision should only happen if the core local product is stable and trusted first.
+A hosted cloud edition with high availability and multi-tenant architecture is planned as the commercial tier. No launch timeline is committed yet.
