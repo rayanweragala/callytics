@@ -8,9 +8,20 @@ function createFlowPayload(name = 'Test Flow') {
     description: 'Integration test flow',
     nodes: [
       { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
-      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 100, positionY: 0, config: {} },
+      {
+        nodeKey: 'play-1',
+        type: 'play_audio',
+        label: 'Greeting',
+        positionX: 120,
+        positionY: 0,
+        config: { audio_file_id: 1 },
+      },
+      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 260, positionY: 0, config: {} },
     ],
-    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'hangup', branchKey: 'default', condition: null }],
+    edges: [
+      { sourceNodeKey: 'start', targetNodeKey: 'play-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'play-1', targetNodeKey: 'hangup', branchKey: 'default', condition: null },
+    ],
   };
 }
 
@@ -28,7 +39,7 @@ function createMenuFlowPayload(name = 'Menu Flow') {
         positionY: 0,
         config: {
           timeout_ms: 5000,
-          branches: ['1', 'timeout', 'invalid'],
+          branches: ['1', '2'],
           prompt_audio_file_id: 1,
         },
       },
@@ -60,7 +71,7 @@ describe('Flow Versions API', () => {
       flowId: created.body.data.id,
       versionNum: 1,
       message: 'Saved from editor',
-      nodeCount: 2,
+      nodeCount: 3,
     }));
 
     const listed = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}/versions`);
@@ -71,7 +82,7 @@ describe('Flow Versions API', () => {
         flowId: created.body.data.id,
         versionNum: committed.body.data.versionNum,
         message: 'Saved from editor',
-        nodeCount: 2,
+        nodeCount: 3,
       }),
     ]));
 
@@ -82,7 +93,7 @@ describe('Flow Versions API', () => {
       flowId: created.body.data.id,
       versionNum: committed.body.data.versionNum,
       message: 'Saved from editor',
-      nodeCount: 2,
+      nodeCount: 3,
       snapshot: expect.objectContaining({
         nodes: expect.any(Array),
         edges: expect.any(Array),
@@ -102,7 +113,7 @@ describe('Flow Versions API', () => {
         flowId,
         versionNum: 1,
         message: 'Saved from editor',
-        nodeCount: 2,
+        nodeCount: 3,
       }),
     ]));
 
@@ -111,12 +122,19 @@ describe('Flow Versions API', () => {
       name: 'Saved Flow Updated',
       nodes: [
         { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
-        { nodeKey: 'menu', type: 'get_digits', label: 'Main Menu', positionX: 150, positionY: 0, config: { timeout_ms: 5000 } },
+        {
+          nodeKey: 'play-1',
+          type: 'play_audio',
+          label: 'Updated Greeting',
+          positionX: 150,
+          positionY: 0,
+          config: { audio_file_id: 1 },
+        },
         { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 300, positionY: 0, config: {} },
       ],
       edges: [
-        { sourceNodeKey: 'start', targetNodeKey: 'menu', branchKey: 'default', condition: null },
-        { sourceNodeKey: 'menu', targetNodeKey: 'hangup', branchKey: 'default', condition: 'default' },
+        { sourceNodeKey: 'start', targetNodeKey: 'play-1', branchKey: 'default', condition: null },
+        { sourceNodeKey: 'play-1', targetNodeKey: 'hangup', branchKey: 'default', condition: null },
       ],
     };
 
@@ -139,7 +157,7 @@ describe('Flow Versions API', () => {
         flowId,
         versionNum: 1,
         message: 'Saved from editor',
-        nodeCount: 2,
+        nodeCount: 3,
       }),
     ]));
   });
@@ -158,12 +176,19 @@ describe('Flow Versions API', () => {
       name: 'Restore Flow Updated',
       nodes: [
         { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
-        { nodeKey: 'menu', type: 'get_digits', label: 'Main Menu', positionX: 150, positionY: 0, config: { timeout_ms: 5000 } },
+        {
+          nodeKey: 'play-1',
+          type: 'play_audio',
+          label: 'Restore Greeting',
+          positionX: 150,
+          positionY: 0,
+          config: { audio_file_id: 1 },
+        },
         { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 300, positionY: 0, config: {} },
       ],
       edges: [
-        { sourceNodeKey: 'start', targetNodeKey: 'menu', branchKey: 'default', condition: null },
-        { sourceNodeKey: 'menu', targetNodeKey: 'hangup', branchKey: 'default', condition: 'default' },
+        { sourceNodeKey: 'start', targetNodeKey: 'play-1', branchKey: 'default', condition: null },
+        { sourceNodeKey: 'play-1', targetNodeKey: 'hangup', branchKey: 'default', condition: null },
       ],
     };
 
@@ -182,9 +207,10 @@ describe('Flow Versions API', () => {
     const fetched = await request(app.getHttpServer()).get(`/flows/${flowId}`);
     expect(fetched.status).toBe(200);
     expect(fetched.body.data.name).toBe('Restore Flow');
-    expect(fetched.body.data.nodes.length).toBeGreaterThanOrEqual(2); // Restored to initial committed state
+    expect(fetched.body.data.nodes.length).toBeGreaterThanOrEqual(3); // Restored to initial committed state
     expect(fetched.body.data.nodes).toEqual(expect.arrayContaining([
       expect.objectContaining({ nodeKey: 'start' }),
+      expect.objectContaining({ nodeKey: 'play-1', label: 'Greeting' }),
       expect.objectContaining({ nodeKey: 'hangup' }),
     ]));
   });

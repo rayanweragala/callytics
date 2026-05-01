@@ -138,7 +138,7 @@ describe('hunt executor — additional coverage', () => {
     );
 
     // First originate should go to 2001
-    await flushPromises();
+    await flushPromises(20);
     expect(ariClient.channels.originate).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({ endpoint: 'PJSIP/2001' }),
@@ -261,7 +261,7 @@ describe('hunt executor — additional coverage', () => {
     const promise = executeHunt(inboundChannel, node, createSession(), ariClient as any);
 
     // Executor has started and called originate
-    await flushPromises();
+    await flushPromises(20);
     expect(ariClient.channels.originate).toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: 'PJSIP/2001' }),
     );

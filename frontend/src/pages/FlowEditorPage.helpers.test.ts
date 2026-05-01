@@ -162,10 +162,10 @@ describe('validateFlowBeforeSave — nodes that require outgoing edges', () => {
     expect(isImmediateHangupFlow(nodes, edges)).toBe(false);
   });
 
-  it('start to hangup still counts as immediate hangup even when extra nodes exist', () => {
+  it('start to hangup does not count as immediate hangup when extra nodes exist', () => {
     const nodes = [makeNode('start', 'start'), makeNode('h1', 'hangup'), makeNode('pa1', 'play_audio')];
     const edges = [makeEdge('start', 'h1')];
-    expect(isImmediateHangupFlow(nodes, edges)).toBe(true);
+    expect(isImmediateHangupFlow(nodes, edges)).toBe(false);
   });
 });
 

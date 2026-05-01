@@ -86,18 +86,6 @@ describe("AsteriskConfigService", () => {
   });
 
   it("syncUdpTransport rewrites the transport block and reloads pjsip", async () => {
-    jest.spyOn(fsPromises, "readFile").mockResolvedValue([
-      "[transport-udp]",
-      "type = transport",
-      "protocol = udp",
-      "bind = 0.0.0.0:5080",
-      "",
-      "[transport-tcp]",
-      "type = transport",
-      "protocol = tcp",
-      "bind = 0.0.0.0:5080",
-      "",
-    ].join("\n"));
     const amiSpy = jest
       .spyOn(service as any, "sendAmiCommand")
       .mockResolvedValue(undefined);
@@ -105,13 +93,23 @@ describe("AsteriskConfigService", () => {
     await service.syncUdpTransport("203.0.113.10");
 
     expect(fsPromises.writeFile).toHaveBeenCalledWith(
-      expect.stringContaining("pjsip.conf"),
-      expect.stringContaining("external_signaling_address = 203.0.113.10"),
+      expect.stringContaining("pjsip_relay.conf"),
+      "external_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\n",
       "utf8",
     );
+    expect(amiSpy).toHaveBeenCalledWith("pjsip reload");
+  });
+
+  it("syncUdpTransport with null clears the relay config", async () => {
+    const amiSpy = jest
+      .spyOn(service as any, "sendAmiCommand")
+      .mockResolvedValue(undefined);
+
+    await service.syncUdpTransport(null);
+
     expect(fsPromises.writeFile).toHaveBeenCalledWith(
-      expect.stringContaining("pjsip.conf"),
-      expect.stringContaining("external_media_address = 203.0.113.10"),
+      expect.stringContaining("pjsip_relay.conf"),
+      "",
       "utf8",
     );
     expect(amiSpy).toHaveBeenCalledWith("pjsip reload");

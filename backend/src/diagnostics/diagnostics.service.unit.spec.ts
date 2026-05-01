@@ -35,6 +35,15 @@ describe('DiagnosticsService', () => {
   };
 
   beforeEach(async () => {
+    (net.createConnection as unknown as jest.Mock).mockReturnValue({
+      setTimeout: jest.fn((_timeout: number, callback?: () => void) => {
+        callback?.();
+      }),
+      on: jest.fn(),
+      end: jest.fn(),
+      write: jest.fn(),
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DiagnosticsService,

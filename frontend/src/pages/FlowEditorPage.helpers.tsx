@@ -682,6 +682,8 @@ export async function validateFlowBeforeSave(
       node.data.type === 'play_audio' ||
       node.data.type === 'transfer' ||
       node.data.type === 'hunt' ||
+      node.data.type === 'voicemail' ||
+      node.data.type === 'callback' ||
       node.data.type === 'queue_login' ||
       node.data.type === 'queue'
     )

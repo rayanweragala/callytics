@@ -601,6 +601,7 @@ describe('hunt executor', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    resolveAudioMediaPathMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -618,7 +619,7 @@ describe('hunt executor', () => {
     const node: FlowNode = { nodeKey: 'hunt-1', type: 'hunt', label: 'Hunt', config: { destinations: [{ target_type: 'extension', target_value: '2001' }, { target_type: 'extension', target_value: '2002' }], attempt_timeout_ms: 5000, total_timeout_ms: 10000 } };
 
     const promise = executeHunt({ id: 'channel-1', hangup: jest.fn().mockResolvedValue(undefined) }, node, createSession(), ariClient as any);
-    await flushPromises();
+    await flushPromises(20);
     expect(ariClient.channels.originate).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'PJSIP/2001' }));
     ariClient.emit('ChannelStateChange', { channel: { id: 'hunt-1', state: 'Up' } });
     await flushPromises();
@@ -763,7 +764,7 @@ describe('hunt executor', () => {
       ariClient as any,
     );
 
-    await flushPromises();
+    await flushPromises(20);
     expect(ariClient.channels.originate).toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: 'PJSIP/2001' }),
     );

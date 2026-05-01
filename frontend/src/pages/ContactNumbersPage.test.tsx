@@ -15,8 +15,17 @@ vi.mock('../lib/api', () => ({
 describe('ContactNumbersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.listTrunks as any).mockResolvedValue({ data: [], total: 0 });
+    (api.listTrunks as any).mockResolvedValue({
+      data: [{ id: 7, name: 'Main Trunk', host: 'sip.example.com', enabled: true, createdAt: new Date().toISOString() }],
+      total: 1,
+    });
   });
+
+  async function selectTrunk(label = 'Main Trunk') {
+    fireEvent.click(screen.getByText('select trunk'));
+    await waitFor(() => expect(screen.getByText(label)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(label));
+  }
 
   it('renders empty state when no contacts are returned', async () => {
     (api.getContactNumbers as any).mockResolvedValue({ data: [], total: 0 });
@@ -87,6 +96,7 @@ describe('ContactNumbersPage', () => {
     const textboxes = screen.getAllByRole('textbox');
     fireEvent.change(textboxes[0], { target: { value: 'Owner Mobile' } });
     fireEvent.change(textboxes[1], { target: { value: '+94770000000' } });
+    await selectTrunk();
 
     fireEvent.click(createButton);
 
@@ -95,7 +105,7 @@ describe('ContactNumbersPage', () => {
         label: 'Owner Mobile',
         number: '+94770000000',
         country: 'US',
-        trunk_id: undefined,
+        trunk_id: 7,
         notes: undefined,
       });
     });
@@ -152,6 +162,7 @@ describe('ContactNumbersPage', () => {
 
     fireEvent.change(textboxes[0], { target: { value: 'Escalation' } });
     fireEvent.change(textboxes[1], { target: { value: '+94774445566' } });
+    await selectTrunk();
     fireEvent.click(createButton);
 
     await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());

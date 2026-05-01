@@ -7,14 +7,19 @@ import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
 import { InboundRouteEntity } from '../inbound-routes/entities/inbound-route.entity';
 import { VpnService } from '../vpn/vpn.service';
 
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: jest.fn().mockResolvedValue(undefined),
-    writeFile: jest.fn().mockResolvedValue(undefined),
-    readdir: jest.fn().mockResolvedValue([]),
-    unlink: jest.fn().mockResolvedValue(undefined),
-  },
-}));
+jest.mock('fs', () => {
+  const actualFs = jest.requireActual('fs');
+  return {
+    ...actualFs,
+    promises: {
+      ...actualFs.promises,
+      mkdir: jest.fn().mockResolvedValue(undefined),
+      writeFile: jest.fn().mockResolvedValue(undefined),
+      readdir: jest.fn().mockResolvedValue([]),
+      unlink: jest.fn().mockResolvedValue(undefined),
+    },
+  };
+});
 
 describe('ExtensionsService', () => {
   let service: ExtensionsService;

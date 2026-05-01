@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { URL } from 'url';
-import { AppModule } from '../src/app.module';
 import { AsteriskConfigService } from '../src/asterisk/asterisk-config.service';
 import { DiagnosticsService } from '../src/diagnostics/diagnostics.service';
 
@@ -45,6 +44,7 @@ function applyTestDatabaseEnv(): void {
   process.env.REDIS_HOST = '127.0.0.1';
   process.env.REDIS_PORT = '6380';
   process.env.ASTERISK_CONFIG_DIR = '/tmp/callytics-test-asterisk';
+  process.env.BACKUP_DIR = '/tmp/callytics-test-backups';
 }
 
 export async function getApp(): Promise<INestApplication> {
@@ -53,6 +53,7 @@ export async function getApp(): Promise<INestApplication> {
   }
 
   applyTestDatabaseEnv();
+  const { AppModule } = await import('../src/app.module');
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
