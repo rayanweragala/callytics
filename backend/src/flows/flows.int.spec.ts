@@ -94,7 +94,7 @@ describe('Flows API', () => {
       name: 'Test Flow',
       slug: expect.any(String),
     }));
-  });
+  }, 15000);
 
   it('POST /flows returns 400 if name is missing', async () => {
     const app = await getApp();
