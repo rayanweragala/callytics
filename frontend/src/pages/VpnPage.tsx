@@ -4,8 +4,12 @@ import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
 import { VpnPacketExplainer } from '../components/vpn/VpnPacketExplainer';
 import {
+  activateVpnRelayTunnel,
   createVpnPeer,
   createVpnRelayConfig,
+  deactivateVpnRelayTunnel,
+  getVpnRelayConfig,
+  getVpnRelayStatus,
   getVpnPeerConfig,
   getVpnPeerQrUrl,
   getVpnRelayGuide,
@@ -16,7 +20,7 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
-import type { RelayGuideStep, VpnPeer, VpnStatus } from '../types';
+import type { RelayGuideStep, RelayTunnelStatus, VpnPeer, VpnStatus } from '../types';
 import styles from './VpnPage.module.css';
 
 type VpnTab = 'peers' | 'relay';
@@ -33,6 +37,7 @@ const EMPTY_STATUS: VpnStatus = {
   subnetConflict: false,
   subnetConflictDetail: null,
 };
+const EMPTY_RELAY_STATUS: RelayTunnelStatus = { active: false, handshakeEstablished: false };
 
 function formatBytes(value: number): string {
   if (value >= 1024 * 1024 * 1024) {
@@ -72,6 +77,12 @@ export function VpnPage() {
   const [relayPublicKey, setRelayPublicKey] = useState('');
   const [relayPublicIp, setRelayPublicIp] = useState('');
   const [relayConfig, setRelayConfig] = useState<string | null>(null);
+  const [relayStatus, setRelayStatus] = useState<RelayTunnelStatus>(EMPTY_RELAY_STATUS);
+  const [relayStatusLoading, setRelayStatusLoading] = useState(false);
+  const [relayConfigLoading, setRelayConfigLoading] = useState(false);
+  const [relayActivateLoading, setRelayActivateLoading] = useState(false);
+  const [relayDeactivateLoading, setRelayDeactivateLoading] = useState(false);
+  const [relayInlineError, setRelayInlineError] = useState<string | null>(null);
   const [confirmRemoveVpn, setConfirmRemoveVpn] = useState(false);
   const [removingVpn, setRemovingVpn] = useState(false);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -130,10 +141,36 @@ export function VpnPage() {
     }
   };
 
+  const loadRelayStatus = async () => {
+    setRelayStatusLoading(true);
+    try {
+      const next = await getVpnRelayStatus();
+      setRelayStatus(next);
+    } catch (error) {
+      setPageError(getApiError(error, 'failed to load relay status'));
+    } finally {
+      setRelayStatusLoading(false);
+    }
+  };
+
+  const loadRelayConfig = async () => {
+    setRelayConfigLoading(true);
+    try {
+      const data = await getVpnRelayConfig();
+      setRelayConfig(data.config);
+      setRelayPublicKey(data.vpsPublicKey || '');
+      setRelayPublicIp(data.vpsPublicIp || '');
+    } catch (error) {
+      setPageError(getApiError(error, 'failed to load relay config'));
+    } finally {
+      setRelayConfigLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadInitial = async () => {
       try {
-        const nextStatus = await loadStatus();
+        const [nextStatus] = await Promise.all([loadStatus(), loadRelayStatus(), loadRelayConfig()]);
         if (nextStatus.installed) {
           await loadPeers();
         }
@@ -165,6 +202,13 @@ export function VpnPage() {
     }
     void loadGuide();
   }, [activeTab, guide.length, guideLoading]);
+
+  useEffect(() => {
+    if (activeTab !== 'relay') {
+      return;
+    }
+    void Promise.all([loadRelayStatus(), loadRelayConfig()]);
+  }, [activeTab]);
 
   useEffect(() => () => {
     if (copyTimer.current) {
@@ -251,6 +295,7 @@ export function VpnPage() {
   };
 
   const handleRelayConfig = async () => {
+    setRelayInlineError(null);
     setPageError(null);
     try {
       const response = await createVpnRelayConfig({
@@ -260,6 +305,42 @@ export function VpnPage() {
       setRelayConfig(response.config);
     } catch (error) {
       setPageError(getApiError(error, 'failed to create relay config'));
+    }
+  };
+
+  const handleActivateRelayTunnel = async () => {
+    if (!relayConfig) {
+      return;
+    }
+    setRelayInlineError(null);
+    setPageError(null);
+    setRelayActivateLoading(true);
+    try {
+      await activateVpnRelayTunnel(relayConfig);
+      await loadRelayStatus();
+    } catch (error) {
+      const message = getApiError(error, 'failed to activate relay tunnel');
+      if (message.toLowerCase().includes('cannot activate relay')) {
+        setRelayInlineError('Cannot activate relay — built-in VPN is currently active. Disable it first.');
+      } else {
+        setRelayInlineError(message);
+      }
+    } finally {
+      setRelayActivateLoading(false);
+    }
+  };
+
+  const handleDeactivateRelayTunnel = async () => {
+    setRelayInlineError(null);
+    setPageError(null);
+    setRelayDeactivateLoading(true);
+    try {
+      await deactivateVpnRelayTunnel();
+      await loadRelayStatus();
+    } catch (error) {
+      setRelayInlineError(getApiError(error, 'failed to deactivate relay tunnel'));
+    } finally {
+      setRelayDeactivateLoading(false);
     }
   };
 
@@ -335,9 +416,44 @@ export function VpnPage() {
               <div className={styles.optionCard}>
                 <div className={styles.optionTitle}>External Relay</div>
                 <div className={styles.optionText}>Run WireGuard on a separate VPS. Best if this server has no public IP.</div>
-                <button className={styles.secondaryLargeButton} type="button" onClick={() => setActiveTab('relay')}>
-                  View Setup Guide
-                </button>
+                {relayStatus.active ? (
+                  <>
+                    <div className={styles.relayCardStatus}>
+                      <span className={`${styles.statusDot} ${styles.statusDotRunning}`} />
+                      <span className={styles.relayCardStatusLabel}>Relay tunnel active</span>
+                    </div>
+                    <div className={styles.relayCardHandshake}>
+                      {relayStatus.handshakeEstablished ? 'VPS connected' : 'Awaiting VPS handshake'}
+                    </div>
+                    <div className={styles.relaySoftphoneBlock}>
+                      <div className={styles.relaySoftphoneTitle}>Softphone settings</div>
+                      <div className={styles.relaySoftphoneRows}>
+                        <div className={styles.relaySoftphoneRow}>
+                          <span className={styles.relaySoftphoneLabel}>SIP Server</span>
+                          <span className={styles.relaySoftphoneValue}>{relayPublicIp || 'unavailable'}</span>
+                        </div>
+                        <div className={styles.relaySoftphoneRow}>
+                          <span className={styles.relaySoftphoneLabel}>Port</span>
+                          <span className={styles.relaySoftphoneValue}>5080</span>
+                        </div>
+                        <div className={styles.relaySoftphoneRow}>
+                          <span className={styles.relaySoftphoneLabel}>Transport</span>
+                          <span className={styles.relaySoftphoneValue}>UDP</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button className={styles.relayDeactivateButton} type="button" onClick={() => void handleDeactivateRelayTunnel()} disabled={relayDeactivateLoading}>
+                      {relayDeactivateLoading ? 'deactivating...' : 'Deactivate relay'}
+                    </button>
+                    <button className={styles.relayGuideLink} type="button" onClick={() => setActiveTab('relay')}>
+                      View setup guide
+                    </button>
+                  </>
+                ) : (
+                  <button className={styles.secondaryLargeButton} type="button" onClick={() => setActiveTab('relay')}>
+                    View Setup Guide
+                  </button>
+                )}
               </div>
             </div>
             {activeTab === 'relay' ? renderRelayGuide() : null}
@@ -520,13 +636,28 @@ export function VpnPage() {
                       {command.verification ? (
                         <>
                           <div className={styles.verifyLabel}>VERIFY</div>
-                          <pre className={styles.verifyBlock}>{command.verification}</pre>
+                          <div className={styles.commandBlock}>
+                            <pre className={styles.verifyBlock}>{command.verification}</pre>
+                            <button className={styles.copyButton} type="button" onClick={() => void copyText(`verify-${step.stepNumber}-${index}`, command.verification || '')}>
+                              {copiedKey === `verify-${step.stepNumber}-${index}` ? '✓' : 'copy'}
+                            </button>
+                          </div>
                           <div className={styles.verificationExpected}>You should see {command.verificationExpected}</div>
                         </>
                       ) : null}
                     </div>
                   ))}
                 </div>
+                {step.values?.length ? (
+                  <div className={styles.relayValues}>
+                    {step.values.map((item) => (
+                      <div className={styles.relayValueRow} key={`${step.stepNumber}-${item.label}`}>
+                        <span className={styles.relayValueLabel}>{item.label}:</span>
+                        <span className={styles.relayValueText}>{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {step.stepNumber === 6 ? (
                   <div className={styles.relayForm}>
                     <input className={styles.input} placeholder="VPS Public Key" value={relayPublicKey} onChange={(event) => setRelayPublicKey(event.target.value)} />
@@ -536,7 +667,32 @@ export function VpnPage() {
                       <div className={styles.relayConfigResult}>
                         <div className={styles.commandLabel}>CALLYTICS CONFIG</div>
                         <pre>{relayConfig}</pre>
-                        <button className={styles.secondaryLargeButton} type="button" onClick={handleRelayDownload}>download config</button>
+                        <button className={styles.copyButton} type="button" onClick={() => void copyText('relay-config', relayConfig)}>
+                          {copiedKey === 'relay-config' ? '✓' : 'copy'}
+                        </button>
+                        <div className={styles.relayActions}>
+                          <button className={styles.primaryButton} type="button" onClick={() => void handleActivateRelayTunnel()} disabled={relayActivateLoading}>
+                            {relayActivateLoading ? 'activating...' : 'Activate relay tunnel'}
+                          </button>
+                          <button className={styles.secondaryLargeButton} type="button" onClick={handleRelayDownload}>Download config</button>
+                        </div>
+                        <div className={styles.relayStatusRow}>
+                          <span className={relayStatus.active ? styles.relayStatusActive : styles.relayStatusInactive}>
+                            {relayStatusLoading || relayConfigLoading
+                              ? 'Checking tunnel status...'
+                              : relayStatus.active && relayStatus.handshakeEstablished
+                                ? 'Tunnel active — connected to VPS'
+                                : relayStatus.active
+                                  ? 'Tunnel active — awaiting VPS handshake'
+                                  : 'Tunnel inactive'}
+                          </span>
+                          {relayStatus.active ? (
+                            <button className={styles.relayDeactivateButton} type="button" onClick={() => void handleDeactivateRelayTunnel()} disabled={relayDeactivateLoading}>
+                              {relayDeactivateLoading ? 'deactivating...' : 'Deactivate'}
+                            </button>
+                          ) : null}
+                        </div>
+                        {relayInlineError ? <div className={styles.relayInlineError}>{relayInlineError}</div> : null}
                       </div>
                     ) : null}
                   </div>

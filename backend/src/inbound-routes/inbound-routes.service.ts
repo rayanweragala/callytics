@@ -3,10 +3,13 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { SipExtensionEntity } from '../extensions/entities/sip-extension.entity';
 import { CallFlowEntity } from '../flows/entities/call-flow.entity';
 import { CreateInboundRouteDto } from './dto/create-inbound-route.dto';
 import { UpdateInboundRouteDto } from './dto/update-inbound-route.dto';
 import { InboundRouteEntity } from './entities/inbound-route.entity';
+
+const INBOUND_EXTENSION_CONFLICT_MESSAGE = 'This number is already in use as an extension. Choose a different DID.';
 
 export interface InboundRouteResponse {
   id: number;
@@ -24,6 +27,8 @@ export class InboundRoutesService implements OnModuleInit {
     private readonly inboundRoutesRepository: Repository<InboundRouteEntity>,
     @InjectRepository(CallFlowEntity)
     private readonly flowsRepository: Repository<CallFlowEntity>,
+    @InjectRepository(SipExtensionEntity)
+    private readonly extensionsRepository: Repository<SipExtensionEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly asteriskConfigService: AsteriskConfigService,
   ) {}
@@ -58,6 +63,7 @@ export class InboundRoutesService implements OnModuleInit {
     if (existing) {
       throw new BadRequestException(`Inbound route DID ${did} already exists`);
     }
+    await this.ensureDidDoesNotConflictWithExtension(did);
 
     const entity = this.inboundRoutesRepository.create({
       did,
@@ -81,6 +87,9 @@ export class InboundRoutesService implements OnModuleInit {
       const conflict = await this.inboundRoutesRepository.findOne({ where: { did } });
       if (conflict && conflict.id !== id) {
         throw new BadRequestException(`Inbound route DID ${did} already exists`);
+      }
+      if (did !== entity.did) {
+        await this.ensureDidDoesNotConflictWithExtension(did);
       }
       entity.did = did;
     }
@@ -154,5 +163,12 @@ export class InboundRoutesService implements OnModuleInit {
   private normalizeOptional(value?: string): string | null {
     const normalized = value?.trim();
     return normalized ? normalized : null;
+  }
+
+  private async ensureDidDoesNotConflictWithExtension(did: string): Promise<void> {
+    const extension = await this.extensionsRepository.findOne({ where: { username: did } });
+    if (extension) {
+      throw new BadRequestException(INBOUND_EXTENSION_CONFLICT_MESSAGE);
+    }
   }
 }

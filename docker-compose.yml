@@ -66,6 +66,7 @@ services:
       - ./storage/audio/converted:/app/storage/audio/converted
       - ./storage/audio/previews:/app/storage/audio/previews
       - ./storage/audio/tts:/app/storage/audio/tts
+      - ./wireguard-config:/app/wireguard-config
       - callytics_geoip_data:/app/geoip
       - asterisk_recordings:/var/lib/asterisk/recording
       - callytics_backup_data:/app/backups

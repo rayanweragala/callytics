@@ -429,6 +429,17 @@ export interface CreatedVpnPeer extends VpnPeer {
   config: string;
 }
 
+export interface RelayTunnelStatus {
+  active: boolean;
+  handshakeEstablished: boolean;
+}
+
+export interface RelayConfigState {
+  config: string | null;
+  vpsPublicKey: string | null;
+  vpsPublicIp: string | null;
+}
+
 export type BackupType = 'full' | 'db_only' | 'recordings_only';
 export type BackupStatus = 'pending' | 'running' | 'complete' | 'failed';
 export type BackupInterval = 'daily' | 'weekly' | 'custom';
@@ -474,11 +485,17 @@ export interface RelayGuideCommand {
   verificationExpected: string | null;
 }
 
+export interface RelayGuideValue {
+  label: string;
+  value: string;
+}
+
 export interface RelayGuideStep {
   stepNumber: number;
   title: string;
   explanation: string;
   commands: RelayGuideCommand[];
+  values?: RelayGuideValue[];
 }
 
 export interface OperatorItem {

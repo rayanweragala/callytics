@@ -34,6 +34,30 @@ RTCP AMI events are consumed by the Stasis runtime, transformed into jitter/loss
 
 WireGuard is an optional Compose profile service used for secure remote SIP access with peer lifecycle managed by backend `/vpn/*` APIs. Peer creation generates keys and client config, status views merge live `wg` state with database rows, and extension policies can enforce VPN-only registration through generated PJSIP ACL rules.
 
+### External Relay Mode
+
+When the Callytics host is behind NAT or has no public IP, an external relay 
+mode is available. A small public VPS runs WireGuard as the relay server. 
+Callytics connects to it as a client peer via a Docker container 
+(`callytics-relay`) using the `linuxserver/wireguard` image.
+
+The relay container uses bridge networking with specific iptables rules:
+- PREROUTING DNAT forwards inbound SIP (port 5080) and RTP (10000-20000) 
+  from the WireGuard interface to the Docker bridge gateway
+- POSTROUTING SNAT rewrites the source to the relay container WireGuard IP 
+  (10.8.0.1) so Asterisk reply traffic routes back through the tunnel
+
+On the host, a route (`10.8.0.0/24 via <bridge-gateway>`) and an iptables 
+SNAT rule are applied automatically when relay activates, via short-lived 
+privileged Docker containers. These are removed on deactivation.
+
+When relay is active, Asterisk advertises the VPS public IP in SIP Contact 
+headers and SDP via `external_signaling_address` and `external_media_address` 
+written to `asterisk/base/pjsip_relay.conf` (gitignored, generated at runtime).
+
+Relay mode and built-in VPN mode are mutually exclusive and cannot run 
+simultaneously.
+
 ## SIP Firewall
 
 Firewall monitoring extends the Asterisk log ingestion path to classify registration abuse and INVITE flood behavior, then applies threshold-based enforcement actions. Blocking state, event history, statistics, and config are persisted in PostgreSQL, with enforcement via `iptables` by default and optional `fail2ban` integration where available.

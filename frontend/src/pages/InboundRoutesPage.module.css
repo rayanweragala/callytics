@@ -98,6 +98,12 @@
   gap: 8px;
 }
 
+.inlineFieldError {
+  color: var(--color-danger);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .fieldLabel {
   font-size: 14px;
   color: var(--text-secondary);

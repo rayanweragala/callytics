@@ -22,6 +22,7 @@ const emptyForm: RouteFormState = {
   label: '',
   flowId: '',
 };
+const INBOUND_EXTENSION_CONFLICT_MESSAGE = 'This number is already in use as an extension. Choose a different DID.';
 
 export function InboundRoutesPage() {
   const [items, setItems] = useState<InboundRouteItem[]>([]);
@@ -35,6 +36,8 @@ export function InboundRoutesPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [createDidError, setCreateDidError] = useState<string | null>(null);
+  const [editDidError, setEditDidError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
@@ -92,6 +95,21 @@ export function InboundRoutesPage() {
   const resetMessages = () => {
     showError(null);
     showSuccess(null);
+    setCreateDidError(null);
+    setEditDidError(null);
+  };
+
+  const applyDidConflictError = (error: unknown, mode: 'create' | 'edit'): boolean => {
+    const message = getApiError(error, mode === 'create' ? 'failed to create route' : 'failed to update route');
+    if (message !== INBOUND_EXTENSION_CONFLICT_MESSAGE) {
+      return false;
+    }
+    if (mode === 'create') {
+      setCreateDidError(message);
+    } else {
+      setEditDidError(message);
+    }
+    return true;
   };
 
   const handleCreate = async () => {
@@ -108,7 +126,9 @@ export function InboundRoutesPage() {
       setOffset(0);
       await load(limit, 0);
     } catch (error) {
-      showError(getApiError(error, 'failed to create route'));
+      if (!applyDidConflictError(error, 'create')) {
+        showError(getApiError(error, 'failed to create route'));
+      }
     } finally {
       setBusyKey(null);
     }
@@ -163,7 +183,9 @@ export function InboundRoutesPage() {
       setEditForm(emptyForm);
       await load(limit, offset);
     } catch (error) {
-      showError(getApiError(error, 'failed to update route'));
+      if (!applyDidConflictError(error, 'edit')) {
+        showError(getApiError(error, 'failed to update route'));
+      }
     } finally {
       setBusyKey(null);
     }
@@ -219,6 +241,7 @@ export function InboundRoutesPage() {
                 resetMessages();
                 setCreateForm((current) => ({ ...current, did: event.target.value }));
               }} />
+              {createDidError ? <span className={styles.inlineFieldError}>{createDidError}</span> : null}
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>label</span>
@@ -301,6 +324,7 @@ export function InboundRoutesPage() {
                               resetMessages();
                               setEditForm((current) => ({ ...current, did: event.target.value }));
                             }} />
+                            {editDidError ? <span className={styles.inlineFieldError}>{editDidError}</span> : null}
                           </label>
                           <label className={styles.field}>
                             <span className={styles.fieldLabel}>label</span>

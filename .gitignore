@@ -21,3 +21,11 @@ asterisk/logs/
 *.tsbuildinfo
 .gstack/
 coverage/
+
+# Relay runtime files — contain private keys and VPS details
+wireguard-config/relay-runtime/
+wireguard-config/relay-state.json
+wireguard-config/callytics-relay.conf
+wireguard-config/relay-callytics-private.key
+wireguard-config/relay-callytics-public.key
+asterisk/base/pjsip_relay.conf

@@ -67,7 +67,10 @@ export class AsteriskConfigService implements OnModuleInit {
     try {
       await this.reloadResPjsip();
     } catch (error) {
-      this.logger.error("failed to reload pjsip", error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        "failed to reload pjsip",
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 
@@ -76,7 +79,10 @@ export class AsteriskConfigService implements OnModuleInit {
     try {
       await this.reloadDialplan();
     } catch (error) {
-      this.logger.error("failed to reload dialplan", error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        "failed to reload dialplan",
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 
@@ -125,6 +131,23 @@ export class AsteriskConfigService implements OnModuleInit {
 
   async reloadResPjsip(): Promise<void> {
     await this.sendAmiCommand("module reload res_pjsip.so");
+  }
+
+  async syncUdpTransport(externalAddress: string | null): Promise<void> {
+    await fs.mkdir(this.configDir, { recursive: true });
+    await this.writeUdpTransportConfig(externalAddress);
+    await this.reloadPjsip();
+  }
+
+  async reloadPjsip(): Promise<void> {
+    try {
+      await this.sendAmiCommand("pjsip reload");
+    } catch (error) {
+      this.logger.warn(
+        `pjsip reload unavailable, falling back to module reload: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      await this.sendAmiCommand("module reload res_pjsip.so");
+    }
   }
 
   async reloadDialplan(): Promise<void> {
@@ -608,6 +631,20 @@ export class AsteriskConfigService implements OnModuleInit {
       `${content.trimEnd()}${templateBlock}`,
       "utf8",
     );
+  }
+
+  private async writeUdpTransportConfig(
+    externalAddress: string | null,
+  ): Promise<void> {
+    const filePath = join(this.configDir, "pjsip_relay.conf");
+    const content = externalAddress
+      ? [
+          `external_signaling_address = ${externalAddress}`,
+          `external_media_address = ${externalAddress}`,
+          "",
+        ].join("\n")
+      : "";
+    await fs.writeFile(filePath, content, "utf8");
   }
 
   private async sendAmiCommand(command: string): Promise<void> {

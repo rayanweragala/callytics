@@ -36,9 +36,26 @@ export interface RelayGuideCommand {
   verificationExpected: string | null;
 }
 
+export interface RelayGuideValue {
+  label: string;
+  value: string;
+}
+
 export interface RelayGuideStep {
   stepNumber: number;
   title: string;
   explanation: string;
   commands: RelayGuideCommand[];
+  values?: RelayGuideValue[];
+}
+
+export interface RelayTunnelStatusResponse {
+  active: boolean;
+  handshakeEstablished: boolean;
+}
+
+export interface RelayConfigResponse {
+  config: string | null;
+  vpsPublicKey: string | null;
+  vpsPublicIp: string | null;
 }

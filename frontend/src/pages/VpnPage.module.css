@@ -579,6 +579,145 @@
   color: var(--color-data);
 }
 
+.relayCardStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.relayCardStatusLabel {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.relayCardHandshake {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relaySoftphoneBlock {
+  margin-top: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.relaySoftphoneTitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.relaySoftphoneRows {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.relaySoftphoneRow {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 8px;
+}
+
+.relaySoftphoneLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relaySoftphoneValue {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.relayGuideLink {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relayGuideLink:hover {
+  color: var(--text-primary);
+}
+
+.relayActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.relayStatusRow {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.relayStatusActive {
+  color: var(--color-success);
+  font-size: 12px;
+}
+
+.relayStatusInactive {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relayDeactivateButton {
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  background: rgba(220, 38, 38, 0.08);
+  color: #ef4444;
+  border-radius: var(--radius-sm);
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.relayDeactivateButton:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.relayInlineError {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.relayValues {
+  margin-top: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.relayValueRow {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+}
+
+.relayValueLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relayValueText {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 @media (max-width: 900px) {
   .optionGrid {
     grid-template-columns: 1fr;
@@ -590,5 +729,19 @@
 
   .tableCard {
     overflow-x: auto;
+  }
+
+  .relayActions {
+    flex-direction: column;
+  }
+
+  .relayValueRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .relaySoftphoneRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }

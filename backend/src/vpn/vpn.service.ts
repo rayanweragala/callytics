@@ -1,18 +1,21 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as http from 'node:http';
 import * as net from 'node:net';
 import { execFile } from 'node:child_process';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import QRCode from 'qrcode';
 import { DataSource, IsNull, Repository } from 'typeorm';
+import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
 import { VpnPeerEntity } from './entities/vpn-peer.entity';
 import type {
   CreatedVpnPeerResponse,
   RelayGuideStep,
+  RelayConfigResponse,
+  RelayTunnelStatusResponse,
   VpnPeerResponse,
   VpnPeerStatus,
   VpnStatusResponse,
@@ -22,7 +25,17 @@ const VPN_SUBNET = '10.8.0.0/24';
 const VPN_PREFIX = '10.8.0.';
 const VPN_SERVER_IP = '10.8.0.1';
 const WIREGUARD_INTERFACE = 'wg0';
+const RELAY_INTERFACE = 'callytics-relay';
+const RELAY_CONTAINER = 'callytics-relay';
+const RELAY_IMAGE = 'linuxserver/wireguard';
+const RELAY_NETWORK = 'callytics_default';
 const WIREGUARD_PORT = 51820;
+const WIREGUARD_KEY_PATTERN = /^[A-Za-z0-9+/]{43}=$/;
+const RTP_PORT_RANGE = '10000:20000';
+const RELAY_BRIDGE_GATEWAY_IP = '172.20.0.1';
+const RELAY_HOST_ROUTE_SUBNET = '10.8.0.0/24';
+const RELAY_HOST_UDP_PORT = '5080';
+const HOST_HELPER_IMAGE = 'alpine';
 
 interface WireGuardPeerDump {
   publicKey: string;
@@ -32,8 +45,32 @@ interface WireGuardPeerDump {
 }
 
 interface DockerContainerStatus {
+  Id?: string;
+  Mounts?: DockerMount[];
   Names?: string[];
   State?: string;
+}
+
+interface DockerMount {
+  Source?: string;
+  Destination?: string;
+}
+
+interface DockerContainerInspect {
+  State?: { Running?: boolean };
+  NetworkSettings?: {
+    Networks?: Record<string, DockerNetworkEndpoint | undefined>;
+  };
+}
+
+interface DockerNetworkEndpoint {
+  NetworkID?: string;
+  IPAddress?: string;
+}
+
+interface DockerNetworkInspect {
+  Id?: string;
+  Options?: Record<string, string | undefined>;
 }
 
 interface ServerPublicKeyResult {
@@ -45,6 +82,12 @@ interface ServerPublicKeyResult {
 export class VpnService implements OnModuleInit {
   private readonly configDir = process.env.WIREGUARD_CONFIG_DIR || join(process.cwd(), '..', 'wireguard-config');
   private readonly wireGuardContainer = 'callytics-wireguard-1';
+  private readonly relayPrivateKeyPath = join(this.configDir, 'relay-callytics-private.key');
+  private readonly relayPublicKeyPath = join(this.configDir, 'relay-callytics-public.key');
+  private readonly relayRuntimeDir = join(this.configDir, 'relay-runtime');
+  private readonly relayConfigPath = join(this.relayRuntimeDir, 'wg_confs', `${RELAY_INTERFACE}.conf`);
+  private readonly legacyRelayConfigPath = join(this.relayRuntimeDir, 'wg_confs', 'wg0.conf');
+  private readonly relayStatePath = join(this.configDir, 'relay-state.json');
   private cachedPublicIp: string | null = null;
   private cachedPublicIpAt = 0;
 
@@ -52,6 +95,7 @@ export class VpnService implements OnModuleInit {
     @InjectRepository(VpnPeerEntity)
     private readonly peersRepository: Repository<VpnPeerEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly asteriskConfigService: AsteriskConfigService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -225,8 +269,12 @@ export class VpnService implements OnModuleInit {
 
   async getRelayGuide(): Promise<{ data: RelayGuideStep[] }> {
     try {
-      const serverPublicKey = await this.getServerPublicKey();
-      const endpoint = `${this.getEndpointHost()}:${WIREGUARD_PORT}`;
+      const serverKeyPair = await this.ensureRelayKeyPair();
+      const publicEndpointHost = this.getRelayGuideEndpointHost();
+      const endpoint = `${publicEndpointHost}:${WIREGUARD_PORT}`;
+      const relayConfig = await this.getRelayConfig();
+      const vpsPublicIp = relayConfig.vpsPublicIp || '<VPS_PUBLIC_IP>';
+      const callyticsEndpointHost = publicEndpointHost;
       return {
         data: [
           {
@@ -275,7 +323,7 @@ export class VpnService implements OnModuleInit {
             commands: [
               {
                 command: 'sudo ufw allow 51820/udp',
-                explanation: 'Allows WireGuard traffic through UFW when UFW is enabled.',
+                explanation: 'Allows WireGuard traffic through UFW when UFW is enabled. This is safe because WireGuard ignores unauthenticated packets: scanners and attackers get no response, so opening this UDP port does not create meaningful attack surface.',
                 verification: 'sudo ufw status',
                 verificationExpected: 'You should see 51820/udp listed as allowed.',
               },
@@ -287,7 +335,7 @@ export class VpnService implements OnModuleInit {
             explanation: 'Use the Callytics server public key and endpoint when creating the VPS peer.',
             commands: [
               {
-                command: `# Callytics endpoint: ${endpoint}\n# Callytics public key: ${serverPublicKey || 'unavailable until WireGuard is running'}`,
+                command: `CALLYTICS_ENDPOINT="${endpoint}"\nCALLYTICS_PUBLIC_KEY="${serverKeyPair.publicKey}"`,
                 explanation: 'These values identify this Callytics server from the VPS.',
                 verification: null,
                 verificationExpected: null,
@@ -299,6 +347,60 @@ export class VpnService implements OnModuleInit {
             title: 'Generate the Callytics-side peer config',
             explanation: 'Enter the VPS public key and public IP below. Callytics will return the peer config to install locally.',
             commands: [],
+          },
+          {
+            stepNumber: 7,
+            title: 'Configure WireGuard on the VPS',
+            explanation: 'Create the WireGuard config file on the VPS. Replace <YOUR_VPS_PRIVATE_KEY> with the private key you generated in Step 2. Callytics will create and manage the relay-side callytics-relay interface automatically when you activate the relay.',
+            commands: [
+              {
+                command: [
+                  '[Interface]',
+                  'PrivateKey = <YOUR_VPS_PRIVATE_KEY>',
+                  'Address = 10.8.0.2/24',
+                  'ListenPort = 51820',
+                  '',
+                  '[Peer]',
+                  `PublicKey = ${serverKeyPair.publicKey}`,
+                  `Endpoint = ${callyticsEndpointHost}:${WIREGUARD_PORT}`,
+                  `AllowedIPs = ${VPN_SUBNET}`,
+                  'PersistentKeepalive = 25',
+                ].join('\n'),
+                explanation: 'Copy this into the VPS WireGuard config (for example, /etc/wireguard/wg0.conf).',
+                verification: null,
+                verificationExpected: null,
+              },
+              {
+                command: 'sudo wg-quick up wg0',
+                explanation: 'Starts the VPS WireGuard interface with the config above.',
+                verification: 'sudo wg show',
+                verificationExpected: 'You should see the Callytics peer listed. The handshake with the callytics-relay side will appear once both sides are up.',
+              },
+            ],
+          },
+          {
+            stepNumber: 8,
+            title: 'Verify the tunnel is up',
+            explanation: 'Confirm the VPS can reach Callytics over the WireGuard tunnel. In the Callytics VPN page, the External Relay card should show VPS connected instead of Awaiting VPS handshake once the handshake completes.',
+            commands: [
+              {
+                command: 'ping -c 4 10.8.0.1',
+                explanation: 'Run this on the VPS to verify L3 connectivity over the WireGuard tunnel.',
+                verification: null,
+                verificationExpected: 'You should see replies from 10.8.0.1 with no packet loss. If this fails, check that both WireGuard configs have the correct public keys and that UDP 51820 is open on the VPS.',
+              },
+            ],
+          },
+          {
+            stepNumber: 9,
+            title: 'Connect your softphone',
+            explanation: 'Your softphone must register to Callytics using the VPS public IP as the SIP server address. The VPS relays traffic through the tunnel to Callytics. Use your extension number and password from the Extensions page. After registering, the extension should show as online in Callytics. Make a test call. Audio should work in both directions.',
+            commands: [],
+            values: [
+              { label: 'SIP server', value: vpsPublicIp },
+              { label: 'Port', value: '5080' },
+              { label: 'Transport', value: 'UDP' },
+            ],
           },
         ],
       };
@@ -314,12 +416,15 @@ export class VpnService implements OnModuleInit {
       if (!publicKey || !publicIp) {
         throw new BadRequestException('VPS public key and public IP are required');
       }
-      const keyPair = await this.generateKeyPair();
+      const keyPair = await this.ensureRelayKeyPair();
       return {
         config: [
           '[Interface]',
           `PrivateKey = ${keyPair.privateKey}`,
           `Address = ${VPN_SERVER_IP}/24`,
+          'DNS = 1.1.1.1',
+          `PostUp = sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true; iptables -t nat -A PREROUTING -i ${RELAY_INTERFACE} -p udp --dport ${RELAY_HOST_UDP_PORT} -j DNAT --to-destination ${RELAY_BRIDGE_GATEWAY_IP}:${RELAY_HOST_UDP_PORT}; iptables -t nat -A PREROUTING -i ${RELAY_INTERFACE} -p udp --dport ${RTP_PORT_RANGE} -j DNAT --to-destination ${RELAY_BRIDGE_GATEWAY_IP}; iptables -t nat -A POSTROUTING -o eth+ -p udp --dport ${RELAY_HOST_UDP_PORT} -j SNAT --to-source ${VPN_SERVER_IP}; iptables -t nat -A POSTROUTING -o eth+ -p udp --dport ${RTP_PORT_RANGE} -j MASQUERADE`,
+          `PostDown = sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true; iptables -t nat -D PREROUTING -i ${RELAY_INTERFACE} -p udp --dport ${RELAY_HOST_UDP_PORT} -j DNAT --to-destination ${RELAY_BRIDGE_GATEWAY_IP}:${RELAY_HOST_UDP_PORT}; iptables -t nat -D PREROUTING -i ${RELAY_INTERFACE} -p udp --dport ${RTP_PORT_RANGE} -j DNAT --to-destination ${RELAY_BRIDGE_GATEWAY_IP}; iptables -t nat -D POSTROUTING -o eth+ -p udp --dport ${RELAY_HOST_UDP_PORT} -j SNAT --to-source ${VPN_SERVER_IP}; iptables -t nat -D POSTROUTING -o eth+ -p udp --dport ${RTP_PORT_RANGE} -j MASQUERADE`,
           '',
           '[Peer]',
           `PublicKey = ${publicKey}`,
@@ -335,6 +440,71 @@ export class VpnService implements OnModuleInit {
       }
       throw new BadRequestException(error instanceof Error ? error.message : 'Failed to create relay config');
     }
+  }
+
+  async getRelayConfig(): Promise<RelayConfigResponse> {
+    try {
+      const config = await this.readStoredRelayConfig();
+      return this.parseRelayConfig(config);
+    } catch {
+      return {
+        config: null,
+        vpsPublicKey: null,
+        vpsPublicIp: null,
+      };
+    }
+  }
+
+  async activateRelayTunnel(config: string): Promise<{ success: true }> {
+    try {
+      const normalizedConfig = config.trim();
+      if (!normalizedConfig) {
+        throw new BadRequestException('Relay config is required');
+      }
+      await this.ensureRelayConflictFree();
+      await fs.promises.mkdir(join(this.relayRuntimeDir, 'wg_confs'), { recursive: true });
+      await this.removeLegacyRelayConfigIfPresent();
+      await fs.promises.writeFile(this.relayConfigPath, `${normalizedConfig}\n`, { encoding: 'utf8', mode: 0o600 });
+      await this.clearRelayContainerBeforeCreate();
+      await this.createRelayContainer();
+      await this.startRelayContainer();
+      const relayNetworkState = await this.getRelayContainerNetworkState();
+      await this.applyRelayHostNetworking(relayNetworkState);
+      await this.writeRelayActiveFlag(true);
+      await this.syncRelayPjsipTransport();
+      return { success: true };
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof ConflictException) {
+        throw error;
+      }
+      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to activate relay tunnel');
+    }
+  }
+
+  async deactivateRelayTunnel(): Promise<{ success: true }> {
+    try {
+      const relayNetworkState = await this.getRelayContainerNetworkState().catch(() => null);
+      if (relayNetworkState) {
+        await this.removeRelayHostNetworking(relayNetworkState);
+      }
+      await this.stopRelayContainerIfRunning();
+      await this.removeRelayContainerIfExists();
+      await this.writeRelayActiveFlag(false);
+      await this.syncRelayPjsipTransport();
+      return { success: true };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to deactivate relay tunnel');
+    }
+  }
+
+  async getRelayStatus(): Promise<RelayTunnelStatusResponse> {
+    const persistedActive = await this.readRelayActiveFlag();
+    const active = persistedActive && await this.isRelayContainerRunning();
+    const handshakeEstablished = active ? await this.isRelayHandshakeEstablished() : false;
+    return { active, handshakeEstablished };
   }
 
   async isInstalled(): Promise<boolean> {
@@ -443,6 +613,236 @@ export class VpnService implements OnModuleInit {
     }
   }
 
+  private async ensureRelayConflictFree(): Promise<void> {
+    const builtInRunning = await this.isWireGuardContainerRunning();
+    if (!builtInRunning) {
+      return;
+    }
+    const dump = await this.readWireGuardDump();
+    if (dump.size > 0) {
+      throw new ConflictException('Cannot activate relay - built-in VPN is currently active. Disable it first.');
+    }
+  }
+
+  private async isRelayHandshakeEstablished(): Promise<boolean> {
+    try {
+      const output = await this.execInContainer(RELAY_CONTAINER, ['wg', 'show', RELAY_INTERFACE, 'latest-handshakes']);
+      if (!output) {
+        return false;
+      }
+      return output
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .some((line) => {
+          const parts = line.split(/\s+/);
+          const handshake = Number(parts[1] || 0);
+          return Number.isFinite(handshake) && handshake > 0;
+        });
+    } catch {
+      return false;
+    }
+  }
+
+  private async isRelayContainerRunning(): Promise<boolean> {
+    try {
+      const response = await this.dockerSocketRequest({
+        method: 'GET',
+        path: `/containers/${RELAY_CONTAINER}/json`,
+      });
+      if (response.statusCode === 404) {
+        return false;
+      }
+      if (!this.isSuccessStatus(response.statusCode)) {
+        return false;
+      }
+      const payload = this.parseJson<DockerContainerInspect>(response.body, 'Docker relay inspect response');
+      return payload.State?.Running === true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async createRelayContainer(): Promise<void> {
+    const relayBindSource = await this.resolveRelayRuntimeBindSource();
+    const response = await this.dockerSocketRequest({
+      method: 'POST',
+      path: `/containers/create?name=${encodeURIComponent(RELAY_CONTAINER)}`,
+      body: {
+        Image: RELAY_IMAGE,
+        Env: [
+          `PUID=${process.env.PUID || '1000'}`,
+          `PGID=${process.env.PGID || '1000'}`,
+          `TZ=${process.env.TZ || 'UTC'}`,
+        ],
+        HostConfig: {
+          NetworkMode: RELAY_NETWORK,
+          CapAdd: ['NET_ADMIN', 'SYS_MODULE'],
+          Binds: [`${relayBindSource}:/config`],
+          Sysctls: {
+            'net.ipv4.ip_forward': '1',
+          },
+          PortBindings: {
+            '51820/udp': [{ HostPort: '51820' }],
+          },
+          RestartPolicy: { Name: 'unless-stopped' },
+        },
+        ExposedPorts: {
+          '51820/udp': {},
+        },
+      },
+    });
+    if (!this.isSuccessStatus(response.statusCode)) {
+      throw new Error(`Failed to create relay container (${response.statusCode ?? 'unknown'}): ${response.body.toString('utf8')}`);
+    }
+  }
+
+  private async resolveRelayRuntimeBindSource(): Promise<string> {
+    try {
+      const response = await this.dockerSocketRequest({
+        method: 'GET',
+        path: '/containers/json',
+      });
+      if (!this.isSuccessStatus(response.statusCode)) {
+        return this.relayRuntimeDir;
+      }
+
+      const containers = this.parseJson<DockerContainerStatus[]>(response.body, 'Docker container list response');
+      const matchingMount = containers
+        .flatMap((container) => container.Mounts || [])
+        .find((mount) => {
+          if (!mount.Source || !mount.Destination) {
+            return false;
+          }
+          return this.configDir === mount.Destination || this.configDir.startsWith(`${mount.Destination}/`);
+        });
+      if (!matchingMount?.Source || !matchingMount.Destination) {
+        return this.relayRuntimeDir;
+      }
+
+      const relayRelativePath = relative(matchingMount.Destination, this.relayRuntimeDir);
+      return join(matchingMount.Source, relayRelativePath);
+    } catch {
+      return this.relayRuntimeDir;
+    }
+  }
+
+  private async startRelayContainer(): Promise<void> {
+    const response = await this.dockerSocketRequest({
+      method: 'POST',
+      path: `/containers/${RELAY_CONTAINER}/start`,
+    });
+    if (response.statusCode !== 304 && !this.isSuccessStatus(response.statusCode)) {
+      throw new Error(`Failed to start relay container (${response.statusCode ?? 'unknown'}): ${response.body.toString('utf8')}`);
+    }
+  }
+
+  private async stopRelayContainerIfRunning(): Promise<void> {
+    const response = await this.dockerSocketRequest({
+      method: 'POST',
+      path: `/containers/${RELAY_CONTAINER}/stop`,
+    });
+    if (response.statusCode === 304 || response.statusCode === 404 || this.isSuccessStatus(response.statusCode)) {
+      return;
+    }
+    throw new Error(`Failed to stop relay container (${response.statusCode ?? 'unknown'}): ${response.body.toString('utf8')}`);
+  }
+
+  private async removeRelayContainerIfExists(): Promise<void> {
+    await this.removeContainerIfExists(RELAY_CONTAINER);
+  }
+
+  private async clearRelayContainerBeforeCreate(): Promise<void> {
+    const response = await this.dockerSocketRequest({
+      method: 'DELETE',
+      path: `/containers/${RELAY_CONTAINER}?force=1`,
+    });
+    if (response.statusCode === 404 || this.isSuccessStatus(response.statusCode)) {
+      return;
+    }
+    throw new Error(`Failed to clear relay container before create (${response.statusCode ?? 'unknown'}): ${response.body.toString('utf8')}`);
+  }
+
+  private async removeContainerIfExists(containerName: string): Promise<void> {
+    const removeResponse = await this.dockerSocketRequest({
+      method: 'POST',
+      path: `/containers/${containerName}/remove`,
+    });
+
+    if (removeResponse.statusCode === 404 || this.isSuccessStatus(removeResponse.statusCode)) {
+      return;
+    }
+
+    const fallbackRemove = await this.dockerSocketRequest({
+      method: 'DELETE',
+      path: `/containers/${containerName}?force=1`,
+    });
+    if (fallbackRemove.statusCode === 404 || this.isSuccessStatus(fallbackRemove.statusCode)) {
+      return;
+    }
+    throw new Error(`Failed to remove container ${containerName} (${fallbackRemove.statusCode ?? 'unknown'}): ${fallbackRemove.body.toString('utf8')}`);
+  }
+
+  private async writeRelayActiveFlag(active: boolean): Promise<void> {
+    await fs.promises.writeFile(this.relayStatePath, JSON.stringify({ active }), 'utf8');
+  }
+
+  private async readRelayActiveFlag(): Promise<boolean> {
+    try {
+      const raw = await fs.promises.readFile(this.relayStatePath, 'utf8');
+      const parsed = JSON.parse(raw) as { active?: unknown };
+      return parsed.active === true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async readStoredRelayConfig(): Promise<string> {
+    try {
+      return await fs.promises.readFile(this.relayConfigPath, 'utf8');
+    } catch {
+      return fs.promises.readFile(this.legacyRelayConfigPath, 'utf8');
+    }
+  }
+
+  private async removeLegacyRelayConfigIfPresent(): Promise<void> {
+    try {
+      await fs.promises.unlink(this.legacyRelayConfigPath);
+    } catch {
+      return;
+    }
+  }
+
+  private parseRelayConfig(config: string): RelayConfigResponse {
+    const lines = config.split(/\r?\n/);
+    let vpsPublicKey: string | null = null;
+    let endpointHost: string | null = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) {
+        continue;
+      }
+      const publicKeyMatch = line.match(/^PublicKey\s*=\s*(.+)$/i);
+      if (publicKeyMatch?.[1] && !vpsPublicKey) {
+        vpsPublicKey = publicKeyMatch[1].trim();
+        continue;
+      }
+      const endpointMatch = line.match(/^Endpoint\s*=\s*(.+)$/i);
+      if (endpointMatch?.[1] && !endpointHost) {
+        const endpoint = endpointMatch[1].trim();
+        const lastColonIndex = endpoint.lastIndexOf(':');
+        endpointHost = lastColonIndex > 0 ? endpoint.slice(0, lastColonIndex).trim() : endpoint;
+      }
+    }
+
+    return {
+      config,
+      vpsPublicKey: vpsPublicKey || null,
+      vpsPublicIp: endpointHost || null,
+    };
+  }
+
   private async getServerPublicKeyWithFallback(): Promise<ServerPublicKeyResult> {
     try {
       const value = await this.execInWireguard(['wg', 'show', WIREGUARD_INTERFACE, 'public-key']);
@@ -489,12 +889,50 @@ export class VpnService implements OnModuleInit {
 
   private async generateKeyPair(): Promise<{ privateKey: string; publicKey: string }> {
     try {
-      const privateKey = await this.execInWireguard(['wg', 'genkey']);
-      const publicKey = await this.execInWireguard(['sh', '-c', `echo ${privateKey} | wg pubkey`]);
+      const privateKey = await this.runHostCommand('wg', ['genkey']);
+      const publicKey = await this.runHostCommand('wg', ['pubkey'], `${privateKey}\n`);
       return { privateKey, publicKey };
     } catch (error) {
       throw new BadRequestException(`Failed to generate WireGuard keys: ${this.toErrorMessage(error)}`);
     }
+  }
+
+  private async ensureRelayKeyPair(): Promise<{ privateKey: string; publicKey: string }> {
+    const storedKeyPair = await this.readRelayKeyPair();
+    if (storedKeyPair) {
+      return storedKeyPair;
+    }
+
+    const generatedKeyPair = await this.generateKeyPair();
+    await fs.promises.mkdir(this.configDir, { recursive: true });
+    await Promise.all([
+      fs.promises.writeFile(this.relayPrivateKeyPath, `${generatedKeyPair.privateKey}\n`, { encoding: 'utf8', mode: 0o600 }),
+      fs.promises.writeFile(this.relayPublicKeyPath, `${generatedKeyPair.publicKey}\n`, { encoding: 'utf8', mode: 0o644 }),
+    ]);
+    return generatedKeyPair;
+  }
+
+  private async readRelayKeyPair(): Promise<{ privateKey: string; publicKey: string } | null> {
+    try {
+      const [privateKey, publicKey] = await Promise.all([
+        fs.promises.readFile(this.relayPrivateKeyPath, 'utf8'),
+        fs.promises.readFile(this.relayPublicKeyPath, 'utf8'),
+      ]);
+      const keyPair = {
+        privateKey: privateKey.trim(),
+        publicKey: publicKey.trim(),
+      };
+      if (this.isWireGuardKey(keyPair.privateKey) && this.isWireGuardKey(keyPair.publicKey)) {
+        return keyPair;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private isWireGuardKey(value: string): boolean {
+    return WIREGUARD_KEY_PATTERN.test(value);
   }
 
   private async addLivePeer(peer: VpnPeerEntity): Promise<void> {
@@ -595,15 +1033,18 @@ export class VpnService implements OnModuleInit {
     return 'active';
   }
 
-  private runHostCommand(command: string, args: string[]): Promise<string> {
+  private runHostCommand(command: string, args: string[], stdin?: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      execFile(command, args, { timeout: 8000 }, (error, stdout, stderr) => {
+      const child = execFile(command, args, { timeout: 8000 }, (error, stdout, stderr) => {
         if (error) {
           reject(new Error(stderr || error.message));
           return;
         }
         resolve(stdout.trim());
       });
+      if (stdin !== undefined) {
+        child.stdin?.end(stdin);
+      }
     });
   }
 
@@ -654,12 +1095,157 @@ export class VpnService implements OnModuleInit {
     return publicIp || this.getEndpointHost();
   }
 
+  private getRelayGuideEndpointHost(): string {
+    return process.env.VPN_PUBLIC_IP || '<VPN_PUBLIC_IP>';
+  }
+
+  private async syncRelayPjsipTransport(): Promise<void> {
+    const relayStatus = await this.getRelayStatus();
+    const relayConfig = relayStatus.active ? await this.getRelayConfig() : null;
+    const externalAddress = relayStatus.active ? relayConfig?.vpsPublicIp || null : null;
+    await this.asteriskConfigService.syncUdpTransport(externalAddress);
+  }
+
+  private async getRelayContainerNetworkState(): Promise<{
+    bridgeInterface: string;
+    relayBridgeIp: string;
+  }> {
+    const response = await this.dockerSocketRequest({
+      method: 'GET',
+      path: `/containers/${RELAY_CONTAINER}/json`,
+    });
+    if (!this.isSuccessStatus(response.statusCode)) {
+      throw new Error(`Failed to inspect relay container (${response.statusCode ?? 'unknown'}): ${response.body.toString('utf8')}`);
+    }
+
+    const payload = this.parseJson<DockerContainerInspect>(response.body, 'Docker relay inspect response');
+    const relayEndpoint = Object.values(payload.NetworkSettings?.Networks || {}).find((network) => network?.IPAddress && network.NetworkID);
+    const relayBridgeIp = relayEndpoint?.IPAddress?.trim();
+    const networkId = relayEndpoint?.NetworkID?.trim();
+    if (!relayBridgeIp || !networkId) {
+      throw new Error('Relay container network settings are missing bridge IP or network ID');
+    }
+
+    const networkResponse = await this.dockerSocketRequest({
+      method: 'GET',
+      path: `/networks/${encodeURIComponent(networkId)}`,
+    });
+    if (!this.isSuccessStatus(networkResponse.statusCode)) {
+      throw new Error(`Failed to inspect relay network (${networkResponse.statusCode ?? 'unknown'}): ${networkResponse.body.toString('utf8')}`);
+    }
+
+    const networkPayload = this.parseJson<DockerNetworkInspect>(networkResponse.body, 'Docker relay network response');
+    const bridgeInterface =
+      networkPayload.Options?.['com.docker.network.bridge.name']?.trim() ||
+      `br-${networkId.slice(0, 12)}`;
+    return { bridgeInterface, relayBridgeIp };
+  }
+
+  private async applyRelayHostNetworking(networkState: {
+    bridgeInterface: string;
+    relayBridgeIp: string;
+  }): Promise<void> {
+    await this.runPrivilegedHostContainer([
+      'sh',
+      '-c',
+      `ip route del ${RELAY_HOST_ROUTE_SUBNET} 2>/dev/null || true; ip route add ${RELAY_HOST_ROUTE_SUBNET} via ${networkState.relayBridgeIp} dev ${networkState.bridgeInterface}`,
+    ]);
+    await this.runPrivilegedHostContainer([
+      'sh',
+      '-c',
+      `while iptables -t nat -C POSTROUTING -p udp --sport ${RELAY_HOST_UDP_PORT} -d ${networkState.relayBridgeIp} -j SNAT --to-source ${VPN_SERVER_IP} 2>/dev/null; do iptables -t nat -D POSTROUTING -p udp --sport ${RELAY_HOST_UDP_PORT} -d ${networkState.relayBridgeIp} -j SNAT --to-source ${VPN_SERVER_IP}; done; iptables -t nat -A POSTROUTING -p udp --sport ${RELAY_HOST_UDP_PORT} -d ${networkState.relayBridgeIp} -j SNAT --to-source ${VPN_SERVER_IP}`,
+    ]);
+  }
+
+  private async removeRelayHostNetworking(networkState: {
+    bridgeInterface: string;
+    relayBridgeIp: string;
+  }): Promise<void> {
+    await this.runPrivilegedHostContainer([
+      'sh',
+      '-c',
+      `while iptables -t nat -C POSTROUTING -p udp --sport ${RELAY_HOST_UDP_PORT} -d ${networkState.relayBridgeIp} -j SNAT --to-source ${VPN_SERVER_IP} 2>/dev/null; do iptables -t nat -D POSTROUTING -p udp --sport ${RELAY_HOST_UDP_PORT} -d ${networkState.relayBridgeIp} -j SNAT --to-source ${VPN_SERVER_IP}; done`,
+    ]);
+    await this.runPrivilegedHostContainer([
+      'sh',
+      '-c',
+      `ip route del ${RELAY_HOST_ROUTE_SUBNET} 2>/dev/null || true`,
+    ]);
+  }
+
+  private async runPrivilegedHostContainer(command: string[]): Promise<void> {
+    const helperName = `callytics-relay-host-op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const helperCommand =
+      command[0] === 'sh' && command[1] === '-c' && typeof command[2] === 'string'
+        ? ['sh', '-c', `apk add --no-cache iproute2 iptables >/dev/null && ${command[2]}`]
+        : command;
+    const createResponse = await this.dockerSocketRequest({
+      method: 'POST',
+      path: `/containers/create?name=${encodeURIComponent(helperName)}`,
+      body: {
+        Image: HOST_HELPER_IMAGE,
+        Cmd: helperCommand,
+        HostConfig: {
+          AutoRemove: false,
+          NetworkMode: 'host',
+          Privileged: true,
+        },
+      },
+    });
+    if (!this.isSuccessStatus(createResponse.statusCode)) {
+      throw new Error(`Failed to create host helper container (${createResponse.statusCode ?? 'unknown'}): ${createResponse.body.toString('utf8')}`);
+    }
+
+    const createPayload = this.parseJson<{ Id?: string }>(createResponse.body, 'Docker host helper create response');
+    const containerId = createPayload.Id;
+    if (!containerId) {
+      throw new Error('Docker host helper create failed: missing container ID');
+    }
+
+    try {
+      const startResponse = await this.dockerSocketRequest({
+        method: 'POST',
+        path: `/containers/${containerId}/start`,
+      });
+      if (!this.isSuccessStatus(startResponse.statusCode) && startResponse.statusCode !== 304) {
+        throw new Error(`Failed to start host helper container (${startResponse.statusCode ?? 'unknown'}): ${startResponse.body.toString('utf8')}`);
+      }
+
+      const waitResponse = await this.dockerSocketRequest({
+        method: 'POST',
+        path: `/containers/${containerId}/wait`,
+      });
+      if (!this.isSuccessStatus(waitResponse.statusCode)) {
+        throw new Error(`Failed to wait for host helper container (${waitResponse.statusCode ?? 'unknown'}): ${waitResponse.body.toString('utf8')}`);
+      }
+
+      const waitPayload = this.parseJson<{ StatusCode?: number }>(waitResponse.body, 'Docker host helper wait response');
+      if (waitPayload.StatusCode !== 0) {
+        const logsResponse = await this.dockerSocketRequest({
+          method: 'GET',
+          path: `/containers/${containerId}/logs?stdout=1&stderr=1`,
+        });
+        const logs = logsResponse.body.toString('utf8').trim();
+        throw new Error(`Host helper container failed (${waitPayload.StatusCode ?? 'unknown'}): ${logs || 'no logs'}`);
+      }
+    } finally {
+      await this.dockerSocketRequest({
+        method: 'DELETE',
+        path: `/containers/${containerId}?force=1`,
+      }).catch(() => undefined);
+    }
+  }
+
   private execInWireguard(command: string[]): Promise<string> {
+    return this.execInContainer(this.wireGuardContainer, command);
+  }
+
+  private execInContainer(containerName: string, command: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
       void (async () => {
         const createExec = await this.dockerSocketRequest({
           method: 'POST',
-          path: `/containers/${this.wireGuardContainer}/exec`,
+          path: `/containers/${containerName}/exec`,
           body: {
             AttachStdout: true,
             AttachStderr: true,

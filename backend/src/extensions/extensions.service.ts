@@ -5,10 +5,13 @@ import { join } from 'path';
 import { DataSource, Repository } from 'typeorm';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { InboundRouteEntity } from '../inbound-routes/entities/inbound-route.entity';
 import { VpnService } from '../vpn/vpn.service';
 import { CreateExtensionDto } from './dto/create-extension.dto';
 import { UpdateExtensionDto } from './dto/update-extension.dto';
 import { SipExtensionEntity } from './entities/sip-extension.entity';
+
+const EXTENSION_DID_CONFLICT_MESSAGE = 'This number is already in use as an inbound DID. Choose a different extension number.';
 
 export interface ExtensionResponse {
   id: number;
@@ -34,6 +37,8 @@ export class ExtensionsService implements OnModuleInit {
   constructor(
     @InjectRepository(SipExtensionEntity)
     private readonly extensionsRepository: Repository<SipExtensionEntity>,
+    @InjectRepository(InboundRouteEntity)
+    private readonly inboundRoutesRepository: Repository<InboundRouteEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly asteriskConfigService: AsteriskConfigService,
     private readonly vpnService: VpnService,
@@ -66,6 +71,7 @@ export class ExtensionsService implements OnModuleInit {
     if (existing) {
       throw new BadRequestException(`Extension username ${username} already exists`);
     }
+    await this.ensureUsernameDoesNotConflictWithInboundDid(username);
     if (vpnOnly) {
       const installed = await this.vpnService.isInstalled();
       if (!installed) {
@@ -96,6 +102,9 @@ export class ExtensionsService implements OnModuleInit {
       const conflict = await this.extensionsRepository.findOne({ where: { username } });
       if (conflict && conflict.id !== id) {
         throw new BadRequestException(`Extension username ${username} already exists`);
+      }
+      if (username !== entity.username) {
+        await this.ensureUsernameDoesNotConflictWithInboundDid(username);
       }
       entity.username = username;
     }
@@ -269,5 +278,12 @@ export class ExtensionsService implements OnModuleInit {
   private normalizeOptional(value?: string): string | null {
     const normalized = value?.trim();
     return normalized ? normalized : null;
+  }
+
+  private async ensureUsernameDoesNotConflictWithInboundDid(username: string): Promise<void> {
+    const inboundRoute = await this.inboundRoutesRepository.findOne({ where: { did: username } });
+    if (inboundRoute) {
+      throw new BadRequestException(EXTENSION_DID_CONFLICT_MESSAGE);
+    }
   }
 }

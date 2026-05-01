@@ -4,6 +4,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ExtensionsService } from './extensions.service';
 import { SipExtensionEntity } from './entities/sip-extension.entity';
 import { AsteriskConfigService } from '../asterisk/asterisk-config.service';
+import { InboundRouteEntity } from '../inbound-routes/entities/inbound-route.entity';
 import { VpnService } from '../vpn/vpn.service';
 
 jest.mock('fs', () => ({
@@ -18,6 +19,7 @@ jest.mock('fs', () => ({
 describe('ExtensionsService', () => {
   let service: ExtensionsService;
   let extensionsRepo: typeof mockRepo;
+  let inboundRoutesRepo: typeof mockInboundRoutesRepo;
   let asteriskConfigService: typeof mockAsteriskConfigService;
   let vpnService: typeof mockVpnService;
 
@@ -35,6 +37,10 @@ describe('ExtensionsService', () => {
     writeExtensionsConfig: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockInboundRoutesRepo = {
+    findOne: jest.fn(),
+  };
+
   const mockVpnService = {
     isInstalled: jest.fn().mockResolvedValue(true),
   };
@@ -48,6 +54,7 @@ describe('ExtensionsService', () => {
       providers: [
         ExtensionsService,
         { provide: getRepositoryToken(SipExtensionEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(InboundRouteEntity), useValue: mockInboundRoutesRepo },
         { provide: getDataSourceToken(), useValue: mockDataSource },
         { provide: AsteriskConfigService, useValue: mockAsteriskConfigService },
         { provide: VpnService, useValue: mockVpnService },
@@ -56,6 +63,7 @@ describe('ExtensionsService', () => {
 
     service = module.get<ExtensionsService>(ExtensionsService);
     extensionsRepo = module.get(getRepositoryToken(SipExtensionEntity));
+    inboundRoutesRepo = module.get(getRepositoryToken(InboundRouteEntity));
     asteriskConfigService = module.get(AsteriskConfigService);
     vpnService = module.get(VpnService);
   });
@@ -85,6 +93,7 @@ describe('ExtensionsService', () => {
       const dto = { username: '100', password: 'password', displayName: 'User 100' };
       const entity = { ...dto, id: 1, createdAt: new Date() };
       extensionsRepo.findOne.mockResolvedValue(null);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
       extensionsRepo.create.mockReturnValue(entity);
       extensionsRepo.save.mockResolvedValue(entity);
       extensionsRepo.find.mockResolvedValue([entity]);
@@ -104,6 +113,7 @@ describe('ExtensionsService', () => {
       const dto = { username: '101', password: 'password', displayName: 'User 101', vpnOnly: true as const };
       const entity = { ...dto, id: 2, transportType: 'sip' as const, createdAt: new Date() };
       extensionsRepo.findOne.mockResolvedValue(null);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
       extensionsRepo.create.mockReturnValue(entity);
       extensionsRepo.save.mockResolvedValue(entity);
       extensionsRepo.find.mockResolvedValue([entity]);
@@ -117,10 +127,21 @@ describe('ExtensionsService', () => {
 
     it('should reject create with vpnOnly=true when VPN is not installed', async () => {
       extensionsRepo.findOne.mockResolvedValue(null);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
       vpnService.isInstalled.mockResolvedValue(false);
 
       await expect(service.create({ username: '102', password: 'password', vpnOnly: true })).rejects.toThrow(
         'VPN is not installed. Enable WireGuard before restricting extensions to VPN-only.',
+      );
+      expect(extensionsRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should reject create when username matches an inbound DID', async () => {
+      extensionsRepo.findOne.mockResolvedValue(null);
+      inboundRoutesRepo.findOne.mockResolvedValue({ id: 9, did: '100' });
+
+      await expect(service.create({ username: '100', password: 'password' })).rejects.toThrow(
+        'This number is already in use as an inbound DID. Choose a different extension number.',
       );
       expect(extensionsRepo.save).not.toHaveBeenCalled();
     });
@@ -131,6 +152,7 @@ describe('ExtensionsService', () => {
       const entity = { id: 1, username: '100', password: 'old', createdAt: new Date() };
       const dto = { password: 'new' };
       extensionsRepo.findOne.mockResolvedValue(entity);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
       extensionsRepo.save.mockResolvedValue({ ...entity, password: 'new' });
       extensionsRepo.find.mockResolvedValue([{ ...entity, password: 'new' }]);
 
@@ -153,6 +175,7 @@ describe('ExtensionsService', () => {
       extensionsRepo.save.mockResolvedValue({ ...entity, vpnOnly: true });
       extensionsRepo.find.mockResolvedValue([{ ...entity, vpnOnly: true }]);
       vpnService.isInstalled.mockResolvedValue(true);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
 
       const result = await service.update(1, { vpnOnly: true });
 
@@ -176,8 +199,22 @@ describe('ExtensionsService', () => {
       };
       extensionsRepo.findOne.mockResolvedValue(entity);
       vpnService.isInstalled.mockResolvedValue(false);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
 
       await expect(service.update(1, { vpnOnly: true })).rejects.toThrow('VPN is not installed. Enable WireGuard before restricting extensions to VPN-only.');
+      expect(extensionsRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should reject username change when new username matches an inbound DID', async () => {
+      const entity = { id: 1, username: '100', password: 'old', createdAt: new Date() };
+      extensionsRepo.findOne
+        .mockResolvedValueOnce(entity)
+        .mockResolvedValueOnce(null);
+      inboundRoutesRepo.findOne.mockResolvedValue({ id: 7, did: '200' });
+
+      await expect(service.update(1, { username: '200' })).rejects.toThrow(
+        'This number is already in use as an inbound DID. Choose a different extension number.',
+      );
       expect(extensionsRepo.save).not.toHaveBeenCalled();
     });
 

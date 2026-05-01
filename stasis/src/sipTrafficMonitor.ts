@@ -12,22 +12,55 @@ const AMI_USER = process.env.AMI_USER || 'callytics';
 const AMI_PASS = process.env.AMI_PASS || 'callytics';
 
 export function parseAmiMessages(buffer: string): { messages: AmiMessage[]; remainder: string } {
-  const parts = buffer.split(/\r?\n\r?\n/);
-  const remainder = parts.pop() || '';
-  const messages = parts
-    .map((part) => part.trim())
+  const sections = buffer.split(/\r?\n\r?\n/);
+  const hasTerminatingBoundary = /\r?\n\r?\n\s*$/.test(buffer);
+  const completeParts: string[] = [];
+  let remainder = '';
+  let current = '';
+
+  const normalizedSections = sections
+    .map((section) => section.trim())
     .filter(Boolean)
-    .map((part) => {
-      const message: AmiMessage = {};
-      for (const line of part.split(/\r?\n/)) {
-        const separator = line.indexOf(':');
-        if (separator === -1) {
-          continue;
-        }
-        message[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
+;
+
+  for (let index = 0; index < normalizedSections.length; index += 1) {
+    const section = normalizedSections[index];
+    const nextSection = normalizedSections[index + 1];
+    current = current ? `${current}\r\n\r\n${section}` : section;
+
+    if (!nextSection) {
+      const isDeferredRtcpSection = /Event:\s*RTCP(?:Received|Sent)\b/i.test(current)
+        && !/\bReport0[A-Za-z0-9]+:/i.test(current);
+
+      if (!hasTerminatingBoundary || isDeferredRtcpSection) {
+        remainder = current;
+      } else {
+        completeParts.push(current);
       }
-      return message;
-    });
+      break;
+    }
+
+    const nextLines = nextSection.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const firstLine = nextLines[0] || '';
+    const startsNewMessage = /^(Event|Response|Action):/i.test(firstLine);
+
+    if (startsNewMessage) {
+      completeParts.push(current);
+      current = '';
+    }
+  }
+
+  const messages = completeParts.map((part) => {
+    const message: AmiMessage = {};
+    for (const line of part.split(/\r?\n/)) {
+      const separator = line.indexOf(':');
+      if (separator === -1) {
+        continue;
+      }
+      message[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
+    }
+    return message;
+  });
 
   return { messages, remainder };
 }

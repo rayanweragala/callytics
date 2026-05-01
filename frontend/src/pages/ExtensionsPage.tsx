@@ -6,7 +6,7 @@ import { Pagination } from '../components/common/Pagination';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
-import { createExtension, deleteExtension, getExtensionQrContent, getHostConfig, getVpnStatus, listExtensions, updateExtension } from '../lib/api';
+import { createExtension, deleteExtension, getExtensionQrContent, getHostConfig, getVpnRelayConfig, getVpnRelayStatus, getVpnStatus, listExtensions, updateExtension } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import type { ExtensionItem } from '../types';
@@ -31,6 +31,7 @@ const TRANSPORT_OPTIONS = [
   { value: 'sip', label: 'SIP / UDP' },
   { value: 'webrtc', label: 'WebRTC / WSS' },
 ];
+const EXTENSION_DID_CONFLICT_MESSAGE = 'This number is already in use as an inbound DID. Choose a different extension number.';
 
 export function ExtensionsPage() {
   const [items, setItems] = useState<ExtensionItem[]>([]);
@@ -46,7 +47,11 @@ export function ExtensionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [qrModal, setQrModal] = useState<{ username: string; uri: string; dataUrl: string } | null>(null);
   const [hostIp, setHostIp] = useState('127.0.0.1');
+  const [relayHostIp, setRelayHostIp] = useState<string | null>(null);
+  const [relayActive, setRelayActive] = useState(false);
   const [vpnInstalled, setVpnInstalled] = useState(false);
+  const [createUsernameError, setCreateUsernameError] = useState<string | null>(null);
+  const [editUsernameError, setEditUsernameError] = useState<string | null>(null);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
@@ -71,23 +76,28 @@ export function ExtensionsPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const sortedItems = useMemo(() => [...items].sort((a, b) => a.username.localeCompare(b.username)), [items]);
 
-function buildSipUri(username: string): string {
-    return `sip:${username}@${hostIp}:5080;transport=udp`;
+  function buildSipUri(username: string): string {
+    const endpointHost = relayActive && relayHostIp ? relayHostIp : hostIp;
+    return `sip:${username}@${endpointHost}:5080;transport=udp`;
   }
 
   const load = async (nextLimit = limit, nextOffset = offset) => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [extensionsResponse, hostConfig, vpnStatus] = await Promise.all([
+      const [extensionsResponse, hostConfig, vpnStatus, relayStatus] = await Promise.all([
         listExtensions(nextLimit, nextOffset),
         getHostConfig(),
         getVpnStatus(),
+        getVpnRelayStatus(),
       ]);
+      const relayConfig = relayStatus.active ? await getVpnRelayConfig() : null;
       setItems(extensionsResponse.data);
       setTotal(extensionsResponse.total);
       setHostIp(hostConfig.hostIp);
       setVpnInstalled(vpnStatus.installed);
+      setRelayActive(relayStatus.active);
+      setRelayHostIp(relayStatus.active ? relayConfig?.vpsPublicIp || null : null);
     } catch {
       setLoadError('Failed to load extensions');
     } finally {
@@ -108,6 +118,21 @@ function buildSipUri(username: string): string {
   const resetMessages = () => {
     showError(null);
     showSuccess(null);
+    setCreateUsernameError(null);
+    setEditUsernameError(null);
+  };
+
+  const applyExtensionConflictError = (error: unknown, mode: 'create' | 'edit'): boolean => {
+    const message = getApiError(error, mode === 'create' ? 'failed to create extension' : 'failed to update extension');
+    if (message !== EXTENSION_DID_CONFLICT_MESSAGE) {
+      return false;
+    }
+    if (mode === 'create') {
+      setCreateUsernameError(message);
+    } else {
+      setEditUsernameError(message);
+    }
+    return true;
   };
 
   const handleCreate = async () => {
@@ -126,7 +151,9 @@ function buildSipUri(username: string): string {
       setOffset(0);
       await load(limit, 0);
     } catch (error) {
-      showError(getApiError(error, 'failed to create extension'));
+      if (!applyExtensionConflictError(error, 'create')) {
+        showError(getApiError(error, 'failed to create extension'));
+      }
     } finally {
       setBusyKey(null);
     }
@@ -186,7 +213,9 @@ function buildSipUri(username: string): string {
       setEditForm(emptyForm);
       await load(limit, offset);
     } catch (error) {
-      showError(getApiError(error, 'failed to update extension'));
+      if (!applyExtensionConflictError(error, 'edit')) {
+        showError(getApiError(error, 'failed to update extension'));
+      }
     } finally {
       setBusyKey(null);
     }
@@ -255,6 +284,7 @@ function buildSipUri(username: string): string {
                   resetMessages();
                   setCreateForm((current) => ({ ...current, username: event.target.value }));
                 }} />
+                {createUsernameError ? <span className={styles.inlineFieldError}>{createUsernameError}</span> : null}
               </label>
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>password</span>
@@ -350,7 +380,10 @@ function buildSipUri(username: string): string {
                       <td className={styles.vpnOnlyCell}>
                         {item.vpnOnly ? <span className={styles.vpnOnlyBadge}>VPN Only</span> : <span className={styles.vpnOnlyDash}>—</span>}
                       </td>
-                      <td className={styles.dataMono}>{buildSipUri(item.username)}</td>
+                      <td className={styles.sipUriCell}>
+                        <span className={styles.dataMono}>{buildSipUri(item.username)}</span>
+                        {relayActive ? <span className={styles.relayBadge}>relay</span> : null}
+                      </td>
                       <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
                       <td className={styles.actionsCell}>
                         <div className={styles.actions}>
@@ -376,6 +409,7 @@ function buildSipUri(username: string): string {
                                 resetMessages();
                                 setEditForm((current) => ({ ...current, username: event.target.value }));
                               }} />
+                              {editUsernameError ? <span className={styles.inlineFieldError}>{editUsernameError}</span> : null}
                             </label>
                             <label className={styles.field}>
                               <span className={styles.fieldLabel}>password</span>

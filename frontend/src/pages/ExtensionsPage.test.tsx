@@ -14,6 +14,8 @@ vi.mock('qrcode', () => ({
 vi.mock('../lib/api', () => ({
   listExtensions: vi.fn(),
   getHostConfig: vi.fn(),
+  getVpnRelayConfig: vi.fn(),
+  getVpnRelayStatus: vi.fn(),
   getVpnStatus: vi.fn(),
   createExtension: vi.fn(),
   updateExtension: vi.fn(),
@@ -32,9 +34,12 @@ describe('ExtensionsPage coverage boost', () => {
   const mockHostConfig = { hostIp: '127.0.0.1', sipPort: 5060 };
   const mockVpnStatus = { installed: false };
 
+  const mockRelayInactive = { active: false, handshakeEstablished: false };
+
   it('renders extensions and opens create form', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
 
     render(
@@ -52,6 +57,7 @@ describe('ExtensionsPage coverage boost', () => {
   it('shows VPN badge when vpnOnly is true', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
 
     render(
@@ -66,6 +72,7 @@ describe('ExtensionsPage coverage boost', () => {
   it('disables Require VPN toggle when VPN is not installed', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
 
     render(
@@ -84,6 +91,7 @@ describe('ExtensionsPage coverage boost', () => {
   it('create form sends vpnOnly=true when toggle is enabled', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue({ data: [], total: 0 });
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue({ installed: true } as Awaited<ReturnType<typeof api.getVpnStatus>>);
     vi.mocked(api.createExtension).mockResolvedValue({
       data: {
@@ -122,6 +130,7 @@ describe('ExtensionsPage coverage boost', () => {
   it('edit form save sends vpnOnly in update payload', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue({ installed: true } as Awaited<ReturnType<typeof api.getVpnStatus>>);
     vi.mocked(api.updateExtension).mockResolvedValue({
       data: {
@@ -150,6 +159,7 @@ describe('ExtensionsPage coverage boost', () => {
     const qrContent = 'sip:101@10.20.115.95:5080\npassword:secret\ntransport:udp';
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
     vi.mocked(api.getExtensionQrContent).mockResolvedValue({ data: { content: qrContent } });
 
@@ -163,8 +173,59 @@ describe('ExtensionsPage coverage boost', () => {
     fireEvent.click(screen.getByRole('button', { name: 'qr' }));
 
     await waitFor(() => {
-      expect(QRCode.toDataURL).toHaveBeenCalledWith(qrContent, { width: 220, margin: 1 });
+    expect(QRCode.toDataURL).toHaveBeenCalledWith(qrContent, { width: 220, margin: 1 });
     });
     expect(screen.getByText((_content, element) => element?.textContent === qrContent)).toBeInTheDocument();
+  });
+
+  it('shows inline username conflict on create when backend reports inbound DID collision', async () => {
+    vi.mocked(api.listExtensions).mockResolvedValue({ data: [], total: 0 });
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
+    vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.createExtension).mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        data: {
+          message: 'This number is already in use as an inbound DID. Choose a different extension number.',
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <ExtensionsPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /add extension/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /add extension/i }));
+    fireEvent.change(screen.getByLabelText('username'), { target: { value: '2001' } });
+    fireEvent.change(screen.getByLabelText('password'), { target: { value: 'secret' } });
+    fireEvent.click(screen.getByRole('button', { name: 'save extension' }));
+
+    expect(await screen.findByText('This number is already in use as an inbound DID. Choose a different extension number.')).toBeInTheDocument();
+    expect(screen.queryByText('failed to create extension')).not.toBeInTheDocument();
+  });
+
+  it('renders relay SIP URI and badge when relay is active', async () => {
+    vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true });
+    vi.mocked(api.getVpnRelayConfig).mockResolvedValue({
+      config: '[Interface]',
+      vpsPublicKey: 'vps-key',
+      vpsPublicIp: '203.0.113.20',
+    });
+
+    render(
+      <MemoryRouter>
+        <ExtensionsPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('sip:101@203.0.113.20:5080;transport=udp')).toBeInTheDocument();
+    expect(screen.getByText('relay')).toBeInTheDocument();
   });
 });

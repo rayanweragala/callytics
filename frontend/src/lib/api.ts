@@ -16,6 +16,7 @@ import type {
   OperatorItem,
   QueueItem,
   RecordingItem,
+  RelayConfigState,
   TemplateItem,
   CallLogItem,
   CallQuality,
@@ -45,6 +46,7 @@ import type {
   FirewallFeedEvent,
   FirewallStats,
   RelayGuideStep,
+  RelayTunnelStatus,
   VpnPeer,
   VpnStatus,
 } from '../types';
@@ -902,5 +904,25 @@ export async function getVpnRelayGuide(): Promise<{ data: RelayGuideStep[] }> {
 
 export async function createVpnRelayConfig(payload: { vpsPublicKey: string; vpsPublicIp: string }): Promise<{ config: string }> {
   const response = await api.post<{ config: string }>('/vpn/relay-config', payload);
+  return response.data;
+}
+
+export async function activateVpnRelayTunnel(config: string): Promise<{ success: true }> {
+  const response = await api.post<{ success: true }>('/vpn/relay-activate', { config });
+  return response.data;
+}
+
+export async function deactivateVpnRelayTunnel(): Promise<{ success: true }> {
+  const response = await api.delete<{ success: true }>('/vpn/relay-deactivate');
+  return response.data;
+}
+
+export async function getVpnRelayStatus(): Promise<RelayTunnelStatus> {
+  const response = await api.get<RelayTunnelStatus>('/vpn/relay-status');
+  return response.data;
+}
+
+export async function getVpnRelayConfig(): Promise<RelayConfigState> {
+  const response = await api.get<RelayConfigState>('/vpn/relay-config');
   return response.data;
 }

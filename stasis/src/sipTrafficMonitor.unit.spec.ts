@@ -6,9 +6,85 @@ describe('sipTrafficMonitor', () => {
       'Event: Verbose\r\nMessage: hello\r\n\r\nEvent: Verbose\r\nMessage: world\r\n\r\npartial',
     );
 
-    expect(result.messages).toHaveLength(2);
+    expect(result.messages).toHaveLength(1);
     expect(result.messages[0].Message).toBe('hello');
-    expect(result.remainder).toBe('partial');
+    expect(result.remainder).toBe('Event: Verbose\r\nMessage: world\r\n\r\npartial');
+  });
+
+  it('keeps RTCP report fields inside the same AMI message when a blank line appears mid-event', () => {
+    const result = parseAmiMessages(
+      [
+        'Event: RTCPReceived',
+        'Uniqueid: 1746173048.12',
+        'Channel: PJSIP/2001-00000001',
+        '',
+        'Report0IAJitter: 42',
+        'Report0FractionLost: 3',
+        '',
+        'Event: Hangup',
+        'Channel: PJSIP/2001-00000001',
+        '',
+        'Event: FullyBooted',
+        'Status: Fully Booted',
+        '',
+      ].join('\r\n'),
+    );
+
+    expect(result.remainder).toBe('Event: FullyBooted\r\nStatus: Fully Booted');
+    expect(result.messages).toHaveLength(2);
+    expect(result.messages[0]).toEqual(expect.objectContaining({
+      Event: 'RTCPReceived',
+      Uniqueid: '1746173048.12',
+      Report0IAJitter: '42',
+      Report0FractionLost: '3',
+    }));
+    expect(result.messages[1]).toEqual(expect.objectContaining({
+      Event: 'Hangup',
+      Channel: 'PJSIP/2001-00000001',
+    }));
+  });
+
+  it('defers a terminated RTCP header block until report fields arrive in a later chunk', () => {
+    const first = parseAmiMessages(
+      [
+        'Event: RTCPSent',
+        'Uniqueid: 1746173048.12',
+        'SentPackets: 1250',
+        'SentOctets: 200000',
+        '',
+        '',
+      ].join('\r\n'),
+    );
+
+    expect(first.messages).toHaveLength(0);
+    expect(first.remainder).toBe([
+      'Event: RTCPSent',
+      'Uniqueid: 1746173048.12',
+      'SentPackets: 1250',
+      'SentOctets: 200000',
+    ].join('\r\n'));
+
+    const second = parseAmiMessages(
+      `${first.remainder}\r\n\r\n${[
+        'Report0SourceSSRC: 0x15a565e4',
+        'Report0FractionLost: 0',
+        'Report0IAJitter: 193',
+        '',
+        'Event: Hangup',
+        'Channel: PJSIP/2001-00000001',
+        '',
+      ].join('\r\n')}`,
+    );
+
+    expect(second.messages).toHaveLength(1);
+    expect(second.messages[0]).toEqual(expect.objectContaining({
+      Event: 'RTCPSent',
+      Uniqueid: '1746173048.12',
+      Report0SourceSSRC: '0x15a565e4',
+      Report0FractionLost: '0',
+      Report0IAJitter: '193',
+    }));
+    expect(second.remainder).toBe('Event: Hangup\r\nChannel: PJSIP/2001-00000001');
   });
 
   it('extracts SIP request traffic from AMI event objects', () => {

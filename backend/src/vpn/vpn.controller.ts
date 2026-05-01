@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseIntPipe, P
 import type { Response } from 'express';
 import { CreateRelayConfigDto } from './dto/create-relay-config.dto';
 import { CreateVpnPeerDto } from './dto/create-vpn-peer.dto';
+import { RelayActivateDto } from './dto/relay-activate.dto';
 import { VpnService } from './vpn.service';
 
 @Controller('vpn')
@@ -57,5 +58,27 @@ export class VpnController {
   @HttpCode(200)
   createRelayConfig(@Body() dto: CreateRelayConfigDto) {
     return this.vpnService.createRelayConfig(dto.vpsPublicKey, dto.vpsPublicIp);
+  }
+
+  @Get('relay-config')
+  getRelayConfig() {
+    return this.vpnService.getRelayConfig();
+  }
+
+  @Post('relay-activate')
+  @HttpCode(200)
+  activateRelayTunnel(@Body() dto: RelayActivateDto) {
+    return this.vpnService.activateRelayTunnel(dto.config);
+  }
+
+  @Delete('relay-deactivate')
+  @HttpCode(200)
+  deactivateRelayTunnel() {
+    return this.vpnService.deactivateRelayTunnel();
+  }
+
+  @Get('relay-status')
+  getRelayStatus() {
+    return this.vpnService.getRelayStatus();
   }
 }
