@@ -506,7 +506,9 @@ export class AudioService implements OnModuleInit {
     if (!filePath) return;
     try {
       await fs.unlink(filePath);
-    } catch {}
+    } catch {
+      // ENOENT or race — file already gone, nothing to clean up.
+    }
   }
 
   private async runCommand(

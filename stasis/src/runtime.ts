@@ -215,7 +215,9 @@ export async function runFlow(
       if (result === 'hangup') {
         try {
           await (channel as { hangup?: () => Promise<void> }).hangup?.();
-        } catch {}
+        } catch {
+          // channel may have already ended — safe to ignore.
+        }
       }
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {
         continue;
@@ -276,7 +278,9 @@ export async function runFlow(
         logEvent('DeadEndPlayAudio', { nodeId: node.nodeKey, channelId: session.channelId });
         try {
           await (channel as { hangup?: () => Promise<void> }).hangup?.();
-        } catch {}
+        } catch {
+          // channel may have already ended — safe to ignore.
+        }
         break;
       }
       if (stack.length > 0 && await returnToParentFlow(session, stack)) {

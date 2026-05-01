@@ -173,7 +173,7 @@ async function stopOperatorHoldAudio(ariClient: AriClient, channelId: string): P
     await ariClient.channels.stopMoh({ channelId });
     stasisLogger.log(`[callback] hold audio stopped channel=${channelId}`);
   } catch {
-    // best effort
+    // ARI channels can be destroyed before stop completes — safe to ignore.
   }
 }
 

@@ -4,6 +4,8 @@ import { logEvent } from '../logger';
 import { publish } from '../redis';
 import { publishSipTraffic } from '../telemetry';
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
+
 const DEFAULT_MOH_CLASS = process.env.QUEUE_LOGIN_MOH_CLASS || 'callytics-hold';
 const SOLE_SURVIVOR_TIMEOUT_MS = 30_000;
 
@@ -65,7 +67,7 @@ function numbersMatch(left: unknown, right: unknown): boolean {
 
 async function fetchExtension(extensionId: number): Promise<{ id: number; username: string } | null> {
   try {
-    const url = new URL('http://localhost:3001/extensions');
+    const url = new URL(`${BACKEND_URL}/extensions`);
     url.searchParams.set('limit', '1000');
     url.searchParams.set('offset', '0');
     const res = await fetch(url.toString());
@@ -82,7 +84,7 @@ async function fetchExtension(extensionId: number): Promise<{ id: number; userna
 
 async function fetchOperator(operatorId: number): Promise<{ id: number; number: string } | null> {
   try {
-    const url = new URL('http://localhost:3001/operators');
+    const url = new URL(`${BACKEND_URL}/operators`);
     url.searchParams.set('page', '1');
     url.searchParams.set('limit', '1000');
     const res = await fetch(url.toString());

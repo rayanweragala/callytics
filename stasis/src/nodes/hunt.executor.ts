@@ -6,6 +6,8 @@ import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { logEvent } from '../logger';
 import { beginNodeRecording } from '../bridgeRecording';
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
+
 interface HuntExecutorChannel {
   id: string;
   hangup: () => Promise<void>;
@@ -392,7 +394,7 @@ function noAnswerResult(config: Record<string, unknown>): string {
 
 async function fetchContactNumber(contactId: number): Promise<{ number: string; trunkId: number | null } | null> {
   try {
-    const res = await fetch(`http://localhost:3001/contact-numbers/${contactId}`);
+    const res = await fetch(`${BACKEND_URL}/contact-numbers/${contactId}`);
     if (!res.ok) {
       return null;
     }
@@ -411,7 +413,7 @@ async function fetchContactNumberByPhone(
   phoneNumber: string,
 ): Promise<{ number: string; trunkId: number | null } | null> {
   try {
-    const url = new URL('http://localhost:3001/contact-numbers');
+    const url = new URL(`${BACKEND_URL}/contact-numbers`);
     url.searchParams.set('page', '1');
     url.searchParams.set('limit', '1000');
     const res = await fetch(url.toString());

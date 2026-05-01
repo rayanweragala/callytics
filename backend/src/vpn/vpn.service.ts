@@ -99,11 +99,7 @@ export class VpnService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    try {
-      await runSqlMigrations(this.dataSource);
-    } catch (error) {
-      throw error;
-    }
+    await runSqlMigrations(this.dataSource);
   }
 
   async getStatus(): Promise<VpnStatusResponse> {

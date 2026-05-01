@@ -20,6 +20,8 @@ import { logEvent } from "../logger";
 import { INTER_DIGIT_TIMEOUT_MS, resolveNodeTimeoutMs } from "../timeoutResolver";
 import { beginNodeRecording } from "../bridgeRecording";
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
+
 type PlaybackTarget =
   | {
       kind: "channel";
@@ -373,7 +375,7 @@ async function fetchContactNumber(
 ): Promise<{ number: string; trunkId: number | null } | null> {
   try {
     const res = await fetch(
-      `http://localhost:3001/contact-numbers/${contactId}`,
+      `${BACKEND_URL}/contact-numbers/${contactId}`,
     );
     if (!res.ok) {
       return null;
@@ -551,7 +553,9 @@ function startTransferWaitingSoundLoop(
       }
       try {
         await transferClient.playbacks.stop({ playbackId: currentPlaybackId });
-      } catch {}
+      } catch {
+        // channel may have already ended before hangup — safe to ignore.
+      }
     },
   };
 }
@@ -769,7 +773,9 @@ async function executeTransfer(
     }
     try {
       await client.bridges.destroy({ bridgeId: bridge.id });
-    } catch {}
+    } catch {
+      // bridge may already be destroyed if both legs ended — safe to ignore.
+    }
     return "done";
   } catch (error) {
     waitForAnswerSettled = true;
@@ -788,7 +794,9 @@ async function executeHangup(channel: {
 }): Promise<string> {
   try {
     await channel.hangup();
-  } catch {}
+  } catch {
+    // channel may have already ended — safe to ignore.
+  }
   return "done";
 }
 
