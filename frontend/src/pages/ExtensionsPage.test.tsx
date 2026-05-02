@@ -228,4 +228,23 @@ describe('ExtensionsPage coverage boost', () => {
     expect(await screen.findByText('sip:101@203.0.113.20:5080;transport=udp')).toBeInTheDocument();
     expect(screen.getByText('relay')).toBeInTheDocument();
   });
+
+  it('shows LAN IP and no relay badge when relay is inactive', async () => {
+    vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false });
+    vi.mocked(api.getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
+
+    render(
+      <MemoryRouter>
+        <ExtensionsPage />
+      </MemoryRouter>
+    );
+
+    // Should show the LAN IP from hostConfig, not a VPS IP
+    expect(await screen.findByText(/sip:101@127\.0\.0\.1/)).toBeInTheDocument();
+    // The relay badge must not appear
+    expect(screen.queryByText('relay')).not.toBeInTheDocument();
+  });
 });

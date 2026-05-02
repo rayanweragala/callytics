@@ -143,6 +143,22 @@ describe('InboundRoutesService', () => {
       expect(inboundRoutesRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should skip extension conflict check when update does not change the DID', async () => {
+      const entity = { id: 1, did: '123456', flowId: 1, createdAt: new Date() };
+      const newFlow = { id: 2 };
+      inboundRoutesRepo.findOne.mockResolvedValue(entity);
+      mockFlowsRepo.findOne.mockResolvedValue(newFlow);
+      inboundRoutesRepo.save.mockResolvedValue({ ...entity, flowId: 2 });
+      inboundRoutesRepo.find.mockResolvedValue([{ ...entity, flowId: 2 }]);
+      mockFlowsRepo.find.mockResolvedValue([{ id: 2, name: 'Flow 2' }]);
+
+      // Only changing flowId — did is not passed in the dto
+      await service.update(1, { flowId: 2 });
+
+      // The extensions repo must NOT be queried for a DID conflict
+      expect(mockExtensionsRepo.findOne).not.toHaveBeenCalled();
+    });
+
     it('should throw NotFoundException if not found', async () => {
       inboundRoutesRepo.findOne.mockResolvedValue(null);
       await expect(service.update(1, {})).rejects.toThrow(NotFoundException);

@@ -8,6 +8,7 @@ import { InboundRouteEntity } from "../inbound-routes/entities/inbound-route.ent
 import { runSqlMigrations } from "../db/run-sql-migrations";
 import { AppLogger } from "../logger/app-logger";
 import type { ResolvedExtensionConfig } from "../extensions/extensions.service";
+import { SipExtensionEntity } from "../extensions/entities/sip-extension.entity";
 import { SipTrunkEntity } from "../trunks/entities/sip-trunk.entity";
 
 const NO_REGISTER_PRESETS = ["twilio", "telnyx", "vonage", "signalwire"];
@@ -52,6 +53,8 @@ export class AsteriskConfigService implements OnModuleInit {
   private readonly trunksInclude = "#include pjsip_callytics_trunks.conf";
 
   constructor(
+    @InjectRepository(SipExtensionEntity)
+    private readonly extensionsRepository: Repository<SipExtensionEntity>,
     @InjectRepository(SipTrunkEntity)
     private readonly trunksRepository: Repository<SipTrunkEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -109,6 +112,11 @@ export class AsteriskConfigService implements OnModuleInit {
       this.buildExtensionsConfig(extensions),
       "utf8",
     );
+    await fs.writeFile(
+      join(this.configDir, "pjsip_extensions_relay.conf"),
+      this.buildExtensionsRelayConfig(extensions, this.getExternalMediaAddress()),
+      "utf8",
+    );
     await this.ensureManagedPjsipIncludes();
   }
 
@@ -137,6 +145,20 @@ export class AsteriskConfigService implements OnModuleInit {
     await fs.mkdir(this.configDir, { recursive: true });
     await this.writeUdpTransportConfig(externalAddress);
     await this.reloadPjsip();
+  }
+
+  async syncExtensionsRelayConfig(
+    externalAddress: string | null,
+  ): Promise<void> {
+    const extensions = await this.extensionsRepository.find({
+      order: { username: "ASC" },
+    });
+    await fs.mkdir(this.configDir, { recursive: true });
+    await fs.writeFile(
+      join(this.configDir, "pjsip_extensions_relay.conf"),
+      this.buildExtensionsRelayConfig(extensions, externalAddress),
+      "utf8",
+    );
   }
 
   async reloadPjsip(): Promise<void> {
@@ -453,6 +475,14 @@ export class AsteriskConfigService implements OnModuleInit {
     );
   }
 
+  private getExternalMediaAddress(): string | null {
+    return (
+      process.env.ASTERISK_EXTERNAL_IP?.trim() ||
+      process.env.VPN_PUBLIC_IP?.trim() ||
+      null
+    );
+  }
+
   private buildTrunksConfig(trunks: SipTrunkEntity[]): string {
     const blocks = trunks
       .filter((trunk) => trunk.enabled)
@@ -637,14 +667,45 @@ export class AsteriskConfigService implements OnModuleInit {
     externalAddress: string | null,
   ): Promise<void> {
     const filePath = join(this.configDir, "pjsip_relay.conf");
-    const content = externalAddress
-      ? [
-          `external_signaling_address = ${externalAddress}`,
-          `external_media_address = ${externalAddress}`,
-          "",
-        ].join("\n")
-      : "";
+    const lines = [
+      "; auto-generated relay settings — do not commit",
+      "; external_* values come from the active relay/VPS public IP at runtime.",
+      "; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.",
+      "",
+    ];
+    if (externalAddress) {
+      lines.push(
+        `external_signaling_address = ${externalAddress}`,
+        `external_media_address = ${externalAddress}`,
+        "",
+      );
+    }
+    lines.push("#include pjsip_extensions_relay.conf", "");
+    const content = lines.join("\n");
     await fs.writeFile(filePath, content, "utf8");
+  }
+
+  private buildExtensionsRelayConfig(
+    extensions: Array<Pick<ResolvedExtensionConfig, "username">>,
+    externalAddress: string | null,
+  ): string {
+    const header = [
+      "; auto-generated NAT overrides — do not commit",
+      "; Set ASTERISK_EXTERNAL_IP in the runtime environment before regenerating this file.",
+    ];
+    if (!externalAddress) {
+      return `${header.join("\n")}\n`;
+    }
+
+    const blocks = extensions.map((extension) =>
+      [
+        `[${extension.username}](+)`,
+        `media_address = ${externalAddress}`,
+        "rtp_symmetric = yes",
+      ].join("\n"),
+    );
+
+    return [...header, "", ...blocks].join("\n\n").trimEnd() + "\n";
   }
 
   private async sendAmiCommand(command: string): Promise<void> {

@@ -223,6 +223,20 @@ describe('ExtensionsService', () => {
       expect(extensionsRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should skip DID conflict check when update does not change the username', async () => {
+      const entity = { id: 1, username: '100', password: 'old', createdAt: new Date() };
+      extensionsRepo.findOne.mockResolvedValue(entity);
+      extensionsRepo.save.mockResolvedValue({ ...entity, password: 'new' });
+      extensionsRepo.find.mockResolvedValue([{ ...entity, password: 'new' }]);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
+
+      // Updating only password — username is not passed in the dto
+      await service.update(1, { password: 'new' });
+
+      // The inbound-routes repo must NOT be queried for a DID conflict
+      expect(inboundRoutesRepo.findOne).not.toHaveBeenCalled();
+    });
+
     it('should throw NotFoundException if not found', async () => {
       extensionsRepo.findOne.mockResolvedValue(null);
       await expect(service.update(1, {})).rejects.toThrow(NotFoundException);

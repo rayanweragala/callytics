@@ -751,7 +751,7 @@ async function executeTransfer(
 
     const outboundChannel = transferResult.channel;
 
-    const bridge = await client.bridges.create({ type: "mixing" });
+    const bridge = await client.bridges.create({ type: "mixing,dtmf_events" });
     await client.bridges.addChannel({
       bridgeId: bridge.id,
       channel: channel.id,

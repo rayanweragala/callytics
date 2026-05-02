@@ -44,6 +44,7 @@ describe('VpnService', () => {
   };
   const mockAsteriskConfigService = {
     syncUdpTransport: jest.fn(),
+    syncExtensionsRelayConfig: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -65,6 +66,7 @@ describe('VpnService', () => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
     mockAsteriskConfigService.syncUdpTransport.mockReset();
+    mockAsteriskConfigService.syncExtensionsRelayConfig.mockReset();
     delete process.env.HOST_IP;
     delete process.env.VPN_PUBLIC_IP;
   });
@@ -342,6 +344,7 @@ describe('VpnService', () => {
     await (service as unknown as { syncRelayPjsipTransport: () => Promise<void> }).syncRelayPjsipTransport();
 
     expect(mockAsteriskConfigService.syncUdpTransport).toHaveBeenCalledWith('203.0.113.10');
+    expect(mockAsteriskConfigService.syncExtensionsRelayConfig).toHaveBeenCalledWith('203.0.113.10');
   });
 
   it('syncRelayPjsipTransport clears relay external addresses when relay is inactive', async () => {
@@ -350,6 +353,7 @@ describe('VpnService', () => {
     await (service as unknown as { syncRelayPjsipTransport: () => Promise<void> }).syncRelayPjsipTransport();
 
     expect(mockAsteriskConfigService.syncUdpTransport).toHaveBeenCalledWith(null);
+    expect(mockAsteriskConfigService.syncExtensionsRelayConfig).toHaveBeenCalledWith(null);
   });
 
   it('GET /vpn/relay-config returns stored config with parsed VPS key and IP', async () => {

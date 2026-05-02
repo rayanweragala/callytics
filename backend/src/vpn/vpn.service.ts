@@ -1100,6 +1100,7 @@ export class VpnService implements OnModuleInit {
     const relayConfig = relayStatus.active ? await this.getRelayConfig() : null;
     const externalAddress = relayStatus.active ? relayConfig?.vpsPublicIp || null : null;
     await this.asteriskConfigService.syncUdpTransport(externalAddress);
+    await this.asteriskConfigService.syncExtensionsRelayConfig(externalAddress);
   }
 
   private async getRelayContainerNetworkState(): Promise<{

@@ -3,6 +3,7 @@ import { AsteriskConfigService } from './asterisk-config.service';
 function createService() {
   return new AsteriskConfigService(
     { find: jest.fn() } as any,
+    { find: jest.fn().mockResolvedValue([]) } as any,
     { query: jest.fn() } as any,
   );
 }

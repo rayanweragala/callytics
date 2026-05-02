@@ -342,6 +342,29 @@ describe('VpnPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'View Setup Guide' })).toBeInTheDocument());
   });
 
+  it('does not show softphone settings block when relay is inactive', async () => {
+    vi.mocked(getVpnStatus).mockResolvedValue({
+      installed: false,
+      running: null,
+      serverPublicKey: null,
+      serverPublicKeyError: null,
+      endpoint: null,
+      subnet: null,
+      peerCount: 0,
+      subnetConflict: false,
+      subnetConflictDetail: null,
+    });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false });
+    vi.mocked(getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
+
+    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+
+    // Wait for the page to settle
+    expect(await screen.findByText('External Relay')).toBeInTheDocument();
+    expect(screen.queryByText('Softphone settings')).not.toBeInTheDocument();
+    expect(screen.queryByText('Relay tunnel active')).not.toBeInTheDocument();
+  });
+
   it('renders steps 7-9 and copies full multiline config for step 7', async () => {
     vi.mocked(getVpnStatus).mockResolvedValue({
       installed: false,

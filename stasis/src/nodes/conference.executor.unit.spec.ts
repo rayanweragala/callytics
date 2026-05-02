@@ -144,7 +144,7 @@ describe('conference executor', () => {
     await flushPromises(20);
 
     expect(ariClient.bridges.create).toHaveBeenCalledWith({
-      type: 'mixing',
+      type: 'mixing,dtmf_events',
       bridgeId: 'conference-SalesRoom1',
       name: 'conference-SalesRoom1',
     });

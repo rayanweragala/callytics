@@ -551,7 +551,7 @@ it('resolves pstn target through trunk and dials PJSIP/<number>@<trunk.username>
     await flushPromises(20);
 
     await expect(promise).resolves.toBe('done');
-    expect(ariClient.bridges.create).toHaveBeenCalledWith({ type: 'mixing' });
+    expect(ariClient.bridges.create).toHaveBeenCalledWith({ type: 'mixing,dtmf_events' });
     expect(ariClient.bridges.addChannel).toHaveBeenNthCalledWith(1, { bridgeId: 'bridge-new-1', channel: 'channel-1' });
     expect(ariClient.bridges.addChannel).toHaveBeenNthCalledWith(2, { bridgeId: 'bridge-new-1', channel: 'outbound-1' });
   });

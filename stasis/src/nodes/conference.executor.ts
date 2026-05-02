@@ -145,8 +145,8 @@ async function getOrCreateRoom(ariClient: AriLike, roomName: string): Promise<Co
 
   const bridgeId = roomBridgeId(roomName);
   try {
-    await ariClient.bridges.create({ type: 'mixing', bridgeId, name: bridgeId });
-    logEvent('BridgeCreated', { bridgeId, bridgeType: 'mixing' });
+    await ariClient.bridges.create({ type: 'mixing,dtmf_events', bridgeId, name: bridgeId });
+    logEvent('BridgeCreated', { bridgeId, bridgeType: 'mixing,dtmf_events' });
   } catch {
     // Fixed bridge ids make room reuse idempotent when the bridge already exists in ARI.
   }

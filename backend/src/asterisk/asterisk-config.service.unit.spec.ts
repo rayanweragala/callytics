@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { AsteriskConfigService } from "./asterisk-config.service";
+import { SipExtensionEntity } from "../extensions/entities/sip-extension.entity";
 import { SipTrunkEntity } from "../trunks/entities/sip-trunk.entity";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
@@ -13,6 +14,10 @@ describe("AsteriskConfigService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AsteriskConfigService,
+        {
+          provide: getRepositoryToken(SipExtensionEntity),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
         {
           provide: getRepositoryToken(SipTrunkEntity),
           useValue: { find: jest.fn().mockResolvedValue([]) },
@@ -94,9 +99,14 @@ describe("AsteriskConfigService", () => {
 
     expect(fsPromises.writeFile).toHaveBeenCalledWith(
       expect.stringContaining("pjsip_relay.conf"),
-      "external_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\n",
+      "; auto-generated relay settings \u2014 do not commit\n; external_* values come from the active relay/VPS public IP at runtime.\n; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.\n\nexternal_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\n\n#include pjsip_extensions_relay.conf\n",
       "utf8",
     );
+    // pjsip.conf must never be written to during a relay sync
+    const allWritePaths = (fsPromises.writeFile as jest.Mock).mock.calls.map(
+      (call: unknown[]) => call[0],
+    );
+    expect(allWritePaths.every((p: string) => !p.endsWith('pjsip.conf'))).toBe(true);
     expect(amiSpy).toHaveBeenCalledWith("pjsip reload");
   });
 
@@ -109,10 +119,41 @@ describe("AsteriskConfigService", () => {
 
     expect(fsPromises.writeFile).toHaveBeenCalledWith(
       expect.stringContaining("pjsip_relay.conf"),
-      "",
+      "; auto-generated relay settings \u2014 do not commit\n; external_* values come from the active relay/VPS public IP at runtime.\n; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.\n\n#include pjsip_extensions_relay.conf\n",
       "utf8",
     );
+    // pjsip.conf must never be written to during a relay sync
+    const allWritePaths = (fsPromises.writeFile as jest.Mock).mock.calls.map(
+      (call: unknown[]) => call[0],
+    );
+    expect(allWritePaths.every((p: string) => !p.endsWith('pjsip.conf'))).toBe(true);
     expect(amiSpy).toHaveBeenCalledWith("pjsip reload");
+  });
+
+  it("syncExtensionsRelayConfig rewrites endpoint NAT overrides with the live external address", async () => {
+    const extensionsRepository = (service as any).extensionsRepository;
+    extensionsRepository.find.mockResolvedValue([{ username: "1000" }]);
+
+    await service.syncExtensionsRelayConfig("203.0.113.10");
+
+    expect(fsPromises.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("pjsip_extensions_relay.conf"),
+      "; auto-generated NAT overrides \u2014 do not commit\n\n; Set ASTERISK_EXTERNAL_IP in the runtime environment before regenerating this file.\n\n\n\n[1000](+)\nmedia_address = 203.0.113.10\nrtp_symmetric = yes\n",
+      "utf8",
+    );
+  });
+
+  it("syncExtensionsRelayConfig writes only the header when relay is inactive", async () => {
+    const extensionsRepository = (service as any).extensionsRepository;
+    extensionsRepository.find.mockResolvedValue([{ username: "1000" }]);
+
+    await service.syncExtensionsRelayConfig(null);
+
+    expect(fsPromises.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("pjsip_extensions_relay.conf"),
+      "; auto-generated NAT overrides — do not commit\n; Set ASTERISK_EXTERNAL_IP in the runtime environment before regenerating this file.\n",
+      "utf8",
+    );
   });
 
   it("if AMI reload throws, the error is caught and not swallowed silently", async () => {
