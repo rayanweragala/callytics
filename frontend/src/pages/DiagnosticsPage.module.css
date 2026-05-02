@@ -78,12 +78,3 @@
   border-color: var(--border-strong);
 }
 
-.successText {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  color: var(--accent);
-  padding: 12px 14px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-}

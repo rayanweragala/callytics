@@ -24,6 +24,9 @@ jest.mock('./redis', () => ({
   getSubscriber: jest.fn(async () => mockSubscriber),
   publish: jest.fn(async () => undefined),
 }));
+jest.mock('./lib/trunkResolver', () => ({
+  fetchTrunkDialFormat: jest.fn().mockResolvedValue('{number}'),
+}));
 
 import { query } from './db';
 import { CampaignExecutor } from './campaign-executor';

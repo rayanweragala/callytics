@@ -40,6 +40,11 @@ export class CreateTrunkDto {
   fromUser?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  dialFormat?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 }

@@ -44,7 +44,7 @@ export function ExtensionsPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [successText, setSuccessText] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [qrModal, setQrModal] = useState<{ username: string; uri: string; dataUrl: string } | null>(null);
   const [hostIp, setHostIp] = useState('127.0.0.1');
@@ -57,7 +57,6 @@ export function ExtensionsPage() {
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -67,17 +66,7 @@ export function ExtensionsPage() {
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
   };
 
-  const showSuccess = (idOrMsg: number | string | null) => {
-    if (typeof idOrMsg === 'number' || idOrMsg === null) {
-      setDeletedId(idOrMsg);
-      setSuccessText(null);
-    } else {
-      setSuccessText(idOrMsg);
-      setDeletedId(null);
-    }
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    if (idOrMsg !== null) successTimerRef.current = setTimeout(() => { setDeletedId(null); setSuccessText(null); }, 3000);
-  };
+
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -105,8 +94,8 @@ export function ExtensionsPage() {
       setVpnInstalled(vpnStatus.installed);
       setRelayActive(relayStatus.active);
       setRelayHostIp(relayStatus.active ? relayConfig?.vpsPublicIp || null : null);
-    } catch {
-      setLoadError('Failed to load extensions');
+    } catch (error) {
+      setLoadError(getApiError(error, 'Failed to load extensions'));
     } finally {
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -119,14 +108,11 @@ export function ExtensionsPage() {
 
   useEffect(() => () => {
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
   }, []);
 
   const resetMessages = () => {
     showError(null);
     setDeletedId(null);
-    setSuccessText(null);
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
     setCreateUsernameError(null);
     setEditUsernameError(null);
   };
@@ -159,7 +145,6 @@ export function ExtensionsPage() {
       setCreateOpen(false);
       setOffset(0);
       await load(limit, 0);
-      showSuccess('Created');
     } catch (error) {
       if (!applyExtensionConflictError(error, 'create')) {
         showError(getApiError(error, 'failed to create extension'));
@@ -216,13 +201,11 @@ export function ExtensionsPage() {
         password: editForm.password.trim(),
         displayName: editForm.displayName.trim() || undefined,
         transportType: editForm.transportType,
-        transport_type: editForm.transportType,
         vpnOnly: editForm.vpnOnly,
       });
       setEditingId(null);
       setEditForm(emptyForm);
       await load(limit, offset);
-      showSuccess('Updated');
     } catch (error) {
       if (!applyExtensionConflictError(error, 'edit')) {
         showError(getApiError(error, 'failed to update extension'));
@@ -238,7 +221,6 @@ export function ExtensionsPage() {
     try {
       await deleteExtension(id);
       setConfirmDeleteId(null);
-      showSuccess(id);
       if (editingId === id) {
         setEditingId(null);
       }
@@ -280,11 +262,14 @@ export function ExtensionsPage() {
       {createOpen ? 'cancel' : 'add extension'}
     </button>
   );
+  const blockingLoadError = !isLoading && isInitialLoad === false ? loadError : null;
 
   return (
     <PageLayout actions={pageActions} title="Extensions" subtitle="configure">
       <div className={styles.page}>
-
+        {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+        {!blockingLoadError ? (
+          <>
         {createOpen ? (
           <section className={styles.formPanel}>
             <div className={styles.panelTitle}>new extension</div>
@@ -375,8 +360,6 @@ export function ExtensionsPage() {
                       ))}
                     </tr>
                   ))
-              ) : loadError ? (
-                <tr><td colSpan={7}><ErrorMessage message={loadError} /></td></tr>
               ) : sortedItems.length === 0 ? (
                 <tr><td colSpan={7} className={styles.emptyState}>No extensions yet.</td></tr>
               ) : (
@@ -486,8 +469,7 @@ export function ExtensionsPage() {
             totalPages={totalPages}
             onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)}
           />
-          {deletedId !== null ? <div className={styles.successText}>extension deleted</div> : null}
-          {successText ? <div className={styles.successText}>{successText}</div> : null}
+
           {errorText ? <ErrorMessage message={errorText} /> : null}
         </div>
         <ConfirmDialog
@@ -520,6 +502,8 @@ export function ExtensionsPage() {
               <div className={styles.uriText}>{qrModal.uri}</div>
             </div>
           </div>
+        ) : null}
+          </>
         ) : null}
       </div>
     </PageLayout>

@@ -24,11 +24,18 @@ import { resolveTransferWaiter, rejectTransferWaiter } from "./transferManager";
 import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManager";
 import { resolveCallbackWaiter, hasCallbackWaiter } from "./callbackManager";
 import { resolveAudioMediaPath } from "./audioResolver";
+import { formatDialNumber } from "./lib/formatDialNumber";
 import { getPublisher, getSubscriber } from "./redis";
 import { buildInboundOriginateBody, parseInboundTestMessage } from "./trunk-test.util";
 import { accumulator as rtcpAmiAccumulator } from "./handlers/rtcp-ami.handler";
 import { CampaignExecutor } from "./campaign-executor";
 import { executeCallback, type CallbackExecutePayload } from "./callback-execute";
+import {
+  hasDirectOutboundWaiter,
+  registerDirectOutboundWaiter,
+  rejectDirectOutboundWaiter,
+  resolveDirectOutboundWaiter,
+} from "./directOutboundManager";
 
 const ARI_URL = process.env.ARI_URL || "http://127.0.0.1:8088";
 const ARI_USER = process.env.ARI_USER || "callytics";
@@ -37,12 +44,19 @@ const ARI_APP = process.env.ARI_APP || "callytics";
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:3001";
 const RECORDINGS_INTERNAL_TOKEN = process.env.RECORDINGS_INTERNAL_TOKEN || "";
 const TEST_STATUS_TTL_SECONDS = 300;
+const DIRECT_OUTBOUND_TIMEOUT_MS = 30_000;
+const DIRECT_OUTBOUND_MOH_CLASS =
+  process.env.DIRECT_OUTBOUND_MOH_CLASS
+  || process.env.CALLBACK_MOH_CLASS
+  || process.env.QUEUE_LOGIN_MOH_CLASS
+  || "callytics-hold";
 
 const failedCalls = new Set<string>();
 const testCallStates = new Map<
   string,
   { testCallId: string; type: "outbound" | "inbound"; answered: boolean }
 >();
+const directOutboundCalls = new Map<string, DirectOutboundActiveCall>();
 
 interface TrunkTestOutboundEvent {
   trunkId: number;
@@ -55,6 +69,70 @@ interface TestPlaybackChannel {
   id: string;
   play: (opts: { media: string }, playback: { id: string }) => Promise<void>;
   hangup: () => Promise<void>;
+}
+
+interface DirectOutboundSettingsResponse {
+  default_outbound_trunk_id: number | null;
+  record_outbound_calls: boolean;
+}
+
+interface DirectOutboundTrunkResponse {
+  id: number;
+  name: string;
+  providerPreset: string;
+  host: string;
+  port: number;
+  username: string | null;
+  password: string | null;
+  fromDomain: string | null;
+  fromUser: string | null;
+  dialFormat: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+interface DirectOutboundActiveCall {
+  callId: string;
+  inboundChannelId: string;
+  outboundChannelId: string | null;
+  bridgeId: string | null;
+  trunkId: number;
+  callerId: string;
+  destination: string;
+  startedAt: Date;
+  answeredAt: Date | null;
+  recordOutboundCalls: boolean;
+  recording: {
+    name: string;
+    fileName: string;
+    filePath: string;
+    format: string;
+    startedAt: Date;
+    endedAt: Date | null;
+  } | null;
+  cleanupStarted: boolean;
+}
+
+interface DirectOutboundAriClient {
+  on: (event: string, listener: (event: { channel?: { id?: string } }) => void) => void;
+  removeListener: (event: string, listener: (event: { channel?: { id?: string } }) => void) => void;
+  channels: {
+    originate: (params: {
+      endpoint: string;
+      app: string;
+      appArgs: string;
+      callerId: string;
+      timeout: number;
+    }) => Promise<{ id?: string } | void>;
+    hangup: (params: { channelId: string }) => Promise<void>;
+    startMoh?: (params: { channelId: string; mohClass?: string }) => Promise<void>;
+    stopMoh?: (params: { channelId: string }) => Promise<void>;
+  };
+  bridges: {
+    create: (params: { type: string; name?: string }) => Promise<{ id: string }>;
+    addChannel: (params: { bridgeId: string; channel: string }) => Promise<void>;
+    destroy: (params: { bridgeId: string }) => Promise<void>;
+  };
 }
 
 function buildAriUrl(path: string, query?: Record<string, string>): string {
@@ -159,6 +237,432 @@ async function resolveInboundRoute(
     did: route.did,
     flowId: route.flowId,
   };
+}
+
+async function fetchDirectOutboundSettings(): Promise<DirectOutboundSettingsResponse> {
+  const response = await fetch(`${BACKEND_URL}/settings`);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`settings_lookup_failed status=${response.status} body=${body}`);
+  }
+
+  const payload = (await response.json()) as {
+    data?: DirectOutboundSettingsResponse;
+  };
+  return {
+    default_outbound_trunk_id: payload.data?.default_outbound_trunk_id ?? null,
+    record_outbound_calls: Boolean(payload.data?.record_outbound_calls),
+  };
+}
+
+async function fetchDefaultOutboundTrunk(): Promise<DirectOutboundTrunkResponse | null> {
+  const response = await fetch(`${BACKEND_URL}/settings/default-trunk`);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`default_trunk_lookup_failed status=${response.status} body=${body}`);
+  }
+
+  const payload = (await response.json()) as {
+    data?: DirectOutboundTrunkResponse | null;
+  };
+  return payload.data ?? null;
+}
+
+function trackDirectOutboundCallChannel(call: DirectOutboundActiveCall, channelId: string | null): void {
+  if (!channelId) {
+    return;
+  }
+  directOutboundCalls.set(channelId, call);
+}
+
+function untrackDirectOutboundCall(call: DirectOutboundActiveCall): void {
+  directOutboundCalls.delete(call.inboundChannelId);
+  if (call.outboundChannelId) {
+    directOutboundCalls.delete(call.outboundChannelId);
+  }
+}
+
+async function startDirectOutboundMoh(ariClientRaw: unknown, channelId: string): Promise<void> {
+  const ariClient = ariClientRaw as DirectOutboundAriClient;
+  if (!ariClient.channels.startMoh) {
+    return;
+  }
+  await ariClient.channels.startMoh({ channelId, mohClass: DIRECT_OUTBOUND_MOH_CLASS });
+}
+
+async function stopDirectOutboundMoh(ariClientRaw: unknown, channelId: string): Promise<void> {
+  const ariClient = ariClientRaw as DirectOutboundAriClient;
+  if (!ariClient.channels.stopMoh) {
+    return;
+  }
+  try {
+    await ariClient.channels.stopMoh({ channelId });
+  } catch {
+    // channel may already be gone
+  }
+}
+
+async function createDirectOutboundBridge(
+  ariClientRaw: unknown,
+  inboundChannelId: string,
+  outboundChannelId: string,
+): Promise<{ id: string }> {
+  const ariClient = ariClientRaw as DirectOutboundAriClient;
+  const bridge = await ariClient.bridges.create({
+    type: "mixing,dtmf_events",
+    name: `direct-outbound-${inboundChannelId}`,
+  });
+  await ariClient.bridges.addChannel({ bridgeId: bridge.id, channel: inboundChannelId });
+  await ariClient.bridges.addChannel({ bridgeId: bridge.id, channel: outboundChannelId });
+  logEvent("BridgeCreated", { bridgeId: bridge.id, bridgeType: "mixing,dtmf_events" });
+  return bridge;
+}
+
+function computeDirectOutboundDurationSeconds(call: DirectOutboundActiveCall, endedAt: Date): number | null {
+  if (!call.answeredAt) {
+    return null;
+  }
+  return Math.max(0, Math.round((endedAt.getTime() - call.answeredAt.getTime()) / 1000));
+}
+
+async function publishDirectOutboundStarted(call: DirectOutboundActiveCall): Promise<void> {
+  const startedAt = call.startedAt.toISOString();
+  await publishCallEvent({
+    callId: call.callId,
+    timestamp: startedAt,
+    type: "started",
+    caller: call.callerId,
+    callerId: call.callerId,
+    direction: "outbound",
+    destination: call.destination,
+    startedAt,
+    answeredAt: null,
+    endedAt: null,
+    duration: null,
+    trunkId: call.trunkId,
+    recorded: call.recordOutboundCalls,
+  });
+}
+
+async function publishDirectOutboundFailed(
+  call: DirectOutboundActiveCall,
+  endedAt: Date,
+  failureReason: string,
+): Promise<void> {
+  await publishCallEvent({
+    callId: call.callId,
+    timestamp: endedAt.toISOString(),
+    type: "failed",
+    caller: call.callerId,
+    callerId: call.callerId,
+    direction: "outbound",
+    destination: call.destination,
+    failureReason,
+    answeredAt: call.answeredAt ? call.answeredAt.toISOString() : null,
+    endedAt: endedAt.toISOString(),
+    duration: computeDirectOutboundDurationSeconds(call, endedAt),
+    trunkId: call.trunkId,
+    recorded: call.recordOutboundCalls,
+  });
+}
+
+async function publishDirectOutboundEnded(
+  call: DirectOutboundActiveCall,
+  endedAt: Date,
+): Promise<void> {
+  await publishCallEvent({
+    callId: call.callId,
+    timestamp: endedAt.toISOString(),
+    type: "ended",
+    caller: call.callerId,
+    callerId: call.callerId,
+    direction: "outbound",
+    destination: call.destination,
+    answeredAt: call.answeredAt ? call.answeredAt.toISOString() : null,
+    endedAt: endedAt.toISOString(),
+    duration: computeDirectOutboundDurationSeconds(call, endedAt),
+    trunkId: call.trunkId,
+    recorded: call.recordOutboundCalls,
+  });
+}
+
+async function persistDirectOutboundRecording(call: DirectOutboundActiveCall): Promise<void> {
+  if (!call.recording) {
+    return;
+  }
+
+  const endedAt = call.recording.endedAt || new Date();
+  const durationSeconds = call.answeredAt
+    ? Math.max(0, Math.round((endedAt.getTime() - call.recording.startedAt.getTime()) / 1000))
+    : null;
+
+  if (!call.recording.endedAt) {
+    try {
+      await stopInboundRecording(call.recording.name);
+    } catch (error) {
+      stasisLogger.error(
+        `[recording] stop failed call_id=${call.callId} file=${call.recording.fileName}:`,
+        error,
+      );
+    }
+  }
+
+  const response = await fetch(`${BACKEND_URL}/recordings/internal`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-token": RECORDINGS_INTERNAL_TOKEN,
+    },
+    body: JSON.stringify({
+      callId: call.callId,
+      channelId: call.inboundChannelId,
+      flowId: null,
+      fileName: call.recording.fileName,
+      filePath: call.recording.filePath,
+      format: call.recording.format,
+      durationSeconds,
+      startedAt: call.recording.startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`record_persist_failed status=${response.status} body=${body}`);
+  }
+}
+
+async function cleanupDirectOutboundCall(
+  ariClientRaw: unknown,
+  call: DirectOutboundActiveCall,
+  endingChannelId: string | null,
+  failureReason: string | null = null,
+): Promise<void> {
+  if (call.cleanupStarted) {
+    return;
+  }
+  call.cleanupStarted = true;
+
+  const ariClient = ariClientRaw as DirectOutboundAriClient;
+  const endedAt = new Date();
+  untrackDirectOutboundCall(call);
+
+  await stopDirectOutboundMoh(ariClient, call.inboundChannelId);
+
+  if (call.recording && !call.recording.endedAt) {
+    call.recording.endedAt = endedAt;
+  }
+
+  if (call.bridgeId) {
+    await destroyInboundBridge(ariClient, call.bridgeId);
+    call.bridgeId = null;
+  }
+
+  const channelsToHangup = [call.inboundChannelId, call.outboundChannelId].filter(
+    (channelId): channelId is string => Boolean(channelId && channelId !== endingChannelId),
+  );
+  for (const channelId of channelsToHangup) {
+    await ariClient.channels.hangup({ channelId }).catch(() => undefined);
+  }
+
+  if (call.answeredAt) {
+    await publishDirectOutboundEnded(call, endedAt).catch((error) => {
+      stasisLogger.error("[direct-outbound] publish ended failed:", error);
+    });
+  } else {
+    await publishDirectOutboundFailed(
+      call,
+      endedAt,
+      failureReason || "call ended before answer",
+    ).catch((error) => {
+      stasisLogger.error("[direct-outbound] publish failed failed:", error);
+    });
+  }
+
+  await persistDirectOutboundRecording(call).catch((error) => {
+    stasisLogger.error("[direct-outbound] persist recording failed:", error);
+  });
+}
+
+async function waitForDirectOutboundAnswer(
+  ariClientRaw: unknown,
+  token: string,
+  inboundChannelId: string,
+  originate: () => Promise<void>,
+  timeoutMs: number,
+): Promise<{
+  answered: true;
+  channel: { id: string; hangup: () => Promise<void> };
+} | {
+  answered: false;
+  reason: "failed" | "destroyed" | "timeout" | "caller_disconnected";
+}> {
+  const ariClient = ariClientRaw as DirectOutboundAriClient;
+  const waiter = registerDirectOutboundWaiter(token);
+  let settled = false;
+  let timeoutHandle: NodeJS.Timeout | null = null;
+
+  const onInboundEnd = (event: { channel?: { id?: string } }) => {
+    if (event.channel?.id !== inboundChannelId) {
+      return;
+    }
+    rejectDirectOutboundWaiter(token, "caller_disconnected");
+  };
+
+  const cleanup = () => {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
+    ariClient.removeListener("StasisEnd", onInboundEnd);
+    ariClient.removeListener("ChannelDestroyed", onInboundEnd);
+  };
+
+  ariClient.on("StasisEnd", onInboundEnd);
+  ariClient.on("ChannelDestroyed", onInboundEnd);
+
+  try {
+    await originate();
+  } catch {
+    rejectDirectOutboundWaiter(token, "failed");
+  }
+
+  timeoutHandle = setTimeout(() => {
+    rejectDirectOutboundWaiter(token, "timeout");
+  }, timeoutMs);
+
+  const result = await waiter;
+  if (!settled) {
+    settled = true;
+    cleanup();
+  }
+  return result;
+}
+
+async function handleDirectOutboundDial(
+  ariClientRaw: unknown,
+  event: {
+    channel?: {
+      caller?: { number?: string };
+      dialplan?: { exten?: string };
+    };
+  },
+  channel: {
+    id: string;
+    hangup: () => Promise<void>;
+  },
+): Promise<void> {
+  const calledExten = String(event.channel?.dialplan?.exten || "").trim();
+  const callerNumber = String(event.channel?.caller?.number || "unknown").trim() || "unknown";
+  const destination = calledExten.slice(1).trim();
+  try {
+    await startDirectOutboundMoh(ariClientRaw, channel.id);
+  } catch (error) {
+    stasisLogger.error("[direct-outbound] hold audio start failed:", error);
+  }
+
+  if (!/^\d+$/.test(destination)) {
+    await channel.hangup().catch(() => undefined);
+    return;
+  }
+
+  let settings: DirectOutboundSettingsResponse;
+  let trunk: DirectOutboundTrunkResponse | null;
+  try {
+    [settings, trunk] = await Promise.all([
+      fetchDirectOutboundSettings(),
+      fetchDefaultOutboundTrunk(),
+    ]);
+  } catch (error) {
+    stasisLogger.error("[direct-outbound] backend settings lookup failed:", error);
+    await channel.hangup().catch(() => undefined);
+    return;
+  }
+
+  if (!trunk) {
+    await channel.hangup().catch(() => undefined);
+    return;
+  }
+
+  const call: DirectOutboundActiveCall = {
+    callId: channel.id,
+    inboundChannelId: channel.id,
+    outboundChannelId: null,
+    bridgeId: null,
+    trunkId: trunk.id,
+    callerId: callerNumber,
+    destination,
+    startedAt: new Date(),
+    answeredAt: null,
+    recordOutboundCalls: settings.record_outbound_calls,
+    recording: null,
+    cleanupStarted: false,
+  };
+  trackDirectOutboundCallChannel(call, call.inboundChannelId);
+
+  await publishDirectOutboundStarted(call).catch((error) => {
+    stasisLogger.error("[direct-outbound] publish started failed:", error);
+  });
+
+  const dialFormat = String(trunk.dialFormat || '{number}');
+  const formattedDestination = formatDialNumber(destination, dialFormat);
+
+  if (!formattedDestination) {
+    stasisLogger.error(`[direct-outbound] invalid number format: ${destination} with format ${dialFormat}`);
+    await cleanupDirectOutboundCall(ariClientRaw, call, null, 'invalid dial format');
+    return;
+  }
+
+  const token = `direct-outbound-${call.inboundChannelId}-${Date.now()}`;
+  const endpoint = `PJSIP/${formattedDestination}@trunk-${trunk.id}`;
+  const waitResult = await waitForDirectOutboundAnswer(
+    ariClientRaw,
+    token,
+    call.inboundChannelId,
+    async () => {
+      const ariClient = ariClientRaw as DirectOutboundAriClient;
+      await ariClient.channels.originate({
+        endpoint,
+        app: ARI_APP,
+        appArgs: `direct-outbound,${token}`,
+        callerId: trunk.fromUser || "",
+        timeout: Math.max(1, Math.ceil(DIRECT_OUTBOUND_TIMEOUT_MS / 1000)),
+      });
+    },
+    DIRECT_OUTBOUND_TIMEOUT_MS,
+  );
+
+  if (waitResult.answered === false) {
+    await cleanupDirectOutboundCall(ariClientRaw, call, null, waitResult.reason);
+    return;
+  }
+
+  call.answeredAt = new Date();
+  call.outboundChannelId = waitResult.channel.id;
+  trackDirectOutboundCallChannel(call, call.outboundChannelId);
+
+  await stopDirectOutboundMoh(ariClientRaw, call.inboundChannelId);
+
+  try {
+    const bridge = await createDirectOutboundBridge(
+      ariClientRaw,
+      call.inboundChannelId,
+      call.outboundChannelId,
+    );
+    call.bridgeId = bridge.id;
+
+    if (call.recordOutboundCalls) {
+      call.recording = await startBridgeRecording(call.bridgeId, call.callId);
+    }
+  } catch (error) {
+    stasisLogger.error("[direct-outbound] bridge setup failed:", error);
+    await cleanupDirectOutboundCall(
+      ariClientRaw,
+      call,
+      null,
+      error instanceof Error ? error.message : "bridge setup failed",
+    );
+  }
 }
 
 async function startBridgeRecording(
@@ -565,6 +1069,18 @@ async function start(): Promise<void> {
           return;
         }
 
+        if (event.args?.[0] === "direct-outbound" && event.args[1]) {
+          const token = String(event.args[1]).trim();
+          if (!hasDirectOutboundWaiter(token)) {
+            try {
+              await client.channels.hangup({ channelId: channel.id });
+            } catch {}
+            return;
+          }
+          resolveDirectOutboundWaiter(token, channel);
+          return;
+        }
+
         if (event.args?.[0] === "trunk-test-outbound" && event.args[1]) {
           const testCallId = String(event.args[1]).trim();
           const audioFileIdRaw = String(event.args[2] || "").trim();
@@ -637,6 +1153,11 @@ async function start(): Promise<void> {
           stasisLogger.log(
             `Ignoring StasisStart for channel ${channel.id} context=${channelContext || "unknown"} exten=${channelExten || "unknown"}`,
           );
+          return;
+        }
+
+        if (channelExten.startsWith("#")) {
+          await handleDirectOutboundDial(client, event, channel);
           return;
         }
 
@@ -804,6 +1325,11 @@ async function start(): Promise<void> {
         if (await campaignExecutor.handleChannelEnd(channelId)) {
           return;
         }
+        const directOutboundCall = directOutboundCalls.get(channelId);
+        if (directOutboundCall) {
+          await cleanupDirectOutboundCall(client, directOutboundCall, channelId);
+          return;
+        }
         const testState = testCallStates.get(channelId);
         if (testState) {
           if (testState.type === "inbound") {
@@ -934,6 +1460,16 @@ async function start(): Promise<void> {
         if (
           await campaignExecutor.handleChannelEnd(channel.id, event.cause_txt)
         ) {
+          return;
+        }
+        const directOutboundCall = directOutboundCalls.get(channel.id);
+        if (directOutboundCall) {
+          await cleanupDirectOutboundCall(
+            client,
+            directOutboundCall,
+            channel.id,
+            String(event.cause_txt || "channel destroyed"),
+          );
           return;
         }
         const testState = testCallStates.get(channel.id);

@@ -60,6 +60,7 @@ export function CampaignsPage() {
 
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -104,6 +105,7 @@ export function CampaignsPage() {
   const formOpen = createOpen || editingCampaign !== null;
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : editingCampaign ? 'save campaign' : 'add campaign';
   const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
+  const blockingLoadError = !loading ? loadError : null;
 
   const flowOptions = useMemo(
     () => flows.map((flow) => ({ value: String(flow.id), label: flow.name })),
@@ -136,13 +138,14 @@ export function CampaignsPage() {
   const loadCampaigns = async (nextPage = page) => {
     setLoading(true);
     setErrorText(null);
+    setLoadError(null);
     try {
       const offset = (nextPage - 1) * PAGE_SIZE;
       const response = await listCampaigns(PAGE_SIZE, offset);
       setCampaigns(response.campaigns);
       setTotal(response.total);
     } catch (error) {
-      setErrorText(getApiError(error, 'failed to load campaigns'));
+      setLoadError(getApiError(error, 'failed to load campaigns'));
     } finally {
       setLoading(false);
     }
@@ -388,6 +391,9 @@ export function CampaignsPage() {
 
   return (
     <div className={styles.page}>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <>
       <div className={styles.pageHeader}>
         <PageLayout title="campaigns" subtitle="outbound" />
         <button
@@ -627,6 +633,8 @@ export function CampaignsPage() {
             }
           }}
         />
+        </>
+      ) : null}
       </div>
   );
 }

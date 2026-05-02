@@ -22,7 +22,7 @@ vi.mock('../lib/api', () => ({
     trunks: [{ trunkName: 'Main trunk', host: 'sip.example.com', status: 'registered', lastRegistration: new Date().toISOString(), expiresIn: 600 }],
   })),
   listTrunks: vi.fn(async () => ({
-    data: [{ id: 1, name: 'Main trunk', providerPreset: 'generic', host: 'sip.example.com', port: 5060, protocol: 'udp', username: null, password: null, fromDomain: null, fromUser: null, enabled: true, createdAt: new Date().toISOString() }],
+    data: [{ id: 1, name: 'Main trunk', providerPreset: 'generic', host: 'sip.example.com', port: 5060, protocol: 'udp', username: null, password: null, fromDomain: null, fromUser: null, dialFormat: '{number}', enabled: true, createdAt: new Date().toISOString() }],
     total: 1,
   })),
   getDiagnosticsFailures: vi.fn(async () => ({

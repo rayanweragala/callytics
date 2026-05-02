@@ -5,6 +5,8 @@ import { FlowNode } from '../flowLoader';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { logEvent } from '../logger';
 import { beginNodeRecording } from '../bridgeRecording';
+import { formatDialNumber } from '../lib/formatDialNumber';
+import { fetchTrunkDialFormat } from '../lib/trunkResolver';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
 
@@ -474,15 +476,23 @@ async function resolveHuntDialString(destination: HuntDestinationConfig): Promis
 
   if (destination.target_type === 'pstn') {
     if (destination.trunk_id && PSTN_TARGET_PATTERN.test(destination.target_value)) {
+      const dialFormat = await fetchTrunkDialFormat(destination.trunk_id);
       const dialNumber = normalizeDialNumber(destination.target_value);
-      return `PJSIP/${dialNumber}@trunk-${destination.trunk_id}`;
+      const formatted = formatDialNumber(dialNumber, dialFormat);
+      if (formatted) {
+        return `PJSIP/${formatted}@trunk-${destination.trunk_id}`;
+      }
     }
 
     if (PSTN_TARGET_PATTERN.test(destination.target_value)) {
       const contactByNumber = await fetchContactNumberByPhone(destination.target_value);
       if (contactByNumber?.trunkId) {
+        const dialFormat = await fetchTrunkDialFormat(contactByNumber.trunkId);
         const dialNumber = normalizeDialNumber(contactByNumber.number);
-        return `PJSIP/${dialNumber}@trunk-${contactByNumber.trunkId}`;
+        const formatted = formatDialNumber(dialNumber, dialFormat);
+        if (formatted) {
+          return `PJSIP/${formatted}@trunk-${contactByNumber.trunkId}`;
+        }
       }
     }
 
@@ -504,8 +514,12 @@ async function resolveHuntDialString(destination: HuntDestinationConfig): Promis
       return '';
     }
 
+    const dialFormat = await fetchTrunkDialFormat(contact.trunkId);
     const dialNumber = normalizeDialNumber(contact.number);
-    return `PJSIP/${dialNumber}@trunk-${contact.trunkId}`;
+    const formatted = formatDialNumber(dialNumber, dialFormat);
+    if (formatted) {
+      return `PJSIP/${formatted}@trunk-${contact.trunkId}`;
+    }
   }
 
   return '';

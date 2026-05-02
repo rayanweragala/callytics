@@ -42,6 +42,11 @@ export class UpdateTrunkDto {
   fromUser?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  dialFormat?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 }

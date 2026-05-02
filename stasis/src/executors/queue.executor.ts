@@ -6,6 +6,8 @@ import { createClient, RedisClientType } from 'redis';
 import { resolveAudioMediaPath } from '../audioResolver';
 import { logEvent } from '../logger';
 import { beginNodeRecording } from '../bridgeRecording';
+import { formatDialNumber } from '../lib/formatDialNumber';
+import { fetchTrunkDialFormat } from '../lib/trunkResolver';
 
 interface QueueConfig {
   queue_id?: number;
@@ -19,6 +21,11 @@ interface QueueRow {
   name: string;
   max_wait_seconds: number;
   wait_audio_file_id: number | null;
+}
+
+interface QueuePstnMember {
+  number: string;
+  trunkId: number;
 }
 
 async function getRedis(): Promise<RedisClientType> {
@@ -84,6 +91,74 @@ async function playQueuePrompt(
   await playMedia(target, ariClient, `sound:${promptPath}`, playback);
 }
 
+async function resolveQueuePstnMember(operatorId: number): Promise<QueuePstnMember | null> {
+  const rows = await query(
+    `
+      SELECT
+        COALESCE(c.number, o.callback_number) AS number,
+        COALESCE(c.trunk_id, o.callback_trunk_id) AS trunk_id
+      FROM operators o
+      LEFT JOIN contact_numbers c ON c.id = o.contact_number_id
+      WHERE o.id = $1
+      LIMIT 1
+    `,
+    [operatorId],
+  ) as Array<{ number?: string | null; trunk_id?: number | null }>;
+
+  const row = Array.isArray(rows) ? rows[0] : undefined;
+  const number = String(row?.number || '').trim();
+  const trunkId = Number(row?.trunk_id || 0);
+  if (!number || !trunkId) {
+    return null;
+  }
+  return { number, trunkId };
+}
+
+async function originateQueuePstnMember(
+  ariClient: unknown,
+  operatorId: number,
+  queueId: number,
+): Promise<string | null> {
+  const member = await resolveQueuePstnMember(operatorId);
+  if (!member) {
+    return null;
+  }
+
+  const dialFormat = await fetchTrunkDialFormat(member.trunkId);
+  const formattedNumber = formatDialNumber(member.number, dialFormat);
+  if (!formattedNumber) {
+    logEvent('QueuePstnMemberSkipped', { operatorId, queueId, trunkId: member.trunkId });
+    return null;
+  }
+
+  const ari = ariClient as {
+    channels: {
+      originate?: (params: {
+        endpoint: string;
+        app: string;
+        appArgs: string;
+        callerId: string;
+        timeout: number;
+      }) => Promise<{ id?: string } | void>;
+    };
+  };
+
+  if (!ari.channels.originate) {
+    return null;
+  }
+
+  const result = await ari.channels.originate({
+    endpoint: `PJSIP/${formattedNumber}@trunk-${member.trunkId}`,
+    app: process.env.ARI_APP || 'callytics',
+    appArgs: `queue-outbound,${queueId},${operatorId}`,
+    callerId: '',
+    timeout: 30,
+  });
+
+  const channelId = String(result && 'id' in result ? result.id || '' : '').trim();
+  return channelId || null;
+}
+
 export async function executeQueue(
   channel: { id: string; play: (opts: { media: string }, playback: { id: string }) => Promise<void>; hangup: () => Promise<void> },
   node: FlowNode,
@@ -133,7 +208,14 @@ export async function executeQueue(
       if (!operatorId) {
         // Race condition — fall through to wait
       } else {
-        const operatorChannelId = await redis.get(`operator:${operatorId}:channel`);
+        let operatorChannelId = await redis.get(`operator:${operatorId}:channel`);
+        if (!operatorChannelId) {
+          operatorChannelId = await originateQueuePstnMember(
+            ariClient,
+            Number(operatorId),
+            queueId,
+          );
+        }
         if (operatorChannelId) {
           await redis.sAdd(`queue:${queueStr}:busy`, operatorId);
 

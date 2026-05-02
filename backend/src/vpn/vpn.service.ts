@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, OnModuleInit, forwardRef } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -95,6 +95,7 @@ export class VpnService implements OnModuleInit {
     @InjectRepository(VpnPeerEntity)
     private readonly peersRepository: Repository<VpnPeerEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(forwardRef(() => AsteriskConfigService))
     private readonly asteriskConfigService: AsteriskConfigService,
   ) {}
 
@@ -468,6 +469,7 @@ export class VpnService implements OnModuleInit {
       await this.applyRelayHostNetworking(relayNetworkState);
       await this.writeRelayActiveFlag(true);
       await this.syncRelayPjsipTransport();
+      await this.syncRelayExtensionsConfig();
       return { success: true };
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ConflictException) {
@@ -487,6 +489,7 @@ export class VpnService implements OnModuleInit {
       await this.removeRelayContainerIfExists();
       await this.writeRelayActiveFlag(false);
       await this.syncRelayPjsipTransport();
+      await this.syncRelayExtensionsConfig();
       return { success: true };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -1100,6 +1103,12 @@ export class VpnService implements OnModuleInit {
     const relayConfig = relayStatus.active ? await this.getRelayConfig() : null;
     const externalAddress = relayStatus.active ? relayConfig?.vpsPublicIp || null : null;
     await this.asteriskConfigService.syncUdpTransport(externalAddress);
+  }
+
+  private async syncRelayExtensionsConfig(): Promise<void> {
+    const relayStatus = await this.getRelayStatus();
+    const relayConfig = relayStatus.active ? await this.getRelayConfig() : null;
+    const externalAddress = relayStatus.active ? relayConfig?.vpsPublicIp || null : null;
     await this.asteriskConfigService.syncExtensionsRelayConfig(externalAddress);
   }
 

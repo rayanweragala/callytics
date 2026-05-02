@@ -153,10 +153,14 @@ export function AsteriskLogsPage() {
     setSearch('');
     setOffset(0);
   };
+  const blockingLoadError = !loading ? errorText : null;
 
   return (
     <PageLayout title="Asterisk Logs" subtitle="monitor">
       <div className={styles.page}>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+        {!blockingLoadError ? (
+          <>
         {hasCallDrillDown ? (
           <div className={styles.callFilterBanner}>
             <span>Showing logs for call {uniqueidFilter || 'unknown'}</span>
@@ -229,11 +233,6 @@ export function AsteriskLogsPage() {
                   <td colSpan={5} className={styles.empty}><Loading message="Loading logs..." /></td>
                 </tr>
               ) : null}
-              {!loading && errorText ? (
-                <tr>
-                  <td colSpan={5} className={styles.empty}><ErrorMessage message={errorText} /></td>
-                </tr>
-              ) : null}
               {!loading && !errorText && entries.length === 0 ? (
                 <tr>
                   <td colSpan={5} className={styles.empty}>{emptyText}</td>
@@ -282,6 +281,8 @@ export function AsteriskLogsPage() {
 
           <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * PAGE_SIZE)} />
         </div>
+        </>
+        ) : null}
       </div>
     </PageLayout>
   );

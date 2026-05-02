@@ -132,10 +132,20 @@ export function CampaignDetailPage() {
     }
   };
 
+  const blockingLoadError = !loading ? errorText : null;
+
   const pending = useMemo(
     () => Math.max(0, effectiveProgress.totalContacts - (effectiveProgress.answeredCount + effectiveProgress.failedCount)),
     [effectiveProgress],
   );
+
+  if (blockingLoadError) {
+    return (
+      <PageLayout title={campaign?.name || 'campaign'} subtitle="outbound">
+        <ErrorMessage message={blockingLoadError} />
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout title={campaign?.name || 'campaign'} subtitle="outbound">

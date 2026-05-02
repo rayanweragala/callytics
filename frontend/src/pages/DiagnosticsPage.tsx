@@ -72,13 +72,12 @@ export function DiagnosticsPage() {
   const [failuresPage, setFailuresPage] = useState(1);
   const [failuresTotal, setFailuresTotal] = useState(0);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [successText, setSuccessText] = useState<string | null>(null);
   const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
   const [ladderCallId, setLadderCallId] = useState<string | null>(null);
   const [ladderFailedAt, setLadderFailedAt] = useState<string | undefined>(undefined);
   const [ladderError, setLadderError] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<DiagnosticsTab>('network');
-  const successTimerRef = useRef<number | null>(null);
+
 
   const failureTotalPages = Math.max(1, Math.ceil(failuresTotal / FAILURES_PAGE_SIZE));
 
@@ -199,22 +198,7 @@ export function DiagnosticsPage() {
     return () => window.clearTimeout(timer);
   }, [pageError]);
 
-  useEffect(() => {
-    if (!successText) {
-      return;
-    }
 
-    if (successTimerRef.current) {
-      window.clearTimeout(successTimerRef.current);
-    }
-
-    successTimerRef.current = window.setTimeout(() => setSuccessText(null), 6000);
-    return () => {
-      if (successTimerRef.current) {
-        window.clearTimeout(successTimerRef.current);
-      }
-    };
-  }, [successText]);
 
   const handleTestTrunk = async (id: number) => {
     setBusyIds((current) => [...current, id]);
@@ -222,11 +206,7 @@ export function DiagnosticsPage() {
       const result = await testDiagnosticsTrunk(id);
       setTrunkResults((current) => ({ ...current, [id]: result }));
       const trunkName = trunks.find((item) => item.id === id)?.name || `trunk ${id}`;
-      if (result.status === 'reachable') {
-        setSuccessText(`Trunk "${trunkName}" is reachable — TCP and SIP both responding.`);
-      } else if (result.status === 'sip_unreachable') {
-        setSuccessText(`Trunk "${trunkName}" TCP reachable but SIP OPTIONS failed. Check remote SIP stack.`);
-      } else if (result.status === 'unreachable') {
+      if (result.status === 'unreachable') {
         setPageError(result.message || `Trunk "${trunkName}" is unreachable.`);
       }
     } catch (error) {
@@ -255,7 +235,6 @@ export function DiagnosticsPage() {
           });
         }
       }
-      setSuccessText('All trunk tests complete.');
     } catch (error) {
       setPageError(getApiError(error, 'failed to test all trunks'));
     } finally {
@@ -323,12 +302,20 @@ export function DiagnosticsPage() {
     registrations: 'Registrations',
     traffic: 'Traffic',
   };
+  const initialPageLoadFailed =
+    !isHealthInitial &&
+    !isRegistrationsInitial &&
+    !isTrunksInitial &&
+    !isFailuresInitial &&
+    Boolean(healthError || registrationsError || trunksError || failuresError);
 
   return (
     <PageLayout actions={actions} subtitle="monitor" title="Diagnostics">
       <div className={styles.page}>
+        {initialPageLoadFailed ? <ErrorMessage message={healthError || registrationsError || trunksError || failuresError} /> : null}
+        {!initialPageLoadFailed ? (
+          <>
         <ErrorMessage message={pageError} />
-        {successText ? <div className={styles.successText}>{successText}</div> : null}
 
         <div className={styles.tabBar}>
           {(Object.keys(TAB_LABELS) as DiagnosticsTab[]).map((tab) => (
@@ -450,6 +437,8 @@ export function DiagnosticsPage() {
               />
             )}
           </div>
+        ) : null}
+          </>
         ) : null}
       </div>
 

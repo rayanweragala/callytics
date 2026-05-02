@@ -70,6 +70,7 @@ export function VpnPage() {
   const [peerLoading, setPeerLoading] = useState(false);
   const [guideLoading, setGuideLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [initialLoadError, setInitialLoadError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [qrPeer, setQrPeer] = useState<VpnPeer | null>(null);
   const [peerToRevoke, setPeerToRevoke] = useState<VpnPeer | null>(null);
@@ -85,16 +86,8 @@ export function VpnPage() {
   const [relayInlineError, setRelayInlineError] = useState<string | null>(null);
   const [confirmRemoveVpn, setConfirmRemoveVpn] = useState(false);
   const [removingVpn, setRemovingVpn] = useState(false);
-  const [successText, setSuccessText] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showSuccess = (msg: string) => {
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    setSuccessText(msg);
-    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
-  };
 
   const showCopied = (key: string) => {
     setCopiedKey(key);
@@ -114,26 +107,34 @@ export function VpnPage() {
     }
   };
 
-  const loadStatus = async () => {
+  const loadStatus = async (markInitialError = false) => {
     setPageError(null);
     try {
       const nextStatus = await getVpnStatus();
       setStatus(nextStatus);
       return nextStatus;
     } catch (error) {
-      setPageError(getApiError(error, 'failed to load VPN status'));
+      const message = getApiError(error, 'failed to load VPN status');
+      setPageError(message);
+      if (markInitialError) {
+        setInitialLoadError((current) => current || message);
+      }
       return EMPTY_STATUS;
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPeers = async () => {
+  const loadPeers = async (markInitialError = false) => {
     try {
       const nextPeers = await listVpnPeers();
       setPeers(nextPeers);
     } catch (error) {
-      setPageError(getApiError(error, 'failed to load VPN peers'));
+      const message = getApiError(error, 'failed to load VPN peers');
+      setPageError(message);
+      if (markInitialError) {
+        setInitialLoadError((current) => current || message);
+      }
     }
   };
 
@@ -149,19 +150,23 @@ export function VpnPage() {
     }
   };
 
-  const loadRelayStatus = async () => {
+  const loadRelayStatus = async (markInitialError = false) => {
     setRelayStatusLoading(true);
     try {
       const next = await getVpnRelayStatus();
       setRelayStatus(next);
     } catch (error) {
-      setPageError(getApiError(error, 'failed to load relay status'));
+      const message = getApiError(error, 'failed to load relay status');
+      setPageError(message);
+      if (markInitialError) {
+        setInitialLoadError((current) => current || message);
+      }
     } finally {
       setRelayStatusLoading(false);
     }
   };
 
-  const loadRelayConfig = async () => {
+  const loadRelayConfig = async (markInitialError = false) => {
     setRelayConfigLoading(true);
     try {
       const data = await getVpnRelayConfig();
@@ -169,7 +174,11 @@ export function VpnPage() {
       setRelayPublicKey(data.vpsPublicKey || '');
       setRelayPublicIp(data.vpsPublicIp || '');
     } catch (error) {
-      setPageError(getApiError(error, 'failed to load relay config'));
+      const message = getApiError(error, 'failed to load relay config');
+      setPageError(message);
+      if (markInitialError) {
+        setInitialLoadError((current) => current || message);
+      }
     } finally {
       setRelayConfigLoading(false);
     }
@@ -177,13 +186,16 @@ export function VpnPage() {
 
   useEffect(() => {
     const loadInitial = async () => {
+      setInitialLoadError(null);
       try {
-        const [nextStatus] = await Promise.all([loadStatus(), loadRelayStatus(), loadRelayConfig()]);
+        const [nextStatus] = await Promise.all([loadStatus(true), loadRelayStatus(true), loadRelayConfig(true)]);
         if (nextStatus.installed) {
-          await loadPeers();
+          await loadPeers(true);
         }
       } catch (error) {
-        setPageError(getApiError(error, 'failed to load VPN page'));
+        const message = getApiError(error, 'failed to load VPN page');
+        setPageError(message);
+        setInitialLoadError((current) => current || message);
       }
     };
     void loadInitial();
@@ -224,9 +236,6 @@ export function VpnPage() {
     }
     if (pollTimer.current) {
       clearInterval(pollTimer.current);
-    }
-    if (successTimerRef.current) {
-      clearTimeout(successTimerRef.current);
     }
   }, []);
 
@@ -297,7 +306,6 @@ export function VpnPage() {
     setPeers((current) => current.filter((item) => item.id !== peer.id));
     try {
       await revokeVpnPeer(peer.id);
-      showSuccess(`Revoked ${peer.name}`);
     } catch (error) {
       setPageError(getApiError(error, 'failed to revoke peer'));
       await loadPeers();
@@ -396,8 +404,24 @@ export function VpnPage() {
 
   if (loading) {
     return (
-      <PageLayout title="WireGuard VPN" subtitle="system" actions={actions}>
+      <PageLayout title="WireGuard VPN" subtitle="system">
         <div className={styles.loadingCard}>Loading VPN status...</div>
+      </PageLayout>
+    );
+  }
+
+  if (initialLoadError) {
+    return (
+      <PageLayout title="WireGuard VPN" subtitle="system">
+        <ErrorMessage message={initialLoadError} />
+      </PageLayout>
+    );
+  }
+
+  if (pageError) {
+    return (
+      <PageLayout title="WireGuard VPN" subtitle="system">
+        <ErrorMessage message={pageError} />
       </PageLayout>
     );
   }
@@ -405,9 +429,6 @@ export function VpnPage() {
   return (
     <PageLayout title="WireGuard VPN" subtitle="system" actions={actions}>
       <div className={styles.page}>
-        <ErrorMessage message={pageError} />
-        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
-
         {!status.installed ? (
           <section className={styles.notInstalledCard}>
             <p>

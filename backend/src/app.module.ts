@@ -41,6 +41,7 @@ import { VpnModule } from './vpn/vpn.module';
 import { VpnPeerEntity } from './vpn/entities/vpn-peer.entity';
 import { FirewallModule } from './firewall/firewall.module';
 import { BackupModule } from './backup/backup.module';
+import { SettingsModule } from './settings/settings.module';
 import { BackupHistoryEntity } from './backup/entities/backup-history.entity';
 import { BackupConfigEntity } from './backup/entities/backup-config.entity';
 
@@ -106,6 +107,7 @@ import { BackupConfigEntity } from './backup/entities/backup-config.entity';
     FirewallModule,
     VpnModule,
     BackupModule,
+    SettingsModule,
   ],
   controllers: [HealthController],
   providers: [

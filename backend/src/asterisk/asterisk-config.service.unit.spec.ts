@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AsteriskConfigService } from "./asterisk-config.service";
 import { SipExtensionEntity } from "../extensions/entities/sip-extension.entity";
 import { SipTrunkEntity } from "../trunks/entities/sip-trunk.entity";
+import { VpnService } from "../vpn/vpn.service";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 
@@ -23,6 +24,25 @@ describe("AsteriskConfigService", () => {
           useValue: { find: jest.fn().mockResolvedValue([]) },
         },
         { provide: DataSource, useValue: { query: jest.fn() } },
+        {
+          provide: VpnService,
+          useValue: {
+            getRelayStatus: jest.fn(),
+            getStatus: jest.fn(),
+            listPeers: jest.fn(),
+            createPeer: jest.fn(),
+            getPeerConfig: jest.fn(),
+            getPeerQr: jest.fn(),
+            revokePeer: jest.fn(),
+            removeVpn: jest.fn(),
+            getRelayGuide: jest.fn(),
+            createRelayConfig: jest.fn(),
+            activateRelayTunnel: jest.fn(),
+            deactivateRelayTunnel: jest.fn(),
+            getRelayStatusResponse: jest.fn(),
+            getRelayConfig: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -76,6 +96,16 @@ describe("AsteriskConfigService", () => {
     expect(config).toContain("server_uri = sip:provider.com");
   });
 
+  it("buildInboundRoutesConfig always includes direct outbound dial pattern", () => {
+    const content = (service as any).buildInboundRoutesConfig([
+      { did: '1234' },
+    ]);
+
+    expect(content).toContain('exten => _#.,1,Stasis(callytics)');
+    expect(content).toContain('exten => _#.,n,Hangup()');
+    expect(content).toContain('exten => 1234,1,Stasis(callytics)');
+  });
+
   it("AMI reload command is called after config is written", async () => {
     const spyWrite = jest
       .spyOn(service, "writeExtensionsConfig")
@@ -99,7 +129,7 @@ describe("AsteriskConfigService", () => {
 
     expect(fsPromises.writeFile).toHaveBeenCalledWith(
       expect.stringContaining("pjsip_relay.conf"),
-      "; auto-generated relay settings \u2014 do not commit\n; external_* values come from the active relay/VPS public IP at runtime.\n; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.\n\nexternal_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\n\n#include pjsip_extensions_relay.conf\n",
+      "; auto-generated relay settings \u2014 do not commit\n; external_* values come from the active relay/VPS public IP at runtime.\n; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.\n\nexternal_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\nlocal_net = 10.8.0.0/24\nlocal_net = 172.16.0.0/12\nlocal_net = 127.0.0.1/32\nlocal_net = 10.20.0.0/16\n\n#include pjsip_extensions_relay.conf\n",
       "utf8",
     );
     // pjsip.conf must never be written to during a relay sync

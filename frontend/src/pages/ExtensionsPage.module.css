@@ -281,7 +281,6 @@
 }
 
 .confirmText,
-.successText,
 .failedText,
 .uriText,
 .dataMono,
@@ -361,14 +360,8 @@
 .skeletonW220 { width: 220px; }
 
 .displayName,
-.successText,
 .failedText {
   font-size: 14px;
-}
-
-.successText {
-  margin-top: 14px;
-  color: var(--color-active);
 }
 
 .vpnToggleField {

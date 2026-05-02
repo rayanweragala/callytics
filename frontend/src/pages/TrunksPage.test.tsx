@@ -5,6 +5,8 @@ import { TrunksPage } from './TrunksPage';
 import * as api from '../lib/api';
 
 vi.mock('../lib/api', () => ({
+  getSettings: vi.fn(),
+  updateSettings: vi.fn(),
   listTrunks: vi.fn(),
   listAllAudio: vi.fn(),
   createTrunk: vi.fn(),
@@ -31,11 +33,24 @@ describe('TrunksPage', () => {
           password: null,
           fromDomain: null,
           fromUser: null,
+          dialFormat: '{number}',
           enabled: true,
           createdAt: new Date().toISOString(),
         },
       ],
       total: 1,
+    });
+    (api.getSettings as any).mockResolvedValue({
+      data: {
+        default_outbound_trunk_id: null,
+        record_outbound_calls: false,
+      },
+    });
+    (api.updateSettings as any).mockResolvedValue({
+      data: {
+        default_outbound_trunk_id: 1,
+        record_outbound_calls: false,
+      },
     });
     (api.listAllAudio as any).mockResolvedValue({ data: [] });
     (api.testTrunk as any).mockResolvedValue({
@@ -74,5 +89,18 @@ describe('TrunksPage', () => {
     await waitFor(() => {
       expect(api.testTrunk).toHaveBeenCalledWith(1);
     });
+  });
+
+  it('shows the direct outbound settings note when no default trunk is selected', async () => {
+    render(
+      <MemoryRouter>
+        <TrunksPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Direct outbound dial is disabled. Select a default trunk to enable it.')).toBeInTheDocument());
+    expect(screen.getByText('default outbound trunk')).toBeInTheDocument();
+    expect(screen.getByText('Record outbound calls')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Record outbound calls' })).toBeInTheDocument();
   });
 });

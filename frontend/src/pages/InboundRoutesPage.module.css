@@ -247,7 +247,6 @@
 }
 
 .confirmText,
-.successText,
 .failedText,
 .dataMono,
 .createdAt {
@@ -274,14 +273,8 @@
 
 .labelText,
 .flowText,
-.successText,
 .failedText {
   font-size: 14px;
-}
-
-.successText {
-  margin-top: 14px;
-  color: var(--color-active);
 }
 
 @media (max-width: 1100px) {

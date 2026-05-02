@@ -20,6 +20,10 @@ jest.mock('../db', () => ({
   query: jest.fn(),
 }));
 
+jest.mock('../lib/trunkResolver', () => ({
+  fetchTrunkDialFormat: jest.fn().mockResolvedValue('{number}'),
+}));
+
 import { executeNode } from '../nodes';
 import { executeHunt } from '../nodes/hunt.executor';
 import { resolveAudioMediaPath } from '../audioResolver';
@@ -485,7 +489,7 @@ it('resolves pstn target through trunk and dials PJSIP/<number>@<trunk.username>
     await flushPromises(20);
 
     expect(ariClient.channels.originate).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: 'PJSIP/+18005551234@trunk-7' }),
+      expect.objectContaining({ endpoint: 'PJSIP/18005551234@trunk-7' }),
     );
 
     ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });

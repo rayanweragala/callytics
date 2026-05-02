@@ -37,6 +37,7 @@ export interface CallEvent {
   timestamp: string;
   type: 'started' | 'failed' | 'ended';
   caller: string;
+  callerId?: string;
   direction?: 'inbound' | 'outbound';
   destination?: string;
   flowId?: number;
@@ -46,6 +47,12 @@ export interface CallEvent {
   failedNode?: string;
   failureReason?: string;
   durationSeconds?: number;
+  startedAt?: string;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  duration?: number | null;
+  trunkId?: number | null;
+  recorded?: boolean;
 }
 
 export async function publishNodeTelemetry(

@@ -29,6 +29,9 @@ export class SipTrunkEntity {
   @Column({ name: 'from_user', type: 'varchar', length: 255, nullable: true })
   fromUser!: string | null;
 
+  @Column({ name: 'dial_format', type: 'varchar', length: 50, default: '{number}' })
+  dialFormat!: string;
+
   @Column({ type: 'boolean', default: true })
   enabled!: boolean;
 

@@ -12,6 +12,7 @@ import styles from './FlowsPage.module.css';
 
 export function FlowsPage() {
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [flows, setFlows] = useState<FlowSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -47,12 +48,15 @@ export function FlowsPage() {
 
   const loadFlows = async (nextPage = page, nextLimit = limit) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await listFlows(nextPage, nextLimit);
       setFlows(response.data);
       setPage(response.page);
       setLimit(response.limit);
       setTotalPages(response.totalPages);
+    } catch (error) {
+      setLoadError(getApiError(error, 'failed to load flows'));
     } finally {
       setLoading(false);
     }
@@ -85,6 +89,8 @@ export function FlowsPage() {
     }
   };
 
+  const blockingLoadError = !loading ? loadError : null;
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
@@ -93,53 +99,56 @@ export function FlowsPage() {
           new flow
         </button>
       </div>
-      <div className={styles.tableCard}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>name</th>
-              <th>created</th>
-              <th>actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={3} className={styles.emptyState}>—</td></tr>
-            ) : flows.length === 0 ? (
-              <tr><td colSpan={3} className={styles.emptyState}>No flows yet.</td></tr>
-            ) : (
-              flows.map((flow) => (
-                <tr key={flow.id}>
-                  <td>
-                    <div className={styles.flowName}>{flow.name}</div>
-                    <div className={styles.flowDescription}>{flow.description || '—'}</div>
-                  </td>
-                  <td className={styles.createdAt} title={flow.createdAt}>{formatDateTime(flow.createdAt)}</td>
-                  <td>
-                    <div className={styles.actions}>
-                      {deletedId === flow.id ? (
-                        <div className={styles.deletedText}>deleted</div>
-                      ) : (
-                        <>
-                          <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => navigate(`/flows/${flow.id}`)} type="button">edit</button>
-                          <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmId(flow.id)} type="button">delete</button>
-                          {failedDeleteId === flow.id ? <div className={styles.failedText}>failed to delete</div> : null}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
-        <ErrorMessage message={errorText} />
-      </div>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <div className={styles.tableCard}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>created</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={3} className={styles.emptyState}>—</td></tr>
+              ) : flows.length === 0 ? (
+                <tr><td colSpan={3} className={styles.emptyState}>No flows yet.</td></tr>
+              ) : (
+                flows.map((flow) => (
+                  <tr key={flow.id}>
+                    <td>
+                      <div className={styles.flowName}>{flow.name}</div>
+                      <div className={styles.flowDescription}>{flow.description || '—'}</div>
+                    </td>
+                    <td className={styles.createdAt} title={flow.createdAt}>{formatDateTime(flow.createdAt)}</td>
+                    <td>
+                      <div className={styles.actions}>
+                        {deletedId === flow.id ? (
+                          <div className={styles.deletedText}>deleted</div>
+                        ) : (
+                          <>
+                            <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => navigate(`/flows/${flow.id}`)} type="button">edit</button>
+                            <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmId(flow.id)} type="button">delete</button>
+                            {failedDeleteId === flow.id ? <div className={styles.failedText}>failed to delete</div> : null}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+          <ErrorMessage message={errorText} />
+        </div>
+      ) : null}
       <ConfirmDialog
         open={confirmId !== null}
         title="Delete flow"

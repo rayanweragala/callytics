@@ -27,6 +27,7 @@ import type {
   SipPacket,
   RegistrationHealthResponse,
   SipTrunkItem,
+  SystemSettings,
   TrunkDiagnosticsResult,
   TrunkTestResult,
   PreflightRun,
@@ -341,6 +342,19 @@ export async function getHostConfig(): Promise<HostConfigResponse> {
   return response.data;
 }
 
+export async function getSettings(): Promise<DetailResponse<SystemSettings>> {
+  const response = await api.get<DetailResponse<SystemSettings>>('/settings');
+  return response.data;
+}
+
+export async function updateSettings(payload: {
+  default_outbound_trunk_id?: number | null;
+  record_outbound_calls?: boolean;
+}): Promise<DetailResponse<SystemSettings>> {
+  const response = await api.put<DetailResponse<SystemSettings>>('/settings', payload);
+  return response.data;
+}
+
 export async function listTrunks(limit = 20, offset = 0): Promise<ListResponse<SipTrunkItem>> {
   const response = await api.get<ListResponse<SipTrunkItem>>('/trunks', { params: { limit, offset } });
   return response.data;
@@ -355,6 +369,7 @@ export async function createTrunk(payload: {
   password?: string;
   fromDomain?: string;
   fromUser?: string;
+  dialFormat?: string;
   enabled?: boolean;
 }): Promise<DetailResponse<SipTrunkItem>> {
   const response = await api.post<DetailResponse<SipTrunkItem>>('/trunks', payload);
@@ -370,6 +385,7 @@ export async function updateTrunk(id: number, payload: {
   password?: string;
   fromDomain?: string;
   fromUser?: string;
+  dialFormat?: string;
   enabled?: boolean;
 }): Promise<DetailResponse<SipTrunkItem>> {
   const response = await api.put<DetailResponse<SipTrunkItem>>(`/trunks/${id}`, payload);

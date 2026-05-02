@@ -6,6 +6,10 @@ import { executeCallback } from './callback-execute';
 import { resolveCallbackWaiter } from './callbackManager';
 import { publish } from './redis';
 
+jest.mock('./lib/trunkResolver', () => ({
+  fetchTrunkDialFormat: jest.fn().mockResolvedValue('{number}'),
+}));
+
 describe('callback-execute', () => {
   const mockPublish = publish as jest.MockedFunction<typeof publish>;
 
@@ -133,7 +137,7 @@ describe('callback-execute', () => {
     jest.useRealTimers();
 
     expect(originate).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      endpoint: 'PJSIP/+94762192061@trunk-3',
+      endpoint: 'PJSIP/0762192061@trunk-3',
     }));
   });
 });

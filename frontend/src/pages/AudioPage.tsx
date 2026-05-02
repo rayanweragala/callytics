@@ -7,6 +7,7 @@ import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { SkeletonRow } from '../components/common/skeleton';
+import { ErrorMessage } from '../components/common/ErrorMessage';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
 import { formatDateTime } from '../lib/time';
@@ -49,9 +50,11 @@ export function AudioPage() {
   const [limit, setLimit] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async (nextPage = page, nextLimit = limit) => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [audioResponse, voicesResponse] = await Promise.all([
         listAudio(nextPage, nextLimit),
@@ -67,8 +70,8 @@ export function AudioPage() {
         const defaultVoice = voicesResponse.data.find((v) => v.value === DEFAULT_TTS_VOICE);
         setTtsVoice((defaultVoice || voicesResponse.data[0]).value);
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      setLoadError(getApiError(error, 'failed to load audio'));
     } finally {
       setIsLoading(false);
     }
@@ -210,12 +213,16 @@ export function AudioPage() {
   };
 
   const voiceOptions = useMemo(() => voices.map(v => ({ value: v.value, label: v.label })), [voices]);
+  const blockingLoadError = !isLoading ? loadError : null;
 
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <PageLayout title="audio" subtitle="configure" />
       </div>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <>
       <div className={styles.grid}>
         <section className={styles.panel}>
           <div className={styles.panelTitle}>upload audio</div>
@@ -345,6 +352,8 @@ export function AudioPage() {
         )}
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
+        </>
+      ) : null}
       <ConfirmDialog
         open={confirmId !== null}
         title="Delete audio"

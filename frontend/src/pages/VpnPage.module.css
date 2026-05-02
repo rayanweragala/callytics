@@ -329,15 +329,6 @@
   padding: 44px;
 }
 
-.successRibbon {
-  background: var(--primitive-green-dim);
-  border: 1px solid var(--primitive-green);
-  border-radius: var(--radius-lg);
-  color: var(--primitive-green);
-  font-size: 13px;
-  padding: 10px 16px;
-}
-
 .removeVpnButton {
   height: 28px;
 }

@@ -69,8 +69,8 @@ export function RecordingsPage() {
       setPage(response.page);
       setLimit(response.limit);
       setTotalPages(response.totalPages);
-    } catch {
-      setLoadError('Failed to load recordings');
+    } catch (error) {
+      setLoadError(getApiError(error, 'Failed to load recordings'));
     } finally {
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -95,32 +95,34 @@ export function RecordingsPage() {
       window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 6000);
     }
   };
+  const blockingLoadError = !isLoading && !isInitialLoad ? loadError : null;
 
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <PageLayout title="Recordings" subtitle="monitor" />
       </div>
-      <div className={styles.tableCard}>
-        {isLoading ? (
-          <>
-            {Array.from({ length: 3 }, (_, i) => (
-              <SkeletonRow key={i} columns={[
-                { width: '20%' },
-                { width: '15%' },
-                { width: '15%' },
-                { width: '15%' },
-                { width: '20%' },
-                { width: '15%' },
-              ]} />
-            ))}
-          </>
-        ) : loadError ? (
-          <ErrorMessage message={loadError} />
-        ) : items.length === 0 ? (
-          <div className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</div>
-        ) : (
-          <table className={styles.table}>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <>
+          <div className={styles.tableCard}>
+            {isLoading ? (
+              <>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonRow key={i} columns={[
+                    { width: '20%' },
+                    { width: '15%' },
+                    { width: '15%' },
+                    { width: '15%' },
+                    { width: '20%' },
+                    { width: '15%' },
+                  ]} />
+                ))}
+              </>
+            ) : items.length === 0 ? (
+              <div className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</div>
+            ) : (
+              <table className={styles.table}>
             <thead>
               <tr>
                 <th>name</th>
@@ -160,28 +162,30 @@ export function RecordingsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
-        {errorText ? <ErrorMessage message={errorText} /> : null}
-      </div>
-      <ConfirmDialog
-        open={confirmId !== null}
-        title="Delete recording"
-        message="Delete this recording? This cannot be undone."
-        cancelLabel="cancel"
-        confirmLabel="delete"
-        onCancel={() => setConfirmId(null)}
-        onConfirm={() => {
-          if (confirmId !== null) {
-            void confirmDelete(confirmId);
-          }
-        }}
-      />
+              </table>
+            )}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+            {errorText ? <ErrorMessage message={errorText} /> : null}
+          </div>
+          <ConfirmDialog
+            open={confirmId !== null}
+            title="Delete recording"
+            message="Delete this recording? This cannot be undone."
+            cancelLabel="cancel"
+            confirmLabel="delete"
+            onCancel={() => setConfirmId(null)}
+            onConfirm={() => {
+              if (confirmId !== null) {
+                void confirmDelete(confirmId);
+              }
+            }}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

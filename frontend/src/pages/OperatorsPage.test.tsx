@@ -27,7 +27,7 @@ describe('OperatorsPage', () => {
       total: 1,
     });
     (api.listTrunks as any).mockResolvedValue({
-      data: [{ id: 1, name: 'Main Trunk', providerPreset: 'generic', host: '', port: 5060, username: null, password: null, fromDomain: null, fromUser: null, enabled: true, createdAt: new Date().toISOString() }],
+      data: [{ id: 1, name: 'Main Trunk', providerPreset: 'generic', host: '', port: 5060, username: null, password: null, fromDomain: null, fromUser: null, dialFormat: '{number}', enabled: true, createdAt: new Date().toISOString() }],
       total: 1,
     });
     (api.createOperator as any).mockResolvedValue({

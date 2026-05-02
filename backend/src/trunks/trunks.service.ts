@@ -21,6 +21,7 @@ export interface TrunkResponse {
   password: string | null;
   fromDomain: string | null;
   fromUser: string | null;
+  dialFormat: string;
   enabled: boolean;
   createdAt: string;
 }
@@ -71,6 +72,9 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
   }
 
   async create(dto: CreateTrunkDto): Promise<{ data: TrunkResponse }> {
+    const dialFormat = this.normalizeDialFormat(dto.dialFormat);
+    this.validateDialFormat(dialFormat);
+
     const entity = this.trunksRepository.create({
       name: this.normalizeRequired(dto.name, 'name'),
       providerPreset: this.normalizePreset(dto.providerPreset),
@@ -80,6 +84,7 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
       password: this.normalizeOptional(dto.password),
       fromDomain: this.normalizeOptional(dto.fromDomain),
       fromUser: this.normalizePhone(dto.fromUser),
+      dialFormat,
       enabled: dto.enabled ?? true,
     });
 
@@ -89,6 +94,10 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
     await this.asteriskConfigService.writeTrunksConfig();
     await this.asteriskConfigService.reloadResPjsip();
     return { data: this.toResponse(saved) };
+  }
+
+  async findOne(id: number): Promise<{ data: TrunkResponse }> {
+    return { data: this.toResponse(await this.requireTrunk(id)) };
   }
 
   async update(id: number, dto: UpdateTrunkDto): Promise<{ data: TrunkResponse }> {
@@ -130,6 +139,12 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
 
     if (dto.fromUser !== undefined) {
       entity.fromUser = this.normalizePhone(dto.fromUser);
+    }
+
+    if (dto.dialFormat !== undefined) {
+      const dialFormat = this.normalizeDialFormat(dto.dialFormat);
+      this.validateDialFormat(dialFormat);
+      entity.dialFormat = dialFormat;
     }
 
     if (dto.enabled !== undefined) {
@@ -312,6 +327,7 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
       password: item.password,
       fromDomain: item.fromDomain,
       fromUser: item.fromUser,
+      dialFormat: item.dialFormat || '{number}',
       enabled: item.enabled,
       createdAt: item.createdAt.toISOString(),
     };
@@ -338,6 +354,17 @@ export class TrunksService implements OnModuleInit, OnModuleDestroy {
   private normalizePhone(value?: string): string | null {
     const normalized = value?.trim().replace(/\s+/g, '');
     return normalized ? normalized : null;
+  }
+
+  private normalizeDialFormat(value?: string): string {
+    const normalized = (value || '').trim();
+    return normalized || '{number}';
+  }
+
+  private validateDialFormat(value: string): void {
+    if (!value.includes('{number}')) {
+      throw new BadRequestException('dial_format must contain the {number} placeholder');
+    }
   }
 
   private validateAuth(username: string | null, password: string | null): void {

@@ -62,10 +62,9 @@ export function OperatorsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
-  const [successText, setSuccessText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
 
   const showError = (msg: string | null) => {
@@ -77,6 +76,7 @@ export function OperatorsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   const load = useCallback(async (nextPage = page) => {
+    setLoadError(null);
     try {
       const [opRes, extRes, contactsRes, trunksRes] = await Promise.all([
         listOperators(nextPage, PAGE_LIMIT),
@@ -89,8 +89,8 @@ export function OperatorsPage() {
       setExtensions(extRes.data);
       setContactNumbers(contactsRes.data);
       setTrunks(trunksRes.data);
-    } catch {
-      // keep stale data
+    } catch (error) {
+      setLoadError(getApiError(error, 'Failed to load operators'));
     }
   }, [page]);
 
@@ -101,7 +101,6 @@ export function OperatorsPage() {
     return () => {
       if (pollTimer.current) clearInterval(pollTimer.current);
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, [load, page]);
 
@@ -211,9 +210,6 @@ export function OperatorsPage() {
       await load(page);
       setEditingId(null);
       setEditForm(emptyForm);
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      setSuccessText('Updated');
-      successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
     } catch (err) {
       showError(getApiError(err, 'Failed to update operator'));
     } finally {
@@ -269,6 +265,17 @@ export function OperatorsPage() {
       {createOpen ? 'cancel' : 'add operator'}
     </button>
   );
+
+  if (!loading && loadError) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.pageHeader}>
+          <PageLayout title="Operators" subtitle="configure" />
+        </div>
+        <ErrorMessage message={loadError} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -518,7 +525,6 @@ export function OperatorsPage() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
-        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
         {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
         <ConfirmDialog
           open={confirmDeleteId !== null}

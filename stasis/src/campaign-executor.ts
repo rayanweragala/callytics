@@ -5,6 +5,8 @@ import { loadFlowById } from './flowLoader';
 import { getPublisher, getSubscriber, publish } from './redis';
 import { runFlow } from './runtime';
 import { publishCallEvent } from './telemetry';
+import { formatDialNumber } from './lib/formatDialNumber';
+import { fetchTrunkDialFormat } from './lib/trunkResolver';
 
 const ARI_URL = process.env.ARI_URL || 'http://127.0.0.1:8088';
 const ARI_USER = process.env.ARI_USER || 'callytics';
@@ -334,7 +336,24 @@ export class CampaignExecutor {
   }
 
   private async dialContact(runtime: CampaignRuntime, contact: CampaignContact): Promise<void> {
-    const endpoint = `PJSIP/${contact.phoneNumber}@trunk-${runtime.campaign.trunkId}`;
+    const dialFormat = await fetchTrunkDialFormat(runtime.campaign.trunkId || 0);
+    const formattedNumber = formatDialNumber(contact.phoneNumber, dialFormat);
+
+    if (!formattedNumber) {
+      stasisLogger.error(`[campaign] invalid number format campaign=${runtime.campaign.id} contact=${contact.id} format=${dialFormat}`);
+      runtime.failedCount += 1;
+      await publish('campaign:contact:update', {
+        campaignId: runtime.campaign.id,
+        contactId: contact.id,
+        status: 'failed',
+        outcome: 'failed',
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const endpoint = `PJSIP/${formattedNumber}@trunk-${runtime.campaign.trunkId}`;
     const appArgs = `campaign,${runtime.campaign.id},${contact.id}`;
     const callerId = runtime.campaign.callerId
       || runtime.campaign.trunkCallerId

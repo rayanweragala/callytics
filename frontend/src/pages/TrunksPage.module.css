@@ -44,6 +44,48 @@
   padding: 20px;
 }
 
+.settingsPanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.settingsGrid {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.settingsToggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 0;
+  flex: 0 0 320px;
+}
+
+.settingsNote {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.settingsGrid .field {
+  flex: 0 0 auto;
+  max-width: 320px;
+}
+
 .tableCard {
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -208,6 +250,46 @@
   font-weight: 500;
   cursor: pointer;
   text-transform: lowercase;
+}
+
+.toggleLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggleSubLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.toggleSwitch span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 3px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transition: transform 0.15s;
 }
 
 /* Column widths — 8 cols: Name, Provider, Host, Port, Auth, Status, Created, Actions */
@@ -552,16 +634,6 @@
   color: var(--color-error);
 }
 
-.successRibbon {
-  background: var(--primitive-green-dim);
-  border: 1px solid var(--primitive-green);
-  border-radius: var(--radius-lg);
-  color: var(--primitive-green);
-  font-size: 14px;
-  margin: 0.5rem 0;
-  padding: 12px 16px;
-}
-
 .toggleOn {
   color: var(--color-active);
 }
@@ -579,6 +651,15 @@
 
 .toggleOn .toggleKnob {
   background: var(--color-active);
+}
+
+.toggleSwitch.toggleOn {
+  background: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.toggleSwitch.toggleOn span {
+  transform: translateX(18px);
 }
 
 .signalIcon {
@@ -651,7 +732,8 @@
   }
 
   .formGrid,
-  .editorRow {
+  .editorRow,
+  .settingsGrid {
     flex-direction: column;
     align-items: stretch;
   }

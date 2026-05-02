@@ -78,6 +78,7 @@ export function CallbacksPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setErrorText(null);
     load(page)
       .catch((error) => {
         if (!active) return;
@@ -143,11 +144,16 @@ export function CallbacksPage() {
     }
   };
 
+  const blockingLoadError = !loading ? errorText : null;
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <PageLayout title="Callbacks" subtitle="configure" />
       </div>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <>
 
       <div className={styles.filters}>
         <div className={styles.filterPills} role="tablist" aria-label="Callback status filter">
@@ -239,8 +245,9 @@ export function CallbacksPage() {
         ))}
 
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        <ErrorMessage message={errorText} />
       </div>
+        </>
+      ) : null}
       <ConfirmDialog
         open={confirmCancelId !== null}
         title="Cancel callback"

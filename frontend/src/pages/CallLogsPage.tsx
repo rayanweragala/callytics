@@ -289,10 +289,14 @@ export function CallLogsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
   const hasActiveFilters = Boolean(searchInput.trim() || dateFrom || dateTo || endReason || direction !== 'all');
   const showLiveExecutionPanel = liveCalls.length > 0;
+  const blockingLoadError = !loading ? errorText : null;
 
   return (
     <PageLayout subtitle="monitor" title="Call Logs">
       <div className={styles.page}>
+        {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+        {!blockingLoadError ? (
+          <>
         <section className={`${styles.topGrid} ${showLiveExecutionPanel ? '' : styles.topGridSingle}`}>
           {showLiveExecutionPanel ? (
             <LiveExecutionPanel
@@ -355,8 +359,6 @@ export function CallLogsPage() {
         </div>
 
         <div className={styles.tableCard}>
-          <ErrorMessage message={errorText} />
-
           {loading ? <div className={styles.emptyState}>Loading call logs...</div> : null}
           {!loading && data.length === 0 ? <div className={styles.emptyState}>No call logs found.</div> : null}
 
@@ -457,6 +459,8 @@ export function CallLogsPage() {
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </div>
+          </>
+        ) : null}
       </div>
 
       <ExecutionTracePanel callUuid={traceCallUuid} onClose={() => setTraceCallUuid(null)} />

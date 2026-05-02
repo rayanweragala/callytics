@@ -344,7 +344,7 @@ describe('VpnService', () => {
     await (service as unknown as { syncRelayPjsipTransport: () => Promise<void> }).syncRelayPjsipTransport();
 
     expect(mockAsteriskConfigService.syncUdpTransport).toHaveBeenCalledWith('203.0.113.10');
-    expect(mockAsteriskConfigService.syncExtensionsRelayConfig).toHaveBeenCalledWith('203.0.113.10');
+    expect(mockAsteriskConfigService.syncExtensionsRelayConfig).not.toHaveBeenCalled();
   });
 
   it('syncRelayPjsipTransport clears relay external addresses when relay is inactive', async () => {
@@ -353,7 +353,7 @@ describe('VpnService', () => {
     await (service as unknown as { syncRelayPjsipTransport: () => Promise<void> }).syncRelayPjsipTransport();
 
     expect(mockAsteriskConfigService.syncUdpTransport).toHaveBeenCalledWith(null);
-    expect(mockAsteriskConfigService.syncExtensionsRelayConfig).toHaveBeenCalledWith(null);
+    expect(mockAsteriskConfigService.syncExtensionsRelayConfig).not.toHaveBeenCalled();
   });
 
   it('GET /vpn/relay-config returns stored config with parsed VPS key and IP', async () => {

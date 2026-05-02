@@ -38,13 +38,11 @@ export function InboundRoutesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [createDidError, setCreateDidError] = useState<string | null>(null);
   const [editDidError, setEditDidError] = useState<string | null>(null);
-  const [successText, setSuccessText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -54,17 +52,7 @@ export function InboundRoutesPage() {
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
   };
 
-  const showSuccess = (idOrMsg: number | string | null) => {
-    if (typeof idOrMsg === 'number' || idOrMsg === null) {
-      setDeletedId(idOrMsg);
-      setSuccessText(null);
-    } else {
-      setSuccessText(idOrMsg);
-      setDeletedId(null);
-    }
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    if (idOrMsg !== null) successTimerRef.current = setTimeout(() => { setDeletedId(null); setSuccessText(null); }, 3000);
-  };
+
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -82,8 +70,8 @@ export function InboundRoutesPage() {
       setItems(routesResponse.data);
       setTotal(routesResponse.total);
       setFlows(flowsResponse.data);
-    } catch {
-      setLoadError('Failed to load inbound routes');
+    } catch (error) {
+      setLoadError(getApiError(error, 'Failed to load inbound routes'));
     } finally {
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -96,14 +84,11 @@ export function InboundRoutesPage() {
 
   useEffect(() => () => {
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
   }, []);
 
   const resetMessages = () => {
     showError(null);
     setDeletedId(null);
-    setSuccessText(null);
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
     setCreateDidError(null);
     setEditDidError(null);
   };
@@ -134,7 +119,6 @@ export function InboundRoutesPage() {
       setCreateOpen(false);
       setOffset(0);
       await load(limit, 0);
-      showSuccess('Created');
     } catch (error) {
       if (!applyDidConflictError(error, 'create')) {
         showError(getApiError(error, 'failed to create route'));
@@ -192,7 +176,6 @@ export function InboundRoutesPage() {
       setEditingId(null);
       setEditForm(emptyForm);
       await load(limit, offset);
-      showSuccess('Updated');
     } catch (error) {
       if (!applyDidConflictError(error, 'edit')) {
         showError(getApiError(error, 'failed to update route'));
@@ -208,7 +191,6 @@ export function InboundRoutesPage() {
     try {
       await deleteInboundRoute(id);
       setConfirmDeleteId(null);
-      showSuccess(id);
       if (editingId === id) {
         setEditingId(null);
       }
@@ -236,12 +218,17 @@ export function InboundRoutesPage() {
     </button>
   );
 
+  const blockingLoadError = !isLoading && isInitialLoad === false ? loadError : null;
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <PageLayout title="Inbound Routes" subtitle="configure" />
         {pageActions}
       </div>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <>
       {createOpen ? (
         <section className={styles.formPanel}>
           <div className={styles.panelTitle}>new route</div>
@@ -272,8 +259,8 @@ export function InboundRoutesPage() {
               <button className={styles.primaryButton} disabled={!createForm.flowId} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save route'}</button>
             </div>
           </div>
-          {errorText ? <ErrorMessage message={errorText} /> : null}
-        </section>
+        {errorText ? <ErrorMessage message={errorText} /> : null}
+      </section>
       ) : null}
 
       <div className={styles.tableCard}>
@@ -289,8 +276,6 @@ export function InboundRoutesPage() {
               ]} />
             ))}
           </>
-        ) : loadError ? (
-          <ErrorMessage message={loadError} />
         ) : sortedItems.length === 0 ? (
           <div className={styles.emptyState}>No inbound routes yet.</div>
         ) : (
@@ -369,8 +354,6 @@ export function InboundRoutesPage() {
           totalPages={totalPages}
           onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)}
         />
-        {deletedId !== null ? <div className={styles.successText}>route deleted</div> : null}
-        {successText ? <div className={styles.successText}>{successText}</div> : null}
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
       <ConfirmDialog
@@ -386,6 +369,8 @@ export function InboundRoutesPage() {
           }
         }}
       />
+      </>
+      ) : null}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import {
   rejectTransferWaiter,
   type TransferWaiterResult,
 } from "../transferManager";
+import { formatDialNumber } from "../lib/formatDialNumber";
+import { fetchTrunkDialFormat } from "../lib/trunkResolver";
 import { executeHunt } from "./hunt.executor";
 import { executeMenu } from "../executors/menu.executor";
 import { executeBusinessHours } from "../executors/business_hours.executor";
@@ -447,9 +449,13 @@ async function resolveTransferDialString(
     // Schema A: trunk_id + raw PSTN number in config (current editor save).
     const directTrunkId = config.trunk_id ? Number(config.trunk_id) : null;
     if (directTrunkId && PSTN_TARGET_PATTERN.test(targetValue)) {
+      const dialFormat = await fetchTrunkDialFormat(directTrunkId);
       const dialNumber = normalizeDialNumber(targetValue);
-      logEvent("TransferDirectTrunkResolved", { trunkId: directTrunkId, number: dialNumber });
-      return `PJSIP/${dialNumber}@trunk-${directTrunkId}`;
+      const formatted = formatDialNumber(dialNumber, dialFormat);
+      if (formatted) {
+        logEvent("TransferDirectTrunkResolved", { trunkId: directTrunkId, number: formatted });
+        return `PJSIP/${formatted}@trunk-${directTrunkId}`;
+      }
     }
 
     // Schema B: legacy contact-id target lookup.
@@ -470,8 +476,12 @@ async function resolveTransferDialString(
       return "";
     }
 
+    const dialFormat = await fetchTrunkDialFormat(contact.trunkId);
     const dialNumber = normalizeDialNumber(contact.number);
-    return `PJSIP/${dialNumber}@trunk-${contact.trunkId}`;
+    const formatted = formatDialNumber(dialNumber, dialFormat);
+    if (formatted) {
+      return `PJSIP/${formatted}@trunk-${contact.trunkId}`;
+    }
   }
 
   return "";

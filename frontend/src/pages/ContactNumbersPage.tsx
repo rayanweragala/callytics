@@ -44,6 +44,7 @@ export function ContactNumbersPage() {
   const [items, setItems] = useState<ContactNumber[]>([]);
   const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -71,13 +72,14 @@ export function ContactNumbersPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   const load = async (nextPage = page) => {
+    setLoadError(null);
     try {
       const [contactsRes, trunksRes] = await Promise.all([getContactNumbers(nextPage, PAGE_LIMIT), listTrunks(200, 0)]);
       setItems(contactsRes.data);
       setTotal(contactsRes.total);
       setTrunks(trunksRes.data);
     } catch (err) {
-      setError(getApiError(err, 'Failed to load contacts'));
+      setLoadError(getApiError(err, 'Failed to load contacts'));
     }
   };
 
@@ -207,6 +209,7 @@ export function ContactNumbersPage() {
       {createOpen ? 'cancel' : 'add contact'}
     </button>
   );
+  const blockingLoadError = !loading ? loadError : null;
 
   return (
     <div className={styles.page}>
@@ -214,6 +217,9 @@ export function ContactNumbersPage() {
         <PageLayout title="Contacts" subtitle="configure" />
         {pageActions}
       </div>
+      {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
+      {!blockingLoadError ? (
+        <>
       {createOpen ? (
         <div className={styles.formPanel}>
           <label className={styles.field}>
@@ -328,6 +334,8 @@ export function ContactNumbersPage() {
           onPageChange={setPage}
         />
       </div>
+        </>
+      ) : null}
       <ConfirmDialog
         open={confirmDeleteId !== null}
         title="Delete contact"

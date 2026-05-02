@@ -39,7 +39,7 @@ services:
       TSHARK_PORT: "5080"
     volumes:
       - ./asterisk/base:/etc/asterisk
-      - ./asterisk/logs:/var/log/asterisk
+      - callytics_asterisk_logs:/var/log/asterisk
       - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics
       - ./storage/voicemail:/var/spool/asterisk/voicemail
       - asterisk_recordings:/var/lib/asterisk/recording
@@ -61,11 +61,13 @@ services:
       - NET_ADMIN
     volumes:
       - ./asterisk/base:/etc/asterisk
-      - ./asterisk/logs:/var/log/asterisk:ro
+      - callytics_asterisk_logs:/var/log/asterisk:ro
       - ./storage/audio/originals:/app/storage/audio/originals
       - ./storage/audio/converted:/app/storage/audio/converted
       - ./storage/audio/previews:/app/storage/audio/previews
-      - ./storage/audio/tts:/app/storage/audio/tts
+      # First run migration note:
+      # docker run --rm -v $(pwd)/storage/audio/tts:/src -v callytics_audio_tts:/dst alpine cp -r /src/. /dst/
+      - callytics_audio_tts:/app/storage/audio/tts
       - ./wireguard-config:/app/wireguard-config
       - callytics_geoip_data:/app/geoip
       - asterisk_recordings:/var/lib/asterisk/recording
@@ -92,6 +94,8 @@ services:
       RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
       GEOIP_DIR: /app/geoip
     depends_on:
+      asterisk:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -170,5 +174,7 @@ volumes:
   callytics_postgres_data:
   callytics_redis_data:
   asterisk_recordings:
+  callytics_asterisk_logs:
+  callytics_audio_tts:
   callytics_geoip_data:
   callytics_backup_data:

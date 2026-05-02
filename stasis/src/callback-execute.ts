@@ -6,6 +6,8 @@ import {
   rejectCallbackWaiter,
   type CallbackWaiterResult,
 } from './callbackManager';
+import { formatDialNumber } from './lib/formatDialNumber';
+import { fetchTrunkDialFormat } from './lib/trunkResolver';
 
 const DEFAULT_CALLBACK_MOH_CLASS =
   process.env.CALLBACK_MOH_CLASS || process.env.QUEUE_LOGIN_MOH_CLASS || 'callytics-hold';
@@ -134,20 +136,17 @@ async function publishCallbackSipTraffic(params: {
   });
 }
 
-function normalizeSriLankanTrunkEndpoint(endpoint: string): string {
+function parseCustomerTrunkEndpoint(endpoint: string): { number: string; trunkId: number } | null {
   const trimmed = String(endpoint || '').trim();
   const match = /^PJSIP\/([^@]+)@trunk-(\d+)$/i.exec(trimmed);
   if (!match) {
-    return trimmed;
+    return null;
   }
 
-  const numberPart = String(match[1] || '').trim();
-  if (!/^0\d{9}$/.test(numberPart)) {
-    return trimmed;
-  }
-
-  const normalized = `+94${numberPart.slice(1)}`;
-  return `PJSIP/${normalized}@trunk-${match[2]}`;
+  return {
+    number: String(match[1] || '').trim(),
+    trunkId: Number(match[2]),
+  };
 }
 
 async function startOperatorHoldAudio(ariClient: AriClient, channelId: string): Promise<boolean> {
@@ -184,17 +183,49 @@ export async function executeCallback(
   const ariClient = ariClientRaw as AriClient;
   const appName = process.env.ARI_APP || 'callytics';
   const callbackId = Number(payload.callbackId || 0);
-  const rawCustomerDialString = String(payload.customerDialString || '').trim()
-    || (
-      payload.customerNumber && payload.customerTrunkId
-        ? `PJSIP/${payload.customerNumber}@trunk-${payload.customerTrunkId}`
-        : ''
-    );
-  const customerDialString = normalizeSriLankanTrunkEndpoint(rawCustomerDialString);
-  if (customerDialString !== rawCustomerDialString) {
-    stasisLogger.log(
-      `[callback] normalized customer endpoint callback_id=${callbackId} from=${rawCustomerDialString} to=${customerDialString}`,
-    );
+  const rawCustomerDialString = String(payload.customerDialString || '').trim();
+  let customerDialString = '';
+
+  if (rawCustomerDialString) {
+    const target = parseCustomerTrunkEndpoint(rawCustomerDialString);
+    if (!target) {
+      stasisLogger.error('[callback] execute skipped: invalid customer dial string', {
+        callbackId,
+        customerDialString: rawCustomerDialString,
+      });
+      await publishStatus(callbackId, 'failed', 'invalid_customer_dial_string');
+      return;
+    }
+
+    const dialFormat = await fetchTrunkDialFormat(target.trunkId);
+    const formattedNumber = formatDialNumber(target.number, dialFormat);
+
+    if (!formattedNumber) {
+      stasisLogger.error('[callback] execute skipped: invalid customer number format', {
+        callbackId,
+        customerNumber: target.number,
+        dialFormat,
+      });
+      await publishStatus(callbackId, 'failed', 'invalid_number_format');
+      return;
+    }
+    
+    customerDialString = `PJSIP/${formattedNumber}@trunk-${target.trunkId}`;
+  } else if (payload.customerNumber && payload.customerTrunkId) {
+    const dialFormat = await fetchTrunkDialFormat(payload.customerTrunkId);
+    const formattedNumber = formatDialNumber(payload.customerNumber, dialFormat);
+
+    if (!formattedNumber) {
+      stasisLogger.error('[callback] execute skipped: invalid customer number format', {
+        callbackId,
+        customerNumber: payload.customerNumber,
+        dialFormat,
+      });
+      await publishStatus(callbackId, 'failed', 'invalid_number_format');
+      return;
+    }
+    
+    customerDialString = `PJSIP/${formattedNumber}@trunk-${payload.customerTrunkId}`;
   }
 
   if (!callbackId || !payload.operatorDialString || !customerDialString || !payload.callerIdNumber) {

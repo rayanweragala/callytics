@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, OnModuleInit, forwardRef } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
@@ -10,6 +10,7 @@ import { AppLogger } from "../logger/app-logger";
 import type { ResolvedExtensionConfig } from "../extensions/extensions.service";
 import { SipExtensionEntity } from "../extensions/entities/sip-extension.entity";
 import { SipTrunkEntity } from "../trunks/entities/sip-trunk.entity";
+import { VpnService } from "../vpn/vpn.service";
 
 const NO_REGISTER_PRESETS = ["twilio", "telnyx", "vonage", "signalwire"];
 
@@ -58,6 +59,8 @@ export class AsteriskConfigService implements OnModuleInit {
     @InjectRepository(SipTrunkEntity)
     private readonly trunksRepository: Repository<SipTrunkEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(forwardRef(() => VpnService))
+    private readonly vpnService: VpnService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -112,9 +115,13 @@ export class AsteriskConfigService implements OnModuleInit {
       this.buildExtensionsConfig(extensions),
       "utf8",
     );
+    const relayStatus = await this.vpnService.getRelayStatus();
+    const externalAddress = relayStatus.active
+      ? this.getExternalMediaAddress()
+      : null;
     await fs.writeFile(
       join(this.configDir, "pjsip_extensions_relay.conf"),
-      this.buildExtensionsRelayConfig(extensions, this.getExternalMediaAddress()),
+      this.buildExtensionsRelayConfig(extensions, externalAddress),
       "utf8",
     );
     await this.ensureManagedPjsipIncludes();
@@ -584,6 +591,8 @@ export class AsteriskConfigService implements OnModuleInit {
       lines.push(`exten => ${route.did},n,Hangup()`);
       lines.push("");
     }
+    lines.push("exten => _#.,1,Stasis(callytics)");
+    lines.push("exten => _#.,n,Hangup()");
     return lines.join("\n").trimEnd() + "\n";
   }
 
@@ -674,9 +683,14 @@ export class AsteriskConfigService implements OnModuleInit {
       "",
     ];
     if (externalAddress) {
+      const localLanNet = this.getLocalLanNet();
       lines.push(
         `external_signaling_address = ${externalAddress}`,
         `external_media_address = ${externalAddress}`,
+        "local_net = 10.8.0.0/24",
+        "local_net = 172.16.0.0/12",
+        "local_net = 127.0.0.1/32",
+        `local_net = ${localLanNet}`,
         "",
       );
     }
@@ -706,6 +720,24 @@ export class AsteriskConfigService implements OnModuleInit {
     );
 
     return [...header, "", ...blocks].join("\n\n").trimEnd() + "\n";
+  }
+
+  private getLocalLanNet(): string {
+    const configuredLocalNet = process.env.LOCAL_NET?.trim();
+    if (configuredLocalNet) {
+      return configuredLocalNet;
+    }
+
+    const hostIp = process.env.HOST_IP?.trim() || "";
+    const octets = hostIp.split(".");
+    if (
+      octets.length === 4 &&
+      octets.every((octet) => /^\d+$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255)
+    ) {
+      return `${octets[0]}.${octets[1]}.${octets[2]}.0/24`;
+    }
+
+    return "10.20.0.0/16";
   }
 
   private async sendAmiCommand(command: string): Promise<void> {

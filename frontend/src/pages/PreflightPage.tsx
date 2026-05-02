@@ -110,6 +110,15 @@ export function PreflightPage() {
   }, [selectedRun]);
 
   const summaryState: PreflightStatus | null = selectedRun ? selectedRun.summary : null;
+  const blockingLoadError = !historyLoading ? errorText : null;
+
+  if (blockingLoadError) {
+    return (
+      <PageLayout title="preflight wizard" subtitle="system">
+        <ErrorMessage message={blockingLoadError} />
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout title="preflight wizard" subtitle="system">
@@ -158,7 +167,6 @@ export function PreflightPage() {
           </div>
         ) : null}
 
-        <ErrorMessage message={errorText} />
       </div>
 
       <div className={styles.tableCard}>

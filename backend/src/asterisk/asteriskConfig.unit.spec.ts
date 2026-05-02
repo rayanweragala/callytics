@@ -5,6 +5,7 @@ function createService() {
     { find: jest.fn() } as any,
     { find: jest.fn().mockResolvedValue([]) } as any,
     { query: jest.fn() } as any,
+    {} as any,
   );
 }
 

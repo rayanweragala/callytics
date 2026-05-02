@@ -9,11 +9,18 @@ interface CallStartedEvent {
   timestamp: string;
   type: 'started';
   caller: string;
+  callerId?: string;
   destination?: string;
   direction?: 'inbound' | 'outbound';
   flowId?: number;
   flowVersionId?: number;
   entryNodeKey?: string;
+  startedAt?: string;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  duration?: number | null;
+  trunkId?: number | null;
+  recorded?: boolean;
 }
 
 interface CallEndedEvent {
@@ -21,8 +28,14 @@ interface CallEndedEvent {
   timestamp: string;
   type: 'ended';
   caller: string;
+  callerId?: string;
   durationSeconds?: number;
   exitNodeKey?: string;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  duration?: number | null;
+  trunkId?: number | null;
+  recorded?: boolean;
 }
 
 interface CallFailedEvent {
@@ -30,12 +43,18 @@ interface CallFailedEvent {
   timestamp: string;
   type: 'failed';
   caller: string;
+  callerId?: string;
   destination?: string;
   direction?: 'inbound' | 'outbound';
   flowId?: number;
   flowVersionId?: number;
   failedNode?: string;
   failureReason?: string;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  duration?: number | null;
+  trunkId?: number | null;
+  recorded?: boolean;
 }
 
 type CallEvent = CallStartedEvent | CallEndedEvent | CallFailedEvent;
@@ -117,6 +136,7 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
 
   private async handleCallStarted(event: CallStartedEvent): Promise<void> {
     try {
+      const startedAtValue = event.startedAt || event.timestamp;
       const startedAt = Date.now();
       await this.dataSource.query(
         `
@@ -128,20 +148,24 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
             started_at,
             flow_id,
             flow_version_id,
-            entry_node_key
+            entry_node_key,
+            trunk_id,
+            recorded
           )
-          VALUES ($1, $8, $2, $3, $4::timestamptz, $5, $6, $7)
+          VALUES ($1, $8, $2, $3, $4::timestamptz, $5, $6, $7, $9, $10)
           ON CONFLICT (call_uuid) DO NOTHING
         `,
         [
           event.callId,
-          event.caller || null,
+          event.callerId || event.caller || null,
           event.destination || null,
-          event.timestamp,
+          startedAtValue,
           event.flowId ?? null,
           event.flowVersionId ?? null,
           event.entryNodeKey ?? null,
           event.direction || 'inbound',
+          event.trunkId ?? null,
+          Boolean(event.recorded),
         ],
       );
       AppLogger.dbQuery('insert', 'call_logs', startedAt);
@@ -152,21 +176,28 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
 
   private async handleCallEnded(event: CallEndedEvent): Promise<void> {
     try {
+      const durationSeconds = typeof event.duration === 'number'
+        ? event.duration
+        : typeof event.durationSeconds === 'number'
+          ? event.durationSeconds
+          : null;
       // 1. Update ended_at, duration, and exit_node_key regardless of status, but only if ended_at is NULL
       const updateStartedAt = Date.now();
       await this.dataSource.query(
         `
           UPDATE call_logs
-          SET ended_at       = $2::timestamptz,
-              duration_seconds = $3,
-              exit_node_key   = $4
+          SET ended_at         = $2::timestamptz,
+              answered_at      = COALESCE($3::timestamptz, answered_at),
+              duration_seconds = $4,
+              exit_node_key    = $5
           WHERE call_uuid = $1
             AND ended_at IS NULL
         `,
         [
           event.callId,
-          event.timestamp,
-          typeof event.durationSeconds === 'number' ? event.durationSeconds : null,
+          event.endedAt || event.timestamp,
+          event.answeredAt || null,
+          durationSeconds,
           event.exitNodeKey ?? null,
         ],
       );
@@ -191,6 +222,8 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
 
   private async handleCallFailed(event: CallFailedEvent): Promise<void> {
     try {
+      const durationSeconds = typeof event.duration === 'number' ? event.duration : null;
+      const endedAtValue = event.endedAt || event.timestamp;
       // Upsert: insert if stasis never emitted 'started', then mark failed
       const startedAt = Date.now();
       await this.dataSource.query(
@@ -202,27 +235,40 @@ export class CallLogsListener implements OnModuleInit, OnModuleDestroy {
             callee_number,
             started_at,
             ended_at,
+            answered_at,
             end_reason,
+            duration_seconds,
             flow_id,
             flow_version_id,
-            exit_node_key
+            exit_node_key,
+            trunk_id,
+            recorded
           )
-          VALUES ($1, $8, $2, $3, $4::timestamptz, $4::timestamptz, 'failed', $5, $6, $7)
+          VALUES ($1, $11, $2, $3, $4::timestamptz, $5::timestamptz, $6::timestamptz, 'failed', $7, $8, $9, $10, $12, $13)
           ON CONFLICT (call_uuid) DO UPDATE
-            SET ended_at     = EXCLUDED.ended_at,
-                end_reason   = 'failed',
-                exit_node_key = EXCLUDED.exit_node_key
+            SET ended_at         = EXCLUDED.ended_at,
+                answered_at      = COALESCE(EXCLUDED.answered_at, call_logs.answered_at),
+                end_reason       = 'failed',
+                duration_seconds = COALESCE(EXCLUDED.duration_seconds, call_logs.duration_seconds),
+                exit_node_key    = EXCLUDED.exit_node_key,
+                trunk_id         = COALESCE(EXCLUDED.trunk_id, call_logs.trunk_id),
+                recorded         = call_logs.recorded OR EXCLUDED.recorded
           WHERE call_logs.ended_at IS NULL
         `,
         [
           event.callId,
-          event.caller || null,
+          event.callerId || event.caller || null,
           event.destination || null,
           event.timestamp,
+          endedAtValue,
+          event.answeredAt || null,
+          durationSeconds,
           event.flowId ?? null,
           event.flowVersionId ?? null,
           event.failedNode ?? null,
           event.direction || 'inbound',
+          event.trunkId ?? null,
+          Boolean(event.recorded),
         ],
       );
       AppLogger.dbQuery('upsert', 'call_logs', startedAt);

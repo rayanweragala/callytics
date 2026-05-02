@@ -20,6 +20,11 @@ export class TrunksController {
     return this.trunksService.create(dto);
   }
 
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.trunksService.findOne(id);
+  }
+
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTrunkDto) {
     return this.trunksService.update(id, dto);

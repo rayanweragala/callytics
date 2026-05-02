@@ -2,23 +2,26 @@ import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from 'react
 import { SearchableSelect, type SearchableSelectOption } from '../components/common/SearchableSelect';
 import { PageLayout } from '../components/common/PageLayout';
 import { ErrorMessage } from '../components/common/ErrorMessage';
+import { Loading } from '../components/common/Loading';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import {
   createTrunk,
   deleteTrunk,
+  getSettings,
   getTrunkTestStatus,
   listAllAudio,
   listTrunks,
   testTrunk,
   testTrunkInbound,
   testTrunkOutbound,
+  updateSettings,
   updateTrunk,
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
-import type { AudioFileItem, SipTrunkItem, TrunkTestResult } from '../types';
+import type { AudioFileItem, SipTrunkItem, SystemSettings, TrunkTestResult } from '../types';
 import styles from './TrunksPage.module.css';
 
 function SignalIcon() {
@@ -93,6 +96,7 @@ interface TrunkFormState {
   password: string;
   fromDomain: string;
   fromUser: string;
+  dialFormat: string;
 }
 
 type TestCallStatus = 'dialing' | 'answered' | 'completed' | 'failed';
@@ -128,6 +132,7 @@ const emptyForm: TrunkFormState = {
   password: '',
   fromDomain: '',
   fromUser: '',
+  dialFormat: '{number}',
 };
 
 const COUNTRY_OPTIONS = [
@@ -156,6 +161,11 @@ const COUNTRY_DIAL_PREFIX: Record<string, string> = {
   AE: '+971',
 };
 
+const emptySettings: SystemSettings = {
+  default_outbound_trunk_id: null,
+  record_outbound_calls: false,
+};
+
 function toForm(item: SipTrunkItem | null): TrunkFormState {
   if (!item) {
     return emptyForm;
@@ -170,11 +180,18 @@ function toForm(item: SipTrunkItem | null): TrunkFormState {
     password: item.password || '',
     fromDomain: item.fromDomain || '',
     fromUser: item.fromUser || '',
+    dialFormat: item.dialFormat || '{number}',
   };
 }
 
 export function TrunksPage() {
   const [items, setItems] = useState<SipTrunkItem[]>([]);
+  const [settings, setSettings] = useState<SystemSettings>(emptySettings);
+  const [draftSettings, setDraftSettings] = useState<SystemSettings>(emptySettings);
+  const [settingsTrunkOptions, setSettingsTrunkOptions] = useState<SearchableSelectOption[]>([]);
+  const [settingsLoadError, setSettingsLoadError] = useState<string | null>(null);
+  const [isSettingsInitial, setIsSettingsInitial] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<TrunkFormState>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -210,14 +227,18 @@ export function TrunksPage() {
   const outboundPollRef = useRef<number | null>(null);
   const inboundPollRef = useRef<number | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const testPanelRef = useRef<HTMLDivElement | null>(null);
   const editPanelRef = useRef<HTMLFormElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [successText, setSuccessText] = useState<string | null>(null);
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const blockingLoadError = !isLoading && !isSettingsInitial ? loadError || settingsLoadError : null;
+  const initialPageLoading = (isInitialLoad || isSettingsInitial) && !blockingLoadError;
+  const initialPageLoadError = blockingLoadError;
+  const isDirectOutboundEnabled = draftSettings.default_outbound_trunk_id !== null
+    && settingsTrunkOptions.some((option) => option.value === String(draftSettings.default_outbound_trunk_id));
+  const settingsDirty = JSON.stringify(settings) !== JSON.stringify(draftSettings);
   const sortedItems = useMemo(() => [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [items]);
   const presetOptions = useMemo<SearchableSelectOption[]>(() => (
     Object.entries(PROVIDER_PRESETS).map(([value, preset]) => ({ value, label: preset.label }))
@@ -234,11 +255,32 @@ export function TrunksPage() {
       const response = await listTrunks(nextLimit, nextOffset);
       setItems(response.data);
       setTotal(response.total);
-    } catch {
-      setLoadError('Failed to load trunks');
+    } catch (error) {
+      setLoadError(getApiError(error, 'Failed to load trunks'));
     } finally {
       setIsLoading(false);
       setIsInitialLoad(false);
+    }
+  };
+
+  const loadSettingsPanel = async () => {
+    setSettingsLoadError(null);
+    try {
+      const [settingsResponse, trunksResponse] = await Promise.all([
+        getSettings(),
+        listTrunks(1000, 0),
+      ]);
+      setSettings(settingsResponse.data);
+      setDraftSettings(settingsResponse.data);
+      setSettingsTrunkOptions(
+        trunksResponse.data
+          .filter((item) => item.enabled)
+          .map((item) => ({ value: String(item.id), label: item.name })),
+      );
+    } catch (error) {
+      setSettingsLoadError(getApiError(error, 'failed to load direct outbound settings'));
+    } finally {
+      setIsSettingsInitial(false);
     }
   };
 
@@ -246,10 +288,13 @@ export function TrunksPage() {
     void load(limit, offset);
   }, [limit, offset]);
 
+  useEffect(() => {
+    void loadSettingsPanel();
+  }, []);
+
   useEffect(() => () => {
     Object.values(badgeTimersRef.current).forEach((timer) => window.clearTimeout(timer));
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
     if (outboundPollRef.current) window.clearInterval(outboundPollRef.current);
     if (inboundPollRef.current) window.clearInterval(inboundPollRef.current);
   }, []);
@@ -306,12 +351,6 @@ export function TrunksPage() {
     setErrorText(msg);
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
-  };
-
-  const showSuccess = (msg: string) => {
-    if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    setSuccessText(msg);
-    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
   };
 
   const resetMessages = () => {
@@ -416,11 +455,11 @@ export function TrunksPage() {
         password: createForm.username.trim() ? createForm.password : undefined,
         fromDomain: createForm.fromDomain.trim() || undefined,
         fromUser: createForm.fromUser.trim() || undefined,
+        dialFormat: createForm.dialFormat.trim() || '{number}',
       });
       hideCreate();
       setOffset(0);
-      await load(limit, 0);
-      showSuccess('Created');
+      await Promise.all([load(limit, 0), loadSettingsPanel()]);
     } catch (error) {
       showError(getApiError(error, 'failed to create trunk'));
     } finally {
@@ -443,10 +482,10 @@ export function TrunksPage() {
         password: editForm.username.trim() ? editForm.password : undefined,
         fromDomain: editForm.fromDomain.trim() || undefined,
         fromUser: editForm.fromUser.trim() || undefined,
+        dialFormat: editForm.dialFormat.trim() || '{number}',
       });
       hideEdit();
-      await load(limit, offset);
-      showSuccess('Updated');
+      await Promise.all([load(limit, offset), loadSettingsPanel()]);
     } catch (error) {
       showError(getApiError(error, 'failed to update trunk'));
     } finally {
@@ -465,8 +504,7 @@ export function TrunksPage() {
       }
       const nextOffset = total - 1 <= offset && offset > 0 ? Math.max(0, offset - limit) : offset;
       setOffset(nextOffset);
-      await load(limit, nextOffset);
-      showSuccess('Deleted');
+      await Promise.all([load(limit, nextOffset), loadSettingsPanel()]);
     } catch (error) {
       showError(getApiError(error, 'failed to delete trunk'));
     } finally {
@@ -479,11 +517,31 @@ export function TrunksPage() {
     resetMessages();
     try {
       await updateTrunk(item.id, { enabled: !item.enabled });
-      await load(limit, offset);
+      await Promise.all([load(limit, offset), loadSettingsPanel()]);
     } catch (error) {
       showError(getApiError(error, 'failed to update trunk status'));
     } finally {
       setBusyKey(null);
+    }
+  };
+
+  const handleSettingsDraftChange = (patch: Partial<SystemSettings>) => {
+    setDraftSettings((current) => ({ ...current, ...patch }));
+  };
+
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsLoadError(null);
+    try {
+      await updateSettings({
+        default_outbound_trunk_id: draftSettings.default_outbound_trunk_id,
+        record_outbound_calls: draftSettings.record_outbound_calls,
+      });
+      await loadSettingsPanel();
+    } catch (error) {
+      setSettingsLoadError(getApiError(error, 'failed to save direct outbound settings'));
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -732,6 +790,28 @@ export function TrunksPage() {
     </button>
   );
 
+  if (blockingLoadError) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.pageHeader}>
+          <PageLayout title="SIP trunks" subtitle="configure" />
+        </div>
+        <ErrorMessage message={blockingLoadError} />
+      </div>
+    );
+  }
+
+  if (initialPageLoading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.pageHeader}>
+          <PageLayout title="SIP trunks" subtitle="configure" />
+        </div>
+        <Loading message="Loading trunks..." />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
@@ -798,6 +878,14 @@ export function TrunksPage() {
                 setCreateForm((current) => ({ ...current, fromUser: event.target.value }));
               }} />
             </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>dial format</span>
+              <input className={`${styles.input} ${styles.dataMono}`} value={createForm.dialFormat} onChange={(event) => {
+                resetMessages();
+                setCreateForm((current) => ({ ...current, dialFormat: event.target.value }));
+              }} />
+              <span className={styles.helper}>Use {'{number}'} as placeholder. Example: +{'{number}'} for Twilio.</span>
+            </label>
             <div className={styles.formActions}>
               <button className={styles.secondaryButton} onClick={hideCreate} type="button">cancel</button>
               <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save trunk'}</button>
@@ -807,7 +895,59 @@ export function TrunksPage() {
         </section>
       ) : null}
 
+      {!initialPageLoadError ? (
+      <section className={styles.settingsPanel}>
+        <div className={styles.panelTitle}>direct outbound dial</div>
+        <div className={styles.settingsGrid}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>default outbound trunk</span>
+            <SearchableSelect
+              options={settingsTrunkOptions}
+              value={draftSettings.default_outbound_trunk_id === null ? null : String(draftSettings.default_outbound_trunk_id)}
+              onChange={(value) => handleSettingsDraftChange({ default_outbound_trunk_id: value ? Number(value) : null })}
+              placeholder="Select trunk"
+              disabled={settingsSaving}
+            />
+          </label>
+          <div className={styles.settingsToggleField}>
+            <div>
+              <div className={styles.toggleLabel}>Record outbound calls</div>
+              <div className={styles.toggleSubLabel}>Use existing bridge recording for direct outbound PSTN calls</div>
+            </div>
+            <button
+              aria-checked={draftSettings.record_outbound_calls}
+              aria-label="Record outbound calls"
+              className={`${styles.toggleSwitch} ${draftSettings.record_outbound_calls ? styles.toggleOn : ''}`}
+              disabled={settingsSaving}
+              onClick={() => handleSettingsDraftChange({ record_outbound_calls: !draftSettings.record_outbound_calls })}
+              role="switch"
+              type="button"
+            >
+              <span />
+            </button>
+          </div>
+        </div>
+        {!isDirectOutboundEnabled ? (
+          <div className={styles.settingsNote}>
+            Direct outbound dial is disabled. Select a default trunk to enable it.
+          </div>
+        ) : null}
+        {settingsDirty ? (
+          <div className={styles.formActions} style={{ marginTop: '16px' }}>
+            <button className={styles.secondaryButton} onClick={() => setDraftSettings(settings)} disabled={settingsSaving} type="button">cancel</button>
+            <button className={styles.primaryButton} onClick={() => void handleSaveSettings()} disabled={settingsSaving} type="button">
+              {settingsSaving ? 'saving…' : 'save changes'}
+            </button>
+          </div>
+        ) : null}
+        {settingsLoadError ? <ErrorMessage message={settingsLoadError} /> : null}
+      </section>
+      ) : null}
+
       <div className={styles.tableCard}>
+        {initialPageLoadError ? <ErrorMessage message={initialPageLoadError} /> : null}
+        {!initialPageLoadError ? (
+        <>
         {isLoading ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (
@@ -823,8 +963,6 @@ export function TrunksPage() {
               ]} />
             ))}
           </>
-        ) : loadError ? (
-          <ErrorMessage message={loadError} />
         ) : sortedItems.length === 0 ? (
           <div className={styles.emptyState}>No trunks configured. Add your first SIP trunk.</div>
         ) : (
@@ -1056,6 +1194,14 @@ export function TrunksPage() {
                                 setEditForm((current) => ({ ...current, fromUser: event.target.value }));
                               }} />
                             </label>
+                            <label className={styles.field}>
+                              <span className={styles.fieldLabel}>dial format</span>
+                              <input className={`${styles.input} ${styles.dataMono}`} value={editForm.dialFormat} onChange={(event) => {
+                                resetMessages();
+                                setEditForm((current) => ({ ...current, dialFormat: event.target.value }));
+                              }} />
+                              <span className={styles.helper}>Use {'{number}'} as placeholder. Example: +{'{number}'} for Twilio, 0{'{number}'} for Dialog.</span>
+                            </label>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
                               <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
@@ -1070,8 +1216,9 @@ export function TrunksPage() {
             </tbody>
           </table>
         )}
+        </>
+        ) : null}
         <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
-        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
       <ConfirmDialog

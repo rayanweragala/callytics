@@ -567,8 +567,14 @@ export interface SipTrunkItem {
   password: string | null;
   fromDomain: string | null;
   fromUser: string | null;
+  dialFormat: string;
   enabled: boolean;
   createdAt: string;
+}
+
+export interface SystemSettings {
+  default_outbound_trunk_id: number | null;
+  record_outbound_calls: boolean;
 }
 
 export interface TrunkTestResult {

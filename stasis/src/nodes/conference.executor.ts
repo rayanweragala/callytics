@@ -3,6 +3,8 @@ import { FlowNode } from '../flowLoader';
 import { logEvent } from '../logger';
 import { publish } from '../redis';
 import { publishSipTraffic } from '../telemetry';
+import { formatDialNumber } from '../lib/formatDialNumber';
+import { fetchTrunkDialFormat } from '../lib/trunkResolver';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
 
@@ -14,6 +16,17 @@ interface ConferenceConfig {
   waitForModerator?: boolean;
   moderatorType?: 'extension' | 'pstn' | null;
   moderatorId?: number | null;
+  participants?: ConferenceParticipantConfig[];
+}
+
+interface ConferenceParticipantConfig {
+  target_type?: 'extension' | 'pstn';
+  destination_type?: 'extension' | 'pstn';
+  target_value?: string | null;
+  destination_value?: string | null;
+  number?: string | null;
+  trunk_id?: number | null;
+  trunkId?: number | null;
 }
 
 interface ConferenceChannel {
@@ -26,6 +39,13 @@ interface ConferenceChannel {
 
 interface AriLike {
   channels: {
+    originate?: (params: {
+      endpoint: string;
+      app: string;
+      appArgs: string;
+      callerId: string;
+      timeout: number;
+    }) => Promise<{ id?: string } | void>;
     startMoh?: (params: { channelId: string; mohClass?: string }) => Promise<void>;
     stopMoh?: (params: { channelId: string }) => Promise<void>;
     hangup?: (params: { channelId: string }) => Promise<void>;
@@ -207,6 +227,56 @@ async function publishConferenceEvent(
   }).catch(() => undefined);
 }
 
+async function dialConferencePstnParticipants(
+  ariClient: AriLike,
+  room: ConferenceRoomState,
+  config: ConferenceConfig,
+  session: CallSession,
+): Promise<void> {
+  if (!ariClient.channels.originate || !Array.isArray(config.participants)) {
+    return;
+  }
+
+  for (const participant of config.participants) {
+    const participantType = participant.target_type || participant.destination_type;
+    if (participantType !== 'pstn') {
+      continue;
+    }
+
+    const trunkId = Number(participant.trunk_id || participant.trunkId || 0);
+    const number = String(
+      participant.target_value || participant.destination_value || participant.number || '',
+    ).trim();
+    if (!trunkId || !number) {
+      continue;
+    }
+
+    const dialFormat = await fetchTrunkDialFormat(trunkId);
+    const formattedNumber = formatDialNumber(number, dialFormat);
+    if (!formattedNumber) {
+      logEvent('ConferencePstnParticipantSkipped', { roomName: config.roomName, trunkId });
+      continue;
+    }
+
+    const result = await ariClient.channels.originate({
+      endpoint: `PJSIP/${formattedNumber}@trunk-${trunkId}`,
+      app: process.env.ARI_APP || 'callytics',
+      appArgs: `conference-outbound,${room.bridgeId}`,
+      callerId: session.callerNumber,
+      timeout: 30,
+    }).catch(() => null);
+
+    const outboundChannelId = String(result && 'id' in result ? result.id || '' : '').trim();
+    if (!outboundChannelId) {
+      continue;
+    }
+
+    await ariClient.bridges.addChannel({ bridgeId: room.bridgeId, channel: outboundChannelId }).catch(() => undefined);
+    room.channels.add(outboundChannelId);
+    room.callerIds.set(outboundChannelId, number);
+  }
+}
+
 export async function executeConference(
   channel: ConferenceChannel,
   node: FlowNode,
@@ -222,6 +292,7 @@ export async function executeConference(
 
   const moderator = await isModerator(channel, session, config);
   const room = await getOrCreateRoom(client, roomName);
+  await dialConferencePstnParticipants(client, room, config, session);
   room.callerIds.set(channel.id, session.callerNumber);
 
   return await new Promise<'default'>((resolve) => {

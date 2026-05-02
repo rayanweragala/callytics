@@ -52,6 +52,7 @@ const SIP_CODE_INFO: Record<number, SipCodeInfo> = {
   486: { title: 'Busy Here', explanation: 'Endpoint is busy. Expected on busy extensions.' },
   487: { title: 'Request Terminated', explanation: 'Call was cancelled before answer. Normal on user-initiated cancel.' },
   488: { title: 'Not Acceptable Here', explanation: 'Codec or media mismatch. Check SDP offer and accepted codecs on both sides.' },
+  489: { title: 'Bad Event', explanation: 'Server does not support the requested event type. Common with presence PUBLISH — harmless if Asterisk presence module is not loaded.' },
   500: { title: 'Server Internal Error', explanation: 'Asterisk encountered an unexpected error. Check Asterisk logs.' },
   503: { title: 'Service Unavailable', explanation: 'Server overloaded or temporarily down.' },
   504: { title: 'Server Timeout', explanation: 'Upstream server did not respond in time.' },
@@ -405,9 +406,11 @@ export function CapturePage() {
   );
 
   return (
-    <PageLayout actions={actions} subtitle="monitor" title="Capture">
+    <PageLayout actions={pageError ? undefined : actions} subtitle="monitor" title="Capture">
       <div className={styles.page}>
         {pageError ? <ErrorMessage message={pageError} /> : null}
+        {!pageError ? (
+          <>
         {infoBanner ? <div className={styles.statusLine}>{infoBanner}</div> : null}
         <div className={styles.statusLine}>{statusText}</div>
 
@@ -499,6 +502,8 @@ export function CapturePage() {
             </span>
             <span className={styles.codeInfoBody}>{getSipCodeInfo(tooltip.code).explanation}</span>
           </div>
+        ) : null}
+          </>
         ) : null}
       </div>
     </PageLayout>
