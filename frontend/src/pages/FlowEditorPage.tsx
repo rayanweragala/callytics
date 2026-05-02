@@ -219,6 +219,7 @@ export function FlowEditorPage() {
   const [minimapVisible, setMinimapVisible] = useState(true);
   const [timeoutWarningConfirmVisible, setTimeoutWarningConfirmVisible] = useState(false);
   const [timeoutWarningMessage, setTimeoutWarningMessage] = useState<string | null>(null);
+  const [loadRefError, setLoadRefError] = useState<string | null>(null);
   const nodeValidationIssues = useMemo(() => validateNodeConfigurations(nodes, edges), [nodes, edges]);
   const nodeValidationMap = useMemo(
     () => new Map(nodeValidationIssues.map((issue) => [issue.nodeId, issue])),
@@ -266,20 +267,34 @@ export function FlowEditorPage() {
         listTrunks(200, 0),
       ]);
       if (!active) return;
+      const failed: string[] = [];
       if (queuesRes.status === 'fulfilled') {
         setQueueItems(queuesRes.value.data);
+      } else {
+        failed.push('queues');
       }
       if (extensionsRes.status === 'fulfilled') {
         setExtensions(extensionsRes.value.data);
+      } else {
+        failed.push('extensions');
       }
       if (operatorsRes.status === 'fulfilled') {
         setOperators(operatorsRes.value.data);
+      } else {
+        failed.push('operators');
       }
       if (contactsRes.status === 'fulfilled') {
         setContactNumbers(contactsRes.value.data);
+      } else {
+        failed.push('contact numbers');
       }
       if (trunksRes.status === 'fulfilled') {
         setTrunks(trunksRes.value.data);
+      } else {
+        failed.push('trunks');
+      }
+      if (failed.length > 0) {
+        setLoadRefError(`Failed to load: ${failed.join(', ')}. Node configuration options may be incomplete.`);
       }
     };
     void loadReferenceData();
@@ -1209,6 +1224,7 @@ export function FlowEditorPage() {
         </section>
 
         <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { userEditedRef.current = true; handleDrop(event, rfInstance); }}>
+          {loadRefError ? <div className={styles.loadRefError}>{loadRefError}</div> : null}
           <div className={styles.canvasWrapper}>
             {/* Empty canvas hint — visible only when just the start node exists */}
             {nodes.filter((n) => !String(n.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX) && n.type !== 'group').length <= 1 ? (

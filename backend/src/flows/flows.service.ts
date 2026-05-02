@@ -477,7 +477,7 @@ export class FlowsService implements OnModuleInit {
     const safeLimit = Math.max(1, limit);
     const [flows, total] = await this.callFlowsRepository.findAndCount({
       where: { parentFlowId: IsNull(), isTemplate: false },
-      order: { createdAt: 'ASC' },
+      order: { createdAt: 'DESC' },
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
     });

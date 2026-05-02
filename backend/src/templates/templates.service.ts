@@ -24,7 +24,7 @@ export class TemplatesService {
           GROUP BY flow_version_id
         ) node_counts ON node_counts.flow_version_id = cf.current_version_id
         WHERE cf.is_template = true
-        ORDER BY cf.id ASC
+        ORDER BY cf.created_at DESC, cf.id DESC
       `,
     );
 

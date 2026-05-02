@@ -182,8 +182,18 @@ export function BackupPage() {
   const [restoring, setRestoring] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const logIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSuccess = (msg: string) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessText(msg);
+    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
+  };
+
+  useEffect(() => () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); }, []);
 
   const pushBackupLog = (text: string) => {
     logIdRef.current += 1;
@@ -326,6 +336,7 @@ export function BackupPage() {
       setDeleteConfirmId(null);
       setRestorePanelId((current) => current === id ? null : current);
       await loadHistory(page);
+      showSuccess('Deleted');
     } catch (error) {
       setPageError(getApiError(error, 'failed to delete backup'));
     } finally {
@@ -386,6 +397,7 @@ export function BackupPage() {
       });
       setConfig(response);
       setDraftConfig(response);
+      showSuccess('Schedule saved');
     } catch (error) {
       setPageError(getApiError(error, 'failed to save backup schedule'));
     } finally {
@@ -425,6 +437,7 @@ export function BackupPage() {
     >
       <div className={styles.page}>
         <ErrorMessage message={pageError} />
+        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
 
         <section className={styles.statusBar}>
           <span className={`${styles.statusDot} ${config?.enabled ? styles.statusDotActive : styles.statusDotMuted}`} />

@@ -210,9 +210,11 @@ export function TrunksPage() {
   const outboundPollRef = useRef<number | null>(null);
   const inboundPollRef = useRef<number | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const testPanelRef = useRef<HTMLDivElement | null>(null);
   const editPanelRef = useRef<HTMLFormElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [successText, setSuccessText] = useState<string | null>(null);
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -247,6 +249,7 @@ export function TrunksPage() {
   useEffect(() => () => {
     Object.values(badgeTimersRef.current).forEach((timer) => window.clearTimeout(timer));
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
     if (outboundPollRef.current) window.clearInterval(outboundPollRef.current);
     if (inboundPollRef.current) window.clearInterval(inboundPollRef.current);
   }, []);
@@ -303,6 +306,12 @@ export function TrunksPage() {
     setErrorText(msg);
     if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
+  };
+
+  const showSuccess = (msg: string) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessText(msg);
+    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
   };
 
   const resetMessages = () => {
@@ -411,6 +420,7 @@ export function TrunksPage() {
       hideCreate();
       setOffset(0);
       await load(limit, 0);
+      showSuccess('Created');
     } catch (error) {
       showError(getApiError(error, 'failed to create trunk'));
     } finally {
@@ -436,6 +446,7 @@ export function TrunksPage() {
       });
       hideEdit();
       await load(limit, offset);
+      showSuccess('Updated');
     } catch (error) {
       showError(getApiError(error, 'failed to update trunk'));
     } finally {
@@ -455,6 +466,7 @@ export function TrunksPage() {
       const nextOffset = total - 1 <= offset && offset > 0 ? Math.max(0, offset - limit) : offset;
       setOffset(nextOffset);
       await load(limit, nextOffset);
+      showSuccess('Deleted');
     } catch (error) {
       showError(getApiError(error, 'failed to delete trunk'));
     } finally {
@@ -1059,6 +1071,7 @@ export function TrunksPage() {
           </table>
         )}
         <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
+        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
       <ConfirmDialog

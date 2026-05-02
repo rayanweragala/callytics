@@ -125,12 +125,20 @@ export function FirewallPage() {
   const [blocked, setBlocked] = useState<FirewallBlockedIp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [whitelistValue, setWhitelistValue] = useState('');
   const feedRef = useRef<HTMLDivElement | null>(null);
   const feedPausedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSuccess = (msg: string) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessText(msg);
+    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
+  };
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -191,6 +199,9 @@ export function FirewallPage() {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+    }
   }, []);
 
   const saveConfig = async (patch: Partial<FirewallConfig>) => {
@@ -216,6 +227,7 @@ export function FirewallPage() {
     try {
       await unblockFirewallIp(ip);
       setBlocked((current) => current.filter((item) => item.ip !== ip));
+      showSuccess(`Unblocked ${ip}`);
     } catch (err) {
       setError(getApiError(err, 'failed to unblock address'));
     }
@@ -225,6 +237,7 @@ export function FirewallPage() {
     try {
       await whitelistFirewallIp(ip);
       setBlocked((current) => current.filter((item) => item.ip !== ip));
+      showSuccess(`Whitelisted ${ip}`);
     } catch (err) {
       setError(getApiError(err, 'failed to whitelist address'));
     }
@@ -237,6 +250,7 @@ export function FirewallPage() {
       await whitelistFirewallIp(value);
       setWhitelistValue('');
       setSavedFlash(true);
+      showSuccess(`Whitelisted ${value}`);
     } catch (err) {
       setError(getApiError(err, 'failed to add whitelist address'));
     }
@@ -258,6 +272,7 @@ export function FirewallPage() {
     >
       <div className={styles.page}>
         <ErrorMessage message={error} />
+        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
         <section className={styles.statusBar}>
           <span className={styles.statusDot} />
           <span>mode <strong>{config.enforcementMode}</strong></span>

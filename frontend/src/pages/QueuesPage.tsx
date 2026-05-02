@@ -101,7 +101,17 @@ export function QueuesPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSuccess = (msg: string) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessText(msg);
+    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
+  };
+
+  useEffect(() => () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); }, []);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
@@ -158,6 +168,7 @@ export function QueuesPage() {
       setCreatePinRetries(3);
       setCreateOperatorIds([]);
       setCreateOpen(false);
+      showSuccess('Created');
     } catch (err: unknown) {
       setErrorText(getApiError(err, 'Failed to create queue'));
     } finally {
@@ -220,6 +231,7 @@ export function QueuesPage() {
       });
       await load(page);
       setEditState(null);
+      showSuccess('Updated');
     } catch (err: unknown) {
       setErrorText(getApiError(err, 'Save failed'));
     } finally {
@@ -238,6 +250,7 @@ export function QueuesPage() {
       if (nextPage !== page) setPage(nextPage);
       setConfirmDeleteId(null);
       if (editState?.queueId === id) setEditState(null);
+      showSuccess('Deleted');
     } catch (err: unknown) {
       setErrorText(getApiError(err, 'Delete failed'));
     } finally {
@@ -492,6 +505,7 @@ export function QueuesPage() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
         {!createOpen && errorText && editState === null ? <ErrorMessage message={errorText} /> : null}
       </div>
 

@@ -38,6 +38,7 @@ export function InboundRoutesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [createDidError, setCreateDidError] = useState<string | null>(null);
   const [editDidError, setEditDidError] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
@@ -53,10 +54,16 @@ export function InboundRoutesPage() {
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
   };
 
-  const showSuccess = (id: number | null) => {
-    setDeletedId(id);
+  const showSuccess = (idOrMsg: number | string | null) => {
+    if (typeof idOrMsg === 'number' || idOrMsg === null) {
+      setDeletedId(idOrMsg);
+      setSuccessText(null);
+    } else {
+      setSuccessText(idOrMsg);
+      setDeletedId(null);
+    }
     if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+    if (idOrMsg !== null) successTimerRef.current = setTimeout(() => { setDeletedId(null); setSuccessText(null); }, 3000);
   };
 
   const page = Math.floor(offset / limit) + 1;
@@ -94,7 +101,9 @@ export function InboundRoutesPage() {
 
   const resetMessages = () => {
     showError(null);
-    showSuccess(null);
+    setDeletedId(null);
+    setSuccessText(null);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
     setCreateDidError(null);
     setEditDidError(null);
   };
@@ -125,6 +134,7 @@ export function InboundRoutesPage() {
       setCreateOpen(false);
       setOffset(0);
       await load(limit, 0);
+      showSuccess('Created');
     } catch (error) {
       if (!applyDidConflictError(error, 'create')) {
         showError(getApiError(error, 'failed to create route'));
@@ -182,6 +192,7 @@ export function InboundRoutesPage() {
       setEditingId(null);
       setEditForm(emptyForm);
       await load(limit, offset);
+      showSuccess('Updated');
     } catch (error) {
       if (!applyDidConflictError(error, 'edit')) {
         showError(getApiError(error, 'failed to update route'));
@@ -359,6 +370,7 @@ export function InboundRoutesPage() {
           onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)}
         />
         {deletedId !== null ? <div className={styles.successText}>route deleted</div> : null}
+        {successText ? <div className={styles.successText}>{successText}</div> : null}
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
       <ConfirmDialog

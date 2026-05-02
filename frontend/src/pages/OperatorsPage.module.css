@@ -191,6 +191,16 @@
   color: var(--color-error);
 }
 
+.successRibbon {
+  background: var(--primitive-green-dim);
+  border: 1px solid var(--primitive-green);
+  border-radius: var(--radius-lg);
+  color: var(--primitive-green);
+  font-size: 14px;
+  margin: 0.5rem 0;
+  padding: 12px 16px;
+}
+
 .actions,
 .formActions {
   display: flex;

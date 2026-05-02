@@ -44,6 +44,7 @@ export function ExtensionsPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [qrModal, setQrModal] = useState<{ username: string; uri: string; dataUrl: string } | null>(null);
   const [hostIp, setHostIp] = useState('127.0.0.1');
@@ -66,10 +67,16 @@ export function ExtensionsPage() {
     if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
   };
 
-  const showSuccess = (id: number | null) => {
-    setDeletedId(id);
+  const showSuccess = (idOrMsg: number | string | null) => {
+    if (typeof idOrMsg === 'number' || idOrMsg === null) {
+      setDeletedId(idOrMsg);
+      setSuccessText(null);
+    } else {
+      setSuccessText(idOrMsg);
+      setDeletedId(null);
+    }
     if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    if (id !== null) successTimerRef.current = setTimeout(() => setDeletedId(null), 6000);
+    if (idOrMsg !== null) successTimerRef.current = setTimeout(() => { setDeletedId(null); setSuccessText(null); }, 3000);
   };
 
   const page = Math.floor(offset / limit) + 1;
@@ -117,7 +124,9 @@ export function ExtensionsPage() {
 
   const resetMessages = () => {
     showError(null);
-    showSuccess(null);
+    setDeletedId(null);
+    setSuccessText(null);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
     setCreateUsernameError(null);
     setEditUsernameError(null);
   };
@@ -150,6 +159,7 @@ export function ExtensionsPage() {
       setCreateOpen(false);
       setOffset(0);
       await load(limit, 0);
+      showSuccess('Created');
     } catch (error) {
       if (!applyExtensionConflictError(error, 'create')) {
         showError(getApiError(error, 'failed to create extension'));
@@ -212,6 +222,7 @@ export function ExtensionsPage() {
       setEditingId(null);
       setEditForm(emptyForm);
       await load(limit, offset);
+      showSuccess('Updated');
     } catch (error) {
       if (!applyExtensionConflictError(error, 'edit')) {
         showError(getApiError(error, 'failed to update extension'));
@@ -476,6 +487,7 @@ export function ExtensionsPage() {
             onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)}
           />
           {deletedId !== null ? <div className={styles.successText}>extension deleted</div> : null}
+          {successText ? <div className={styles.successText}>{successText}</div> : null}
           {errorText ? <ErrorMessage message={errorText} /> : null}
         </div>
         <ConfirmDialog

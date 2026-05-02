@@ -21,6 +21,17 @@
   flex-shrink: 0;
 }
 
+.loadRefError {
+  padding: 10px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--color-error);
+  font-size: 13px;
+  margin: 8px 8px 0;
+  flex-shrink: 0;
+}
+
 /* ── Zone 1 — Toolbar ───────────────────────────────────────────────────────── */
 .topBar {
   display: grid;

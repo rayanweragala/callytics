@@ -62,8 +62,10 @@ export function OperatorsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
 
   const showError = (msg: string | null) => {
@@ -99,6 +101,7 @@ export function OperatorsPage() {
     return () => {
       if (pollTimer.current) clearInterval(pollTimer.current);
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, [load, page]);
 
@@ -208,6 +211,9 @@ export function OperatorsPage() {
       await load(page);
       setEditingId(null);
       setEditForm(emptyForm);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      setSuccessText('Updated');
+      successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
     } catch (err) {
       showError(getApiError(err, 'Failed to update operator'));
     } finally {
@@ -512,6 +518,7 @@ export function OperatorsPage() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
         {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
         <ConfirmDialog
           open={confirmDeleteId !== null}

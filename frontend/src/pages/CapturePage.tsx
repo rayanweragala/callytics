@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useSearchParams } from 'react-router-dom';
 import { LiveDot } from '../components/LiveDot';
 import { PageLayout } from '../components/common/PageLayout';
+import { ErrorMessage } from '../components/common/ErrorMessage';
 import { DialogDetail } from '../components/capture/DialogDetail';
 import { PacketStream, type PacketStreamFilters } from '../components/capture/PacketStream';
 import { SipHeadersAccordion } from '../components/capture/SipHeadersAccordion';
@@ -406,7 +407,7 @@ export function CapturePage() {
   return (
     <PageLayout actions={actions} subtitle="monitor" title="Capture">
       <div className={styles.page}>
-        {pageError ? <div className={styles.errorText}>{pageError}</div> : null}
+        {pageError ? <ErrorMessage message={pageError} /> : null}
         {infoBanner ? <div className={styles.statusLine}>{infoBanner}</div> : null}
         <div className={styles.statusLine}>{statusText}</div>
 

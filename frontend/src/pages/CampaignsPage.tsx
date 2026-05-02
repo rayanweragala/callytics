@@ -67,6 +67,14 @@ export function CampaignsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignItem | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [successText, setSuccessText] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSuccess = (msg: string) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessText(msg);
+    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
+  };
 
   const [saving, setSaving] = useState(false);
 
@@ -155,6 +163,7 @@ export function CampaignsPage() {
 
   useEffect(() => () => {
     if (saveFeedbackTimer.current) window.clearTimeout(saveFeedbackTimer.current);
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
   }, []);
 
   const openCreate = async () => {
@@ -268,6 +277,7 @@ export function CampaignsPage() {
       savedOk = true;
       setSaveState('saved');
       await loadCampaigns(page);
+      showSuccess(editingCampaign ? 'Updated' : 'Created');
     } catch (error) {
       setSaveState('failed');
       setUploadState('failed');
@@ -307,6 +317,7 @@ export function CampaignsPage() {
     try {
       await deleteCampaign(campaignId);
       await loadCampaigns(page);
+      showSuccess('Deleted');
     } catch (error) {
       setErrorText(getApiError(error, 'failed to delete campaign'));
     }
@@ -600,6 +611,7 @@ export function CampaignsPage() {
           )}
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
           {!formOpen ? <ErrorMessage message={errorText} /> : null}
         </div>
         <ConfirmDialog

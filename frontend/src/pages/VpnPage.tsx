@@ -85,8 +85,16 @@ export function VpnPage() {
   const [relayInlineError, setRelayInlineError] = useState<string | null>(null);
   const [confirmRemoveVpn, setConfirmRemoveVpn] = useState(false);
   const [removingVpn, setRemovingVpn] = useState(false);
+  const [successText, setSuccessText] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSuccess = (msg: string) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessText(msg);
+    successTimerRef.current = setTimeout(() => setSuccessText(null), 3000);
+  };
 
   const showCopied = (key: string) => {
     setCopiedKey(key);
@@ -217,6 +225,9 @@ export function VpnPage() {
     if (pollTimer.current) {
       clearInterval(pollTimer.current);
     }
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+    }
   }, []);
 
   const handleRefresh = async () => {
@@ -286,6 +297,7 @@ export function VpnPage() {
     setPeers((current) => current.filter((item) => item.id !== peer.id));
     try {
       await revokeVpnPeer(peer.id);
+      showSuccess(`Revoked ${peer.name}`);
     } catch (error) {
       setPageError(getApiError(error, 'failed to revoke peer'));
       await loadPeers();
@@ -394,6 +406,7 @@ export function VpnPage() {
     <PageLayout title="WireGuard VPN" subtitle="system" actions={actions}>
       <div className={styles.page}>
         <ErrorMessage message={pageError} />
+        {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
 
         {!status.installed ? (
           <section className={styles.notInstalledCard}>
