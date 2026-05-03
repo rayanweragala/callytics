@@ -231,13 +231,16 @@ export class CampaignExecutor {
 
     if (shouldRetry) {
       finalStatus = 'pending';
+      const retryRuntime = runtime;
+      const retryContact = { ...active.contact };
+      const retryAttemptNumber = active.attemptNumber;
       setTimeout(() => {
-        runtime?.queue.push({
-          ...active.contact,
-          attempts: active.attemptNumber,
+        retryRuntime.queue.push({
+          ...retryContact,
+          attempts: retryAttemptNumber,
         });
-        void this.fillWindow(runtime!);
-      }, runtime.campaign.retryIntervalMinutes * 60_000);
+        void this.fillWindow(retryRuntime);
+      }, retryRuntime.campaign.retryIntervalMinutes * 60_000);
     } else if (outcome === 'busy' || outcome === 'no_answer' || outcome === 'failed') {
       runtime.failedCount += 1;
     }
