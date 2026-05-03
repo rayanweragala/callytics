@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as http from 'node:http';
 import * as net from 'node:net';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import QRCode from 'qrcode';
@@ -36,6 +37,9 @@ const RELAY_BRIDGE_GATEWAY_IP = '172.20.0.1';
 const RELAY_HOST_ROUTE_SUBNET = '10.8.0.0/24';
 const RELAY_HOST_UDP_PORT = '5080';
 const HOST_HELPER_IMAGE = 'alpine';
+const ENCRYPTED_RELAY_KEY_PREFIX = 'enc:v1:';
+const ENCRYPTION_KEY_HEX_PATTERN = /^[A-Fa-f0-9]{64}$/;
+const RELAY_KEY_DERIVATION_SALT = 'callytics:vpn:relay-private-key:v1';
 
 interface WireGuardPeerDump {
   publicKey: string;
@@ -972,8 +976,9 @@ export class VpnService implements OnModuleInit {
 
     const generatedKeyPair = await this.generateKeyPair();
     await fs.promises.mkdir(this.configDir, { recursive: true });
+    const encryptedPrivateKey = this.encryptRelayPrivateKey(generatedKeyPair.privateKey);
     await Promise.all([
-      fs.promises.writeFile(this.relayPrivateKeyPath, `${generatedKeyPair.privateKey}\n`, { encoding: 'utf8', mode: 0o600 }),
+      fs.promises.writeFile(this.relayPrivateKeyPath, `${encryptedPrivateKey}\n`, { encoding: 'utf8', mode: 0o600 }),
       fs.promises.writeFile(this.relayPublicKeyPath, `${generatedKeyPair.publicKey}\n`, { encoding: 'utf8', mode: 0o644 }),
     ]);
     return generatedKeyPair;
@@ -981,12 +986,16 @@ export class VpnService implements OnModuleInit {
 
   private async readRelayKeyPair(): Promise<{ privateKey: string; publicKey: string } | null> {
     try {
-      const [privateKey, publicKey] = await Promise.all([
+      const [privateKeyRaw, publicKey] = await Promise.all([
         fs.promises.readFile(this.relayPrivateKeyPath, 'utf8'),
         fs.promises.readFile(this.relayPublicKeyPath, 'utf8'),
       ]);
+      const storedPrivateKey = privateKeyRaw.trim();
+      const privateKey = storedPrivateKey.startsWith(ENCRYPTED_RELAY_KEY_PREFIX)
+        ? this.decryptRelayPrivateKey(storedPrivateKey)
+        : storedPrivateKey;
       const keyPair = {
-        privateKey: privateKey.trim(),
+        privateKey,
         publicKey: publicKey.trim(),
       };
       if (this.isWireGuardKey(keyPair.privateKey) && this.isWireGuardKey(keyPair.publicKey)) {
@@ -1000,6 +1009,42 @@ export class VpnService implements OnModuleInit {
 
   private isWireGuardKey(value: string): boolean {
     return WIREGUARD_KEY_PATTERN.test(value);
+  }
+
+  private getRelayEncryptionKey(): Buffer {
+    const configuredKey = process.env.ENCRYPTION_KEY?.trim();
+    if (configuredKey && ENCRYPTION_KEY_HEX_PATTERN.test(configuredKey)) {
+      return Buffer.from(configuredKey, 'hex');
+    }
+    const hostIp = process.env.HOST_IP?.trim() || '127.0.0.1';
+    return scryptSync(hostIp, RELAY_KEY_DERIVATION_SALT, 32);
+  }
+
+  private encryptRelayPrivateKey(value: string): string {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.getRelayEncryptionKey(), iv);
+    const ciphertext = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return `${ENCRYPTED_RELAY_KEY_PREFIX}${iv.toString('hex')}:${authTag.toString('hex')}:${ciphertext.toString('hex')}`;
+  }
+
+  private decryptRelayPrivateKey(value: string): string {
+    const payload = value.slice(ENCRYPTED_RELAY_KEY_PREFIX.length);
+    const [ivHex, authTagHex, ciphertextHex] = payload.split(':');
+    if (!ivHex || !authTagHex || !ciphertextHex) {
+      throw new Error('Invalid encrypted relay key payload');
+    }
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.getRelayEncryptionKey(),
+      Buffer.from(ivHex, 'hex'),
+    );
+    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(ciphertextHex, 'hex')),
+      decipher.final(),
+    ]);
+    return plaintext.toString('utf8');
   }
 
   private async addLivePeer(peer: VpnPeerEntity): Promise<void> {
