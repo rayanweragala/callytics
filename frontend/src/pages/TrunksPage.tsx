@@ -937,7 +937,7 @@ export function TrunksPage() {
           </div>
         ) : null}
         {settingsDirty ? (
-          <div className={styles.formActions} style={{ marginTop: '16px' }}>
+          <div className={`${styles.formActions} ${styles.formActionsTop}`}>
             <button className={styles.secondaryButton} onClick={() => setDraftSettings(settings)} disabled={settingsSaving} type="button">cancel</button>
             <button className={styles.primaryButton} onClick={() => void handleSaveSettings()} disabled={settingsSaving} type="button">
               {settingsSaving ? 'saving…' : 'save changes'}

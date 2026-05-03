@@ -320,15 +320,7 @@
 }
 
 .skeleton {
-  background: var(--bg-elevated);
-  background-image: linear-gradient(
-    90deg,
-    var(--bg-elevated) 25%,
-    var(--bg-overlay) 50%,
-    var(--bg-elevated) 75%
-  );
-  background-size: 800px 100%;
-  animation: resourceShimmer 1.5s infinite linear;
+  background: var(--primitive-navy-800);
   border-radius: var(--radius-md);
 }
 
@@ -383,3 +375,44 @@
     padding: 0 16px;
   }
 }
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Relative container for the CPU arc + centred label overlay */
+.gaugeWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Absolute column overlay centred inside .gaugeWrap */
+.arcLabelOverlay {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* lastUpdated span when showing a fetch error */
+.lastUpdatedError {
+  color: var(--color-error);
+}
+
+/* ─── Skeleton width variants ─────────────────────────────────────────────── */
+
+.skeletonW30 { width: 30%; }
+.skeletonW40 { width: 40%; }
+.skeletonW50 { width: 50%; }
+.skeletonW60 { width: 60%; }
+.skeletonW70 { width: 70%; }
+
+/* Asterisk card big-number placeholder */
+.skeletonBigNumber {
+  width: 40%;
+  height: 48px;
+  margin-top: 8px;
+}
+
+/* Skeleton row with top margin */
+.skeletonMt8 { margin-top: 8px; }

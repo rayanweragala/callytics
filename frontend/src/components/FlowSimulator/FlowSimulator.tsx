@@ -657,7 +657,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
             <div className={styles.card}>
               <div className={styles.cardLabel}>dry-run simulator</div>
               <div className={styles.cardNodeType}>Steps through your flow without making real calls. No audio plays, no webhooks fire.</div>
-              <div style={{ marginTop: 12 }}>
+              <div className={styles.startButtonWrap}>
                 <button className={styles.startButton} onClick={startSim} type="button">start simulation</button>
               </div>
             </div>
@@ -668,7 +668,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
               <div className={`${styles.card} ${styles.doneCard}`}>
                 <div className={styles.cardLabel}>simulation complete</div>
                 <div className={styles.cardNodeType}>{simState.doneReason || 'Call ended'}</div>
-                <div style={{ marginTop: 10 }}>
+                <div className={styles.startButtonWrap}>
                   <button className={styles.startButton} onClick={resetSim} type="button">reset</button>
                 </div>
               </div>
@@ -678,7 +678,7 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
               {renderVisitedPath('visited path')}
               {renderAsyncEvents()}
               {renderCurrentStep()}
-              <div style={{ marginTop: 8 }}>
+              <div className={styles.resetButtonWrap}>
                 <button className={styles.branchButton} onClick={resetSim} type="button"><strong>reset</strong></button>
               </div>
             </>

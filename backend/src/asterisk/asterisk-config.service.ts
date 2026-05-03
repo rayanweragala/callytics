@@ -71,9 +71,7 @@ export class AsteriskConfigService implements OnModuleInit {
         order: { username: "ASC" },
       });
       const relayStatus = await this.vpnService.getRelayStatus();
-      const externalAddress = relayStatus.active
-        ? this.getExternalMediaAddress()
-        : null;
+      const externalAddress = await this.getRelayExternalAddress(relayStatus);
       await fs.mkdir(this.configDir, { recursive: true });
       await fs.writeFile(
         join(this.configDir, "pjsip_extensions_relay.conf"),
@@ -90,7 +88,9 @@ export class AsteriskConfigService implements OnModuleInit {
   }
 
   async syncExtensions(extensions: ResolvedExtensionConfig[]): Promise<void> {
-    await this.writeExtensionsConfig(extensions);
+    const relayStatus = await this.vpnService.getRelayStatus();
+    const externalAddress = await this.getRelayExternalAddress(relayStatus);
+    await this.writeExtensionsConfig(extensions, externalAddress);
     try {
       await this.reloadResPjsip();
     } catch (error) {
@@ -128,18 +128,15 @@ export class AsteriskConfigService implements OnModuleInit {
 
   async writeExtensionsConfig(
     extensions: ResolvedExtensionConfig[],
+    externalAddress: string | null,
   ): Promise<void> {
     await fs.mkdir(this.configDir, { recursive: true });
     await this.ensurePjsipTemplate();
     await fs.writeFile(
       join(this.configDir, "pjsip_callytics_extensions.conf"),
-      this.buildExtensionsConfig(extensions),
+      this.buildExtensionsConfig(extensions, externalAddress),
       "utf8",
     );
-    const relayStatus = await this.vpnService.getRelayStatus();
-    const externalAddress = relayStatus.active
-      ? this.getExternalMediaAddress()
-      : null;
     await fs.writeFile(
       join(this.configDir, "pjsip_extensions_relay.conf"),
       this.buildExtensionsRelayConfig(extensions, externalAddress),
@@ -461,7 +458,10 @@ export class AsteriskConfigService implements OnModuleInit {
     return JSON.parse(output) as AmiPjsipAor[];
   }
 
-  private buildExtensionsConfig(extensions: ResolvedExtensionConfig[]): string {
+  private buildExtensionsConfig(
+    extensions: ResolvedExtensionConfig[],
+    externalAddress: string | null,
+  ): string {
     const blocks = extensions.map((extension) => {
       const endpointLines = [
         `[${extension.username}]`,
@@ -474,9 +474,19 @@ export class AsteriskConfigService implements OnModuleInit {
         "direct_media = no",
         "force_rport = yes",
         "rewrite_contact = yes",
+      ];
+
+      if (externalAddress) {
+        endpointLines.push(
+          `media_address = ${externalAddress}`,
+          "rtp_symmetric = yes"
+        );
+      }
+
+      endpointLines.push(
         `auth = ${extension.username}-auth`,
         `aors = ${extension.username}`,
-      ];
+      );
 
       endpointLines.push(...extension.endpointFlags);
 
@@ -503,12 +513,21 @@ export class AsteriskConfigService implements OnModuleInit {
     );
   }
 
-  private getExternalMediaAddress(): string | null {
-    return (
-      process.env.ASTERISK_EXTERNAL_IP?.trim() ||
-      process.env.VPN_PUBLIC_IP?.trim() ||
-      null
-    );
+  private async getRelayExternalAddress(relayStatus?: {
+    active: boolean;
+    vpsPublicIp?: string | null;
+  }): Promise<string | null> {
+    const status = relayStatus ?? await this.vpnService.getRelayStatus();
+    if (!status.active) {
+      return null;
+    }
+
+    if (status.vpsPublicIp) {
+      return status.vpsPublicIp;
+    }
+
+    const relayConfig = await this.vpnService.getRelayConfig();
+    return relayConfig.vpsPublicIp || null;
   }
 
   private buildTrunksConfig(trunks: SipTrunkEntity[]): string {
@@ -700,7 +719,7 @@ export class AsteriskConfigService implements OnModuleInit {
     const lines = [
       "; auto-generated relay settings — do not commit",
       "; external_* values come from the active relay/VPS public IP at runtime.",
-      "; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.",
+      "; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf.",
       "",
     ];
     if (externalAddress) {
@@ -711,6 +730,7 @@ export class AsteriskConfigService implements OnModuleInit {
         "local_net = 172.16.0.0/12",
         "local_net = 127.0.0.1/32",
         `local_net = ${localLanNet}`,
+        "local_net = 10.8.0.0/24",
         "",
       );
     }
@@ -725,7 +745,7 @@ export class AsteriskConfigService implements OnModuleInit {
   ): string {
     const header = [
       "; auto-generated NAT overrides — do not commit",
-      "; Set ASTERISK_EXTERNAL_IP in the runtime environment before regenerating this file.",
+      "; media_address values come from the active relay/VPS public IP at runtime.",
     ];
     if (!externalAddress) {
       return `${header.join("\n")}\n`;

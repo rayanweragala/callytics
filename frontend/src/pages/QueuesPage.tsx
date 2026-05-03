@@ -65,6 +65,7 @@ function OperatorPickerRow({
       </div>
       {unselected.length > 0 ? (
         <div style={{ marginTop: selectedIds.length > 0 ? 8 : 0 }}>
+          {/* dynamic marginTop — inline style intentional */}
           <SearchableSelect
             options={unselected.map((op) => ({ value: String(op.id), label: op.name }))}
             value={null}

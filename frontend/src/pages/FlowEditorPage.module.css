@@ -84,13 +84,12 @@
 .primaryButton {
   background: var(--accent);
   border-color: var(--accent);
-  color: #000;
+  color: var(--primitive-navy-950);
   font-weight: 600;
 }
 
 .primaryButton:hover {
-  background: color-mix(in srgb, var(--accent) 85%, #fff);
-  border-color: color-mix(in srgb, var(--accent) 85%, #fff);
+  opacity: 0.88;
 }
 
 .secondaryButton:hover {
@@ -405,7 +404,7 @@
 .barhunt      { background: var(--primitive-blue); } /* blue */
 .barqueue     { background: var(--primitive-navy-300); } /* purple */
 .barqueuelogin { background: var(--primitive-navy-300); } /* purple */
-.barconference { background: #2dd4bf; }
+.barconference { background: var(--primitive-cyan); }
 .barvoicemail { background: var(--text-muted); }
 .barwebhook   { background: var(--text-muted); }
 .barcallback  { background: var(--primitive-orange); } /* orange */
@@ -941,4 +940,23 @@
   opacity: 0;
   pointer-events: none;
   transform: translateY(6px);
+}
+
+/* ─── Palette icon helpers (renderPaletteIcon) ────────────────────────────── */
+
+.paletteIconWrap {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.paletteIconSvg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
 }

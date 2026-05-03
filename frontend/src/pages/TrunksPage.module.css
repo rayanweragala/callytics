@@ -765,3 +765,10 @@
 .input {
   font-size: 14px;
 }
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Settings panel save row — adds top spacing above formActions */
+.formActionsTop {
+  margin-top: 16px;
+}

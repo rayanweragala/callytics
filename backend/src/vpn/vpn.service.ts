@@ -462,12 +462,13 @@ export class VpnService implements OnModuleInit {
       await fs.promises.mkdir(join(this.relayRuntimeDir, 'wg_confs'), { recursive: true });
       await this.removeLegacyRelayConfigIfPresent();
       await fs.promises.writeFile(this.relayConfigPath, `${normalizedConfig}\n`, { encoding: 'utf8', mode: 0o600 });
+      const relayConfig = this.parseRelayConfig(normalizedConfig);
       await this.clearRelayContainerBeforeCreate();
       await this.createRelayContainer();
       await this.startRelayContainer();
       const relayNetworkState = await this.getRelayContainerNetworkState();
       await this.applyRelayHostNetworking(relayNetworkState);
-      await this.writeRelayActiveFlag(true);
+      await this.writeRelayActiveFlag(true, relayConfig.vpsPublicIp);
       await this.syncRelayPjsipTransport();
       await this.syncRelayExtensionsConfig();
       return { success: true };
@@ -487,7 +488,7 @@ export class VpnService implements OnModuleInit {
       }
       await this.stopRelayContainerIfRunning();
       await this.removeRelayContainerIfExists();
-      await this.writeRelayActiveFlag(false);
+      await this.writeRelayActiveFlag(false, null);
       await this.syncRelayPjsipTransport();
       await this.syncRelayExtensionsConfig();
       return { success: true };
@@ -500,10 +501,22 @@ export class VpnService implements OnModuleInit {
   }
 
   async getRelayStatus(): Promise<RelayTunnelStatusResponse> {
-    const persistedActive = await this.readRelayActiveFlag();
-    const active = persistedActive && await this.isRelayContainerRunning();
+    const persistedState = await this.readRelayState();
+    const active = persistedState.active && await this.isRelayContainerRunning();
     const handshakeEstablished = active ? await this.isRelayHandshakeEstablished() : false;
-    return { active, handshakeEstablished };
+    let vpsPublicIp = active ? persistedState.vpsPublicIp : null;
+    if (active && !vpsPublicIp) {
+      const relayConfig = await this.getRelayConfig();
+      vpsPublicIp = relayConfig.vpsPublicIp || null;
+      if (vpsPublicIp) {
+        await this.writeRelayActiveFlag(true, vpsPublicIp);
+      }
+    }
+    return {
+      active,
+      handshakeEstablished,
+      vpsPublicIp,
+    };
   }
 
   async isInstalled(): Promise<boolean> {
@@ -782,17 +795,22 @@ export class VpnService implements OnModuleInit {
     throw new Error(`Failed to remove container ${containerName} (${fallbackRemove.statusCode ?? 'unknown'}): ${fallbackRemove.body.toString('utf8')}`);
   }
 
-  private async writeRelayActiveFlag(active: boolean): Promise<void> {
-    await fs.promises.writeFile(this.relayStatePath, JSON.stringify({ active }), 'utf8');
+  private async writeRelayActiveFlag(active: boolean, vpsPublicIp: string | null): Promise<void> {
+    await fs.promises.writeFile(this.relayStatePath, JSON.stringify({ active, vpsPublicIp }), 'utf8');
   }
 
-  private async readRelayActiveFlag(): Promise<boolean> {
+  private async readRelayState(): Promise<{ active: boolean; vpsPublicIp: string | null }> {
     try {
       const raw = await fs.promises.readFile(this.relayStatePath, 'utf8');
-      const parsed = JSON.parse(raw) as { active?: unknown };
-      return parsed.active === true;
+      const parsed = JSON.parse(raw) as { active?: unknown; vpsPublicIp?: unknown };
+      return {
+        active: parsed.active === true,
+        vpsPublicIp: typeof parsed.vpsPublicIp === 'string' && parsed.vpsPublicIp.trim()
+          ? parsed.vpsPublicIp.trim()
+          : null,
+      };
     } catch {
-      return false;
+      return { active: false, vpsPublicIp: null };
     }
   }
 
@@ -1100,15 +1118,13 @@ export class VpnService implements OnModuleInit {
 
   private async syncRelayPjsipTransport(): Promise<void> {
     const relayStatus = await this.getRelayStatus();
-    const relayConfig = relayStatus.active ? await this.getRelayConfig() : null;
-    const externalAddress = relayStatus.active ? relayConfig?.vpsPublicIp || null : null;
+    const externalAddress = relayStatus.active ? relayStatus.vpsPublicIp : null;
     await this.asteriskConfigService.syncUdpTransport(externalAddress);
   }
 
   private async syncRelayExtensionsConfig(): Promise<void> {
     const relayStatus = await this.getRelayStatus();
-    const relayConfig = relayStatus.active ? await this.getRelayConfig() : null;
-    const externalAddress = relayStatus.active ? relayConfig?.vpsPublicIp || null : null;
+    const externalAddress = relayStatus.active ? relayStatus.vpsPublicIp : null;
     await this.asteriskConfigService.syncExtensionsRelayConfig(externalAddress);
   }
 

@@ -779,13 +779,13 @@ export function NodeConfigPanel({
                 const srcPath = selectedVoicemailOutroAudio?.previewUrl || selectedVoicemailOutroAudio?.originalUrl;
                 return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailOutroAudio.id} src={`${BASE}${srcPath}`} /> : null;
               })()}
-              <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <label className={`${styles.field} ${styles.fieldRow}`}>
                 <input
                   type="checkbox"
                   checked={Boolean(selectedConfig.send_to_webhook)}
                   onChange={(event) => onConfigValueChange('send_to_webhook', event.target.checked)}
                 />
-                <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>
+                <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>
                   Send recording with webhook request
                 </span>
               </label>
@@ -1048,7 +1048,7 @@ function MenuConfig({
           {selectedMenuBranches.map((branch) => (
             <div className={styles.menuBranchGroup} key={branch}>
               <span className={styles.menuBranchLabel}>{branch}</span>
-              <button type="button" className={styles.input} style={{ width: 28, padding: 0 }} onClick={() => removeMenuBranch(branch)}>×</button>
+              <button type="button" className={`${styles.input} ${styles.iconButton}`} onClick={() => removeMenuBranch(branch)}>×</button>
             </div>
           ))}
         </div>
@@ -1057,22 +1057,22 @@ function MenuConfig({
             <button
               key={`quick-${branch}`}
               type="button"
-              className={styles.input}
-              style={{ width: 'auto', padding: '0 10px', opacity: selectedMenuBranches.includes(branch) ? 0.5 : 1 }}
+              className={`${styles.input} ${styles.inlineButtonAuto}`}
+              style={{ opacity: selectedMenuBranches.includes(branch) ? 0.5 : 1 }}
               onClick={() => addMenuBranch(branch)}
             >
               + {branch}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className={styles.branchDraftRow}>
           <input
             className={styles.input}
             value={branchDraft}
             onChange={(event) => setBranchDraft(event.target.value)}
             placeholder="add 1-2 digit branch"
           />
-          <button type="button" className={styles.input} style={{ width: 'auto', padding: '0 10px' }} onClick={() => addMenuBranch(branchDraft)}>
+          <button type="button" className={`${styles.input} ${styles.inlineButtonAuto}`} onClick={() => addMenuBranch(branchDraft)}>
             add
           </button>
         </div>
@@ -1088,8 +1088,7 @@ function MenuConfig({
         <div className={styles.menuActionRow}>
           <button
             type="button"
-            className={styles.input}
-            style={{ width: 'auto', padding: '0 12px' }}
+            className={`${styles.input} ${styles.inlineButtonWide}`}
             onClick={() => onOpenSubmenuAction?.(selectedNode.id)}
           >
             {selectedNode.data.subflowId ? 'Open submenu' : 'Create submenu'}
@@ -1208,53 +1207,49 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
           placeholder="use flow default"
         />
       </label>
-      <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <label className={`${styles.field} ${styles.fieldRow}`}>
         <input
           type="checkbox"
           checked={Boolean(config['include_caller'])}
           onChange={(e) => onConfigValueChange('include_caller', e.target.checked)}
         />
-        <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>include caller number</span>
+        <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>include caller number</span>
       </label>
-      <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <label className={`${styles.field} ${styles.fieldRow}`}>
         <input
           type="checkbox"
           checked={Boolean(config['include_digits'])}
           onChange={(e) => onConfigValueChange('include_digits', e.target.checked)}
         />
-        <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>include session variables</span>
+        <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>include session variables</span>
       </label>
-      <div className={styles.field} style={{ width: '100%', overflow: 'hidden' }}>
+      <div className={`${styles.field} ${styles.fieldFull}`}>
         <span className={styles.fieldLabel}>headers</span>
         {headers.map((header, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, width: '100%', overflow: 'hidden', marginTop: 4 }}>
+          <div key={i} className={styles.headerRow}>
             <input
-              className={styles.input}
+              className={`${styles.input} ${styles.headerInput}`}
               placeholder="Header-Name"
               value={header.key}
               onChange={(e) => updateHeader(i, 'key', e.target.value)}
-              style={{ flex: '1 1 0', minWidth: 0 }}
             />
             <input
-              className={styles.input}
+              className={`${styles.input} ${styles.headerInput}`}
               placeholder="value"
               value={header.value}
               onChange={(e) => updateHeader(i, 'value', e.target.value)}
-              style={{ flex: '1 1 0', minWidth: 0 }}
             />
             <button
               type="button"
-              className={styles.input}
-              style={{ flex: '0 0 auto', width: 28, padding: 0, cursor: 'pointer', color: 'var(--color-error)' }}
+              className={`${styles.input} ${styles.headerRemoveButton}`}
               onClick={() => removeHeader(i)}
             >×</button>
           </div>
         ))}
         <button
           type="button"
-          className={styles.input}
+          className={`${styles.input} ${styles.addHeaderButton}`}
           onClick={addHeader}
-          style={{ marginTop: 6, cursor: 'pointer', color: 'var(--text-secondary)', width: 'auto', padding: '0 10px' }}
         >
           + add header
         </button>
@@ -1462,7 +1457,7 @@ function ConferenceConfigPanel({ config, extensionOptions, operatorOptions, onCo
         ) : null}
       </label>
 
-      <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <label className={`${styles.field} ${styles.fieldRow}`}>
         <input
           type="checkbox"
           checked={waitForModerator}
@@ -1476,7 +1471,7 @@ function ConferenceConfigPanel({ config, extensionOptions, operatorOptions, onCo
             }
           }}
         />
-        <span className={styles.fieldLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>wait for moderator</span>
+        <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>wait for moderator</span>
       </label>
 
       {waitForModerator ? (

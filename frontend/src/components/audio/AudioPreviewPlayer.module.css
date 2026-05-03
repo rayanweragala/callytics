@@ -70,3 +70,10 @@
   font-size: 0.875rem;
   padding: 4px 0;
 }
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Error state: dim the whole player */
+.playerError {
+  opacity: 0.6;
+}

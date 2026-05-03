@@ -432,6 +432,7 @@ export interface CreatedVpnPeer extends VpnPeer {
 export interface RelayTunnelStatus {
   active: boolean;
   handshakeEstablished: boolean;
+  vpsPublicIp: string | null;
 }
 
 export interface RelayConfigState {

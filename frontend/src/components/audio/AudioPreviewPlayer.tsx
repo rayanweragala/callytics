@@ -131,7 +131,7 @@ export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: A
 
   if (error) {
     return (
-      <div className={styles.player} style={{ opacity: 0.6 }}>
+      <div className={`${styles.player} ${styles.playerError}`}>
         <div className={styles.errorText}>
           {error}
         </div>

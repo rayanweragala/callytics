@@ -39,7 +39,11 @@ const EMPTY_STATUS: VpnStatus = {
   subnetConflict: false,
   subnetConflictDetail: null,
 };
-const EMPTY_RELAY_STATUS: RelayTunnelStatus = { active: false, handshakeEstablished: false };
+const EMPTY_RELAY_STATUS: RelayTunnelStatus = {
+  active: false,
+  handshakeEstablished: false,
+  vpsPublicIp: null,
+};
 
 function formatBytes(value: number): string {
   if (value >= 1024 * 1024 * 1024) {

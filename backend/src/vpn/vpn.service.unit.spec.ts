@@ -276,19 +276,19 @@ describe('VpnService', () => {
     jest.spyOn(service as unknown as {
       applyRelayHostNetworking: (state: { bridgeInterface: string; relayBridgeIp: string }) => Promise<void>;
     }, 'applyRelayHostNetworking').mockResolvedValue(undefined);
-    const writeRelayActiveFlag = jest.spyOn(service as unknown as { writeRelayActiveFlag: (active: boolean) => Promise<void> }, 'writeRelayActiveFlag')
+    const writeRelayActiveFlag = jest.spyOn(service as unknown as { writeRelayActiveFlag: (active: boolean, vpsPublicIp: string | null) => Promise<void> }, 'writeRelayActiveFlag')
       .mockResolvedValue(undefined);
     jest.spyOn(service as unknown as { syncRelayPjsipTransport: () => Promise<void> }, 'syncRelayPjsipTransport')
       .mockResolvedValue(undefined);
 
-    await service.activateRelayTunnel('[Interface]\nPrivateKey = abc');
+    await service.activateRelayTunnel('[Interface]\nPrivateKey = abc\n\n[Peer]\nPublicKey = vps-public-key\nEndpoint = 203.0.113.10:51820');
 
     expect(fs.promises.writeFile).toHaveBeenCalledWith(
       expect.stringContaining('/wg_confs/callytics-relay.conf'),
-      '[Interface]\nPrivateKey = abc\n',
+      '[Interface]\nPrivateKey = abc\n\n[Peer]\nPublicKey = vps-public-key\nEndpoint = 203.0.113.10:51820\n',
       expect.objectContaining({ encoding: 'utf8', mode: 0o600 }),
     );
-    expect(writeRelayActiveFlag).toHaveBeenCalledWith(true);
+    expect(writeRelayActiveFlag).toHaveBeenCalledWith(true, '203.0.113.10');
   });
 
   it('POST /vpn/relay-activate blocks when built-in VPN is active with peers', async () => {
@@ -302,11 +302,37 @@ describe('VpnService', () => {
   });
 
   it('GET /vpn/relay-status reports active and handshake when relay container is running', async () => {
-    jest.spyOn(service as unknown as { readRelayActiveFlag: () => Promise<boolean> }, 'readRelayActiveFlag').mockResolvedValue(true);
+    jest.spyOn(service as unknown as { readRelayState: () => Promise<{ active: boolean; vpsPublicIp: string | null }> }, 'readRelayState')
+      .mockResolvedValue({ active: true, vpsPublicIp: '198.51.100.20' });
     jest.spyOn(service as unknown as { isRelayContainerRunning: () => Promise<boolean> }, 'isRelayContainerRunning').mockResolvedValue(true);
     jest.spyOn(service as unknown as { isRelayHandshakeEstablished: () => Promise<boolean> }, 'isRelayHandshakeEstablished').mockResolvedValue(true);
 
-    await expect(service.getRelayStatus()).resolves.toEqual({ active: true, handshakeEstablished: true });
+    await expect(service.getRelayStatus()).resolves.toEqual({
+      active: true,
+      handshakeEstablished: true,
+      vpsPublicIp: '198.51.100.20',
+    });
+  });
+
+  it('GET /vpn/relay-status backfills missing VPS IP for legacy relay state', async () => {
+    jest.spyOn(service as unknown as { readRelayState: () => Promise<{ active: boolean; vpsPublicIp: string | null }> }, 'readRelayState')
+      .mockResolvedValue({ active: true, vpsPublicIp: null });
+    jest.spyOn(service as unknown as { isRelayContainerRunning: () => Promise<boolean> }, 'isRelayContainerRunning').mockResolvedValue(true);
+    jest.spyOn(service as unknown as { isRelayHandshakeEstablished: () => Promise<boolean> }, 'isRelayHandshakeEstablished').mockResolvedValue(true);
+    jest.spyOn(service, 'getRelayConfig').mockResolvedValue({
+      config: '[Peer]\nEndpoint = 203.0.113.10:51820\n',
+      vpsPublicKey: 'vps-public-key',
+      vpsPublicIp: '203.0.113.10',
+    });
+    const writeRelayActiveFlag = jest.spyOn(service as unknown as { writeRelayActiveFlag: (active: boolean, vpsPublicIp: string | null) => Promise<void> }, 'writeRelayActiveFlag')
+      .mockResolvedValue(undefined);
+
+    await expect(service.getRelayStatus()).resolves.toEqual({
+      active: true,
+      handshakeEstablished: true,
+      vpsPublicIp: '203.0.113.10',
+    });
+    expect(writeRelayActiveFlag).toHaveBeenCalledWith(true, '203.0.113.10');
   });
 
   it('DELETE /vpn/relay-deactivate removes host networking, clears active flag, and syncs pjsip transport', async () => {
@@ -323,21 +349,20 @@ describe('VpnService', () => {
       .mockResolvedValue(undefined);
     jest.spyOn(service as unknown as { removeRelayContainerIfExists: () => Promise<void> }, 'removeRelayContainerIfExists')
       .mockResolvedValue(undefined);
-    const writeRelayActiveFlag = jest.spyOn(service as unknown as { writeRelayActiveFlag: (active: boolean) => Promise<void> }, 'writeRelayActiveFlag')
+    const writeRelayActiveFlag = jest.spyOn(service as unknown as { writeRelayActiveFlag: (active: boolean, vpsPublicIp: string | null) => Promise<void> }, 'writeRelayActiveFlag')
       .mockResolvedValue(undefined);
     jest.spyOn(service as unknown as { syncRelayPjsipTransport: () => Promise<void> }, 'syncRelayPjsipTransport')
       .mockResolvedValue(undefined);
 
     await service.deactivateRelayTunnel();
 
-    expect(writeRelayActiveFlag).toHaveBeenCalledWith(false);
+    expect(writeRelayActiveFlag).toHaveBeenCalledWith(false, null);
   });
 
   it('syncRelayPjsipTransport uses the stored VPS IP when relay is active', async () => {
-    jest.spyOn(service, 'getRelayStatus').mockResolvedValue({ active: true, handshakeEstablished: true });
-    jest.spyOn(service, 'getRelayConfig').mockResolvedValue({
-      config: '[Peer]\nEndpoint = 203.0.113.10:51820\n',
-      vpsPublicKey: 'vps-public-key',
+    jest.spyOn(service, 'getRelayStatus').mockResolvedValue({
+      active: true,
+      handshakeEstablished: true,
       vpsPublicIp: '203.0.113.10',
     });
 
@@ -348,7 +373,11 @@ describe('VpnService', () => {
   });
 
   it('syncRelayPjsipTransport clears relay external addresses when relay is inactive', async () => {
-    jest.spyOn(service, 'getRelayStatus').mockResolvedValue({ active: false, handshakeEstablished: false });
+    jest.spyOn(service, 'getRelayStatus').mockResolvedValue({
+      active: false,
+      handshakeEstablished: false,
+      vpsPublicIp: null,
+    });
 
     await (service as unknown as { syncRelayPjsipTransport: () => Promise<void> }).syncRelayPjsipTransport();
 

@@ -384,3 +384,15 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Wrapper above the start / done-reset button (was marginTop: 12 / 10) */
+.startButtonWrap {
+  margin-top: 12px;
+}
+
+/* Wrapper above the mid-sim reset button (was marginTop: 8) */
+.resetButtonWrap {
+  margin-top: 8px;
+}

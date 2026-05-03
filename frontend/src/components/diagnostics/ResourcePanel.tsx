@@ -40,7 +40,7 @@ function CpuCard({ data }: CpuCardProps) {
   if (data === null) {
     return (
       <div className={styles.skeletonCard}>
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '40%' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW40}`} />
         <div className={`${styles.skeletonCircleWrap}`}>
           <div className={`${styles.skeleton} ${styles.skeletonCircle}`} />
         </div>
@@ -81,7 +81,7 @@ function CpuCard({ data }: CpuCardProps) {
     <div className={styles.card}>
       <div className={styles.cardLabel}>CPU</div>
       <div className={styles.cpuArcWrap}>
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.gaugeWrap}>
           <svg
             className={`${styles.cpuArc} ${threshClass}`}
             width={svgSize}
@@ -102,14 +102,7 @@ function CpuCard({ data }: CpuCardProps) {
               strokeDashoffset={dashOffset}
             />
           </svg>
-          <div
-            style={{
-              position: 'absolute',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
+          <div className={styles.arcLabelOverlay}>
             <span className={`${styles.cpuValue} ${threshClass}`}>{pct.toFixed(1)}%</span>
             <span className={styles.cpuLabel}>CPU</span>
             {coreCount > 0 && (
@@ -131,9 +124,9 @@ function MemoryCard({ data }: MemoryCardProps) {
   if (data === null) {
     return (
       <div className={styles.skeletonCard}>
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '40%' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW40}`} />
         <div className={`${styles.skeleton} ${styles.skeletonBar}`} />
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '70%' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW70}`} />
       </div>
     );
   }
@@ -189,9 +182,9 @@ function DiskCard({ data }: DiskCardProps) {
   if (data === null) {
     return (
       <div className={styles.skeletonCard}>
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '30%' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW30}`} />
         <div className={`${styles.skeleton} ${styles.skeletonBar}`} />
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '70%' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW70}`} />
       </div>
     );
   }
@@ -247,8 +240,8 @@ function AsteriskCard({ data }: AsteriskCardProps) {
   if (data === null) {
     return (
       <div className={styles.skeletonCard}>
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '60%' }} />
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '40%', height: '48px', marginTop: '8px' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW60}`} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonBigNumber}`} />
       </div>
     );
   }
@@ -287,9 +280,9 @@ function NetworkCard({ data }: NetworkCardProps) {
   if (data === null) {
     return (
       <div className={styles.skeletonCard}>
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '50%' }} />
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '70%', marginTop: '8px' }} />
-        <div className={`${styles.skeleton} ${styles.skeletonLine}`} style={{ width: '60%' }} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW50}`} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW70} ${styles.skeletonMt8}`} />
+        <div className={`${styles.skeleton} ${styles.skeletonLine} ${styles.skeletonW60}`} />
       </div>
     );
   }
@@ -372,7 +365,7 @@ export function ResourcePanel() {
             </span>
           )}
           {fetchError && (
-            <span className={styles.lastUpdated} style={{ color: 'var(--color-error)' }}>
+            <span className={`${styles.lastUpdated} ${styles.lastUpdatedError}`}>
               {fetchError}
             </span>
           )}

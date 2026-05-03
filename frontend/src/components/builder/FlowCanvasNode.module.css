@@ -25,7 +25,6 @@
   height: 8px;
   border-radius: 999px;
   background: var(--color-error);
-  box-shadow: 0 0 0 2px var(--bg-surface);
   z-index: 2;
 }
 
@@ -163,7 +162,7 @@
 .webhook       { color: var(--text-muted); }
 .queueLogin    { color: var(--primitive-navy-300); }
 .queue         { color: var(--primitive-navy-300); }
-.conference    { color: #2dd4bf; }
+.conference    { color: var(--primitive-cyan); }
 .callback      { color: var(--primitive-orange); }
 
 .webhookSideEffect {
@@ -171,13 +170,7 @@
 }
 
 .webhookAccent {
-  background: repeating-linear-gradient(
-    to bottom,
-    currentColor 0,
-    currentColor 6px,
-    transparent 6px,
-    transparent 10px
-  );
+  background: var(--primitive-navy-700);
 }
 
 .asyncLabel {

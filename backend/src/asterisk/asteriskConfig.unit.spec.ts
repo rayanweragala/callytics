@@ -14,7 +14,7 @@ describe('AsteriskConfigService config generation', () => {
     const service = createService();
     const content = (service as any).buildExtensionsConfig([
       { username: '1001', password: 'secret', transport: 'transport-udp', endpointFlags: [] },
-    ]);
+    ], null);
 
     expect(content).toContain('[1001]');
     expect(content).toContain('type = endpoint');
@@ -59,7 +59,7 @@ describe('AsteriskConfigService config generation', () => {
     const service = createService();
     const content = (service as any).buildExtensionsConfig([
       { username: '2001', password: 'secret', transport: 'transport-udp', endpointFlags: [] },
-    ]);
+    ], null);
 
     expect(content).toContain('username = 2001');
   });

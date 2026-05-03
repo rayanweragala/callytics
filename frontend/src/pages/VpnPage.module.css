@@ -673,7 +673,7 @@
 .relayDeactivateButton {
   border: 1px solid rgba(220, 38, 38, 0.4);
   background: rgba(220, 38, 38, 0.08);
-  color: #ef4444;
+  color: var(--primitive-red);
   border-radius: var(--radius-sm);
   height: 32px;
   padding: 0 12px;

@@ -141,7 +141,7 @@
   align-items: center;
   padding: 8px 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
 }
 
@@ -235,4 +235,85 @@
 
 .toggleOn span {
   transform: translateX(18px);
+}
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Checkbox-row label: override default column flex of .field */
+.fieldRow {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Checkbox label text: suppress the uppercase+tracking from .fieldLabel */
+.fieldLabelPlain {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Full-width overflow-hidden wrapper (e.g. headers section) */
+.fieldFull {
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Header key-value row inside the webhook headers list */
+.headerRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+/* Flex-grow input inside a headerRow */
+.headerInput {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* × remove button inside a headerRow */
+.headerRemoveButton {
+  flex: 0 0 auto;
+  width: 28px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-error);
+}
+
+/* + add header button below the list */
+.addHeaderButton {
+  margin-top: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  width: auto;
+  padding: 0 10px;
+}
+
+/* Branch draft input row (menu node) */
+.branchDraftRow {
+  display: flex;
+  gap: 8px;
+}
+
+/* Inline icon/action button that sits alongside inputs (width:auto variant) */
+.inlineButtonAuto {
+  width: auto;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+/* Wider variant of inlineButtonAuto */
+.inlineButtonWide {
+  width: auto;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+/* Icon-size button (e.g. × remove branch) */
+.iconButton {
+  width: 28px;
+  padding: 0;
+  cursor: pointer;
 }

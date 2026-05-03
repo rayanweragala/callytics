@@ -74,7 +74,7 @@ describe('VpnPage', () => {
     vi.clearAllMocks();
     vi.mocked(getVpnRelayGuide).mockResolvedValue({ data: [] });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null });
     vi.mocked(activateVpnRelayTunnel).mockResolvedValue({ success: true });
     vi.mocked(deactivateVpnRelayTunnel).mockResolvedValue({ success: true });
     vi.mocked(removeVpn).mockResolvedValue({ success: true });
@@ -259,7 +259,7 @@ describe('VpnPage', () => {
       vpsPublicKey: 'vps-key',
       vpsPublicIp: '203.0.113.20',
     });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true, vpsPublicIp: '203.0.113.20' });
 
     render(<MemoryRouter><VpnPage /></MemoryRouter>);
 
@@ -294,7 +294,7 @@ describe('VpnPage', () => {
       vpsPublicKey: 'vps-key',
       vpsPublicIp: '203.0.113.20',
     });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: false });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.20' });
 
     render(<MemoryRouter><VpnPage /></MemoryRouter>);
 
@@ -318,8 +318,8 @@ describe('VpnPage', () => {
       subnetConflictDetail: null,
     });
     vi.mocked(getVpnRelayStatus)
-      .mockResolvedValueOnce({ active: true, handshakeEstablished: false })
-      .mockResolvedValueOnce({ active: false, handshakeEstablished: false });
+      .mockResolvedValueOnce({ active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.55' })
+      .mockResolvedValueOnce({ active: false, handshakeEstablished: false, vpsPublicIp: null });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({
       config: '[Interface]',
       vpsPublicKey: 'vps-key',
@@ -354,7 +354,7 @@ describe('VpnPage', () => {
       subnetConflict: false,
       subnetConflictDetail: null,
     });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
 
     render(<MemoryRouter><VpnPage /></MemoryRouter>);
