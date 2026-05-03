@@ -12,15 +12,48 @@ interface SipLadderPanelProps {
   messages?: SipMessage[];
 }
 
-function extractHost(uri: string | null): string | null {
-  if (!uri) {
+function extractSipIdentity(value: string | null): string | null {
+  if (!value) {
     return null;
   }
-  const trimmed = uri.trim();
-  const atMatch = trimmed.match(/@([^;\s>]+)/);
-  const domainSource = atMatch?.[1] || trimmed.replace(/^<?(?:sip:|sips:)/i, '').replace(/>$/, '');
-  const host = domainSource.split(';')[0].split(':')[0].trim();
-  return host || null;
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const uriMatch = trimmed.match(/(?:sip:|sips:|tel:)([^>\s;]+)/i);
+  const uriPart = uriMatch?.[1] || trimmed;
+  const atIndex = uriPart.indexOf('@');
+  if (atIndex > 0) {
+    const user = uriPart.slice(0, atIndex).trim().replace(/^"+|"+$/g, '');
+    if (user) {
+      return user;
+    }
+  }
+
+  const hostOnly = uriPart
+    .replace(/^"+|"+$/g, '')
+    .replace(/^<?(?:sip:|sips:|tel:)/i, '')
+    .split(';')[0]
+    .split('>')[0]
+    .trim();
+  if (!hostOnly) {
+    return null;
+  }
+  return hostOnly.split(':')[0] || null;
+}
+
+function parseFromHeader(rawMessage: string | null): string | null {
+  if (!rawMessage) {
+    return null;
+  }
+  const lines = rawMessage.split(/\r?\n/);
+  const fromLine = lines.find((line) => /^from\s*:/i.test(line) || /^f\s*:/i.test(line));
+  if (!fromLine) {
+    return null;
+  }
+  const headerValue = fromLine.replace(/^[^:]*:/, '').trim();
+  return extractSipIdentity(headerValue);
 }
 
 function formatTime(value: string): string {
@@ -57,22 +90,12 @@ function isResponseMessage(message: SipMessage): boolean {
 }
 
 function getParticipants(messages: SipMessage[]): [string, string] {
-  const hosts = new Set<string>();
-  for (const message of messages) {
-    const fromHost = extractHost(message.fromUri);
-    const toHost = extractHost(message.toUri);
-    if (fromHost) {
-      hosts.add(fromHost);
-    }
-    if (toHost) {
-      hosts.add(toHost);
-    }
+  const first = messages[0];
+  if (!first) {
+    return ['Caller', 'Asterisk'];
   }
-  if (hosts.size === 2) {
-    const values = Array.from(hosts);
-    return [values[0], values[1]];
-  }
-  return ['A', 'B'];
+  const fromIdentity = parseFromHeader(first.rawMessage) || extractSipIdentity(first.fromUri) || 'Caller';
+  return [fromIdentity, 'Asterisk'];
 }
 
 export function SipLadderPanel({ callId, failedAt, errorMessage, onClose, inline = false, messages: providedMessages }: SipLadderPanelProps) {

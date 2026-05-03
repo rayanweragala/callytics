@@ -100,6 +100,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   frontend:
@@ -139,6 +145,7 @@ services:
       AMI_USER: callytics
       AMI_PASS: callytics
       RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
+      STASIS_HEALTH_PORT: 3002
     depends_on:
       asterisk:
         condition: service_healthy
@@ -146,6 +153,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   wireguard:

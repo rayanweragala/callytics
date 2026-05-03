@@ -6,13 +6,13 @@ import { runSqlMigrations } from '../db/run-sql-migrations';
 import { AppLogger } from '../logger/app-logger';
 import type { SipPacketDto } from './dto/sip-packet.dto';
 
-const pcapHeaders: {
-  globalHeader: (snaplen?: number, linktype?: number) => Buffer;
-  packetHeader: (timestamp?: number, packetSize?: number) => Buffer;
-} = require('pcap-writer/lib/headers');
-
 const SIP_CAPTURE_STREAM = 'callytics:sip-capture';
 const SIP_CAPTURE_MAXLEN = 500;
+const PCAP_MAGIC_USEC = 0xa1b2c3d4;
+const PCAP_VERSION_MAJOR = 2;
+const PCAP_VERSION_MINOR = 4;
+const PCAP_SNAPLEN = 65535;
+const LINKTYPE_RAW = 101;
 
 @Injectable()
 export class CaptureService implements OnModuleInit, OnModuleDestroy {
@@ -285,16 +285,158 @@ export class CaptureService implements OnModuleInit, OnModuleDestroy {
   }
 
   private buildPcapBuffer(packets: SipPacketDto[]): Buffer {
-    const chunks: Buffer[] = [pcapHeaders.globalHeader(65535, 1)];
+    const chunks: Buffer[] = [this.buildPcapGlobalHeader()];
 
     for (const packet of packets) {
-      const raw = Buffer.from(packet.rawJson || '{}', 'utf8');
-      const packetTimestampUsec = Date.now() * 1000;
-      chunks.push(pcapHeaders.packetHeader(packetTimestampUsec, raw.length));
-      chunks.push(raw);
+      const packetBytes = this.buildRawIpv4UdpPacket(packet);
+      const tsUsec = this.resolvePacketTimestampUsec(packet);
+      chunks.push(this.buildPcapPacketHeader(tsUsec, packetBytes.length));
+      chunks.push(packetBytes);
     }
 
     return Buffer.concat(chunks);
+  }
+
+  private buildPcapGlobalHeader(): Buffer {
+    const header = Buffer.alloc(24);
+    header.writeUInt32LE(PCAP_MAGIC_USEC, 0);
+    header.writeUInt16LE(PCAP_VERSION_MAJOR, 4);
+    header.writeUInt16LE(PCAP_VERSION_MINOR, 6);
+    header.writeInt32LE(0, 8);
+    header.writeUInt32LE(0, 12);
+    header.writeUInt32LE(PCAP_SNAPLEN, 16);
+    header.writeUInt32LE(LINKTYPE_RAW, 20);
+    return header;
+  }
+
+  private buildPcapPacketHeader(timestampUsec: number, packetLength: number): Buffer {
+    const header = Buffer.alloc(16);
+    const tsSec = Math.floor(timestampUsec / 1_000_000);
+    const tsUsec = timestampUsec - (tsSec * 1_000_000);
+    header.writeUInt32LE(tsSec >>> 0, 0);
+    header.writeUInt32LE(tsUsec >>> 0, 4);
+    header.writeUInt32LE(packetLength >>> 0, 8);
+    header.writeUInt32LE(packetLength >>> 0, 12);
+    return header;
+  }
+
+  private buildRawIpv4UdpPacket(packet: SipPacketDto): Buffer {
+    const payload = this.extractPacketPayload(packet);
+    const ipHeaderLength = 20;
+    const udpHeaderLength = 8;
+    const totalLength = ipHeaderLength + udpHeaderLength + payload.length;
+
+    const ipHeader = Buffer.alloc(ipHeaderLength);
+    ipHeader[0] = 0x45;
+    ipHeader[1] = 0x00;
+    ipHeader.writeUInt16BE(totalLength, 2);
+    ipHeader.writeUInt16BE(0, 4);
+    ipHeader.writeUInt16BE(0x4000, 6);
+    ipHeader[8] = 64;
+    ipHeader[9] = 17; // UDP
+    ipHeader.writeUInt16BE(0, 10);
+
+    const sourceIp = packet.direction === 'out' ? [10, 0, 0, 2] : [10, 0, 0, 1];
+    const destinationIp = packet.direction === 'out' ? [10, 0, 0, 1] : [10, 0, 0, 2];
+    ipHeader.set(sourceIp, 12);
+    ipHeader.set(destinationIp, 16);
+    ipHeader.writeUInt16BE(this.calculateIpv4HeaderChecksum(ipHeader), 10);
+
+    const udpHeader = Buffer.alloc(udpHeaderLength);
+    const sourcePort = packet.direction === 'out' ? 5060 : 50600;
+    const destinationPort = packet.direction === 'out' ? 50600 : 5060;
+    udpHeader.writeUInt16BE(sourcePort, 0);
+    udpHeader.writeUInt16BE(destinationPort, 2);
+    udpHeader.writeUInt16BE(udpHeaderLength + payload.length, 4);
+    udpHeader.writeUInt16BE(0, 6);
+
+    return Buffer.concat([ipHeader, udpHeader, payload]);
+  }
+
+  private calculateIpv4HeaderChecksum(header: Buffer): number {
+    let sum = 0;
+    for (let i = 0; i < header.length; i += 2) {
+      sum += header.readUInt16BE(i);
+      while (sum > 0xffff) {
+        sum = (sum & 0xffff) + (sum >>> 16);
+      }
+    }
+    return (~sum) & 0xffff;
+  }
+
+  private resolvePacketTimestampUsec(packet: SipPacketDto): number {
+    const fromRawJson = this.extractEpochFromRawJson(packet.rawJson);
+    if (fromRawJson !== null) {
+      return fromRawJson;
+    }
+
+    const direct = Date.parse(packet.timestamp);
+    if (Number.isFinite(direct) && direct > 0) {
+      return Math.floor(direct * 1000);
+    }
+
+    const hhmmss = packet.timestamp.match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?$/);
+    if (hhmmss) {
+      const now = new Date();
+      const ms = Number((hhmmss[4] || '0').padEnd(3, '0').slice(0, 3));
+      const local = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        Number(hhmmss[1]),
+        Number(hhmmss[2]),
+        Number(hhmmss[3]),
+        ms,
+      );
+      return Math.floor(local.getTime() * 1000);
+    }
+
+    return Date.now() * 1000;
+  }
+
+  private extractEpochFromRawJson(rawJson: string): number | null {
+    try {
+      const parsed = JSON.parse(rawJson) as unknown;
+      const root = this.asRecord(parsed);
+      const layers = this.asRecord(root?.layers) ?? root;
+      const rawEpoch = this.readValue(layers, ['frame.time_epoch', 'timestamp', '@timestamp']);
+      if (!rawEpoch) {
+        return null;
+      }
+      const numeric = Number(rawEpoch);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        return Math.floor(numeric * 1_000_000);
+      }
+      const parsedTime = Date.parse(rawEpoch);
+      if (Number.isFinite(parsedTime) && parsedTime > 0) {
+        return Math.floor(parsedTime * 1000);
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private extractPacketPayload(packet: SipPacketDto): Buffer {
+    try {
+      const parsed = JSON.parse(packet.rawJson) as unknown;
+      const root = this.asRecord(parsed);
+      const layers = this.asRecord(root?.layers) ?? root;
+      const sipHeaders = this.readValue(layers, ['sip.msg_hdr', 'sip.msg_header', 'sip.msgheader']);
+      const sipBody = this.readValue(layers, ['sip.msg_body', 'sip.msgbody']);
+      if (sipHeaders && sipBody) {
+        return Buffer.from(`${sipHeaders}\r\n\r\n${sipBody}`, 'utf8');
+      }
+      if (sipHeaders) {
+        return Buffer.from(sipHeaders, 'utf8');
+      }
+      if (sipBody) {
+        return Buffer.from(sipBody, 'utf8');
+      }
+    } catch {
+      // Fall back to rawJson below.
+    }
+    return Buffer.from(packet.rawJson || '{}', 'utf8');
   }
 
   private async cleanupOldPackets(): Promise<void> {

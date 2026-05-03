@@ -84,4 +84,48 @@ describe('SipLadderDiagram (SipLadderPanel SVG)', () => {
     await waitFor(() => expect(getDiagnosticsSipMessagesByCallId).toHaveBeenCalled());
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('uses first message From header identity for left label and static Asterisk for right label', async () => {
+    vi.mocked(getDiagnosticsSipMessagesByCallId).mockResolvedValue([
+      {
+        id: 31,
+        callId: 'abc-123',
+        timestamp: '2026-04-21T20:00:00.000Z',
+        method: 'INVITE',
+        fromUri: 'sip:ignored@left.local',
+        toUri: 'sip:2001@right.local',
+        direction: 'inbound',
+        responseCode: null,
+        rawMessage: 'INVITE sip:2001@pbx.local SIP/2.0\r\nFrom: "Alice" <sip:94771234567@carrier.local>;tag=123',
+        createdAt: null,
+      },
+    ]);
+
+    render(<SipLadderPanel callId="abc-123" onClose={() => {}} />);
+
+    expect(await screen.findByText('94771234567')).toBeInTheDocument();
+    expect(screen.getByText('Asterisk')).toBeInTheDocument();
+  });
+
+  it('falls back to Caller when first packet From header and URI are not parseable', async () => {
+    vi.mocked(getDiagnosticsSipMessagesByCallId).mockResolvedValue([
+      {
+        id: 41,
+        callId: 'abc-123',
+        timestamp: '2026-04-21T20:00:00.000Z',
+        method: 'INVITE',
+        fromUri: null,
+        toUri: null,
+        direction: 'inbound',
+        responseCode: null,
+        rawMessage: 'INVITE sip:2001@pbx.local SIP/2.0',
+        createdAt: null,
+      },
+    ]);
+
+    render(<SipLadderPanel callId="abc-123" onClose={() => {}} />);
+
+    expect(await screen.findByText('Caller')).toBeInTheDocument();
+    expect(screen.getByText('Asterisk')).toBeInTheDocument();
+  });
 });

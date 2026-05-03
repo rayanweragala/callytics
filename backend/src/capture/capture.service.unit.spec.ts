@@ -210,4 +210,57 @@ describe('CaptureService', () => {
 
     expect(mockRedis.disconnect).toHaveBeenCalled();
   });
+
+  it('exportBulkPcap writes valid pcap headers and non-truncated packet records', async () => {
+    mockRedis.xRevRange.mockResolvedValue([
+      {
+        id: '1-0',
+        message: {
+          timestamp: '2026-05-03T10:00:00.123Z',
+          method: 'INVITE',
+          from: '1000',
+          to: '1001',
+          callId: 'call-1',
+          direction: 'in',
+          statusCode: '',
+          rawJson: JSON.stringify({
+            layers: {
+              'frame.time_epoch': ['1777802400.123456'],
+              'sip.msg_hdr': ['INVITE sip:1001@pbx.local SIP/2.0\r\nFrom: <sip:1000@carrier.local>\r\nTo: <sip:1001@pbx.local>'],
+              'sip.msg_body': ['v=0\r\no=- 0 0 IN IP4 127.0.0.1'],
+            },
+          }),
+        },
+      },
+    ]);
+
+    const moduleRef = await Test.createTestingModule({ providers: [CaptureService, { provide: DataSource, useValue: mockDataSource }] }).compile();
+    const service = moduleRef.get(CaptureService);
+    await service.onModuleInit();
+
+    const pcap = await service.exportBulkPcap({});
+
+    expect(pcap.length).toBeGreaterThan(24 + 16);
+    expect(pcap.readUInt32LE(0)).toBe(0xa1b2c3d4);
+    expect(pcap.readUInt16LE(4)).toBe(2);
+    expect(pcap.readUInt16LE(6)).toBe(4);
+    expect(pcap.readUInt32LE(20)).toBe(101);
+
+    const tsSec = pcap.readUInt32LE(24);
+    const tsUsec = pcap.readUInt32LE(28);
+    const inclLen = pcap.readUInt32LE(32);
+    const origLen = pcap.readUInt32LE(36);
+    expect(tsSec).toBe(1777802400);
+    expect(tsUsec).toBe(123456);
+    expect(inclLen).toBe(origLen);
+    expect(inclLen).toBeGreaterThan(28);
+
+    // First nibble = IPv4 version (4), and UDP protocol = 17.
+    const packetStart = 24 + 16;
+    expect((pcap[packetStart] >> 4) & 0x0f).toBe(4);
+    expect(pcap[packetStart + 9]).toBe(17);
+
+    // Packet record should not be truncated.
+    expect(packetStart + inclLen).toBe(pcap.length);
+  });
 });

@@ -1,6 +1,7 @@
 import { logEvent, stasisLogger } from "./logger";
 import * as dotenv from "dotenv";
 dotenv.config();
+import * as http from "node:http";
 
 import * as ari from "ari-client";
 import {
@@ -43,6 +44,7 @@ const ARI_PASS = process.env.ARI_PASS || "callytics";
 const ARI_APP = process.env.ARI_APP || "callytics";
 const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:3001";
 const RECORDINGS_INTERNAL_TOKEN = process.env.RECORDINGS_INTERNAL_TOKEN || "";
+const STASIS_HEALTH_PORT = Number(process.env.STASIS_HEALTH_PORT || 3002);
 const TEST_STATUS_TTL_SECONDS = 300;
 const DIRECT_OUTBOUND_TIMEOUT_MS = 30_000;
 const DIRECT_OUTBOUND_MOH_CLASS =
@@ -57,6 +59,22 @@ const testCallStates = new Map<
   { testCallId: string; type: "outbound" | "inbound"; answered: boolean }
 >();
 const directOutboundCalls = new Map<string, DirectOutboundActiveCall>();
+
+function startHealthServer(): void {
+  const server = http.createServer((req, res) => {
+    if (req.method === "GET" && req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end('{"status":"ok"}');
+      return;
+    }
+    res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+    res.end('{"error":"not_found"}');
+  });
+
+  server.listen(STASIS_HEALTH_PORT, "127.0.0.1", () => {
+    stasisLogger.log(`[health] stasis health endpoint listening on 127.0.0.1:${STASIS_HEALTH_PORT}`);
+  });
+}
 
 interface TrunkTestOutboundEvent {
   trunkId: number;
@@ -1544,3 +1562,4 @@ async function start(): Promise<void> {
 }
 
 void start();
+startHealthServer();
