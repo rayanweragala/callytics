@@ -50,3 +50,22 @@ export async function publish(channel: string, payload: unknown): Promise<void> 
   const client = await getPublisher();
   await client.publish(channel, JSON.stringify(payload));
 }
+
+export async function closeRedisConnections(): Promise<void> {
+  const closeClient = async (client: RedisClientType | null, label: 'publisher' | 'subscriber'): Promise<void> => {
+    if (!client) {
+      return;
+    }
+    if (client.isOpen) {
+      await client.disconnect();
+    }
+    if (label === 'publisher') {
+      publisher = null;
+    } else {
+      subscriber = null;
+    }
+  };
+
+  await closeClient(subscriber, 'subscriber');
+  await closeClient(publisher, 'publisher');
+}

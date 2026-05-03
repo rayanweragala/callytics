@@ -13,4 +13,8 @@ export async function query(sql: string, params?: readonly unknown[]) {
   return result.rows;
 }
 
+export async function closeDbPool(): Promise<void> {
+  await pool.end();
+}
+
 export default pool;

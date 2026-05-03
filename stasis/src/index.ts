@@ -7,9 +7,11 @@ import * as ari from "ari-client";
 import {
   addSession,
   createSession,
+  getActiveSessionCount,
   getSession,
   removeSession,
 } from "./callSession";
+import { closeDbPool } from "./db";
 import { loadFlow, loadFlowById } from "./flowLoader";
 import migrate from "./migrate";
 import { runFlow } from "./runtime";
@@ -26,7 +28,7 @@ import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManage
 import { resolveCallbackWaiter, hasCallbackWaiter } from "./callbackManager";
 import { resolveAudioMediaPath } from "./audioResolver";
 import { formatDialNumber } from "./lib/formatDialNumber";
-import { getPublisher, getSubscriber } from "./redis";
+import { closeRedisConnections, getPublisher, getSubscriber } from "./redis";
 import { buildInboundOriginateBody, parseInboundTestMessage } from "./trunk-test.util";
 import { accumulator as rtcpAmiAccumulator } from "./handlers/rtcp-ami.handler";
 import { CampaignExecutor } from "./campaign-executor";
@@ -59,6 +61,84 @@ const testCallStates = new Map<
   { testCallId: string; type: "outbound" | "inbound"; answered: boolean }
 >();
 const directOutboundCalls = new Map<string, DirectOutboundActiveCall>();
+const FLOW_DRAIN_TIMEOUT_MS = 30_000;
+
+type AriLifecycleClient = {
+  stop?: () => void;
+  close?: () => void;
+  disconnect?: () => Promise<void> | void;
+  ws?: { close?: () => void };
+};
+
+let shutdownRequested = false;
+let shutdownPromise: Promise<void> | null = null;
+let ariRuntimeClient: AriLifecycleClient | null = null;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function closeAriConnection(): Promise<void> {
+  const client = ariRuntimeClient;
+  if (!client) {
+    return;
+  }
+  if (typeof client.stop === "function") {
+    client.stop();
+  }
+  if (typeof client.close === "function") {
+    client.close();
+  }
+  if (typeof client.disconnect === "function") {
+    await client.disconnect();
+  }
+  if (client.ws && typeof client.ws.close === "function") {
+    client.ws.close();
+  }
+}
+
+async function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): Promise<void> {
+  if (shutdownPromise) {
+    await shutdownPromise;
+    return;
+  }
+  shutdownPromise = (async () => {
+    stasisLogger.warn(`[shutdown] received ${signal}, starting graceful shutdown`);
+
+    shutdownRequested = true;
+
+    const deadline = Date.now() + FLOW_DRAIN_TIMEOUT_MS;
+    while (getActiveSessionCount() > 0 && Date.now() < deadline) {
+      await sleep(250);
+    }
+    if (getActiveSessionCount() > 0) {
+      stasisLogger.warn(`[shutdown] flow drain timed out with activeSessions=${getActiveSessionCount()}`);
+    }
+
+    try {
+      await closeAriConnection();
+    } catch (error) {
+      stasisLogger.error("[shutdown] failed to close ARI connection:", error);
+    }
+
+    try {
+      await closeDbPool();
+    } catch (error) {
+      stasisLogger.error("[shutdown] failed to close PostgreSQL pool:", error);
+    }
+
+    try {
+      await closeRedisConnections();
+    } catch (error) {
+      stasisLogger.error("[shutdown] failed to close Redis connections:", error);
+    }
+
+    stasisLogger.log("[shutdown] graceful shutdown complete");
+    process.exit(0);
+  })();
+
+  await shutdownPromise;
+}
 
 function startHealthServer(): void {
   const server = http.createServer((req, res) => {
@@ -881,6 +961,7 @@ async function start(): Promise<void> {
 
   try {
     const client = await ari.connect(ARI_URL, ARI_USER, ARI_PASS);
+    ariRuntimeClient = client as AriLifecycleClient;
     stasisLogger.log("Stasis app connected to ARI");
 
     await redisSubscriber.subscribe("trunk:test:outbound", async (message) => {
@@ -1025,6 +1106,13 @@ async function start(): Promise<void> {
           hangup: () => Promise<void>;
         },
       ) => {
+        if (shutdownRequested) {
+          stasisLogger.warn(`[shutdown] rejecting new channel during drain channelId=${channel.id}`);
+          try {
+            await channel.hangup();
+          } catch {}
+          return;
+        }
         if (await campaignExecutor.handleStasisStart(event, channel, client)) {
           return;
         }
@@ -1563,3 +1651,11 @@ async function start(): Promise<void> {
 
 void start();
 startHealthServer();
+
+process.on("SIGTERM", () => {
+  void gracefulShutdown("SIGTERM");
+});
+
+process.on("SIGINT", () => {
+  void gracefulShutdown("SIGINT");
+});

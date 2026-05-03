@@ -57,3 +57,7 @@ export function getSession(channelId: string) {
 export function removeSession(channelId: string) {
   activeSessions.delete(channelId);
 }
+
+export function getActiveSessionCount(): number {
+  return activeSessions.size;
+}
