@@ -2,52 +2,137 @@
 
 ## Overview
 
-Callytics is a self-hosted call-center stack built around Asterisk, a Stasis call execution service, a NestJS backend, PostgreSQL, Redis, and a React frontend. Asterisk handles SIP and media, Stasis runs the active call logic, the backend owns the management API and operational features, PostgreSQL stores durable data, Redis carries live events and short-lived state, and the frontend gives users the browser interface.
+Callytics is a self-hosted call-center stack built around Asterisk, a Stasis call execution service, a NestJS backend, PostgreSQL, Redis, and a React frontend. Asterisk handles SIP and media, Stasis runs the active call logic, the backend owns the management API and operational features, PostgreSQL stores durable data, Redis carries live events and short-lived state, and the frontend gives you the browser interface.
 
-The pieces are connected so call routing can be changed from the UI without manually editing dialplan files. Admins design and publish flows in the browser, the backend stores and prepares that configuration, and new calls are executed by the runtime against the published flow state.
+You design and publish flows in the browser. The backend stores and prepares that configuration, and new calls are executed by Stasis against the published flow state — no manual dialplan editing required.
+
+### Container topology
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      host network                       │
+│                                                         │
+│  ┌─────────────┐   ARI :8088   ┌─────────────┐          │
+│  │  asterisk   │◄─────────────►│   stasis    │          │
+│  │  SIP :5080  │   AMI :5038   │             │          │
+│  │  RTP 10000- │◄──────────────│             │          │
+│  │  20000      │               └──────┬──────┘          │
+│  └─────────────┘                      │                 │
+│                                       │ Redis :6380     │
+│  ┌─────────────┐                      │                 │
+│  │   backend   │◄─────────────────────┘                 │
+│  │   :3001     │                                        │
+│  └──────┬──────┘                                        │
+│         │ :5432 PostgreSQL                              │
+│         │ :6380 Redis                                   │
+└─────────┼───────────────────────────────────────────────┘
+          │
+    ┌─────▼──────┐    ┌─────────────┐    ┌─────────────┐
+    │  postgres  │    │    redis    │    │  frontend   │
+    │  :5432     │    │  :6380      │    │  :3000      │
+    │  (bridge)  │    │  (bridge)   │    │  (bridge)   │
+    └────────────┘    └─────────────┘    └─────────────┘
+```
 
 ## Service Breakdown
 
-Asterisk is the telephony engine. It accepts SIP traffic, handles RTP media, manages bridges and recordings, and exposes the control interfaces used by the rest of the system to play audio, originate calls, join calls together, and end calls.
+**Asterisk** is the telephony engine. It accepts SIP traffic on port `5080`, handles RTP media, manages bridges and recordings, and exposes two control interfaces: ARI on `127.0.0.1:8088` and AMI on `127.0.0.1:5038`.
 
-Stasis is the call execution runtime. It receives live call events from Asterisk, loads the published call flow, walks each step of the flow, sends commands back to Asterisk, and emits timeline, campaign, SIP, and quality events as the call progresses.
+**Stasis** is the call execution runtime. It connects to Asterisk over ARI WebSocket, receives live `StasisStart` events, loads the published call flow, walks each node, sends ARI commands back to Asterisk, and publishes timeline and telemetry events to Redis.
 
-NestJS is the management backend. It serves the API used by the browser, manages configuration for extensions, trunks, flows, campaigns, firewall, VPN, backups, diagnostics, and recordings, and relays live operational events to connected clients.
+**NestJS backend** serves the management API on port `3001`, handles configuration for extensions, trunks, flows, campaigns, firewall, VPN, backups, diagnostics, and recordings, subscribes to Redis pub/sub channels, and relays real-time events to the browser over Socket.IO.
 
-PostgreSQL is the durable system database. It stores configuration, users, extensions, trunks, flows, flow versions, campaigns, call logs, recordings metadata, operators, queues, and other long-lived product data.
+**PostgreSQL** stores all durable data: flows, flow versions, extensions, trunks, inbound routes, call logs, recordings metadata, campaigns, operators, queues, firewall rules, and backups. Bound to `127.0.0.1:5432`.
 
-Redis is the live event and coordination layer. It carries telemetry between services, supports queue and operator coordination, distributes campaign and callback events, and provides the short-lived state needed for real-time dashboards.
+**Redis** is the live event and coordination layer. It runs on `127.0.0.1:6380` on the host (mapped from container port `6379`) and carries telemetry between Stasis and the backend, queue and operator state, campaign coordination, SIP capture data, and short-lived runtime state.
 
-Frontend is the React browser application. It gives admins and operators the UI for building flows, managing SIP resources, watching dashboards, reviewing logs, listening to recordings, and running diagnostics.
+**Frontend** is the React browser application. It connects to the backend on port `3001` and uses Socket.IO for real-time updates across all live pages.
 
 ## Why Host Networking
 
-Telephony is sensitive to address translation because SIP signaling and RTP media need to advertise and reach the correct host addresses. Host networking lets the telephony services bind directly to the server network stack, which avoids many Docker bridge and NAT problems that commonly break SIP audio paths.
+ARI communicates over `127.0.0.1:8088` and AMI over `127.0.0.1:5038`. Both are loopback addresses on the host. If Stasis or the backend ran on a Docker bridge network, they could not reach these loopback addresses — bridge containers see a different network namespace.
 
-This also keeps local control traffic between the call runtime and Asterisk simple. The runtime can reach Asterisk on the host loopback address while Asterisk uses the same host network namespace for SIP, RTP, ARI, and AMI.
+SIP binds on `0.0.0.0:5080`, not the default `5060`, because the host machine typically already occupies port `5060` with a system SIP service or another process. Using `5080` avoids that conflict.
 
-The optional VPN service is different because it terminates WireGuard tunnels rather than owning SIP and RTP sockets directly. It can publish the VPN UDP port while still giving remote clients a private route into the phone system.
+Host networking also means Asterisk, Stasis, and the backend all share the same network namespace. RTP media and SIP signaling bind directly to the host's network interfaces, avoiding the bridge and NAT translation problems that commonly break SIP audio paths in Docker setups.
+
+The optional WireGuard VPN container is different: it terminates VPN tunnels rather than owning SIP/RTP sockets, so it can run on a bridge network and publish only UDP port `51820`.
 
 ## Call Execution Path
 
-1. A call arrives at Asterisk through a SIP trunk, extension, or internal route.
-2. Asterisk hands the call to the Callytics call application.
-3. The call runtime selects the correct published flow for that call.
-4. The runtime starts at the entry point and moves through the flow one node at a time.
-5. Each node performs its action, such as playing audio, collecting digits, checking business hours, transferring, queuing, recording voicemail, or ending the call.
-6. Asterisk executes the low-level telephony work such as playback, bridge creation, outbound dialing, recording, and hangup.
-7. The runtime publishes live call events while the call is active.
-8. The backend consumes those events, stores the durable history, and sends real-time updates to the browser.
-9. When the call ends, the final status, timeline, trace, and quality information become available in the call history.
+1. Inbound SIP INVITE arrives at Asterisk on port `5080`
+2. Asterisk matches the DID in `extensions_callytics_inbound.conf` — auto-generated by the backend whenever inbound routes change
+3. Asterisk sends the channel to the Stasis app named `callytics`
+4. Stasis `StasisStart` fires — checks if `channelExten` starts with `#` (direct outbound) or is a DID (inbound flow)
+5. For inbound: Stasis calls `GET /inbound-routes?did=<DID>` on the backend to resolve the flow ID
+6. Stasis fetches flow nodes and edges, answers the channel, creates an ARI bridge of type `mixing,dtmf_events`, runs `runFlow()`
+7. `runFlow()` is an in-memory loop — `CallSession` tracks `currentNodeKey`, follows edges after each node result
+8. Already-running calls keep their in-memory session — saving a flow affects subsequent calls only
+9. Stasis publishes events to Redis pub/sub as the call progresses
+10. Backend subscribes to Redis, writes durable records to PostgreSQL, relays real-time updates to browser via Socket.IO
+
+```mermaid
+sequenceDiagram
+    participant Phone
+    participant Asterisk
+    participant Stasis
+    participant Backend
+    participant Redis
+    participant Browser
+
+    Phone->>Asterisk: SIP INVITE :5080
+    Asterisk->>Stasis: StasisStart (ARI)
+    Stasis->>Backend: GET /inbound-routes?did=1234
+    Backend-->>Stasis: flowId
+    Stasis->>Asterisk: answer + create bridge
+    loop runFlow()
+        Stasis->>Asterisk: node commands (play, digits, transfer...)
+        Asterisk-->>Stasis: ARI events
+    end
+    Stasis->>Redis: publish call events
+    Redis-->>Backend: subscribe
+    Backend-->>Browser: Socket.IO
+```
 
 ## Redis as the Event Backbone
 
-Redis is the event backbone between the services that handle live calls, dashboards, campaigns, callbacks, SIP status, firewall activity, packet capture, and quality metrics. It lets the call runtime publish fast operational events without forcing every consumer to be tightly coupled to the call execution process.
+Redis decouples call execution (Stasis) from durable storage and browser updates (backend). Stasis publishes fast operational events without knowing which consumers are listening. The backend subscribes and handles persistence and real-time relay independently.
 
-Redis also carries short-lived coordination state for features such as queues and operator availability. That makes it suitable for live state that changes frequently, while PostgreSQL remains the place for durable records and configuration.
+### Pub/sub channels
+
+| Channel | Purpose |
+|---|---|
+| `callytics:call-events` | Call started, answered, ended — written to call log |
+| `callytics:call-timeline` | Node-by-node execution trace for the per-call timeline view |
+| `callytics:sip-status` | SIP registration state and trunk status updates |
+| `callytics:sip-traffic` | Parsed SIP messages from the AMI PJSIP logger for the capture page |
+| `callytics:sip-capture` | Redis stream for raw tshark packets when `TSHARK_ENABLED=true` |
+| `callytics:campaign:*` | Campaign dial events, contact outcomes, window coordination |
+| `callytics:callback:*` | Callback request events and execution coordination |
+
+Redis also carries short-lived coordination state as keys:
+
+- `queue:<id>:operators` — set of ARI channel IDs for logged-in operators
+- `operator:<id>:queue` — the queue ID the operator is currently logged into
+- `operator:<id>:channel` — the operator's live ARI channel ID
 
 ## Real-Time Updates
 
-The backend listens for operational events and converts them into browser updates over Socket.IO. This is how the UI can show active calls, queue movement, campaign progress, diagnostics, firewall activity, SIP traffic, and call timeline changes without requiring users to refresh the page.
+The full chain from a call event to the browser:
 
-Socket.IO keeps the browser subscribed to the areas the user is viewing. When new backend events arrive, the relevant page can update counters, tables, badges, timelines, and live panels immediately.
+```
+Stasis → Redis pub/sub → NestJS subscribes → Socket.IO → browser
+```
+
+The backend subscribes to Redis channels on startup. When an event arrives it processes the payload, persists what needs persisting, then emits a Socket.IO event to connected browsers.
+
+### Socket.IO events by page
+
+| Page | Socket.IO events consumed |
+|---|---|
+| Call Logs | `call:event`, `call:timeline` |
+| Live Dashboard | `call:event`, `queue:state`, `operator:state` |
+| Diagnostics | `sip:status`, `sip:registration` |
+| SIP Capture | `sip:traffic`, `sip:capture-packet` |
+| Campaigns | `campaign:progress`, `campaign:contact-result` |
+| Firewall | `firewall:event`, `firewall:block` |

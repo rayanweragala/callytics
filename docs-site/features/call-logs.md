@@ -1,6 +1,6 @@
 # Call Logs
 
-Call Logs provide a searchable history of calls handled by Callytics. Operators and admins can filter by direction, status, and search terms, then open a specific call to understand what happened from start to finish.
+Call Logs provide a searchable history of calls handled by Callytics. You can filter by direction, status, and search terms, then open a specific call to understand what happened from start to finish.
 
 Each call can show the execution trace of the flow, including every step the caller visited. This makes it easier to answer questions like which menu option was pressed, whether a queue timed out, or where a call was transferred.
 

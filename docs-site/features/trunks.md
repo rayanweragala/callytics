@@ -1,6 +1,6 @@
 # SIP Trunks
 
-SIP Trunks connect Callytics to external phone providers for inbound and outbound calling. Admins can store provider credentials, control whether a trunk is enabled, and configure the calling options needed for their provider.
+SIP Trunks connect Callytics to external phone providers for inbound and outbound calling. You can store provider credentials, control whether a trunk is enabled, and configure the calling options needed for your provider.
 
 Testing tools help confirm that a trunk can register, qualify, and place or receive calls before it is used in production routing. Trunk status is also visible in diagnostics so provider connectivity issues can be spotted quickly.
 

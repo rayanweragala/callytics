@@ -25,3 +25,31 @@ This walkthrough creates the smallest useful inbound call path: register a SIP e
 6. Register your softphone using the extension credentials and the server IP on port `5080`.
 
    Linphone, Zoiper, or any SIP client will work. Dial the DID from the softphone and you should hear your audio file play.
+
+---
+
+## Making an outbound call from your softphone
+
+Callytics supports direct outbound dialing from any registered softphone without using mobile credits. Calls go out through your configured SIP trunk.
+
+1. Go to Configure -> Trunks. Create a SIP trunk with your provider credentials.
+
+2. Go to Settings and set that trunk as the **default outbound trunk**.
+
+3. Register your softphone to the Callytics server at `<host-ip>:5080` using an extension credential.
+
+4. From your softphone, dial `#` followed by the number in international format — for example:
+
+   ```
+   #94771234567
+   ```
+
+   - Use international format without a leading zero — dial `#94771234567`, not `#0771234567`
+   - The `#` prefix tells Callytics this is a direct outbound dial, not an inbound flow DID
+
+5. You will hear music on hold immediately while Callytics connects the call through your trunk.
+
+6. Go to Call Logs in the dashboard — the call will appear with direction set to `outbound`.
+
+> This works over the relay too — your softphone connects to the VPS, dials `#NUMBER`, and the outbound call goes out through your trunk on the Callytics host. No direct internet path needed from your phone.
+

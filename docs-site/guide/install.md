@@ -52,3 +52,24 @@ docker compose --profile vpn up -d
 ```
 
 Set `HOST_IP`, `VPN_PUBLIC_IP`, or `WIREGUARD_SERVERURL` in `.env` before generating peer configs if the server is behind NAT or has a public DNS name.
+
+## Verifying the installation
+
+After the stack is up, run through these checks to confirm everything is working:
+
+1. **Dashboard loads** — open `http://localhost:3000`. The React dashboard should load without errors.
+
+2. **All services healthy** — go to Diagnostics. The health panel should show `HEALTHY` for all six services: ARI, AMI, Asterisk, PostgreSQL, Redis, and uptime. If any service shows unhealthy, check its container logs:
+
+   ```bash
+   docker compose logs backend
+   docker compose logs asterisk
+   docker compose logs stasis
+   ```
+
+3. **Softphone registers** — configure a SIP client (Linphone, Zoiper, or any PJSIP-compatible softphone) with an extension credential. Set the server to `<host-ip>:5080`. After registration, go to Configure -> Extensions — the extension status should show as registered.
+
+4. **Inbound call routes** — go to Configure -> Inbound, create an inbound route with a DID, assign a published flow, and dial the DID from the softphone. The call should execute the flow.
+
+If Diagnostics shows any service as unhealthy, `docker compose logs <service-name>` will show the relevant error output.
+

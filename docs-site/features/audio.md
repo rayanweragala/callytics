@@ -2,9 +2,9 @@
 
 Audio Management is the library for prompts used across call flows. Teams can upload common audio formats and reuse those files anywhere a flow needs to play a greeting, menu prompt, timeout message, or confirmation message.
 
-Uploaded files are converted automatically for telephony playback and browser preview, so users do not need to prepare multiple versions by hand. Callytics also supports offline text-to-speech generation with Piper, including multiple voices and speed control.
+Uploaded files are converted automatically for telephony playback and browser preview, so you do not need to prepare multiple versions by hand. Callytics also supports offline text-to-speech generation with Piper, including multiple voices and speed control.
 
-Before saving or reusing audio, users can preview it in the browser. Search and delete tools keep the library manageable as the number of prompts grows.
+Before saving or reusing audio, you can preview it in the browser. Search and delete tools keep the library manageable as the number of prompts grows.
 
 ## Capabilities
 

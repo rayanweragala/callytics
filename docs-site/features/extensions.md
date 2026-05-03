@@ -1,6 +1,6 @@
 # SIP Extensions
 
-SIP Extensions are the user and device registrations used by softphones, desk phones, and operator workflows. Callytics provisions extensions from the database so admins can manage users and endpoint settings from the browser.
+SIP Extensions are the user and device registrations used by softphones, desk phones, and operator workflows. Callytics provisions extensions from the database so you can manage users and endpoint settings from the browser.
 
 For quick softphone setup, extensions can provide a QR code compatible with Linphone-style onboarding. Teams that want stronger remote-access controls can mark selected extensions as VPN-only, requiring those devices to register through the private WireGuard network.
 
