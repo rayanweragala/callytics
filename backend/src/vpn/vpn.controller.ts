@@ -66,13 +66,13 @@ export class VpnController {
   }
 
   @Post('relay-activate')
-  @HttpCode(200)
+  @HttpCode(202)
   activateRelayTunnel(@Body() dto: RelayActivateDto) {
     return this.vpnService.activateRelayTunnel(dto.config);
   }
 
   @Delete('relay-deactivate')
-  @HttpCode(200)
+  @HttpCode(202)
   deactivateRelayTunnel() {
     return this.vpnService.deactivateRelayTunnel();
   }

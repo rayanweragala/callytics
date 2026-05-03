@@ -43,6 +43,8 @@ const EMPTY_RELAY_STATUS: RelayTunnelStatus = {
   active: false,
   handshakeEstablished: false,
   vpsPublicIp: null,
+  transitioning: false,
+  error: null,
 };
 
 function formatBytes(value: number): string {
@@ -90,10 +92,14 @@ export function VpnPage() {
   const [relayConfigLoading, setRelayConfigLoading] = useState(false);
   const [relayActivateLoading, setRelayActivateLoading] = useState(false);
   const [relayDeactivateLoading, setRelayDeactivateLoading] = useState(false);
+  const [relayTransitioning, setRelayTransitioning] = useState(false);
+  const [relayTransitionLabel, setRelayTransitionLabel] = useState('');
   const [relayInlineError, setRelayInlineError] = useState<string | null>(null);
   const [confirmRemoveVpn, setConfirmRemoveVpn] = useState(false);
   const [removingVpn, setRemovingVpn] = useState(false);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const relayPollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const relayPollTimeoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showCopied = (key: string) => {
@@ -244,6 +250,12 @@ export function VpnPage() {
     if (pollTimer.current) {
       clearInterval(pollTimer.current);
     }
+    if (relayPollTimer.current) {
+      clearInterval(relayPollTimer.current);
+    }
+    if (relayPollTimeoutTimer.current) {
+      clearTimeout(relayPollTimeoutTimer.current);
+    }
   }, []);
 
   const handleRefresh = async () => {
@@ -335,6 +347,53 @@ export function VpnPage() {
     }
   };
 
+  const stopRelayPolling = () => {
+    if (relayPollTimer.current) {
+      clearInterval(relayPollTimer.current);
+      relayPollTimer.current = null;
+    }
+    if (relayPollTimeoutTimer.current) {
+      clearTimeout(relayPollTimeoutTimer.current);
+      relayPollTimeoutTimer.current = null;
+    }
+  };
+
+  const startRelayPolling = (expectedActive: boolean, label: string) => {
+    setRelayTransitioning(true);
+    setRelayTransitionLabel(label);
+    setRelayInlineError(null);
+    // Stop any existing poll cycle before starting a new one.
+    stopRelayPolling();
+
+    relayPollTimer.current = setInterval(() => {
+      void (async () => {
+        try {
+          const next = await getVpnRelayStatus();
+          setRelayStatus(next);
+          if (!next.transitioning) {
+            stopRelayPolling();
+            setRelayTransitioning(false);
+            if (next.error) {
+              setRelayInlineError(next.error);
+            }
+          } else if (next.active === expectedActive && !next.transitioning) {
+            stopRelayPolling();
+            setRelayTransitioning(false);
+          }
+        } catch {
+          // Network errors during polling are non-fatal — keep trying.
+        }
+      })();
+    }, 2_000);
+
+    // Hard timeout: stop polling after 90 s and show an error.
+    relayPollTimeoutTimer.current = setTimeout(() => {
+      stopRelayPolling();
+      setRelayTransitioning(false);
+      setRelayInlineError('Operation timed out. Check relay status and try again.');
+    }, 90_000);
+  };
+
   const handleActivateRelayTunnel = async () => {
     if (!relayConfig) {
       return;
@@ -344,7 +403,8 @@ export function VpnPage() {
     setRelayActivateLoading(true);
     try {
       await activateVpnRelayTunnel(relayConfig);
-      await loadRelayStatus();
+      // 202 received — background work has started. Enter transitioning state.
+      startRelayPolling(true, 'Connecting...');
     } catch (error) {
       const message = getApiError(error, 'failed to activate relay tunnel');
       if (message.toLowerCase().includes('cannot activate relay')) {
@@ -363,7 +423,8 @@ export function VpnPage() {
     setRelayDeactivateLoading(true);
     try {
       await deactivateVpnRelayTunnel();
-      await loadRelayStatus();
+      // 202 received — background work has started. Enter transitioning state.
+      startRelayPolling(false, 'Disconnecting...');
     } catch (error) {
       setRelayInlineError(getApiError(error, 'failed to deactivate relay tunnel'));
     } finally {
@@ -458,34 +519,50 @@ export function VpnPage() {
               <div className={styles.optionCard}>
                 <div className={styles.optionTitle}>External Relay</div>
                 <div className={styles.optionText}>Run WireGuard on a separate VPS. Best if this server has no public IP.</div>
-                {relayStatus.active ? (
+                {relayStatus.active || relayTransitioning ? (
                   <>
-                    <div className={styles.relayCardStatus}>
-                      <span className={`${styles.statusDot} ${styles.statusDotRunning}`} />
-                      <span className={styles.relayCardStatusLabel}>Relay tunnel active</span>
-                    </div>
-                    <div className={styles.relayCardHandshake}>
-                      {relayStatus.handshakeEstablished ? 'VPS connected' : 'Awaiting VPS handshake'}
-                    </div>
-                    <div className={styles.relaySoftphoneBlock}>
-                      <div className={styles.relaySoftphoneTitle}>Softphone settings</div>
-                      <div className={styles.relaySoftphoneRows}>
-                        <div className={styles.relaySoftphoneRow}>
-                          <span className={styles.relaySoftphoneLabel}>SIP Server</span>
-                          <span className={styles.relaySoftphoneValue}>{relayPublicIp || 'unavailable'}</span>
-                        </div>
-                        <div className={styles.relaySoftphoneRow}>
-                          <span className={styles.relaySoftphoneLabel}>Port</span>
-                          <span className={styles.relaySoftphoneValue}>5080</span>
-                        </div>
-                        <div className={styles.relaySoftphoneRow}>
-                          <span className={styles.relaySoftphoneLabel}>Transport</span>
-                          <span className={styles.relaySoftphoneValue}>UDP</span>
+                    {relayTransitioning ? (
+                      <div className={styles.relayCardStatus}>
+                        <span className={`${styles.statusDot} ${styles.statusDotTransitioning}`} />
+                        <span className={styles.relayCardStatusLabel}>{relayTransitionLabel}</span>
+                      </div>
+                    ) : (
+                      <div className={styles.relayCardStatus}>
+                        <span className={`${styles.statusDot} ${styles.statusDotRunning}`} />
+                        <span className={styles.relayCardStatusLabel}>Relay tunnel active</span>
+                      </div>
+                    )}
+                    {!relayTransitioning ? (
+                      <div className={styles.relayCardHandshake}>
+                        {relayStatus.handshakeEstablished ? 'VPS connected' : 'Awaiting VPS handshake'}
+                      </div>
+                    ) : null}
+                    {relayStatus.active && !relayTransitioning ? (
+                      <div className={styles.relaySoftphoneBlock}>
+                        <div className={styles.relaySoftphoneTitle}>Softphone settings</div>
+                        <div className={styles.relaySoftphoneRows}>
+                          <div className={styles.relaySoftphoneRow}>
+                            <span className={styles.relaySoftphoneLabel}>SIP Server</span>
+                            <span className={styles.relaySoftphoneValue}>{relayPublicIp || 'unavailable'}</span>
+                          </div>
+                          <div className={styles.relaySoftphoneRow}>
+                            <span className={styles.relaySoftphoneLabel}>Port</span>
+                            <span className={styles.relaySoftphoneValue}>5080</span>
+                          </div>
+                          <div className={styles.relaySoftphoneRow}>
+                            <span className={styles.relaySoftphoneLabel}>Transport</span>
+                            <span className={styles.relaySoftphoneValue}>UDP</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <button className={styles.relayDeactivateButton} type="button" onClick={() => void handleDeactivateRelayTunnel()} disabled={relayDeactivateLoading}>
-                      {relayDeactivateLoading ? 'deactivating...' : 'Deactivate relay'}
+                    ) : null}
+                    <button
+                      className={styles.relayDeactivateButton}
+                      type="button"
+                      onClick={() => void handleDeactivateRelayTunnel()}
+                      disabled={relayDeactivateLoading || relayTransitioning}
+                    >
+                      {relayTransitioning ? relayTransitionLabel : 'Deactivate relay'}
                     </button>
                     <button className={styles.relayGuideLink} type="button" onClick={() => setActiveTab('relay')}>
                       View setup guide
@@ -713,24 +790,40 @@ export function VpnPage() {
                           {copiedKey === 'relay-config' ? '✓' : 'copy'}
                         </button>
                         <div className={styles.relayActions}>
-                          <button className={styles.primaryButton} type="button" onClick={() => void handleActivateRelayTunnel()} disabled={relayActivateLoading}>
-                            {relayActivateLoading ? 'activating...' : 'Activate relay tunnel'}
+                          <button
+                            className={styles.primaryButton}
+                            type="button"
+                            onClick={() => void handleActivateRelayTunnel()}
+                            disabled={relayActivateLoading || relayTransitioning}
+                          >
+                            {relayTransitioning
+                              ? relayTransitionLabel
+                              : relayActivateLoading
+                                ? 'activating...'
+                                : 'Activate relay tunnel'}
                           </button>
                           <button className={styles.secondaryLargeButton} type="button" onClick={handleRelayDownload}>Download config</button>
                         </div>
                         <div className={styles.relayStatusRow}>
-                          <span className={relayStatus.active ? styles.relayStatusActive : styles.relayStatusInactive}>
-                            {relayStatusLoading || relayConfigLoading
-                              ? 'Checking tunnel status...'
-                              : relayStatus.active && relayStatus.handshakeEstablished
-                                ? 'Tunnel active — connected to VPS'
-                                : relayStatus.active
-                                  ? 'Tunnel active — awaiting VPS handshake'
-                                  : 'Tunnel inactive'}
+                          <span className={relayStatus.active || relayTransitioning ? styles.relayStatusActive : styles.relayStatusInactive}>
+                            {relayTransitioning
+                              ? relayTransitionLabel
+                              : relayStatusLoading || relayConfigLoading
+                                ? 'Checking tunnel status...'
+                                : relayStatus.active && relayStatus.handshakeEstablished
+                                  ? 'Tunnel active — connected to VPS'
+                                  : relayStatus.active
+                                    ? 'Tunnel active — awaiting VPS handshake'
+                                    : 'Tunnel inactive'}
                           </span>
-                          {relayStatus.active ? (
-                            <button className={styles.relayDeactivateButton} type="button" onClick={() => void handleDeactivateRelayTunnel()} disabled={relayDeactivateLoading}>
-                              {relayDeactivateLoading ? 'deactivating...' : 'Deactivate'}
+                          {(relayStatus.active || relayTransitioning) ? (
+                            <button
+                              className={styles.relayDeactivateButton}
+                              type="button"
+                              onClick={() => void handleDeactivateRelayTunnel()}
+                              disabled={relayDeactivateLoading || relayTransitioning}
+                            >
+                              {relayTransitioning ? relayTransitionLabel : relayDeactivateLoading ? 'deactivating...' : 'Deactivate'}
                             </button>
                           ) : null}
                         </div>

@@ -74,14 +74,18 @@ describe('VpnPage', () => {
     vi.clearAllMocks();
     vi.mocked(getVpnRelayGuide).mockResolvedValue({ data: [] });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null });
-    vi.mocked(activateVpnRelayTunnel).mockResolvedValue({ success: true });
-    vi.mocked(deactivateVpnRelayTunnel).mockResolvedValue({ success: true });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null, transitioning: false, error: null });
+    vi.mocked(activateVpnRelayTunnel).mockResolvedValue({ accepted: true });
+    vi.mocked(deactivateVpnRelayTunnel).mockResolvedValue({ accepted: true });
     vi.mocked(removeVpn).mockResolvedValue({ success: true });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders not-installed option cards', async () => {
@@ -259,7 +263,7 @@ describe('VpnPage', () => {
       vpsPublicKey: 'vps-key',
       vpsPublicIp: '203.0.113.20',
     });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true, vpsPublicIp: '203.0.113.20' });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true, vpsPublicIp: '203.0.113.20', transitioning: false, error: null });
 
     render(<MemoryRouter><VpnPage /></MemoryRouter>);
 
@@ -294,7 +298,7 @@ describe('VpnPage', () => {
       vpsPublicKey: 'vps-key',
       vpsPublicIp: '203.0.113.20',
     });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.20' });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.20', transitioning: false, error: null });
 
     render(<MemoryRouter><VpnPage /></MemoryRouter>);
 
@@ -317,9 +321,9 @@ describe('VpnPage', () => {
       subnetConflict: false,
       subnetConflictDetail: null,
     });
-    vi.mocked(getVpnRelayStatus)
-      .mockResolvedValueOnce({ active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.55' })
-      .mockResolvedValueOnce({ active: false, handshakeEstablished: false, vpsPublicIp: null });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({
+      active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.55', transitioning: false, error: null,
+    });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({
       config: '[Interface]',
       vpsPublicKey: 'vps-key',
@@ -339,7 +343,9 @@ describe('VpnPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate relay' }));
     await waitFor(() => expect(deactivateVpnRelayTunnel).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByRole('button', { name: 'View Setup Guide' })).toBeInTheDocument());
+    // After 202, the UI enters transitioning state immediately — both relay-card
+    // buttons should show the transitioning label and be disabled.
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Disconnecting...' }).length).toBeGreaterThan(0));
   });
 
   it('does not show softphone settings block when relay is inactive', async () => {
@@ -354,7 +360,7 @@ describe('VpnPage', () => {
       subnetConflict: false,
       subnetConflictDetail: null,
     });
-    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null });
+    vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null, transitioning: false, error: null });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
 
     render(<MemoryRouter><VpnPage /></MemoryRouter>);

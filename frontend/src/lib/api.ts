@@ -923,13 +923,13 @@ export async function createVpnRelayConfig(payload: { vpsPublicKey: string; vpsP
   return response.data;
 }
 
-export async function activateVpnRelayTunnel(config: string): Promise<{ success: true }> {
-  const response = await api.post<{ success: true }>('/vpn/relay-activate', { config });
+export async function activateVpnRelayTunnel(config: string): Promise<{ accepted: true }> {
+  const response = await api.post<{ accepted: true }>('/vpn/relay-activate', { config });
   return response.data;
 }
 
-export async function deactivateVpnRelayTunnel(): Promise<{ success: true }> {
-  const response = await api.delete<{ success: true }>('/vpn/relay-deactivate');
+export async function deactivateVpnRelayTunnel(): Promise<{ accepted: true }> {
+  const response = await api.delete<{ accepted: true }>('/vpn/relay-deactivate');
   return response.data;
 }
 

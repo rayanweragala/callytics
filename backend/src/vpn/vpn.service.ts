@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, OnModuleInit, forwardRef } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, OnModuleInit, forwardRef } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -80,6 +80,7 @@ interface ServerPublicKeyResult {
 
 @Injectable()
 export class VpnService implements OnModuleInit {
+  private readonly logger = new Logger(VpnService.name);
   private readonly configDir = process.env.WIREGUARD_CONFIG_DIR || join(process.cwd(), '..', 'wireguard-config');
   private readonly wireGuardContainer = 'callytics-wireguard-1';
   private readonly relayPrivateKeyPath = join(this.configDir, 'relay-callytics-private.key');
@@ -452,35 +453,51 @@ export class VpnService implements OnModuleInit {
     }
   }
 
-  async activateRelayTunnel(config: string): Promise<{ success: true }> {
+  async activateRelayTunnel(config: string): Promise<{ accepted: true }> {
+    const normalizedConfig = config.trim();
+    if (!normalizedConfig) {
+      throw new BadRequestException('Relay config is required');
+    }
+    // Validate early so the 202 is only sent for structurally valid requests.
+    await this.ensureRelayConflictFree();
+    const relayConfig = this.parseRelayConfig(normalizedConfig);
+    // Write transitioning state synchronously before returning so relay-status
+    // reflects "in progress" as soon as the 202 response lands on the client.
+    await this.writeRelayState({ active: false, vpsPublicIp: null, transitioning: true, error: null });
+    // Fire-and-forget: all Docker/WireGuard work runs after the response is sent.
+    void this.runActivateBackground(normalizedConfig, relayConfig);
+    return { accepted: true };
+  }
+
+  private async runActivateBackground(normalizedConfig: string, relayConfig: ReturnType<VpnService['parseRelayConfig']>): Promise<void> {
     try {
-      const normalizedConfig = config.trim();
-      if (!normalizedConfig) {
-        throw new BadRequestException('Relay config is required');
-      }
-      await this.ensureRelayConflictFree();
       await fs.promises.mkdir(join(this.relayRuntimeDir, 'wg_confs'), { recursive: true });
       await this.removeLegacyRelayConfigIfPresent();
       await fs.promises.writeFile(this.relayConfigPath, `${normalizedConfig}\n`, { encoding: 'utf8', mode: 0o600 });
-      const relayConfig = this.parseRelayConfig(normalizedConfig);
       await this.clearRelayContainerBeforeCreate();
       await this.createRelayContainer();
       await this.startRelayContainer();
       const relayNetworkState = await this.getRelayContainerNetworkState();
       await this.applyRelayHostNetworking(relayNetworkState);
-      await this.writeRelayActiveFlag(true, relayConfig.vpsPublicIp);
+      await this.writeRelayState({ active: true, vpsPublicIp: relayConfig.vpsPublicIp, transitioning: false, error: null });
       await this.syncRelayPjsipTransport();
       await this.syncRelayExtensionsConfig();
-      return { success: true };
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ConflictException) {
-        throw error;
-      }
-      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to activate relay tunnel');
+      const message = error instanceof Error ? error.message : 'Relay activation failed';
+      this.logger.error(`Relay activation background error: ${message}`);
+      await this.writeRelayState({ active: false, vpsPublicIp: null, transitioning: false, error: message }).catch(() => undefined);
     }
   }
 
-  async deactivateRelayTunnel(): Promise<{ success: true }> {
+  async deactivateRelayTunnel(): Promise<{ accepted: true }> {
+    // Write transitioning state before returning.
+    await this.writeRelayState({ active: true, vpsPublicIp: null, transitioning: true, error: null });
+    // Fire-and-forget background work.
+    void this.runDeactivateBackground();
+    return { accepted: true };
+  }
+
+  private async runDeactivateBackground(): Promise<void> {
     try {
       const relayNetworkState = await this.getRelayContainerNetworkState().catch(() => null);
       if (relayNetworkState) {
@@ -488,20 +505,39 @@ export class VpnService implements OnModuleInit {
       }
       await this.stopRelayContainerIfRunning();
       await this.removeRelayContainerIfExists();
-      await this.writeRelayActiveFlag(false, null);
+      await this.writeRelayState({ active: false, vpsPublicIp: null, transitioning: false, error: null });
       await this.syncRelayPjsipTransport();
       await this.syncRelayExtensionsConfig();
-      return { success: true };
     } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to deactivate relay tunnel');
+      const message = error instanceof Error ? error.message : 'Relay deactivation failed';
+      this.logger.error(`Relay deactivation background error: ${message}`);
+      await this.writeRelayState({ active: false, vpsPublicIp: null, transitioning: false, error: message }).catch(() => undefined);
     }
   }
 
   async getRelayStatus(): Promise<RelayTunnelStatusResponse> {
     const persistedState = await this.readRelayState();
+    // While transitioning, skip the expensive container/handshake checks and
+    // report the persisted active value unchanged so the frontend sees a stable
+    // transitioning state rather than a flicker.
+    if (persistedState.transitioning) {
+      return {
+        active: persistedState.active,
+        handshakeEstablished: false,
+        vpsPublicIp: persistedState.vpsPublicIp,
+        transitioning: true,
+        error: null,
+      };
+    }
+    if (persistedState.error) {
+      return {
+        active: false,
+        handshakeEstablished: false,
+        vpsPublicIp: null,
+        transitioning: false,
+        error: persistedState.error,
+      };
+    }
     const active = persistedState.active && await this.isRelayContainerRunning();
     const handshakeEstablished = active ? await this.isRelayHandshakeEstablished() : false;
     let vpsPublicIp = active ? persistedState.vpsPublicIp : null;
@@ -509,13 +545,15 @@ export class VpnService implements OnModuleInit {
       const relayConfig = await this.getRelayConfig();
       vpsPublicIp = relayConfig.vpsPublicIp || null;
       if (vpsPublicIp) {
-        await this.writeRelayActiveFlag(true, vpsPublicIp);
+        await this.writeRelayState({ active: true, vpsPublicIp, transitioning: false, error: null });
       }
     }
     return {
       active,
       handshakeEstablished,
       vpsPublicIp,
+      transitioning: false,
+      error: null,
     };
   }
 
@@ -795,22 +833,34 @@ export class VpnService implements OnModuleInit {
     throw new Error(`Failed to remove container ${containerName} (${fallbackRemove.statusCode ?? 'unknown'}): ${fallbackRemove.body.toString('utf8')}`);
   }
 
-  private async writeRelayActiveFlag(active: boolean, vpsPublicIp: string | null): Promise<void> {
-    await fs.promises.writeFile(this.relayStatePath, JSON.stringify({ active, vpsPublicIp }), 'utf8');
+  private async writeRelayState(state: {
+    active: boolean;
+    vpsPublicIp: string | null;
+    transitioning: boolean;
+    error: string | null;
+  }): Promise<void> {
+    await fs.promises.writeFile(this.relayStatePath, JSON.stringify(state), 'utf8');
   }
 
-  private async readRelayState(): Promise<{ active: boolean; vpsPublicIp: string | null }> {
+  /** @deprecated Use writeRelayState directly. Kept for call-sites that only need the active flag. */
+  private async writeRelayActiveFlag(active: boolean, vpsPublicIp: string | null): Promise<void> {
+    await this.writeRelayState({ active, vpsPublicIp, transitioning: false, error: null });
+  }
+
+  private async readRelayState(): Promise<{ active: boolean; vpsPublicIp: string | null; transitioning: boolean; error: string | null }> {
     try {
       const raw = await fs.promises.readFile(this.relayStatePath, 'utf8');
-      const parsed = JSON.parse(raw) as { active?: unknown; vpsPublicIp?: unknown };
+      const parsed = JSON.parse(raw) as { active?: unknown; vpsPublicIp?: unknown; transitioning?: unknown; error?: unknown };
       return {
         active: parsed.active === true,
         vpsPublicIp: typeof parsed.vpsPublicIp === 'string' && parsed.vpsPublicIp.trim()
           ? parsed.vpsPublicIp.trim()
           : null,
+        transitioning: parsed.transitioning === true,
+        error: typeof parsed.error === 'string' && parsed.error.trim() ? parsed.error.trim() : null,
       };
     } catch {
-      return { active: false, vpsPublicIp: null };
+      return { active: false, vpsPublicIp: null, transitioning: false, error: null };
     }
   }
 

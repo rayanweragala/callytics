@@ -53,6 +53,8 @@ export interface RelayTunnelStatusResponse {
   active: boolean;
   handshakeEstablished: boolean;
   vpsPublicIp: string | null;
+  transitioning: boolean;
+  error: string | null;
 }
 
 export interface RelayConfigResponse {

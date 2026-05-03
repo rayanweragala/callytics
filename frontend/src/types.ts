@@ -433,6 +433,8 @@ export interface RelayTunnelStatus {
   active: boolean;
   handshakeEstablished: boolean;
   vpsPublicIp: string | null;
+  transitioning: boolean;
+  error: string | null;
 }
 
 export interface RelayConfigState {
