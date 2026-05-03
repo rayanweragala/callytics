@@ -8,7 +8,7 @@ import { ExecutionTracePanel } from '../components/ExecutionTracePanel/Execution
 import { QualityDrawer } from '../components/quality/QualityDrawer';
 import { LiveExecutionPanel } from '../components/panels/LiveExecutionPanel';
 import { SipEndpointsPanel } from '../components/panels/SipEndpointsPanel';
-import { getCallQuality, getDiagnosticsRegistrations, listCallLogs } from '../lib/api';
+import { exportCallLogsCsv, getCallQuality, getDiagnosticsRegistrations, listCallLogs } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import { diagnosticsSocket } from '../lib/socket';
@@ -41,6 +41,17 @@ function shiftIso(value: string | null, deltaMs: number): string | null {
     return null;
   }
   return new Date(parsed + deltaMs).toISOString();
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function endReasonClass(reason: string | null): string {
@@ -88,6 +99,8 @@ export function CallLogsPage() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
   const [qualityDrawerCallId, setQualityDrawerCallId] = useState<string | null>(null);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const [searchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState('');
@@ -290,6 +303,13 @@ export function CallLogsPage() {
   const hasActiveFilters = Boolean(searchInput.trim() || dateFrom || dateTo || endReason || direction !== 'all');
   const showLiveExecutionPanel = liveCalls.length > 0;
   const blockingLoadError = !loading ? errorText : null;
+  const exportParams = useMemo(() => ({
+    search: search || undefined,
+    endReason: endReason || undefined,
+    dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00.000Z`).toISOString() : undefined,
+    dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : undefined,
+    direction: direction === 'all' ? undefined : direction,
+  }), [search, endReason, dateFrom, dateTo, direction]);
 
   return (
     <PageLayout subtitle="monitor" title="Call Logs">
@@ -297,6 +317,28 @@ export function CallLogsPage() {
         {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
         {!blockingLoadError ? (
           <>
+        <div className={styles.pageHeader}>
+          <button
+            className={`${styles.traceButton} ${styles.logsButton}`}
+            type="button"
+            disabled={exportingCsv}
+            onClick={async () => {
+              setExportError(null);
+              setExportingCsv(true);
+              try {
+                const csv = await exportCallLogsCsv(exportParams);
+                triggerDownload(csv.blob, csv.filename);
+              } catch (error) {
+                setExportError(getApiError(error, 'failed to export CSV'));
+              } finally {
+                setExportingCsv(false);
+              }
+            }}
+          >
+            {exportingCsv ? 'Exporting…' : 'Export CSV'}
+          </button>
+        </div>
+        {exportError ? <ErrorMessage message={exportError} /> : null}
         <section className={`${styles.topGrid} ${showLiveExecutionPanel ? '' : styles.topGridSingle}`}>
           {showLiveExecutionPanel ? (
             <LiveExecutionPanel

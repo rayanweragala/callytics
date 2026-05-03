@@ -14,6 +14,11 @@ interface ListCallLogsParams {
   callLogId?: string;
 }
 
+interface CallLogsWhereClause {
+  whereSql: string;
+  queryParams: unknown[];
+}
+
 interface TraceNode {
   id: number;
   nodeKey: string;
@@ -29,11 +34,7 @@ interface TraceNode {
 export class CallLogsService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  async list(params: ListCallLogsParams) {
-    const page = Math.max(1, Number(params.page || 1));
-    const limit = Math.min(100, Math.max(1, Number(params.limit || 25)));
-    const offset = (page - 1) * limit;
-
+  private buildWhereClause(params: ListCallLogsParams): CallLogsWhereClause {
     const whereParts: string[] = [];
     const queryParams: unknown[] = [];
 
@@ -70,7 +71,25 @@ export class CallLogsService {
       }
     }
 
-    const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+    return {
+      whereSql: whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '',
+      queryParams,
+    };
+  }
+
+  private escapeCsv(value: string): string {
+    if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
+  async list(params: ListCallLogsParams) {
+    const page = Math.max(1, Number(params.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(params.limit || 25)));
+    const offset = (page - 1) * limit;
+
+    const { whereSql, queryParams } = this.buildWhereClause(params);
 
     const startedAt = Date.now();
     const countRows = await this.dataSource.query(
@@ -148,6 +167,55 @@ export class CallLogsService {
       page,
       limit,
     };
+  }
+
+  async exportCsv(params: ListCallLogsParams): Promise<string> {
+    const { whereSql, queryParams } = this.buildWhereClause(params);
+    const startedAt = Date.now();
+    const rows = await this.dataSource.query(
+      `
+        SELECT
+          cl.started_at AS "startedAt",
+          cl.caller_number AS "callerNumber",
+          cl.direction AS "direction",
+          cl.duration_seconds AS "durationSeconds",
+          cl.end_reason AS "endReason",
+          cf.name AS "flowName",
+          st.name AS "trunkName"
+        FROM call_logs cl
+        LEFT JOIN call_flows cf ON cf.id = cl.flow_id
+        LEFT JOIN sip_trunks st ON st.id = cl.trunk_id
+        ${whereSql}
+        ORDER BY cl.started_at DESC
+      `,
+      queryParams,
+    );
+    AppLogger.dbQuery('select', 'call_logs', startedAt);
+
+    const header = [
+      'call date/time',
+      'caller ID',
+      'direction',
+      'duration seconds',
+      'status',
+      'flow name',
+      'trunk name',
+    ];
+    const lines = [header.join(',')];
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const startedAtIso = row.startedAt ? new Date(String(row.startedAt)).toISOString() : '';
+      const cols = [
+        startedAtIso,
+        row.callerNumber ? String(row.callerNumber) : '',
+        row.direction ? String(row.direction) : '',
+        row.durationSeconds === null || row.durationSeconds === undefined ? '' : String(Number(row.durationSeconds)),
+        row.endReason ? String(row.endReason) : 'unknown',
+        row.flowName ? String(row.flowName) : '',
+        row.trunkName ? String(row.trunkName) : '',
+      ].map((value) => this.escapeCsv(value));
+      lines.push(cols.join(','));
+    }
+    return `${lines.join('\n')}\n`;
   }
 
   async getTrace(callUuid: string): Promise<{ callUuid: string; callerNumber: string | null; startTime: string | null; nodes: TraceNode[] }> {

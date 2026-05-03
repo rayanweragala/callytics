@@ -319,18 +319,24 @@ describe('api library', () => {
     (axios.get as any).mockResolvedValueOnce({ data: { data: [], total: 0, page: 1, limit: 10 } });
     (axios.get as any).mockResolvedValueOnce({ data: { callUuid: 'abc', nodes: [] } });
     (axios.get as any).mockResolvedValueOnce({ data: { callId: 'abc', mos: 4.1 } });
+    (axios.get as any).mockResolvedValueOnce({
+      data: new Blob(['a,b\n1,2\n'], { type: 'text/csv' }),
+      headers: { 'content-disposition': 'attachment; filename="cdr-export.csv"' },
+    });
 
     await api.listTemplates();
     await api.importTemplate(1);
     await api.listCallLogs({ page: 1, limit: 10, search: '1001' });
     await api.getCallTrace('abc/123');
     await api.getCallQuality('abc/123');
+    await api.exportCallLogsCsv({ search: '1001' });
 
     expect(axios.get).toHaveBeenCalledWith('/templates');
     expect(axios.post).toHaveBeenCalledWith('/templates/1/import');
     expect(axios.get).toHaveBeenCalledWith('/call-logs', { params: { page: 1, limit: 10, search: '1001' } });
     expect(axios.get).toHaveBeenCalledWith('/call-logs/abc%2F123/trace');
     expect(axios.get).toHaveBeenCalledWith('/quality/abc%2F123');
+    expect(axios.get).toHaveBeenCalledWith('/call-logs/export', { params: { search: '1001' }, responseType: 'blob' });
   });
 
   it('operator/contact/queue helpers call correct endpoints', async () => {

@@ -625,6 +625,23 @@ export async function getCallTrace(callUuid: string): Promise<CallTraceResponse>
   return response.data;
 }
 
+export async function exportCallLogsCsv(params: {
+  search?: string;
+  endReason?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  direction?: string;
+}): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get('/call-logs/export', {
+    params,
+    responseType: 'blob',
+  });
+  const disposition = String(response.headers?.['content-disposition'] || '');
+  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  const filename = match?.[1]?.trim() || 'cdr-export.csv';
+  return { blob: response.data as Blob, filename };
+}
+
 export async function listAsteriskLogs(params: {
   level?: 'all' | 'error' | 'warning' | 'notice' | 'verbose';
   search?: string;

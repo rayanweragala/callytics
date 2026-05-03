@@ -34,7 +34,7 @@ describe('ExtensionsPage coverage boost', () => {
   const mockHostConfig = { hostIp: '127.0.0.1', sipPort: 5060 };
   const mockVpnStatus = { installed: false };
 
-  const mockRelayInactive = { active: false, handshakeEstablished: false, vpsPublicIp: null };
+  const mockRelayInactive = { active: false, handshakeEstablished: false, vpsPublicIp: null, transitioning: false, error: null };
 
   it('renders extensions and opens create form', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
@@ -212,7 +212,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
-    vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true, vpsPublicIp: '203.0.113.20' });
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true, vpsPublicIp: '203.0.113.20', transitioning: false, error: null });
     vi.mocked(api.getVpnRelayConfig).mockResolvedValue({
       config: '[Interface]',
       vpsPublicKey: 'vps-key',
@@ -233,7 +233,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.listExtensions).mockResolvedValue(mockExtensions);
     vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
-    vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null });
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null, transitioning: false, error: null });
     vi.mocked(api.getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
 
     render(
