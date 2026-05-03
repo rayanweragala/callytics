@@ -14,9 +14,10 @@ interface FlowStackFrame {
 
 async function insertNodeLog(session: CallSession, node: { nodeKey: string; type: string }): Promise<void> {
   try {
-    // TODO(arch): Stasis should not write directly to DB.
-    // This should be refactored to emit a Redis event and let NestJS handle the write.
-    // Tracked as known technical debt — defer until post Phase 39.
+    // TODO(arch): Violation: Stasis writes call_node_logs directly to PostgreSQL instead of Redis->NestJS persistence.
+    // Kept here because entered_at must be recorded in lockstep with node execution; Redis ordering guarantees are not in place yet.
+    // Correct fix: publish enter event on callytics:call-node-log and persist in a NestJS listener.
+    // Deferred post-launch as tracked technical debt.
     await query(
       `
         INSERT INTO call_node_logs (call_uuid, flow_id, node_key, node_type, entered_at)
@@ -36,9 +37,10 @@ async function updateNodeLog(
   errorMessage: string | null,
 ): Promise<void> {
   try {
-    // TODO(arch): Stasis should not write directly to DB.
-    // This should be refactored to emit a Redis event and let NestJS handle the write.
-    // Tracked as known technical debt — defer until post Phase 39.
+    // TODO(arch): Violation: Stasis writes call_node_logs directly to PostgreSQL instead of Redis->NestJS persistence.
+    // Kept here because exited_at/branch/error must be recorded in lockstep with node completion; Redis ordering guarantees are not in place yet.
+    // Correct fix: publish exit event on callytics:call-node-log and persist in a NestJS listener.
+    // Deferred post-launch as tracked technical debt.
     await query(
       `
         UPDATE call_node_logs
@@ -193,6 +195,10 @@ export async function runFlow(
       break;
     }
 
+    // TODO(arch): Violation: synchronous node-log write is direct PostgreSQL from Stasis, not Redis->NestJS.
+    // Needed today to keep entered_at ordering exact with node execution because Redis ordering is not guaranteed yet.
+    // Correct fix: emit enter event on callytics:call-node-log and let NestJS persist.
+    // Deferred post-launch as tracked technical debt.
     await insertNodeLog(session, node);
 
     let result = 'hangup';
@@ -207,6 +213,10 @@ export async function runFlow(
       failureReason = runtimeError;
     }
 
+    // TODO(arch): Violation: synchronous node-log update is direct PostgreSQL from Stasis, not Redis->NestJS.
+    // Needed today to keep exited_at/exit metadata ordered with node completion because Redis ordering is not guaranteed yet.
+    // Correct fix: emit exit event on callytics:call-node-log and let NestJS persist.
+    // Deferred post-launch as tracked technical debt.
     await updateNodeLog(session, node, result, runtimeError);
 
     logEvent('NodeResult', { nodeType: node.type, nodeId: node.nodeKey, channelId: session.channelId, callerId: session.callerNumber, result });
