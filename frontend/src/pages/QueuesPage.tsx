@@ -6,6 +6,7 @@ import { SkeletonRow } from '../components/common/skeleton';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import {
   createQueue,
   deleteQueue,
@@ -16,6 +17,7 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { AudioFileItem, OperatorItem, QueueItem } from '../types';
 import styles from './QueuesPage.module.css';
 
@@ -79,6 +81,7 @@ function OperatorPickerRow({
 }
 
 export function QueuesPage() {
+  const windowWidth = useWindowWidth();
   const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const [queues, setQueues] = useState<QueueItem[]>([]);
   const [operators, setOperators] = useState<OperatorItem[]>([]);
@@ -278,6 +281,7 @@ export function QueuesPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="Queues" subtitle="configure" />
         {pageActions}

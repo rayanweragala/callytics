@@ -129,7 +129,7 @@ describe("AsteriskConfigService", () => {
 
     expect(fsPromises.writeFile).toHaveBeenCalledWith(
       expect.stringContaining("pjsip_relay.conf"),
-      "; auto-generated relay settings \u2014 do not commit\n; external_* values come from the active relay/VPS public IP at runtime.\n; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.\n\nexternal_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\nlocal_net = 10.8.0.0/24\nlocal_net = 172.16.0.0/12\nlocal_net = 127.0.0.1/32\nlocal_net = 10.20.0.0/16\n\n#include pjsip_extensions_relay.conf\n",
+      "; auto-generated relay settings \u2014 do not commit\n; external_* values come from the active relay/VPS public IP at runtime.\n; endpoint NAT overrides are loaded from pjsip_extensions_relay.conf and use ASTERISK_EXTERNAL_IP.\n\nexternal_signaling_address = 203.0.113.10\nexternal_media_address = 203.0.113.10\nlocal_net = 172.16.0.0/12\nlocal_net = 127.0.0.1/32\nlocal_net = 10.20.0.0/16\n\n#include pjsip_extensions_relay.conf\n",
       "utf8",
     );
     // pjsip.conf must never be written to during a relay sync

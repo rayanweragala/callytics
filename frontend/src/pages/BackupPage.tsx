@@ -3,6 +3,7 @@ import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
 import { Pagination } from '../components/common/Pagination';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import {
   createBackup,
   deleteBackup,
@@ -16,6 +17,7 @@ import {
 import { getApiError } from '../lib/apiError';
 import { diagnosticsSocket } from '../lib/socket';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type {
   BackupConfig,
   BackupHistoryItem,
@@ -161,6 +163,7 @@ function ToggleSwitch({ checked, label, onToggle, disabled = false, subLabel }: 
 }
 
 export function BackupPage() {
+  const windowWidth = useWindowWidth();
   const [history, setHistory] = useState<BackupHistoryItem[]>([]);
   const [config, setConfig] = useState<BackupConfig | null>(null);
   const [draftConfig, setDraftConfig] = useState<BackupConfig | null>(null);
@@ -434,6 +437,7 @@ export function BackupPage() {
       subtitle="system"
       actions={<button className={styles.secondaryButton} onClick={() => void handleRefresh()} type="button">refresh</button>}
     >
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.page}>
         <section className={styles.statusBar}>
           <span className={`${styles.statusDot} ${config?.enabled ? styles.statusDotActive : styles.statusDotMuted}`} />

@@ -6,10 +6,12 @@ import { ErrorMessage } from '../components/common/ErrorMessage';
 import { DialogDetail } from '../components/capture/DialogDetail';
 import { PacketStream, type PacketStreamFilters } from '../components/capture/PacketStream';
 import { SipHeadersAccordion } from '../components/capture/SipHeadersAccordion';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { exportCaptureBulk, getCapturePackets } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { diagnosticsSocket } from '../lib/socket';
 import { formatPacketTimestamp } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { SipPacket } from '../types';
 import styles from './CapturePage.module.css';
 
@@ -134,6 +136,7 @@ interface TooltipState {
 const HOVER_DELAY_MS = 150;
 
 export function CapturePage() {
+  const windowWidth = useWindowWidth();
   const [searchParams] = useSearchParams();
   const [packets, setPackets] = useState<SipPacket[]>([]);
   const [paused, setPaused] = useState(false);
@@ -407,6 +410,7 @@ export function CapturePage() {
 
   return (
     <PageLayout actions={pageError ? undefined : actions} subtitle="monitor" title="Capture">
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.page}>
         {pageError ? <ErrorMessage message={pageError} /> : null}
         {!pageError ? (

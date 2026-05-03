@@ -23,9 +23,11 @@
 @media (max-width: 768px) {
   .appShell {
     flex-direction: column;
+    overflow-x: hidden;
   }
   .contentArea {
     margin-left: 0;
     padding: 16px;
+    overflow-x: hidden;
   }
 }

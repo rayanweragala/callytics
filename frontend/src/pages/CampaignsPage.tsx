@@ -6,6 +6,7 @@ import { PageLayout } from '../components/common/PageLayout';
 import { Pagination } from '../components/common/Pagination';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import {
   createCampaign,
   deleteCampaign,
@@ -19,6 +20,7 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { CampaignItem, FlowSummary, SipTrunkItem } from '../types';
 import styles from './CampaignsPage.module.css';
 
@@ -53,6 +55,7 @@ function statusLabel(status: CampaignItem['status']): string {
 }
 
 export function CampaignsPage() {
+  const windowWidth = useWindowWidth();
   const navigate = useNavigate();
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const saveFeedbackTimer = useRef<number | null>(null);
@@ -391,6 +394,7 @@ export function CampaignsPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
       {!blockingLoadError ? (
         <>

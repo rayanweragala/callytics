@@ -335,8 +335,43 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
+  .page {
+    gap: 16px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .searchInput {
+    width: 100%;
+  }
+
+  .levelFilters {
+    width: 100%;
+  }
+
+  .refreshButton {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .levelPill {
+    min-height: 44px;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .table {
-    min-width: 720px;
+    min-width: 760px;
+  }
+
+  .callFilterBanner {
+    font-size: 13px;
   }
 }

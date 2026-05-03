@@ -5,7 +5,9 @@ import { PageLayout } from '../components/common/PageLayout';
 import { getPreflightHistory, runPreflightChecks } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { PreflightCheckResult, PreflightRun, PreflightStatus } from '../types';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import styles from './PreflightPage.module.css';
 
 const CHECK_SKELETON: PreflightCheckResult[] = [
@@ -24,6 +26,7 @@ const CHECK_SKELETON: PreflightCheckResult[] = [
 ];
 
 export function PreflightPage() {
+  const windowWidth = useWindowWidth();
   const [history, setHistory] = useState<PreflightRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<PreflightRun | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -122,6 +125,7 @@ export function PreflightPage() {
 
   return (
     <PageLayout title="preflight wizard" subtitle="system">
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.tableCard}>
         <div className={styles.tableHead}>
           <div className={styles.headMeta}>

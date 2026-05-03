@@ -363,3 +363,23 @@
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
 }
+
+@media (max-width: 768px) {
+  .panelHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panelMeta {
+    flex-wrap: wrap;
+  }
+
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .refreshButton {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+}

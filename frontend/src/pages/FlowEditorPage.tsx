@@ -27,6 +27,7 @@ import {
 } from '../lib/api';
 import type { BuilderNodeType, ContactNumber, ExtensionItem, FlowDetail, FlowNodeData, FlowVersionSummary, OperatorItem, QueueItem, SipTrunkItem } from '../types';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { FlowBreadcrumb } from '../components/FlowBreadcrumb';
 import { FlowTreePanel } from '../components/FlowTreePanel';
 import { FlowCanvasEdge } from '../components/builder/FlowCanvasEdge';
@@ -73,6 +74,7 @@ import {
   miniMapSizeProps,
 } from './FlowEditorPage.helpers';
 import { PageLayout } from '../components/common/PageLayout';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 
 // ─── Node / edge type registries (stable references) ─────────────────────────
 
@@ -139,6 +141,7 @@ type PendingLeaveAction =
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FlowEditorPage() {
+  const windowWidth = useWindowWidth();
   const { id = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1063,6 +1066,7 @@ export function FlowEditorPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       {editorNotice ? <div className={styles.editorNotice}>{editorNotice}</div> : null}
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>

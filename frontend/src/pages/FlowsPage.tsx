@@ -4,13 +4,16 @@ import { Pagination } from '../components/common/Pagination';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { deleteFlow, listFlows } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { FlowSummary } from '../types';
 import styles from './FlowsPage.module.css';
 
 export function FlowsPage() {
+  const windowWidth = useWindowWidth();
   const [errorText, setErrorText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [flows, setFlows] = useState<FlowSummary[]>([]);
@@ -93,6 +96,7 @@ export function FlowsPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="flow builder" subtitle="configure" />
         <button className={styles.primaryButton} onClick={() => void handleCreate()} type="button">

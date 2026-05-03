@@ -75,3 +75,14 @@
   font-size: 14px;
   color: var(--text-secondary);
 }
+
+@media (max-width: 768px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .paginationButton {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+}

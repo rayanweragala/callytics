@@ -5,6 +5,7 @@ import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import {
   createOperator,
   deleteOperator,
@@ -16,6 +17,7 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { ContactNumber, ExtensionItem, OperatorItem, SipTrunkItem } from '../types';
 import styles from './OperatorsPage.module.css';
 
@@ -44,6 +46,7 @@ interface OperatorFormState {
 const emptyForm: OperatorFormState = { name: '', extensionId: '', contactNumberId: '', callbackNumber: '', callbackTrunkId: '', pin: '' };
 
 export function OperatorsPage() {
+  const windowWidth = useWindowWidth();
   const [operators, setOperators] = useState<OperatorItem[]>([]);
   const [revealedPins, setRevealedPins] = useState<Set<number>>(new Set());
   const [newOperatorPin, setNewOperatorPin] = useState<string | null>(null);
@@ -279,6 +282,7 @@ export function OperatorsPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="Operators" subtitle="configure" />
         {pageActions}

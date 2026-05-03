@@ -310,13 +310,42 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  .topGrid {
+    grid-template-columns: 1fr;
+  }
+
   .filters {
     grid-template-columns: 1fr;
   }
 
+  .filterPills {
+    flex-wrap: wrap;
+  }
+
+  .filterPill,
+  .clearFiltersButton {
+    min-height: 44px;
+  }
+
   .tableCard {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 860px;
+    table-layout: auto;
+  }
+
+  .traceButton {
+    min-height: 44px;
+    width: 44px;
+  }
+
+  .pageHeader {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 

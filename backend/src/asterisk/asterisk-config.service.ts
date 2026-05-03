@@ -66,6 +66,27 @@ export class AsteriskConfigService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await runSqlMigrations(this.dataSource);
     await this.writeTrunksConfig();
+    try {
+      const extensions = await this.extensionsRepository.find({
+        order: { username: "ASC" },
+      });
+      const relayStatus = await this.vpnService.getRelayStatus();
+      const externalAddress = relayStatus.active
+        ? this.getExternalMediaAddress()
+        : null;
+      await fs.mkdir(this.configDir, { recursive: true });
+      await fs.writeFile(
+        join(this.configDir, "pjsip_extensions_relay.conf"),
+        this.buildExtensionsRelayConfig(extensions, externalAddress),
+        "utf8",
+      );
+      await this.writeUdpTransportConfig(externalAddress);
+    } catch (error) {
+      this.logger.error(
+        "failed to regenerate relay configs on startup",
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   async syncExtensions(extensions: ResolvedExtensionConfig[]): Promise<void> {
@@ -687,7 +708,6 @@ export class AsteriskConfigService implements OnModuleInit {
       lines.push(
         `external_signaling_address = ${externalAddress}`,
         `external_media_address = ${externalAddress}`,
-        "local_net = 10.8.0.0/24",
         "local_net = 172.16.0.0/12",
         "local_net = 127.0.0.1/32",
         `local_net = ${localLanNet}`,

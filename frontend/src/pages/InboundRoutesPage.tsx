@@ -5,9 +5,11 @@ import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { createInboundRoute, deleteInboundRoute, listFlows, listInboundRoutes, updateInboundRoute } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { FlowSummary, InboundRouteItem } from '../types';
 import styles from './InboundRoutesPage.module.css';
 
@@ -25,6 +27,7 @@ const emptyForm: RouteFormState = {
 const INBOUND_EXTENSION_CONFLICT_MESSAGE = 'This number is already in use as an extension. Choose a different DID.';
 
 export function InboundRoutesPage() {
+  const windowWidth = useWindowWidth();
   const [items, setItems] = useState<InboundRouteItem[]>([]);
   const [flows, setFlows] = useState<FlowSummary[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -222,6 +225,7 @@ export function InboundRoutesPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="Inbound Routes" subtitle="configure" />
         {pageActions}

@@ -9,8 +9,10 @@ import { SearchableSelect } from '../components/common/SearchableSelect';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import styles from './AudioPage.module.css';
 
 const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -19,6 +21,7 @@ type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
 type PreviewState = 'idle' | 'busy' | 'failed';
 
 export function AudioPage() {
+  const windowWidth = useWindowWidth();
   const uploadTimerRef = useRef<number | null>(null);
   const ttsTimerRef = useRef<number | null>(null);
   const previewErrorTimerRef = useRef<number | null>(null);
@@ -217,6 +220,7 @@ export function AudioPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="audio" subtitle="configure" />
       </div>

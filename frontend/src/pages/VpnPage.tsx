@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { PageLayout } from '../components/common/PageLayout';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { VpnPacketExplainer } from '../components/vpn/VpnPacketExplainer';
 import {
   activateVpnRelayTunnel,
@@ -20,6 +21,7 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { RelayGuideStep, RelayTunnelStatus, VpnPeer, VpnStatus } from '../types';
 import styles from './VpnPage.module.css';
 
@@ -60,6 +62,7 @@ function truncateKey(value: string | null): string {
 }
 
 export function VpnPage() {
+  const windowWidth = useWindowWidth();
   const [status, setStatus] = useState<VpnStatus>(EMPTY_STATUS);
   const [peers, setPeers] = useState<VpnPeer[]>([]);
   const [guide, setGuide] = useState<RelayGuideStep[]>([]);
@@ -428,6 +431,7 @@ export function VpnPage() {
 
   return (
     <PageLayout title="WireGuard VPN" subtitle="system" actions={actions}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.page}>
         {!status.installed ? (
           <section className={styles.notInstalledCard}>

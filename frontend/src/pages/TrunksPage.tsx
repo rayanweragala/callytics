@@ -6,6 +6,7 @@ import { Loading } from '../components/common/Loading';
 import { Pagination } from '../components/common/Pagination';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import {
   createTrunk,
   deleteTrunk,
@@ -21,6 +22,7 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { AudioFileItem, SipTrunkItem, SystemSettings, TrunkTestResult } from '../types';
 import styles from './TrunksPage.module.css';
 
@@ -185,6 +187,7 @@ function toForm(item: SipTrunkItem | null): TrunkFormState {
 }
 
 export function TrunksPage() {
+  const windowWidth = useWindowWidth();
   const [items, setItems] = useState<SipTrunkItem[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(emptySettings);
   const [draftSettings, setDraftSettings] = useState<SystemSettings>(emptySettings);
@@ -814,6 +817,7 @@ export function TrunksPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="SIP trunks" subtitle="configure" />
         {pageActions}
@@ -912,7 +916,7 @@ export function TrunksPage() {
           <div className={styles.settingsToggleField}>
             <div>
               <div className={styles.toggleLabel}>Record outbound calls</div>
-              <div className={styles.toggleSubLabel}>Use existing bridge recording for direct outbound PSTN calls</div>
+              <div className={styles.toggleSubLabel}>Record call</div>
             </div>
             <button
               aria-checked={draftSettings.record_outbound_calls}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import {
   getFirewallConfig,
   getFirewallStats,
@@ -14,6 +15,7 @@ import {
 import { getApiError } from '../lib/apiError';
 import { diagnosticsSocket } from '../lib/socket';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { FirewallBlockedIp, FirewallConfig, FirewallFeedEvent, FirewallStats } from '../types';
 import styles from './FirewallPage.module.css';
 
@@ -119,6 +121,7 @@ function TrunkGauge({ name, activeCalls, ceiling }: { name: string; activeCalls:
 }
 
 export function FirewallPage() {
+  const windowWidth = useWindowWidth();
   const [config, setConfig] = useState<FirewallConfig>(defaultConfig());
   const [stats, setStats] = useState<FirewallStats>(emptyStats());
   const [feed, setFeed] = useState<FirewallFeedEvent[]>([]);
@@ -280,6 +283,7 @@ export function FirewallPage() {
       subtitle="system"
       actions={<button className={styles.refreshButton} type="button" onClick={() => void loadData()}>refresh</button>}
     >
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.page}>
         <section className={styles.statusBar}>
           <span className={styles.statusDot} />

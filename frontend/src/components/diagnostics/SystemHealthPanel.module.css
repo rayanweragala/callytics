@@ -79,3 +79,17 @@
   font-family: var(--font-mono);
   font-size: 14px;
 }
+
+@media (max-width: 768px) {
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    min-height: auto;
+  }
+}

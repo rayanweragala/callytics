@@ -6,9 +6,11 @@ import { Pagination } from '../components/common/Pagination';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { createExtension, deleteExtension, getExtensionQrContent, getHostConfig, getVpnRelayConfig, getVpnRelayStatus, getVpnStatus, listExtensions, updateExtension } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { ExtensionItem } from '../types';
 import styles from './ExtensionsPage.module.css';
 
@@ -34,6 +36,7 @@ const TRANSPORT_OPTIONS = [
 const EXTENSION_DID_CONFLICT_MESSAGE = 'This number is already in use as an inbound DID. Choose a different extension number.';
 
 export function ExtensionsPage() {
+  const windowWidth = useWindowWidth();
   const [items, setItems] = useState<ExtensionItem[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<ExtensionFormState>(emptyForm);
@@ -266,6 +269,7 @@ export function ExtensionsPage() {
 
   return (
     <PageLayout actions={pageActions} title="Extensions" subtitle="configure">
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.page}>
         {blockingLoadError ? <ErrorMessage message={blockingLoadError} /> : null}
         {!blockingLoadError ? (

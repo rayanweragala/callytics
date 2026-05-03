@@ -4,9 +4,11 @@ import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
 import { PageLayout } from '../components/common/PageLayout';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import type { SaveFlowPayload } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { createFlow, getFlow, listTemplates } from '../lib/api';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { TemplateItem } from '../types';
 import styles from './TemplatesPage.module.css';
 
@@ -24,6 +26,7 @@ const TEMPLATE_PREVIEWS: Record<string, string> = {
 };
 
 export function TemplatesPage() {
+  const windowWidth = useWindowWidth();
   const navigate = useNavigate();
   const [items, setItems] = useState<TemplateItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,6 +134,7 @@ export function TemplatesPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="IVR Templates" subtitle="configure" />
 

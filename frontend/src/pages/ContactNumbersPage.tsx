@@ -13,7 +13,9 @@ import {
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { ContactNumber, SipTrunkItem } from '../types';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import styles from './ContactNumbersPage.module.css';
 
 interface ContactForm {
@@ -41,6 +43,7 @@ const EMPTY_FORM: ContactForm = { label: '', number: '', country: 'US', trunkId:
 const PAGE_LIMIT = 10;
 
 export function ContactNumbersPage() {
+  const windowWidth = useWindowWidth();
   const [items, setItems] = useState<ContactNumber[]>([]);
   const [trunks, setTrunks] = useState<SipTrunkItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,6 +216,7 @@ export function ContactNumbersPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="Contacts" subtitle="configure" />
         {pageActions}

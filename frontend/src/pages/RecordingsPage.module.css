@@ -151,3 +151,31 @@
     overflow-x: auto;
   }
 }
+
+@media (max-width: 768px) {
+  .pageHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 680px;
+    table-layout: auto;
+  }
+
+  .secondaryButton,
+  .deleteButton {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .downloadButton {
+    min-height: 44px;
+    min-width: auto;
+  }
+}

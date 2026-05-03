@@ -7,7 +7,9 @@ import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { cancelCallback, executeCallback, listCallbacks } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { CallbackItem } from '../types';
+import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import styles from './CallbacksPage.module.css';
 
 const PAGE_LIMIT = 10;
@@ -52,6 +54,7 @@ function resolveOperatorDisplay(item: CallbackItem): { value: string | null; mon
 }
 
 export function CallbacksPage() {
+  const windowWidth = useWindowWidth();
   const [items, setItems] = useState<CallbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -148,6 +151,7 @@ export function CallbacksPage() {
 
   return (
     <div className={styles.page}>
+      {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="Callbacks" subtitle="configure" />
       </div>
