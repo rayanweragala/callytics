@@ -2,10 +2,15 @@
 
 callytics is meant to run on a Linux host with Docker. The default stack starts six containers: Asterisk, Stasis, NestJS API, PostgreSQL, Redis, and the React frontend.
 
+## Supported environments
+
+- Ubuntu 22.04 and 24.04 are tested and supported.
+- Linux only.
+- Docker 24 or newer.
+
 ## Prerequisites
 
-- Linux host. Ubuntu 20.04 or newer is recommended.
-- Docker 24 or newer.
+- Linux host.
 - Docker Compose v2.
 - Ports `80`, `443`, `5080` over UDP and TCP, `8088`, `3000`, and `3001` must be free.
 - If you plan to use remote SIP phones through WireGuard, keep UDP port `51820` free as well.
@@ -72,4 +77,3 @@ After the stack is up, run through these checks to confirm everything is working
 4. **Inbound call routes** — go to Configure -> Inbound, create an inbound route with a DID, assign a published flow, and dial the DID from the softphone. The call should execute the flow.
 
 If Diagnostics shows any service as unhealthy, `docker compose logs <service-name>` will show the relevant error output.
-

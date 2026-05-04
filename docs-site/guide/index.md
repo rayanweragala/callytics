@@ -26,3 +26,13 @@ Then open `http://localhost:3000`.
 - Developers building and testing programmable call flows locally
 - Small businesses running self-hosted inbound and outbound call operations
 - Teams that want Asterisk power without manual PBX-heavy workflows
+
+## More guides
+
+- [Installation](./install.md)
+- [Troubleshooting](./troubleshooting.md)
+- [Security](./security.md)
+
+## Credits
+
+- [Sniffnet](https://github.com/GyulyVGC/sniffnet) — design inspiration for the UI theme and color system.

@@ -39,6 +39,8 @@ if [[ -z "$enable_vpn" ]]; then
   esac
 fi
 
+mkdir -p wireguard-config
+
 if [[ "$enable_vpn" == "yes" ]]; then
   docker compose --profile vpn up -d
 else

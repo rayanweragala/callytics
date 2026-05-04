@@ -49,6 +49,12 @@ Then open `http://localhost:3000`
 - Docker and Docker Compose
 - Ports: 3000 (UI), 3001 (API), 5080 (SIP), 8088 (ARI), 51820/udp (WireGuard optional)
 
+## Supported environments
+
+- Ubuntu 22.04 and 24.04 tested and supported
+- Linux only
+- Docker 24+ required
+
 ## Tech stack
 
 - Asterisk 20
@@ -62,3 +68,17 @@ Then open `http://localhost:3000`
 ## License
 
 MIT
+
+## Credits
+
+- Asterisk — GPLv2 telephony engine used in the runtime stack.
+- NGINX — BSD 2-Clause web server used in the frontend runtime image.
+- [Sniffnet](https://github.com/GyulyVGC/sniffnet) — design inspiration for the UI theme and color system.
+
+## Troubleshooting
+
+- Port already in use: check which process owns the port with `ss -tulpn | grep <port>`, stop it, then rerun `docker compose up -d`.
+- SIP not registering: verify `SIP_PORT` is `5080` and not blocked by firewall, confirm extension credentials match what is provisioned in the app.
+- Audio not playing: check that the audio file was uploaded and converted successfully in the Audio page, verify Asterisk container is healthy.
+- One-way audio: disable SIP ALG on your router, check NAT detection result in the preflight wizard.
+- Docker socket permission denied: ensure the user running Docker is in the docker group (`sudo usermod -aG docker $USER`).
