@@ -1,0 +1,17 @@
+Callytics is released under the MIT License. See the LICENSE file in this repository root.
+
+Third-party notices:
+
+1) Asterisk
+- Project: Asterisk
+- Version: 20
+- License: GNU General Public License v2.0 (GPLv2)
+- Project URL: https://www.asterisk.org/
+- Usage in Callytics: Asterisk is used unmodified and distributed in binary form inside the Docker image. The binary is built from source using the official Asterisk download URL: http://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20-current.tar.gz
+
+2) NGINX
+- Project: NGINX
+- License: BSD 2-Clause License
+- Project URL: https://nginx.org/
+- Usage in Callytics: NGINX is used as an unmodified frontend web server in the `docker/web` runtime image (`FROM nginx:alpine`).
+- Attribution note: The BSD 2-Clause license requires preservation of copyright and license notices in source and binary redistributions.

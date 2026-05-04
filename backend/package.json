@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Callytics NestJS backend",
   "private": true,
+  "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

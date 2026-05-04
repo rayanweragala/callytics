@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Self-hosted open source call center platform",
   "private": true,
+  "license": "MIT",
   "workspaces": [
     "backend",
     "frontend",
