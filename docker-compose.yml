@@ -40,8 +40,8 @@ services:
     volumes:
       - ./asterisk/base:/etc/asterisk
       - callytics_asterisk_logs:/var/log/asterisk
-      - ./storage/audio/converted:/var/lib/asterisk/sounds/callytics
-      - ./storage/voicemail:/var/spool/asterisk/voicemail
+      - callytics_audio_converted:/var/lib/asterisk/sounds/callytics
+      - callytics_voicemail:/var/spool/asterisk/voicemail
       - asterisk_recordings:/var/lib/asterisk/recording
       - asterisk_recordings:/var/spool/asterisk/recording
     healthcheck:
@@ -62,9 +62,9 @@ services:
     volumes:
       - ./asterisk/base:/etc/asterisk
       - callytics_asterisk_logs:/var/log/asterisk:ro
-      - ./storage/audio/originals:/app/storage/audio/originals
-      - ./storage/audio/converted:/app/storage/audio/converted
-      - ./storage/audio/previews:/app/storage/audio/previews
+      - callytics_audio_originals:/app/storage/audio/originals
+      - callytics_audio_converted:/app/storage/audio/converted
+      - callytics_audio_previews:/app/storage/audio/previews
       # First run migration note:
       # docker run --rm -v $(pwd)/storage/audio/tts:/src -v callytics_audio_tts:/dst alpine cp -r /src/. /dst/
       - callytics_audio_tts:/app/storage/audio/tts
@@ -188,6 +188,10 @@ volumes:
   callytics_redis_data:
   asterisk_recordings:
   callytics_asterisk_logs:
+  callytics_audio_converted:
+  callytics_audio_originals:
+  callytics_audio_previews:
   callytics_audio_tts:
+  callytics_voicemail:
   callytics_geoip_data:
   callytics_backup_data:
