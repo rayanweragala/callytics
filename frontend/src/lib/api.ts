@@ -473,9 +473,19 @@ export async function runPreflightChecks(): Promise<PreflightRun> {
   return response.data;
 }
 
-export async function getPreflightHistory(): Promise<PreflightRun[]> {
-  const response = await api.get<PreflightRun[]>('/preflight/history');
-  return response.data;
+export async function getPreflightHistory(page = 1, limit = 10): Promise<PaginatedResponse<PreflightRun>> {
+  const response = await api.get<{ data: PreflightRun[]; total: number; page: number; limit: number }>('/preflight/history', {
+    params: { page, limit },
+  });
+  const payload = response.data;
+  const totalPages = payload.total > 0 ? Math.ceil(payload.total / payload.limit) : 1;
+  return {
+    data: payload.data,
+    total: payload.total,
+    page: payload.page,
+    limit: payload.limit,
+    totalPages,
+  };
 }
 
 export async function getCapturePackets(callId: string): Promise<SipPacket[]> {

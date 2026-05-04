@@ -55,9 +55,19 @@ const failRun = {
   ],
 };
 
+function pagedHistory(runs: typeof passRun[] | typeof warnRun[] | typeof failRun[] | Array<typeof passRun | typeof warnRun | typeof failRun>) {
+  return {
+    data: runs,
+    total: runs.length,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  };
+}
+
 describe('PreflightPage', () => {
   beforeEach(() => {
-    (api.getPreflightHistory as any).mockResolvedValue([]);
+    (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([]));
     (api.runPreflightChecks as any).mockResolvedValue(passRun);
   });
 
@@ -79,7 +89,7 @@ describe('PreflightPage', () => {
   });
 
   it('run checks button triggers POST /preflight/run', async () => {
-    (api.getPreflightHistory as any).mockResolvedValueOnce([]).mockResolvedValueOnce([passRun]);
+    (api.getPreflightHistory as any).mockResolvedValueOnce(pagedHistory([])).mockResolvedValueOnce(pagedHistory([passRun]));
 
     render(
       <MemoryRouter>
@@ -96,7 +106,7 @@ describe('PreflightPage', () => {
   });
 
   it('summary banner renders with warn class when summary is warn', async () => {
-    (api.getPreflightHistory as any).mockResolvedValue([warnRun]);
+    (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([warnRun]));
 
     render(
       <MemoryRouter>
@@ -110,7 +120,7 @@ describe('PreflightPage', () => {
   });
 
   it('summary banner renders with fail class when summary is fail', async () => {
-    (api.getPreflightHistory as any).mockResolvedValue([failRun]);
+    (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([failRun]));
 
     render(
       <MemoryRouter>
@@ -124,7 +134,7 @@ describe('PreflightPage', () => {
   });
 
   it('auto-refresh countdown text is visible when summary is warn', async () => {
-    (api.getPreflightHistory as any).mockResolvedValue([warnRun]);
+    (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([warnRun]));
 
     render(
       <MemoryRouter>
@@ -137,7 +147,7 @@ describe('PreflightPage', () => {
   });
 
   it('history table renders correct number of rows from mock history response', async () => {
-    (api.getPreflightHistory as any).mockResolvedValue([passRun, warnRun, failRun]);
+    (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([passRun, warnRun, failRun]));
 
     render(
       <MemoryRouter>
@@ -147,6 +157,7 @@ describe('PreflightPage', () => {
 
     await waitFor(() => expect(screen.getByText('Run history')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'view' })).toHaveLength(3);
+    expect(screen.getByText('1 / 1')).toBeInTheDocument();
   });
 
   it('clicking view on a history row toggles the expanded check detail section', async () => {
@@ -161,7 +172,7 @@ describe('PreflightPage', () => {
       ],
     };
 
-    (api.getPreflightHistory as any).mockResolvedValue([passRun, historyOnlyWarnRun]);
+    (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([passRun, historyOnlyWarnRun]));
 
     render(
       <MemoryRouter>

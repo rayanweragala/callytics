@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 import { Loading } from '../components/common/Loading';
+import { Pagination } from '../components/common/Pagination';
 import { PageLayout } from '../components/common/PageLayout';
 import { getPreflightHistory, runPreflightChecks } from '../lib/api';
 import { getApiError } from '../lib/apiError';
@@ -22,8 +23,11 @@ const CHECK_SKELETON: PreflightCheckResult[] = [
   { id: 'nat_detected', label: 'NAT detection', status: 'warn', message: '', detail: '' },
   { id: 'stun', label: 'STUN reachability', status: 'warn', message: '', detail: '' },
   { id: 'disk_space', label: 'Disk space', status: 'warn', message: '', detail: '' },
+  { id: 'docker_version', label: 'Docker version', status: 'warn', message: '', detail: '' },
   { id: 'sip_alg', label: 'SIP ALG (router setting)', status: 'warn', message: '', detail: '' },
 ];
+
+const HISTORY_LIMIT = 10;
 
 export function PreflightPage() {
   const windowWidth = useWindowWidth();
@@ -35,21 +39,25 @@ export function PreflightPage() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
   const [expandedHistoryRunId, setExpandedHistoryRunId] = useState<number | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (page = historyPage) => {
     setHistoryLoading(true);
     try {
-      const runs = await getPreflightHistory();
-      setHistory(runs);
-      if (!selectedRun && runs.length > 0) {
-        setSelectedRun(runs[0]);
+      const response = await getPreflightHistory(page, HISTORY_LIMIT);
+      setHistory(response.data);
+      setHistoryPage(response.page);
+      setHistoryTotalPages(response.totalPages);
+      if (!selectedRun && response.data.length > 0) {
+        setSelectedRun(response.data[0]);
       }
     } catch (error) {
       setErrorText(getApiError(error, 'Failed to load preflight history'));
     } finally {
       setHistoryLoading(false);
     }
-  }, [selectedRun]);
+  }, [historyPage, selectedRun]);
 
   useEffect(() => {
     void loadHistory();
@@ -63,14 +71,13 @@ export function PreflightPage() {
     try {
       const run = await runPreflightChecks();
       setSelectedRun(run);
-      const runs = await getPreflightHistory();
-      setHistory(runs);
+      await loadHistory(1);
     } catch (error) {
       setErrorText(getApiError(error, 'Failed to run preflight checks'));
     } finally {
       setRunning(false);
     }
-  }, []);
+  }, [loadHistory]);
 
   useEffect(() => {
     if (!selectedRun || running || autoRefreshStopped) {
@@ -232,6 +239,10 @@ export function PreflightPage() {
                 ) : null}
               </div>
             ))}
+            <Pagination page={historyPage} totalPages={historyTotalPages} onPageChange={(page) => {
+              setExpandedHistoryRunId(null);
+              void loadHistory(page);
+            }} />
           </>
         )}
       </div>

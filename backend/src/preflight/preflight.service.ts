@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { createClient, type RedisClientType } from 'redis';
 import { exec as execCallback } from 'node:child_process';
 import * as dgram from 'node:dgram';
+import * as http from 'node:http';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import { promisify } from 'node:util';
@@ -26,6 +27,14 @@ interface PreflightRunResult {
   ranAt: string;
   summary: PreflightStatus;
   checks: PreflightCheckResult[];
+}
+
+interface PreflightHistoryResult {
+  data: PreflightRunResult[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 interface PortExpectation {
@@ -55,32 +64,39 @@ export class PreflightService implements OnModuleInit {
       [summary, JSON.stringify(checks)],
     );
 
-    await this.dataSource.query(
-      `
-      DELETE FROM preflight_runs
-      WHERE id NOT IN (
-        SELECT id
-        FROM preflight_runs
-        ORDER BY ran_at DESC, id DESC
-        LIMIT 10
-      )
-      `,
-    );
-
     return this.mapRunRow(rows[0] as Record<string, unknown>);
   }
 
-  async history(): Promise<PreflightRunResult[]> {
+  async history(page = 1, limit = 10): Promise<PreflightHistoryResult> {
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 100) : 10;
+    const offset = (safePage - 1) * safeLimit;
+    const totalRows = await this.dataSource.query(
+      `
+      SELECT COUNT(*)::int AS total
+      FROM preflight_runs
+      `,
+    );
+    const total = Number(totalRows?.[0]?.total ?? 0);
     const rows = await this.dataSource.query(
       `
       SELECT id, ran_at AS "ranAt", summary, checks
       FROM preflight_runs
       ORDER BY ran_at DESC, id DESC
-      LIMIT 10
+      LIMIT $1
+      OFFSET $2
       `,
+      [safeLimit, offset],
     );
 
-    return rows.map((row: Record<string, unknown>) => this.mapRunRow(row));
+    const totalPages = total > 0 ? Math.ceil(total / safeLimit) : 1;
+    return {
+      data: rows.map((row: Record<string, unknown>) => this.mapRunRow(row)),
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages,
+    };
   }
 
   private async executeChecks(): Promise<PreflightCheckResult[]> {
@@ -98,6 +114,7 @@ export class PreflightService implements OnModuleInit {
       { id: 'nat_detected', label: 'NAT detection', run: () => this.checkNatDetected(externalIpPromise) },
       { id: 'stun', label: 'STUN reachability', run: () => this.checkStunReachability() },
       { id: 'disk_space', label: 'Disk space', run: () => this.checkDiskSpace() },
+      { id: 'docker_version', label: 'Docker version', run: () => this.checkDockerVersion() },
       { id: 'sip_alg', label: 'SIP ALG (router setting)', run: () => this.checkSipAlg() },
     ];
 
@@ -541,6 +558,82 @@ export class PreflightService implements OnModuleInit {
       message: `Disk is ${usage}% used — ${avail} available`,
       detail: '',
     };
+  }
+
+  private async checkDockerVersion(): Promise<Omit<PreflightCheckResult, 'id' | 'label'>> {
+    try {
+      const detectedVersion = await this.readDockerEngineVersion();
+      const versionMatch = detectedVersion.match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+      if (!versionMatch || !versionMatch[1]) {
+        return {
+          status: 'fail',
+          message: 'Could not parse Docker version. Upgrade Docker to version 24 or newer.',
+          detail: detectedVersion,
+        };
+      }
+
+      const majorVersion = Number.parseInt(versionMatch[1], 10);
+      if (!Number.isFinite(majorVersion) || majorVersion < 24) {
+        return {
+          status: 'fail',
+          message: `Docker ${detectedVersion} detected. Upgrade Docker to version 24 or newer.`,
+          detail: detectedVersion,
+        };
+      }
+
+      return {
+        status: 'pass',
+        message: `Docker ${detectedVersion} detected`,
+        detail: '',
+      };
+    } catch (error) {
+      return {
+        status: 'fail',
+        message: 'Docker Engine is not reachable on /var/run/docker.sock. Install or upgrade Docker to version 24 or newer.',
+        detail: this.extractErrorMessage(error),
+      };
+    }
+  }
+
+  private async readDockerEngineVersion(): Promise<string> {
+    const response = await new Promise<{ statusCode?: number; body: Buffer }>((resolve, reject) => {
+      const request = http.request(
+        {
+          socketPath: '/var/run/docker.sock',
+          path: '/version',
+          method: 'GET',
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer | string) => {
+            chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+          });
+          res.on('end', () => {
+            resolve({ statusCode: res.statusCode, body: Buffer.concat(chunks) });
+          });
+          res.on('error', reject);
+        },
+      );
+      request.on('error', reject);
+      request.end();
+    });
+
+    if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(`docker socket returned ${response.statusCode ?? 'unknown status'}`);
+    }
+
+    let payload: unknown;
+    try {
+      payload = JSON.parse(response.body.toString('utf8'));
+    } catch (error) {
+      throw new Error(`failed to parse docker /version response: ${this.extractErrorMessage(error)}`);
+    }
+
+    const version = (payload as { Version?: unknown }).Version;
+    if (typeof version !== 'string' || version.trim().length === 0) {
+      throw new Error('docker /version response missing Version field');
+    }
+    return version.trim();
   }
 
   private async checkSipAlg(): Promise<Omit<PreflightCheckResult, 'id' | 'label'>> {

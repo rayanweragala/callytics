@@ -30,11 +30,12 @@ describe('PreflightService', () => {
     jest.spyOn(service as any, 'checkNatDetected').mockResolvedValue(pass);
     jest.spyOn(service as any, 'checkStunReachability').mockResolvedValue(pass);
     jest.spyOn(service as any, 'checkDiskSpace').mockResolvedValue(pass);
+    jest.spyOn(service as any, 'checkDockerVersion').mockResolvedValue(pass);
     jest.spyOn(service as any, 'checkSipAlg').mockResolvedValue(pass);
 
     const checks = await (service as any).executeChecks();
 
-    expect(checks).toHaveLength(12);
+    expect(checks).toHaveLength(13);
     for (const check of checks) {
       expect(check).toEqual(expect.objectContaining({
         id: expect.any(String),
@@ -105,6 +106,22 @@ describe('PreflightService', () => {
     expect(failResult.message).toContain('Disk is 92% used with only 8G remaining');
   });
 
+  it('docker_version passes for Docker 24+ and fails below 24', async () => {
+    const versionSpy = jest.spyOn(service as any, 'readDockerEngineVersion');
+    versionSpy
+      .mockResolvedValueOnce('24.0.7')
+      .mockResolvedValueOnce('23.0.6');
+
+    const passResult = await (service as any).checkDockerVersion();
+    const failResult = await (service as any).checkDockerVersion();
+
+    expect(passResult.status).toBe('pass');
+    expect(passResult.message).toContain('Docker 24.0.7 detected');
+
+    expect(failResult.status).toBe('fail');
+    expect(failResult.message).toContain('Upgrade Docker to version 24 or newer');
+  });
+
   it('rtp_range returns pass with dynamic configured message when no RTP ports are found but ARI is reachable', async () => {
     jest.spyOn(service as any, 'execCommand').mockResolvedValue('State Recv-Q Send-Q Local Address:Port Peer Address:Port\nUNCONN 0 0 0.0.0.0:5080 0.0.0.0:*\n');
     jest.spyOn(service as any, 'isAriReachable').mockResolvedValue(true);
@@ -161,6 +178,7 @@ describe('PreflightService', () => {
     jest.spyOn(service as any, 'checkNatDetected').mockResolvedValue(pass);
     jest.spyOn(service as any, 'checkStunReachability').mockResolvedValue(pass);
     jest.spyOn(service as any, 'checkDiskSpace').mockResolvedValue(pass);
+    jest.spyOn(service as any, 'checkDockerVersion').mockResolvedValue(pass);
     jest.spyOn(service as any, 'checkSipAlg').mockResolvedValue(pass);
 
     const checks = await (service as any).executeChecks();
