@@ -132,6 +132,7 @@ export class AsteriskConfigService implements OnModuleInit {
   ): Promise<void> {
     await fs.mkdir(this.configDir, { recursive: true });
     await this.ensurePjsipTemplate();
+    await this.ensureExtensionsRelayPlaceholder();
     await fs.writeFile(
       join(this.configDir, "pjsip_callytics_extensions.conf"),
       this.buildExtensionsConfig(extensions, externalAddress),
@@ -737,6 +738,24 @@ export class AsteriskConfigService implements OnModuleInit {
     lines.push("#include pjsip_extensions_relay.conf", "");
     const content = lines.join("\n");
     await fs.writeFile(filePath, content, "utf8");
+  }
+
+  private async ensureExtensionsRelayPlaceholder(): Promise<void> {
+    const relayPath = join(this.configDir, "pjsip_extensions_relay.conf");
+    try {
+      await fs.access(relayPath);
+      return;
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || (error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    await fs.writeFile(
+      relayPath,
+      this.buildExtensionsRelayConfig([], null),
+      "utf8",
+    );
   }
 
   private buildExtensionsRelayConfig(
