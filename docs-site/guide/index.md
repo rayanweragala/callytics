@@ -8,7 +8,7 @@
 git clone https://github.com/rayanweragala/callytics.git
 cd callytics
 cp .env.example .env
-docker compose up -d
+bash scripts/install.sh
 ```
 
 Then open `http://localhost:3000`.

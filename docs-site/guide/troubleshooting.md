@@ -2,7 +2,7 @@
 
 ## Port already in use
 
-If `docker compose up -d` fails with a bind error, check which process owns the port:
+If `bash scripts/install.sh` fails with a bind error, check which process owns the port:
 
 ```bash
 ss -tulpn | grep <port>
@@ -11,7 +11,7 @@ ss -tulpn | grep <port>
 Stop the conflicting process or change your host mapping, then rerun:
 
 ```bash
-docker compose up -d
+bash scripts/install.sh
 ```
 
 ## SIP not registering

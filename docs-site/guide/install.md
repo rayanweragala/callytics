@@ -15,16 +15,18 @@ callytics is meant to run on a Linux host with Docker. The default stack starts 
 - Ports `80`, `443`, `5080` over UDP and TCP, `8088`, `3000`, and `3001` must be free.
 - If you plan to use remote SIP phones through WireGuard, keep UDP port `51820` free as well.
 
-## Clone and Run
+## Run the install script
 
-Clone the repository, create your environment file, then start the stack:
+Clone the repository, create your environment file, then run the install script:
 
 ```bash
 git clone https://github.com/rayanweragala/callytics.git
 cd callytics
 cp .env.example .env
-docker compose up -d
+bash scripts/install.sh
 ```
+
+For manual install flow internals and recovery/reference steps, see `docs/install-flow.md`.
 
 The first boot is slower than later restarts. The Asterisk image builds from source inside the container and usually takes 3-5 minutes on a small VPS. PostgreSQL starts with the `callytics` database, backend migrations run automatically, and the frontend is served on `http://localhost:3000`.
 

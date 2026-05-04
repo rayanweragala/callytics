@@ -1,5 +1,7 @@
 # Install flow
 
+> Recommended for new users: run `bash scripts/install.sh`. This document explains what the install script does and how to verify and recover manually when needed.
+
 ## Install command
 
 The install entry point is:
