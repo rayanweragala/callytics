@@ -16,24 +16,23 @@ permissions:
 jobs:
   stasis-test:
     name: Stasis Tests
-    environment: ci
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ vars.CI_NODE_VERSION }}
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ vars.CI_NODE_VERSION }}
+          node-version: 20
 
       - name: Restore stasis node_modules cache
         id: restore-stasis-cache
         uses: actions/cache/restore@v4
         with:
           path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Install stasis dependencies
         if: steps.restore-stasis-cache.outputs.cache-hit != 'true'
@@ -45,7 +44,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
@@ -59,12 +58,11 @@ jobs:
           if [ "${{ steps.run-stasis-tests.outcome }}" != "success" ]; then
             status="failed"
           fi
-
           {
             echo "## Stasis Test Summary"
             echo ""
             echo "- App: stasis"
-            echo "- Node: ${{ vars.CI_NODE_VERSION }}"
+            echo "- Node: 20"
             echo "- Status: ${status}"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -78,7 +76,6 @@ jobs:
 
   backend-test:
     name: Backend Tests
-    environment: ci
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -88,13 +85,13 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: ${{ vars.CI_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ vars.CI_POSTGRES_DB }}
+          POSTGRES_USER: callytics
+          POSTGRES_PASSWORD: callytics
+          POSTGRES_DB: callytics
         ports:
-          - ${{ vars.CI_POSTGRES_PORT }}:${{ vars.CI_POSTGRES_PORT }}
+          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ${{ vars.CI_POSTGRES_USER }} -d ${{ vars.CI_POSTGRES_DB }}"
+          --health-cmd "pg_isready -U callytics -d callytics"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -111,17 +108,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ vars.CI_NODE_VERSION }}
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ vars.CI_NODE_VERSION }}
+          node-version: 20
 
       - name: Restore backend node_modules cache
         id: restore-backend-cache
         uses: actions/cache/restore@v4
         with:
           path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Install backend dependencies
         if: steps.restore-backend-cache.outputs.cache-hit != 'true'
@@ -133,15 +130,15 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Run backend tests with coverage
         id: run-backend-tests
         run: npm run test:ci
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://${{ vars.CI_POSTGRES_USER }}:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:${{ vars.CI_POSTGRES_PORT }}/${{ vars.CI_POSTGRES_DB }}
-          NODE_ENV: ${{ vars.CI_NODE_ENV }}
+          DATABASE_URL: postgresql://callytics:callytics@localhost:5432/callytics
+          NODE_ENV: test
 
       - name: Write backend job summary
         if: always()
@@ -150,12 +147,11 @@ jobs:
           if [ "${{ steps.run-backend-tests.outcome }}" != "success" ]; then
             status="failed"
           fi
-
           {
             echo "## Backend Test Summary"
             echo ""
             echo "- App: backend"
-            echo "- Node: ${{ vars.CI_NODE_VERSION }}"
+            echo "- Node: 20"
             echo "- Status: ${status}"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -169,24 +165,23 @@ jobs:
 
   frontend-test:
     name: Frontend Tests
-    environment: ci
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ vars.CI_NODE_VERSION }}
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ vars.CI_NODE_VERSION }}
+          node-version: 20
 
       - name: Restore frontend node_modules cache
         id: restore-frontend-cache
         uses: actions/cache/restore@v4
         with:
           path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Install frontend dependencies
         if: steps.restore-frontend-cache.outputs.cache-hit != 'true'
@@ -198,7 +193,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Run frontend tests with coverage
         id: run-frontend-tests
@@ -212,12 +207,11 @@ jobs:
           if [ "${{ steps.run-frontend-tests.outcome }}" != "success" ]; then
             status="failed"
           fi
-
           {
             echo "## Frontend Test Summary"
             echo ""
             echo "- App: frontend"
-            echo "- Node: ${{ vars.CI_NODE_VERSION }}"
+            echo "- Node: 20"
             echo "- Status: ${status}"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -231,7 +225,6 @@ jobs:
 
   build-check:
     name: Build Check
-    environment: ci
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [stasis-test, backend-test, frontend-test]
@@ -239,17 +232,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ vars.CI_NODE_VERSION }}
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ vars.CI_NODE_VERSION }}
+          node-version: 20
 
       - name: Restore workspace node_modules cache
         id: restore-workspace-cache
         uses: actions/cache/restore@v4
         with:
           path: node_modules
-          key: workspace-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: workspace-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Install workspace dependencies
         if: steps.restore-workspace-cache.outputs.cache-hit != 'true'
@@ -260,7 +253,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: node_modules
-          key: workspace-node-modules-${{ runner.os }}-node-${{ vars.CI_NODE_VERSION }}-${{ hashFiles('package-lock.json') }}
+          key: workspace-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: TypeScript check frontend
         run: npx tsc -b --noEmit
