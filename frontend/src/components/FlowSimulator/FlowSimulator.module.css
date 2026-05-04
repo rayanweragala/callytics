@@ -1,0 +1,398 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   FlowSimulator — Phase 30d: Transparent panel, amber headers, clean cards
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+
+/* 1.1 Panel — transparent background, border-strong outline */
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 380px;
+  background: var(--bg-base);
+  border-left: 1px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  pointer-events: all;
+  z-index: 200;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: lowercase;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 1.7 Step badge — chip style */
+.stepCounter {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  color: var(--primitive-amber);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+}
+
+.closeButton:hover {
+  color: var(--text-primary);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Base card — no background fill */
+.card {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+}
+
+/* 1.5 Current node card — amber border (keep as-is) */
+.currentCard {
+  border-color: var(--primitive-amber);
+  border-left: 3px solid var(--primitive-amber);
+}
+
+.breadcrumb {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-bottom: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+.notice {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border-default));
+  color: var(--text-secondary);
+  border-radius: var(--radius-lg);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.cardHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 1.2 Section headers — amber uppercase small, like palette category headers */
+.cardLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primitive-amber);
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.typeBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cardNodeType {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.endBadge {
+  background: var(--color-error);
+  color: var(--bg-surface);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+}
+
+.businessHoursReason {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+.mutedText {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 10px;
+}
+
+.deadEndCard {
+  margin-top: 10px;
+  border: 1px solid var(--color-error);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+  border-radius: var(--radius-lg);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+/* 1.4 Branch/digit buttons — bg-surface, border-strong, amber on hover */
+.branchList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.branchButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  min-width: 56px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.branchButton:hover {
+  border-color: var(--primitive-amber);
+  color: var(--primitive-amber);
+  background: color-mix(in srgb, var(--primitive-amber) 6%, var(--bg-elevated));
+}
+
+.nextButton {
+  border: 1px solid var(--primitive-amber);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--primitive-amber);
+  height: 32px;
+  min-width: 72px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.nextButton:hover {
+  background: var(--primitive-amber);
+  color: var(--bg-base);
+}
+
+/* 1.3 Visited path chips — transparent bg, border-strong */
+.visitedChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.visitedWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.visitedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 4px 9px;
+  background: transparent;
+}
+
+.chipLabel {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.pathArrow {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Node type dots — kept exactly as-is */
+.nodeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dotDefault { background: var(--text-secondary); }
+.dotInfo    { background: var(--color-info); }
+.dotWarning { background: var(--color-warning); }
+.dotAccent  { background: var(--accent); }
+.dotMuted   { background: var(--text-muted); }
+
+.doneCard {
+  border-color: var(--primitive-amber);
+}
+
+/* 1.6 Start / reset buttons — secondary action style */
+.startButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  height: 34px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  text-transform: lowercase;
+  width: 100%;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.startButton:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.errorText {
+  color: var(--color-error);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.overrideRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+
+.overrideLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.daySelect {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.asyncCard {
+  border-style: dashed;
+}
+
+.asyncList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.asyncItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asyncBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1px 6px;
+}
+
+.asyncText {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Wrapper above the start / done-reset button (was marginTop: 12 / 10) */
+.startButtonWrap {
+  margin-top: 12px;
+}
+
+/* Wrapper above the mid-sim reset button (was marginTop: 8) */
+.resetButtonWrap {
+  margin-top: 8px;
+}

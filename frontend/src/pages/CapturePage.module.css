@@ -1,0 +1,654 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.statusLine {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.errorText {
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+  font-size: 14px;
+  padding: 8px 10px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-transform: lowercase;
+}
+
+.actionButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.actionButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.actionButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.viewToggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.viewToggleButton {
+  height: 28px;
+  border: 0;
+  border-right: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 0 10px;
+}
+
+.viewToggleButton:last-child {
+  border-right: 0;
+}
+
+.viewToggleButton:hover {
+  color: var(--primitive-amber);
+}
+
+.viewToggleActive {
+  background: var(--primitive-amber);
+  color: var(--bg-base);
+}
+
+.viewToggleActive:hover {
+  color: var(--bg-base);
+}
+
+.splitLayout {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.hasSelection {
+  width: 100%;
+}
+
+.splitLayout> :first-child {
+  flex: 0 0 var(--capture-left-width, 58%);
+  min-width: 280px;
+  max-width: 60%;
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
+.splitHandle {
+  width: 6px;
+  min-width: 6px;
+  cursor: col-resize;
+  background: var(--border-strong);
+  align-self: stretch;
+  flex: 0 0 6px;
+}
+
+.rightPanel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  padding: 12px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.splitLayout> :first-child :global([class*='leftPanel']) {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
+.splitLayout> :first-child :global([class*='tableHead']),
+.splitLayout> :first-child :global([class*='tableRow']) {
+  width: 100%;
+  grid-template-columns: 18px 110px 80px minmax(0, 180px) minmax(0, 180px) 55px 120px;
+  gap: 8px;
+}
+
+.splitLayout> :first-child :global([class*='filters']) {
+  position: relative;
+  z-index: 20;
+}
+
+.splitLayout> :first-child :global([class*='container']) {
+  position: relative;
+  z-index: 20;
+}
+
+.splitLayout> :first-child :global([class*='dropdown']) {
+  z-index: 20;
+}
+
+.splitLayout> :first-child :global([class*='tableHead']),
+.splitLayout> :first-child :global([class*='tableBody']) {
+  overflow: hidden;
+}
+
+.splitLayout> :first-child :global([class*='tableBody']) {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(4),
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(5) {
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(2),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(2) {
+  width: 110px;
+}
+
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(3),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(3) {
+  width: 80px;
+}
+
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(6),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(6) {
+  width: 55px;
+}
+
+.splitLayout> :first-child :global([class*='tableRow']) span:nth-child(7),
+.splitLayout> :first-child :global([class*='tableHead']) span:nth-child(7) {
+  width: 120px;
+}
+
+.rightPanel :global([class*='verdictBanner']) {
+  flex-shrink: 0;
+}
+
+.rightPanel :global([class*='dialogHeader']) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.rightPanel :global([class*='inlinePanel']) {
+  flex-shrink: 0;
+}
+
+.rightPanel :global([class*='actionButton']) {
+  flex-shrink: 0;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.select,
+.input {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  height: 34px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.select:focus,
+.input:focus {
+  border-color: var(--accent);
+}
+
+/* Table head */
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-template-columns: 120px 90px 1fr 1fr 60px 160px;
+  gap: 10px;
+  align-items: center;
+}
+
+.tableHead {
+  border: 1px solid var(--border-strong);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--surface-elevated);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 9px 10px;
+  text-transform: uppercase;
+}
+
+.tableBody {
+  border: 1px solid var(--border-strong);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  max-height: 440px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.tableRow {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 9px 10px;
+  cursor: pointer;
+  animation: timeline-enter 200ms ease;
+  transition: background 0.1s;
+}
+
+.tableRow:hover {
+  background: var(--surface-elevated);
+}
+
+.selectedRow {
+  border-left: 2px solid var(--color-info);
+}
+
+.errorRow {
+  background: var(--color-error-tint);
+}
+
+.timeCell {
+  color: var(--color-data);
+  font-weight: 600;
+}
+
+.methodInvite {
+  color: var(--color-info);
+}
+
+.methodBye {
+  color: var(--color-warning);
+}
+
+.methodDefault {
+  color: var(--text-primary);
+}
+
+.emptyState {
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.verdictBanner {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.verdictGreen {
+  border-color: var(--color-active);
+  background: var(--color-active-tint);
+}
+
+.verdictAmber {
+  border-color: var(--color-warning);
+  background: var(--color-warning-tint);
+}
+
+.verdictRed {
+  border-color: var(--color-error);
+  background: var(--color-error-tint);
+}
+
+.verdictMessage {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.verdictCause {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.dialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  margin: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.accordionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.accordionItem {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.accordionSummary {
+  cursor: pointer;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.headerList {
+  border-top: 1px solid var(--border-strong);
+  padding: 8px;
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.headerKey {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.headerValue {
+  color: var(--color-data);
+  overflow-wrap: anywhere;
+}
+
+.sdpBlock {
+  margin-top: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  font-size: 14px;
+}
+
+.sdpBlock pre,
+.rawJson {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.rawButton {
+  margin-top: 8px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rawButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+@keyframes timeline-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
+}
+
+.sipTooltip {
+  position: fixed;
+  z-index: 200;
+  width: 320px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: grid;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 10px 14px;
+  pointer-events: none;
+}
+
+.codeInfo {
+  font-weight: 600;
+}
+
+.codeInfo1xx {
+  color: var(--color-data);
+}
+
+.codeInfo2xx {
+  color: var(--color-active);
+}
+
+.codeInfo4xx {
+  color: var(--primitive-amber);
+}
+
+.codeInfo5xx {
+  color: var(--color-error);
+}
+
+.codeInfoBody {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.diffPanel {
+  width: 100%;
+  height: 420px;
+  background: var(--bg-surface);
+  border-top: 2px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(100%);
+  transition: transform 200ms ease-out;
+  /* Keeps the panel out of layout when closed */
+  max-height: 0;
+  border-top-width: 0;
+}
+
+.diffPanelOpen {
+  transform: translateY(0);
+  max-height: 420px;
+  border-top-width: 2px;
+}
+
+.diffPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.diffPanelTitle {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diffCloseButton {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.diffCloseButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.diffPanelBody {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diffSide {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diffDivider {
+  width: 1px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.diffColHeader {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.diffColRows {
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.diffRow {
+  padding: 5px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-wrap: anywhere;
+}
+
+.rowSame {
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.rowDiff {
+  color: var(--text-primary);
+  background: var(--diff-amber-tint);
+}
+
+.rowLeftOnly {
+  color: var(--color-error);
+  background: var(--diff-red-tint);
+}
+
+.rowRightOnly {
+  color: var(--color-active);
+  background: var(--diff-green-tint);
+}

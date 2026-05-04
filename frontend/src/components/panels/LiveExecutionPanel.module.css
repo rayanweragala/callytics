@@ -1,0 +1,285 @@
+.panel {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  height: 760px;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+}
+
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty {
+  color: var(--text-muted);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paginationFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.paginationButton {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 8px 12px;
+}
+
+.paginationButton:disabled {
+  color: var(--text-muted);
+}
+
+.pageIndicator {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.live,
+.liveCall,
+.callId,
+.finalStatus,
+.expandIndicator,
+.caller,
+.nodeType,
+.resultTag {
+  font-family: var(--font-mono);
+}
+
+.time,
+.nodeKey,
+.elapsedTime {
+  font-family: var(--font-mono);
+}
+
+.live,
+.liveCall {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--color-active);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.callCard {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: transparent;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.callCard:hover {
+  border-color: var(--border-strong);
+}
+
+.callHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.callHeader:hover {
+  background: var(--bg-elevated);
+}
+
+.summaryLeft,
+.summaryRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.summaryLeft {
+  flex: 1;
+}
+
+.summaryRight {
+  justify-content: flex-end;
+}
+
+.callId {
+  color: var(--text-primary);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.caller {
+  color: var(--text-secondary);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finalStatus {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.time {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: right;
+}
+
+.expandIndicator {
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 22px;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+.rail {
+  position: relative;
+  padding: 0 16px 16px 32px;
+}
+
+.rail::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 0;
+  bottom: 16px;
+  width: 2px;
+  background: var(--border-default);
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  position: relative;
+  z-index: 1;
+}
+
+.content {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.nodeType {
+  color: var(--text-primary);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.nodeKey {
+  color: var(--text-muted);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultTag {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.elapsedTime {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.toneWarning { background: var(--color-warning); }
+.toneSuccess { background: var(--color-active); }
+.toneError { background: var(--color-error); }
+
+.executing .marker {
+  animation: executingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes executingPulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.35);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

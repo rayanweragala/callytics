@@ -1,0 +1,79 @@
+.player {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.iconButton {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  text-transform: lowercase;
+  font-size: 13px;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.iconButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.progressWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.range {
+  width: 100%;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  accent-color: var(--accent);
+  background: var(--border-default);
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+
+.range::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+
+.time {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.errorText {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  padding: 4px 0;
+}
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Error state: dim the whole player */
+.playerError {
+  opacity: 0.6;
+}

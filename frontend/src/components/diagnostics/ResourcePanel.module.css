@@ -1,0 +1,418 @@
+/* ── Panel shell ─────────────────────────────────────────── */
+.panel {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  padding: 16px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.panelTitle {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.panelMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-active);
+  flex-shrink: 0;
+}
+
+.lastUpdated {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.refreshButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 28px;
+  padding: 0 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.refreshButton:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+/* ── Card grid ───────────────────────────────────────────── */
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftCol {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Card base ───────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.cardLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+
+/* ── Error state ─────────────────────────────────────────── */
+.metricError {
+  color: var(--color-error);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+/* ── Threshold color classes ─────────────────────────────── */
+.threshOk    { color: var(--resource-ok); }
+.threshWarn  { color: var(--resource-warn); }
+.threshDanger{ color: var(--resource-danger); }
+
+/* ── CPU card ────────────────────────────────────────────── */
+.cpuArcWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cpuArc {
+  display: block;
+  overflow: visible;
+}
+
+.arcTrack {
+  stroke: var(--border-strong);
+  fill: none;
+}
+
+.arcFill {
+  fill: none;
+  stroke: var(--arc-fill, var(--resource-ok));
+  stroke-linecap: round;
+  transition: stroke-dashoffset 400ms ease-out, stroke 400ms ease-out;
+}
+
+.arcCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.cpuValue {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--color-data);
+  line-height: 1;
+}
+
+.cpuLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.cpuCores {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* ── Memory / Disk cards ─────────────────────────────────── */
+.barWrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.barPercent {
+  color: var(--color-data);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.bar {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  overflow: hidden;
+  position: relative;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--bar-fill, var(--resource-ok));
+  transition: width 400ms ease-out, background 400ms ease-out;
+}
+
+.barStats {
+  display: flex;
+  gap: 0;
+  margin-top: 12px;
+}
+
+.barStat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.barStatValue {
+  color: var(--color-data);
+  font-weight: 600;
+  font-size: 13px;
+  font-family: var(--font-mono);
+}
+
+.barStatLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* ── Asterisk card ───────────────────────────────────────── */
+.asteriskCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.asteriskNumberRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.asteriskNumber {
+  font-size: 48px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--color-data);
+  line-height: 1;
+}
+
+.pulseDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-active);
+  animation: resourcePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes resourcePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+.asteriskSubLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ── Network card ────────────────────────────────────────── */
+.networkHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.networkSubtitle {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.networkRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.networkRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.arrowDown {
+  color: var(--color-active);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.arrowUp {
+  color: var(--primitive-amber);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.networkValue {
+  color: var(--color-data);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.networkRowLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+/* ── Loading skeletons ───────────────────────────────────── */
+@keyframes resourceShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: var(--primitive-navy-800);
+  border-radius: var(--radius-md);
+}
+
+.skeletonCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  min-height: 140px;
+}
+
+.skeletonCircle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+}
+
+.skeletonCircleWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeletonBar {
+  height: 10px;
+  border-radius: var(--radius-full);
+  margin-bottom: 10px;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+  .panelHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panelMeta {
+    flex-wrap: wrap;
+  }
+
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .refreshButton {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+}
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Relative container for the CPU arc + centred label overlay */
+.gaugeWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Absolute column overlay centred inside .gaugeWrap */
+.arcLabelOverlay {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* lastUpdated span when showing a fetch error */
+.lastUpdatedError {
+  color: var(--color-error);
+}
+
+/* ─── Skeleton width variants ─────────────────────────────────────────────── */
+
+.skeletonW30 { width: 30%; }
+.skeletonW40 { width: 40%; }
+.skeletonW50 { width: 50%; }
+.skeletonW60 { width: 60%; }
+.skeletonW70 { width: 70%; }
+
+/* Asterisk card big-number placeholder */
+.skeletonBigNumber {
+  width: 40%;
+  height: 48px;
+  margin-top: 8px;
+}
+
+/* Skeleton row with top margin */
+.skeletonMt8 { margin-top: 8px; }

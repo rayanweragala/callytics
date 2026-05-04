@@ -8,7 +8,7 @@ There are three parts:
 
 - A small static dialplan inside Asterisk
 - A Node.js Stasis app connected to ARI
-- A flow definition stored as JSON in the database
+- A flow definition stored in PostgreSQL across `call_flows`, `flow_versions`, `flow_nodes`, and `flow_edges`
 
 The static dialplan does one thing: send incoming calls into the Stasis app. It does not contain the IVR logic. It does not change when a user edits a flow.
 
@@ -48,7 +48,7 @@ The app uses that data to decide which flow should run. It loads the published f
 
 ## Where the flow lives
 
-The visual flow builder saves a flow as JSON in the database.
+The visual flow builder persists a flow in relational tables in PostgreSQL. At runtime the Stasis app loads those rows and assembles them into an in-memory flow object.
 
 Each node stores:
 
@@ -66,7 +66,7 @@ Each connection says what the next node is for a given result, such as:
 - error
 - success
 
-The Stasis app reads this JSON and treats it like a state machine:
+The Stasis app reads these rows and treats the flow like a state machine:
 
 - load current node
 - execute node
@@ -75,6 +75,63 @@ The Stasis app reads this JSON and treats it like a state machine:
 - move to next node
 
 That is the core runtime model.
+
+
+## Current implemented runtime behavior
+
+After Phase 11 the runtime now exists in code, not just in design. The Stasis app currently:
+
+- runs startup migrations for the flow and call-log tables
+- works alongside backend-owned startup migration for the `call_recordings` table
+- seeds a published `Test Flow` only when flow 1 does not already exist with saved nodes
+- loads the first matching published flow from PostgreSQL
+- creates an in-memory session per call
+- executes the current node
+- resolves conditional edges by `condition` first, then falls back to `branchKey` and `default`
+- answers the inbound channel, creates an inbound ARI mixing bridge, and records that bridge for call recording
+- plays prompt audio on the inbound bridge when bridge playback is available
+- persists recording metadata through the backend when `StasisEnd` fires
+- removes the session when the flow ends or the channel hangs up
+- ignores `StasisStart` events for the `h` extension so the hangup path does not re-run flow logic
+
+The currently implemented node executors are:
+
+- `start`
+- `play_audio`
+- `get_digits`
+- `branch`
+- `transfer`
+- `voicemail` placeholder
+- `hangup`
+- `set_variable`
+
+The original seed flow is still:
+
+- `start` -> `greet` -> `menu` -> `bye`
+- built-in Asterisk sound `tt-monkeys` for greeting
+- built-in Asterisk sound `tt-weasels` for digit collection prompt
+- `menu` routes `1`, `2`, `timeout`, and `default` to `bye`
+
+But once a user saves a richer flow in the builder, that saved flow is now treated as source-of-truth and is no longer overwritten on Stasis restart.
+
+## Runtime networking change
+
+The first live-call debugging pass changed the infrastructure around the runtime.
+
+Old state:
+
+- `asterisk` on host networking
+- `stasis` on bridge networking
+- `stasis` attempting to reach ARI through Docker host aliases
+
+New working state:
+
+- `asterisk` on `network_mode: host`
+- `stasis` on `network_mode: host`
+- `stasis` uses `ARI_URL=http://127.0.0.1:8088`
+- `stasis` uses `DB_HOST=127.0.0.1`
+
+This change fixed ARI connectivity and allowed the `callytics` Stasis app to register correctly in Asterisk.
 
 ## ARI vs AMI
 
@@ -125,18 +182,25 @@ Purpose:
 
 How it runs:
 
-1. The app makes an ARI request to play media on the live channel
-2. Asterisk starts playback
-3. The app waits for the playback finished event
-4. When playback ends, the node returns `completed`
+1. The runtime first tries to resolve `audio_file_id` from the node config through `audioResolver.ts`
+2. If found, it loads `storage_path_converted` from `audio_files` and maps it to `sound:callytics/<id>` for Asterisk playback
+3. Asterisk resolves that `sound:` lookup to `callytics/<id>.ulaw` inside the mounted sounds directory
+4. If no `audio_file_id` is set or no ready asset exists, it falls back to `audio_file_path` for built-in or static sounds
+5. The app makes an ARI request to play media on the live channel
+6. Asterisk starts playback
+7. The app waits for the playback finished event
+8. When playback ends, the node returns `completed`
 
 Main ARI control:
 
 - `POST /channels/{channelId}/play`
+- or bridge playback through `POST /bridges/{bridgeId}/play` when the inbound bridge exists
 
 Notes:
 
-- This is straightforward
+- `audioResolver.ts` is the bridge between database-backed audio assets and Asterisk sound playback
+- In the current runtime, `sound:callytics/<id>` resolves to the `.ulaw` asset in the mounted Asterisk sounds directory
+- Built-in/static sound paths still work as fallback
 - The app still has to watch for hangup while playback is happening
 
 ### Get Digits
@@ -149,11 +213,15 @@ Purpose:
 
 How it runs:
 
-1. The app starts prompt playback on the channel
-2. The app listens for DTMF events on the ARI event stream
-3. The app starts a timeout timer
-4. If the caller presses a key, the node returns that digit
-5. If the timer expires first, the node returns `timeout`
+1. The runtime first tries to resolve `prompt_audio_file_id` from the node config through `audioResolver.ts`
+2. If found, it loads the converted asset path from `audio_files` and maps it into the Asterisk sounds mount
+3. Asterisk resolves `sound:callytics/<id>` to the `.ulaw` telephony asset in the mounted sounds directory
+4. If no database-backed prompt asset exists, it falls back to `prompt_path` for built-in or static sounds
+5. The app starts prompt playback on the channel
+6. The app listens for DTMF events on the ARI event stream
+7. The app starts a timeout timer
+8. If the caller presses a key, the node returns that digit
+9. If the timer expires first, the node returns `timeout`
 
 Main ARI control:
 
@@ -164,6 +232,13 @@ Notes:
 
 - ARI does not turn this into one magic IVR call for us
 - We have to coordinate playback, DTMF, and timeout logic in our own code
+- Database-backed prompt assets and fallback prompt paths are both supported
+
+
+**Implicit fallback for unmatched digits:**
+If a pressed digit has no explicit edge, the engine falls back to the `invalid`
+edge if one exists, then to the `default` edge. You do not need to draw an
+edge for every possible digit — only the ones you explicitly handle.
 
 ### Branch
 
@@ -185,6 +260,64 @@ Notes:
 
 - This is app logic, not an Asterisk media action
 - ARI is not called here unless the next node needs it
+
+
+
+### hunt
+
+Dials multiple SIP destinations with configurable strategy.
+
+Config:
+- `destinations`: array of SIP endpoint strings (e.g. `["PJSIP/101", "PJSIP/102"]`)
+- `strategy`: `sequential` | `random` | `group`
+- `attempt_timeout_ms`: per-attempt dial timeout
+- `total_timeout_ms`: total hunt window before exhaustion
+- `hold_audio_file_id`: audio file ID to loop during dialing (nullable)
+- `busy_audio_file_id`: audio file ID to play between retries (nullable)
+- `on_no_answer`: node key to route to on exhaustion
+
+Result: `route:<nodeKey>` on exhaustion, or waits for answer and bridges.
+
+### Conference
+
+Purpose:
+
+- Put the caller into a named ConfBridge room for multi-party conversation
+
+Result:
+
+- `default`
+
+How it runs:
+
+1. The app resolves the room from `roomName`
+2. The first channel creates the room bridge for that name
+3. If `waitForModerator` is off, the room opens as soon as the channel joins
+4. If `waitForModerator` is on, non-moderator channels hear MOH until the moderator arrives
+5. When the moderator arrives, the app stops MOH on all channels and keeps the room bridged
+6. If only one participant remains, the app starts MOH for that survivor and arms a 30-second grace timer
+7. If nobody rejoins before the timer fires, the app hangs up the survivor and destroys the room bridge
+
+Config:
+
+- `roomName` (string) - alphanumeric room name used as the ConfBridge room key
+- `waitForModerator` (boolean) - whether callers should wait on MOH until the moderator arrives
+- `moderatorType` (`extension` | `pstn` | `null`) - how to resolve the moderator identity
+- `moderatorId` (number | null) - extension ID or operator ID depending on `moderatorType`
+
+Main ARI control:
+
+- `POST /bridges`
+- `POST /bridges/{bridgeId}/addChannel`
+- `POST /channels/{channelId}/startMoh`
+- `POST /channels/{channelId}/stopMoh`
+- `DELETE /channels/{channelId}`
+
+Notes:
+
+- The node returns `default`
+- Room reuse is keyed by `roomName`, so later callers join the same bridge
+- The app resolves a moderator by looking up the configured extension or operator and matching the channel numbers against that record
 
 ### Transfer
 
@@ -209,32 +342,31 @@ Main ARI control:
 Notes:
 
 - This is more complex than a dialplan `Dial()` step
-- The app has to manage answer, failure, timeout, and cleanup itself
+- The app has to manage answer, failure, timeout, teardown of the temporary inbound bridge, and cleanup itself
+
+### Business Hours
+
+- Type key: `business_hours`
+- Purpose: Checks current time against a configured weekly schedule
+- Config fields:
+  - `timezone` (string) — IANA timezone e.g. `Asia/Colombo`
+  - `schedule` (object) — per day: `{ enabled, open, close }` in 24h HH:MM format
+- Output branches: `open`, `closed`
+- Evaluated at runtime using `Intl.DateTimeFormat` — no external library
+- Midnight-crossing schedules not yet supported (TODO)
 
 ### Voicemail
 
-Purpose:
-
-- Record a caller message and save it
-
-How it runs:
-
-1. The app optionally plays a voicemail greeting
-2. The app starts a channel recording through ARI
-3. The caller speaks
-4. The app stops recording on silence, timeout, or hangup
-5. The recording metadata is saved in the database
-
-Main ARI control:
-
-- `POST /channels/{channelId}/play` for the greeting
-- `POST /channels/{channelId}/record`
-
-Notes:
-
-- This is not the same as using the built-in Asterisk voicemail application
-- We are handling voicemail as an app-managed recording flow
-- That gives us more control, but it also means we own more logic
+- Type key: `voicemail`
+- Purpose: Plays a prompt then records the caller via ARI channel record
+- Config fields:
+  - `mailbox_name` (string) — label for the mailbox
+  - `max_duration_seconds` (number) — maximum recording length, default 60
+  - `prompt_audio_file_id` (number | null) — optional prompt audio
+- Output branch: `done`
+- Recording saved to `call_recordings` table with `recording_type = 'voicemail'`
+- Zero-duration recordings are not saved
+- Caller hangup mid-recording propagates as unhandled rejection (runtime ends call)
 
 ### Hangup
 
@@ -371,3 +503,53 @@ Hard parts include:
 - deciding what state lives in memory, Redis, or the database
 
 So the architecture is better aligned with the product, but the runtime engine will need careful engineering.
+
+
+## Builder status after Phase 6
+
+There is now a working React Flow editor on the frontend that can:
+
+- load the latest stored version of a flow from the backend
+- render nodes and edges on a canvas
+- edit node labels and supported config fields
+- create and delete nodes
+- create, delete, and reconnect edges
+- save the edited graph back through the backend CRUD API
+
+This is still a thin slice, but it gives the runtime engine a real visual editor instead of static seeded data only.
+
+
+## Phase 8 builder integration
+
+The flow builder now exposes database-backed audio selection in node config:
+
+- `play_audio` nodes can select `audio_file_id` from the shared searchable audio picker
+- `get_digits` nodes can select `prompt_audio_file_id` from the same picker
+- Static path fields remain available for built-in or manual sound paths
+- When an asset ID is selected, the runtime prefers that database-backed asset and only falls back to the path fields if no ready asset is found
+
+## Phase 11 recording architecture
+
+Phase 11 added a bridge-based recording path after live testing proved that channel-level ARI recording blocked audible prompt playback.
+
+What changed:
+
+- Old state: start recording directly on the inbound channel after answer
+- Problem: prompt playback requests returned, but the caller did not hear them until after hangup
+- New state: create an inbound mixing bridge, add the inbound channel to it, play prompts on that bridge, and record that same bridge through ARI
+
+Current recording flow:
+
+1. `StasisStart` answers the inbound channel
+2. Stasis creates an inbound mixing bridge and adds the inbound channel
+3. Stasis starts ARI bridge recording on that bridge
+4. `play_audio` and `get_digits` play prompts on the bridge with `announcer_format: 'ulaw'`
+5. `get_digits` still listens for DTMF on the inbound channel event source
+6. `StasisEnd` stops recording and persists metadata through `POST /recordings/internal`
+
+Current storage layout for recordings:
+
+- Docker named volume: `asterisk_recordings`
+- Asterisk write paths: `/var/spool/asterisk/recording` and `/var/lib/asterisk/recording`
+- Backend read path: `/var/lib/asterisk/recording`
+- The same named volume is mounted at both Asterisk paths because ARI writes to `/var/spool/asterisk/recording` while the backend serves files from `/var/lib/asterisk/recording`

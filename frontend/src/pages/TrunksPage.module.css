@@ -1,0 +1,774 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.sectionLabel,
+.dataMono,
+.rowMuted,
+.testBadge,
+.failedText,
+.helper,
+.createdAt,
+.expandedStatusLine,
+.expandedPanelTitle {
+  font-family: var(--font-mono);
+}
+
+.sectionLabel {
+  font-size: 14px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.formPanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.settingsPanel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.settingsGrid {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.settingsToggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 0;
+  flex: 0 0 320px;
+}
+
+.settingsNote {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.settingsGrid .field {
+  flex: 0 0 auto;
+  max-width: 320px;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  overflow-y: visible;
+  margin-top: 0;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+
+.table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: collapse;
+}
+
+.panelTitle {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.formGrid,
+.editorRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.formGrid {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.editorRow {
+  padding: 12px 16px;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: -1px;
+  position: relative;
+}
+
+.field {
+  display: flex;
+  flex: 1 1 180px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.field :global(.container) {
+  flex: 1;
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.helper {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 28px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.editButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}
+
+.toggleButton {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.toggleLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggleSubLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.toggleSwitch span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 3px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transition: transform 0.15s;
+}
+
+/* Column widths — 8 cols: Name, Provider, Host, Port, Auth, Status, Created, Actions */
+.table th:nth-child(1) {
+  width: 16%;
+}
+
+/* Name */
+.table th:nth-child(2) {
+  width: 11%;
+}
+
+/* Provider */
+.table th:nth-child(3) {
+  width: 20%;
+}
+
+/* Host */
+.table th:nth-child(4) {
+  width: 7%;
+}
+
+/* Port */
+.table th:nth-child(5) {
+  width: 7%;
+}
+
+/* Auth */
+.table th:nth-child(6) {
+  width: 11%;
+}
+
+/* Status */
+.table th:nth-child(7) {
+  width: 12%;
+}
+
+/* Created */
+.table th:nth-child(8) {
+  width: 16%;
+}
+
+/* Actions */
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+
+.row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+.row:hover {
+  background: var(--surface-elevated);
+}
+
+
+
+.rowValue {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.rowMuted {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.dataMono {
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.createdAt {
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  position: relative;
+  overflow: visible;
+  white-space: normal;
+}
+
+.actions,
+.formActions,
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions {
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.confirmBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.formActions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.rowDeleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rowDeleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.menuWrap {
+  position: relative;
+}
+
+.menuButton {
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.menuButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.menuDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 180px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--primitive-navy-800);
+  padding: 4px 0;
+  z-index: 1200;
+}
+
+.menuItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.menuItem:hover {
+  background: var(--surface-elevated);
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--border-strong);
+  margin: 4px 0;
+}
+
+.menuItemDelete:hover {
+  color: var(--color-error);
+}
+
+.expandedRow td {
+  padding: 0;
+  overflow: visible;
+}
+
+.expandedCell {
+  padding: 0;
+}
+
+.expandedPanel {
+  width: 100%;
+  padding: 20px 24px;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-strong);
+}
+
+.expandedPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.editPanelHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expandedPanelTitle {
+  font-size: 14px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+.panelCloseButton {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panelCloseButton:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.editorRow .panelCloseButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.expandedFieldsRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.expandedFieldCountry {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
+.expandedFieldNumber {
+  width: 200px;
+  flex: 0 0 200px;
+}
+
+.expandedFieldAudio {
+  width: 240px;
+  flex: 0 0 240px;
+}
+
+.expandedInboundRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.expandedDescription {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.expandedStatusLine {
+  font-size: 14px;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+.expandedStatusMuted {
+  color: var(--text-muted);
+}
+
+.expandedStatusSuccess {
+  color: var(--color-active);
+}
+
+.expandedStatusFailed {
+  color: var(--color-error);
+}
+
+.failedText {
+  color: var(--color-error);
+}
+
+.toggleOn {
+  color: var(--color-active);
+}
+
+.toggleOff {
+  color: var(--text-secondary);
+}
+
+.toggleKnob {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--text-secondary);
+}
+
+.toggleOn .toggleKnob {
+  background: var(--color-active);
+}
+
+.toggleSwitch.toggleOn {
+  background: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.toggleSwitch.toggleOn span {
+  transform: translateX(18px);
+}
+
+.signalIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-full);
+  animation: spin 800ms linear infinite;
+}
+
+/* Badge styles */
+.testBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.badgeReachable {
+  color: var(--color-active);
+  background: var(--color-active-tint);
+}
+
+.badgeUnreachable {
+  color: var(--color-error);
+  background: var(--color-error-tint);
+}
+
+.badgeNotLoaded {
+  color: var(--color-warning);
+  background: var(--color-warning-tint);
+}
+
+.empty,
+.failedText {
+  padding-top: 16px;
+  font-size: 14px;
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1280px) {
+  .table {
+    min-width: 0;
+  }
+
+  .formGrid,
+  .editorRow,
+  .settingsGrid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionsHeader,
+  .actionsCell,
+  .actions,
+  .formActions {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .expandedFieldsRow,
+  .expandedInboundRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .expandedFieldCountry,
+  .expandedFieldNumber,
+  .expandedFieldAudio {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
+}
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Settings panel save row — adds top spacing above formActions */
+.formActionsTop {
+  margin-top: 16px;
+}

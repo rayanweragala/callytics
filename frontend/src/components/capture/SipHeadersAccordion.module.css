@@ -1,0 +1,114 @@
+.dialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  margin: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.actionButton {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.accordionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.accordionItem {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.accordionSummary {
+  cursor: pointer;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.headerList {
+  border-top: 1px solid var(--border-default);
+  padding: 8px;
+  min-width: 0;
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.headerKey {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.headerValue {
+  color: var(--color-data);
+  overflow-wrap: anywhere;
+}
+
+.sdpBlock {
+  margin-top: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  font-size: 14px;
+}
+
+.sdpSummary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.sdpBlock pre,
+.rawJson {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.rawButton {
+  margin-top: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+  cursor: pointer;
+}

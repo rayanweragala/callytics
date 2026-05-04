@@ -1,0 +1,181 @@
+.panel {
+  border-top: 1px solid var(--border-strong);
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+/* Header — amber uppercase 10px, like palette group headers */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--primitive-amber);
+}
+
+.toggleButton {
+  border: 0;
+  background: transparent;
+  color: var(--primitive-amber);
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chevron {
+  font-size: 9px;
+  transition: transform 150ms ease;
+  display: inline-block;
+}
+
+.chevronOpen {
+  transform: rotate(0deg);
+}
+
+/* Scrollable body */
+.body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: 2px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.branch,
+.children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Tree item buttons — transparent at rest, subtle navy hover */
+.itemButton {
+  width: 100%;
+  min-height: 28px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  text-align: left;
+  transition: background 120ms ease, color 120ms ease;
+  cursor: pointer;
+}
+
+.depth0 { padding-left: 8px; }
+.depth1 { padding-left: 18px; }
+.depth2 { padding-left: 28px; }
+.depth3 { padding-left: 38px; }
+.depth4 { padding-left: 48px; }
+.depth5 { padding-left: 58px; }
+.depth6 { padding-left: 68px; }
+.depth7 { padding-left: 78px; }
+.depth8 { padding-left: 88px; }
+.depth9 { padding-left: 98px; }
+.depth10 { padding-left: 108px; }
+
+.itemButton:hover {
+  background: color-mix(in srgb, var(--bg-elevated) 60%, transparent);
+  color: var(--text-primary);
+}
+
+/* Active: amber left border, white text */
+.itemButtonActive {
+  border-left-color: var(--primitive-amber);
+  color: var(--text-primary);
+}
+
+.itemButtonActive:hover {
+  background: color-mix(in srgb, var(--primitive-amber) 6%, transparent);
+}
+
+/* Dot indicator (hidden — border-left handles the active state now) */
+.itemIndicator {
+  display: none;
+}
+
+.icon {
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.itemButtonActive .icon {
+  color: var(--primitive-amber);
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  stroke: none;
+}
+
+.itemTextGroup {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.itemLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Depth > 0 items get slightly smaller text */
+.depth1 .itemLabel,
+.depth2 .itemLabel,
+.depth3 .itemLabel,
+.depth4 .itemLabel,
+.depth5 .itemLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.itemMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 6px 8px;
+}

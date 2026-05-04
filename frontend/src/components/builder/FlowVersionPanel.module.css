@@ -1,0 +1,177 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   FlowVersionPanel — Phase 30d: Transparent panel, clean version rows
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* 2.1 Panel — transparent, border-strong outline */
+.versionsPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--bg-base);
+  border-left: 1px solid var(--border-strong);
+  transform: translateX(100%);
+  transition: transform 200ms ease;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+.versionsPanelOpen {
+  transform: translateX(0);
+}
+
+.versionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.versionsTitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--primitive-amber);
+}
+
+.versionsCommitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.versionNotice {
+  padding: 0 16px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+/* 2.2 Version list */
+.versionsList {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Each version row — transparent at rest */
+.versionItem {
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: transparent;
+  transition: background 120ms ease;
+  cursor: default;
+}
+
+.versionItem:hover {
+  background: var(--bg-elevated);
+}
+
+/* Active version gets amber left border (set via JS if needed — default style) */
+.versionItemActive {
+  border-left-color: var(--primitive-amber);
+}
+
+.versionItemActive .versionNum {
+  color: var(--primitive-amber);
+}
+
+.versionMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.versionNum {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+/* 2.3 Timestamps — cyan data color */
+.meta {
+  font-size: 11px;
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.versionMessage {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.versionActions {
+  display: flex;
+  gap: 6px;
+}
+
+.input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.primaryButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 8px 12px;
+}

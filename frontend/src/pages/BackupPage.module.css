@@ -1,0 +1,484 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.statusBar,
+.sectionCard,
+.tableCard,
+.restoreUploadCard,
+.scheduleCard,
+.inlineRestorePanel,
+.dropZone,
+.terminalLog {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  padding: 14px 20px;
+  color: var(--text-secondary);
+}
+
+.statusBar strong {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+.statusDotActive {
+  background: var(--color-active);
+}
+
+.statusDotMuted {
+  background: var(--text-muted);
+}
+
+.warningText {
+  color: var(--accent);
+}
+
+.sectionCard {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.sectionHeader,
+.sectionTitle,
+.headerActions,
+.subsectionHeader,
+.subsectionTitle,
+.actions,
+.headerActions,
+.restoreControls,
+.saveRow,
+.intervalGroup,
+.inlineConfirm,
+.actionsCell {
+  display: flex;
+  align-items: center;
+}
+
+.sectionHeader,
+.subsectionHeader,
+.saveRow {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionTitle,
+.subsectionTitle,
+.fileName {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.sectionHint,
+.fileMeta,
+.dropLabel,
+.savedAt,
+.terminalEmpty {
+  color: var(--text-secondary);
+}
+
+.sectionHint {
+  font-size: 13px;
+}
+
+.headerActions,
+.restoreControls,
+.intervalGroup,
+.actions,
+.inlineConfirm,
+.toggleField {
+  gap: 10px;
+}
+
+.toggleField {
+  display: flex;
+  align-items: center;
+  min-width: 200px;
+  padding: 6px 0;
+}
+
+.toggleLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggleSubLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 3px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transition: transform 0.15s;
+}
+
+.toggleOn {
+  background: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.toggleOn span {
+  transform: translateX(18px);
+}
+
+.toggleSwitch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.primaryButton,
+.secondaryButton,
+.actionButton,
+.confirmDeleteButton {
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.primaryButton {
+  height: 36px;
+  padding: 0 16px;
+}
+
+.primaryButton {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.primaryButton:hover {
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+
+.secondaryButton,
+.actionButton,
+.confirmDeleteButton {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.secondaryButton,
+.confirmDeleteButton {
+  height: 28px;
+  padding: 0 14px;
+}
+
+.secondaryButton:hover,
+.actionButton:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.confirmDeleteButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.restoreUploadCard,
+.scheduleCard,
+.inlineRestorePanel {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.dropZone {
+  width: 100%;
+  min-height: 120px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border-style: dashed;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.dropZone:hover {
+  border-color: var(--primitive-amber);
+}
+
+.dropFileName {
+  color: var(--text-primary);
+}
+
+.terminalLog {
+  display: grid;
+  align-content: start;
+  max-height: 220px;
+  min-height: 120px;
+  overflow-y: auto;
+  background: var(--primitive-navy-950);
+}
+
+.terminalLine,
+.terminalEmpty {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.terminalLine {
+  color: var(--text-secondary);
+}
+
+.terminalEmpty {
+  text-align: center;
+}
+
+.tableCard {
+  overflow: hidden;
+  background: transparent;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: var(--bg-base);
+}
+
+.table th {
+  color: var(--primitive-amber);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-align: left;
+  text-transform: uppercase;
+  padding: 12px 14px;
+}
+
+.table td {
+  border-top: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.actionsHeader,
+.actionsCell {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.fileCell {
+  min-width: 0;
+}
+
+.fileName {
+  word-break: break-word;
+}
+
+.fileMeta {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.typeBadge,
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.typeFull {
+  color: var(--accent);
+}
+
+.typeDbOnly {
+  color: var(--primitive-cyan);
+}
+
+.typeRecordingsOnly {
+  color: var(--text-muted);
+}
+
+.statusComplete {
+  color: var(--color-active);
+}
+
+.statusFailed {
+  color: var(--color-error);
+}
+
+.statusRunning {
+  color: var(--accent);
+}
+
+.statusPending {
+  color: var(--text-muted);
+}
+
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.actionButton {
+  height: 28px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.deleteActionButton:hover,
+.confirmDeleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.confirmDeleteButton {
+  color: var(--color-error);
+}
+
+.restorePanelCell {
+  padding: 0;
+  background: var(--bg-base);
+}
+
+.emptyState {
+  padding: 28px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.scheduleDisabled {
+  opacity: 0.55;
+}
+
+.scheduleBody {
+  display: grid;
+  gap: 14px;
+}
+
+.fieldBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.input {
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 0 10px;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.intervalButtonActive {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 980px) {
+  .sectionHeader,
+  .subsectionHeader,
+  .statusBar,
+  .headerActions,
+  .restoreControls,
+  .saveRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .table {
+    display: block;
+    overflow-x: auto;
+  }
+}

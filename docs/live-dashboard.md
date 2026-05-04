@@ -173,3 +173,60 @@ The first version does not need a wallboard design. It just needs to answer:
 - are callers waiting
 - are services healthy
 - where did that call go
+
+
+## Phase 5 implementation status
+
+Phase 5 adds the first working diagnostics surface in the frontend and the supporting realtime pipeline behind it.
+
+Implemented in this phase:
+
+- A dark-first "Control Room" diagnostics UI in the React frontend
+- A SIP status panel showing endpoint registration state for local endpoints such as `test-phone`
+- A live execution timeline panel showing node events per call
+- Stasis node executor instrumentation that publishes structured node events to Redis pub/sub
+- A backend Redis subscriber that relays SIP status and call timeline updates to the browser over Socket.io
+- A top-level stat bar showing active calls, registered endpoints, flow count, and uptime
+
+Current live pipeline:
+
+1. Stasis publishes node execution events to Redis channel `callytics:call-timeline`
+2. Stasis publishes SIP endpoint snapshots to Redis channel `callytics:sip-status`
+3. NestJS subscribes to both channels
+4. NestJS emits Socket.io events to connected browsers
+5. The React frontend updates the diagnostics screen live without polling
+
+Current browser-facing realtime events:
+
+- `diagnostics:bootstrap`
+- `diagnostics:sip-status`
+- `diagnostics:metrics`
+- `diagnostics:timeline`
+
+## Later diagnostics refinement after Phase 11
+
+The diagnostics page still updates live through Socket.io, but the two growing list panels no longer render every row in memory on screen.
+
+Current panel behavior now includes:
+
+- The live execution panel shows only the 10 most recent calls for the selected page
+- The SIP endpoints panel shows only 10 endpoint rows for the selected page
+- Both panels use inline `← Newer` / `Older →` pagination controls in-panel instead of the shared full-page `Pagination` component
+- The diagnostics gateway now serves paginated list requests over Socket.io with `{ data, total }` payloads for both panel types
+
+## Infrastructure note from Phase 5
+
+Redis is still containerized on bridge networking, but the host-exposed port changed during diagnostics work.
+
+- Old host mapping: `127.0.0.1:6379 -> redis:6379`
+- New host mapping: `127.0.0.1:6380 -> redis:6379`
+
+Reason:
+
+- host port `6379` was already occupied on this machine
+- the host-networked Stasis process needed a reachable host-local Redis port
+
+Current Redis access paths:
+
+- backend on bridge networking: `REDIS_HOST=redis`, `REDIS_PORT=6379`
+- stasis on host networking: `REDIS_HOST=127.0.0.1`, `REDIS_PORT=6380`

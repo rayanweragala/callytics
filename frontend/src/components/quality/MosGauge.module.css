@@ -1,0 +1,64 @@
+.gauge {
+  display: grid;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.valueWrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.value {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.plain {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-transform: lowercase;
+}
+
+.track {
+  width: 100%;
+  height: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--radius-lg);
+}
+
+.good {
+  color: var(--color-active);
+  background: var(--color-active);
+}
+
+.fair {
+  color: var(--color-warning);
+  background: var(--color-warning);
+}
+
+.poor {
+  color: var(--color-error);
+  background: var(--color-error);
+}

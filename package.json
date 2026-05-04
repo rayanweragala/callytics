@@ -1,0 +1,24 @@
+{
+  "name": "callytics",
+  "version": "0.1.0",
+  "description": "Self-hosted open source call center platform",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "stasis"
+  ],
+  "scripts": {
+    "dev": "docker compose up -d",
+    "dev:build": "docker compose up -d --build",
+    "dev:rebuild:app": "docker compose up -d --build backend stasis frontend",
+    "start": "docker compose up -d",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "status": "docker compose ps",
+    "test": "npm run test:unit && npm run test:int",
+    "test:unit": "npm run test --workspace stasis && npm run test:unit --workspace backend",
+    "test:int": "npm run test:int --workspace backend"
+  }
+}

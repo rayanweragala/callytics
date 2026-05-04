@@ -1,0 +1,377 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.callFilterBanner {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.clearFilterLink {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 14px;
+  padding: 0;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+.timestampCol {
+  width: 164px;
+  min-width: 164px;
+  max-width: 164px;
+}
+
+.levelCol {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+
+.channelCol {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.moduleCol {
+  width: 140px;
+}
+
+.messageCol {
+  width: auto;
+}
+
+.row {
+  transition: background 0.1s;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--surface-elevated);
+}
+
+.rowExpanded {
+  background: var(--surface-elevated);
+}
+
+.channelGroupA {
+  background: transparent;
+}
+
+.channelGroupB {
+  background: var(--surface-elevated);
+}
+
+.rowError {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+.rowError td:first-child {
+  border-left: 2px solid var(--color-error);
+  padding-left: 10px;
+}
+
+.rowWarning {
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.rowWarning td:first-child {
+  border-left: 2px solid var(--color-warning);
+  padding-left: 10px;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.levelFilters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.levelPill {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 12px;
+  height: 28px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.levelPillActive {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.searchInput {
+  width: 280px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  height: 34px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+  border-color: var(--accent);
+}
+
+.refreshButton {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.refreshButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.timestamp {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.channel,
+.module {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-data);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.levelBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  width: fit-content;
+}
+
+.levelError {
+  background: var(--color-error);
+  color: var(--text-primary);
+}
+
+.levelWarning {
+  background: var(--color-warning);
+  color: var(--text-inverse);
+}
+
+.levelNotice {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+.levelVerbose {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.levelUnknown {
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+}
+
+.messageCell {
+  min-width: 0;
+}
+
+.rawMessage {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.translation {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expandedRow td {
+  padding: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.expandedCell {
+  padding: 0;
+}
+
+.expandedPanel {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-strong);
+}
+
+.expandedPanelTitle {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.expandedMessage {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.expandedTranslation {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 1240px) {
+  .callFilterBanner {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .searchInput {
+    width: min(100%, 320px);
+  }
+
+  .tableCard {
+    overflow-x: auto;
+  }
+
+  .table {
+    min-width: 980px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    gap: 16px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .searchInput {
+    width: 100%;
+  }
+
+  .levelFilters {
+    width: 100%;
+  }
+
+  .refreshButton {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .levelPill {
+    min-height: 44px;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 760px;
+  }
+
+  .callFilterBanner {
+    font-size: 13px;
+  }
+}

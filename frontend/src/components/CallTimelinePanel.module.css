@@ -1,0 +1,196 @@
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  min-height: 420px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+}
+
+.live,
+.liveCall,
+.callId,
+.time,
+.status,
+.finalStatus,
+.expandIndicator,
+.caller {
+  font-family: var(--font-mono);
+}
+
+.live,
+.liveCall {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--color-active);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.callCard {
+  border: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.callCard:hover {
+  border-color: var(--border-strong);
+}
+
+.callHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.callHeader:hover {
+  background: var(--bg-elevated);
+}
+
+.summaryLeft,
+.summaryRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summaryRight {
+  justify-content: flex-end;
+}
+
+.callId {
+  color: var(--text-primary);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.caller {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.finalStatus {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.expandIndicator {
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 22px;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+.rail {
+  position: relative;
+  padding: 0 16px 16px 32px;
+}
+
+.rail::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 0;
+  bottom: 16px;
+  width: 2px;
+  background: var(--border-default);
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 16px;
+  animation: timeline-enter 200ms ease;
+}
+
+.marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.content {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.node {
+  color: var(--text-primary);
+  font-size: 14px;
+  text-transform: lowercase;
+}
+
+.status {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.time {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: right;
+}
+
+.empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 120px;
+}
+
+.toneActive { background: var(--color-active); }
+.toneInfo { background: var(--color-info); }
+.toneWarning { background: var(--color-warning); }
+.toneError { background: var(--color-error); }
+.toneCompleted, .toneDefault { background: var(--text-muted); }
+
+@keyframes timeline-enter {
+  from { opacity: 0; transform: translateY(8px) translateX(-8px); }
+  to { opacity: 1; transform: translateY(0) translateX(0); }
+}

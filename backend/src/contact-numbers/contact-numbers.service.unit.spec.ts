@@ -1,0 +1,212 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ContactNumbersService } from './contact-numbers.service';
+import { ContactNumberEntity } from './entities/contact-number.entity';
+
+describe('ContactNumbersService', () => {
+  let service: ContactNumbersService;
+  let repo: {
+    findAndCount: jest.Mock;
+    findOne: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  const mockRepo = {
+    findAndCount: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
+  };
+
+  const mockDataSource = {
+    query: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ContactNumbersService,
+        { provide: getRepositoryToken(ContactNumberEntity), useValue: mockRepo },
+        { provide: getDataSourceToken(), useValue: mockDataSource },
+      ],
+    }).compile();
+
+    service = module.get<ContactNumbersService>(ContactNumbersService);
+    repo = module.get(getRepositoryToken(ContactNumberEntity));
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('create inserts row and returns contact number fields', async () => {
+    const now = new Date('2026-04-20T12:00:00.000Z');
+    const dto = {
+      label: 'Alice Mobile',
+      number: '+94714008762',
+      trunk_id: 2,
+      notes: 'After hours',
+    };
+    const entity = {
+      id: 11,
+      label: 'Alice Mobile',
+      number: '+94714008762',
+      trunkId: 2,
+      notes: 'After hours',
+      createdAt: now,
+    };
+
+    repo.create.mockReturnValue(entity);
+    repo.save.mockResolvedValue(entity);
+
+    const result = await service.create(dto);
+
+    expect(repo.create).toHaveBeenCalledWith({
+      label: 'Alice Mobile',
+      number: '+94714008762',
+      trunkId: 2,
+      notes: 'After hours',
+    });
+    expect(result.data).toEqual({
+      id: 11,
+      label: 'Alice Mobile',
+      number: '+94714008762',
+      trunkId: 2,
+      notes: 'After hours',
+      createdAt: now.toISOString(),
+    });
+  });
+
+  it('valid number normalizes to E.164 on save', async () => {
+    const now = new Date('2026-04-20T12:00:00.000Z');
+    const entity = {
+      id: 12,
+      label: 'Local Mobile',
+      number: '+94714008762',
+      trunkId: null,
+      notes: null,
+      createdAt: now,
+    };
+
+    repo.create.mockReturnValue(entity);
+    repo.save.mockResolvedValue(entity);
+
+    await service.create({
+      label: 'Local Mobile',
+      number: '071 400 8762',
+      country: 'LK',
+    } as any);
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        number: '+94714008762',
+      }),
+    );
+  });
+
+  it('invalid number throws validation error', async () => {
+    await expect(
+      service.create({
+        label: 'Invalid',
+        number: 'not-a-phone-number',
+        country: 'US',
+      } as any),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('findAll/list returns array and preserves trunk mapping when trunk_id exists', async () => {
+    const now = new Date('2026-04-20T12:00:00.000Z');
+    repo.findAndCount.mockResolvedValue([[
+      {
+        id: 1,
+        label: 'Sales Hotline',
+        number: '+18005551234',
+        trunkId: 3,
+        notes: null,
+        createdAt: now,
+      },
+    ], 1]);
+
+    const result = await service.findAll(1, 10);
+
+    expect(repo.findAndCount).toHaveBeenCalledWith({
+      order: { label: 'ASC' },
+      take: 10,
+      skip: 0,
+    });
+    expect(result.data).toEqual([
+      {
+        id: 1,
+        label: 'Sales Hotline',
+        number: '+18005551234',
+        trunkId: 3,
+        notes: null,
+        createdAt: now.toISOString(),
+      },
+    ]);
+    expect(result.total).toBe(1);
+    expect(result.page).toBe(1);
+    expect(result.limit).toBe(10);
+  });
+
+  it('update changes label, number, trunk_id, and notes and returns updated row', async () => {
+    const existing = {
+      id: 9,
+      label: 'Old Label',
+      number: '0710000000',
+      trunkId: null,
+      notes: null,
+      createdAt: new Date('2026-04-20T10:00:00.000Z'),
+    };
+    const saved = {
+      ...existing,
+      label: 'New Label',
+      number: '+94711111111',
+      trunkId: 5,
+      notes: 'VIP route',
+    };
+
+    repo.findOne.mockResolvedValue(existing);
+    repo.save.mockResolvedValue(saved);
+
+    const result = await service.update(9, {
+      label: 'New Label',
+      number: '+94711111111',
+      trunk_id: 5,
+      notes: 'VIP route',
+    });
+
+    expect(repo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 9,
+        label: 'New Label',
+        number: '+94711111111',
+        trunkId: 5,
+        notes: 'VIP route',
+      }),
+    );
+    expect(result.data).toEqual({
+      id: 9,
+      label: 'New Label',
+      number: '+94711111111',
+      trunkId: 5,
+      notes: 'VIP route',
+      createdAt: existing.createdAt.toISOString(),
+    });
+  });
+
+  it('remove deletes row and throws NotFoundException when id is missing', async () => {
+    repo.findOne.mockResolvedValueOnce({ id: 22 });
+
+    const removed = await service.remove(22);
+    expect(repo.delete).toHaveBeenCalledWith({ id: 22 });
+    expect(removed).toEqual({ data: { id: 22, deleted: true } });
+
+    repo.findOne.mockResolvedValueOnce(null);
+    await expect(service.remove(99)).rejects.toThrow(NotFoundException);
+  });
+});

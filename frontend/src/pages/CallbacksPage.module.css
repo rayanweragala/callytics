@@ -1,0 +1,261 @@
+.page {
+  display: grid;
+  gap: 12px;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+
+.filters {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.filterPills {
+  display: flex;
+  gap: 6px;
+}
+
+.filterPill {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 12px;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.filterPill:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.filterPillActive {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.table {
+  width: 100%;
+  min-width: 1060px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* tableHead/row are native <thead>/<tr> styled via globals — these class-based selectors are kept because they are referenced in TSX */
+.tableHead {
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.row {
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+/* Column widths */
+.table th:nth-child(1) {
+  width: 7%;
+}
+
+.table th:nth-child(2) {
+  width: 16%;
+}
+
+.table th:nth-child(3) {
+  width: 14%;
+}
+
+.table th:nth-child(4) {
+  width: 10%;
+}
+
+.table th:nth-child(5) {
+  width: 15%;
+}
+
+.table th:nth-child(6) {
+  width: 15%;
+}
+
+.table th:nth-child(7) {
+  width: 23%;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+
+.dataMono {
+  font-family: var(--font-mono);
+  color: var(--color-data);
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.dashMuted {
+  color: var(--text-muted);
+}
+
+/* Status badge variants share the base class defined in globals */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.statusPending {
+  color: var(--text-secondary);
+}
+
+.statusDialing {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.statusCompleted {
+  color: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.statusFailed {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.statusCancelled {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.actionsCell {
+  text-align: right;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.tableHead th.actionsHeader {
+  text-align: right;
+}
+
+.statusHeader,
+.statusCell {
+  text-align: center;
+}
+
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+.secondaryButton {
+  height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.secondaryButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.actionButton:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.editButton:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.rowError {
+  padding: 0 12px 10px;
+  color: var(--color-error);
+  font-size: 14px;
+}
+
+@media (max-width: 1080px) {
+  .tableCard {
+    overflow-x: auto;
+  }
+
+  .table {
+    min-width: 940px;
+  }
+}

@@ -1,0 +1,76 @@
+import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
+import { CreateFlowDto } from './dto/create-flow.dto';
+import { UpdateFlowDto } from './dto/update-flow.dto';
+import { FlowsService } from './flows.service';
+
+@Controller('flows')
+export class FlowsController {
+  constructor(private readonly flowsService: FlowsService) {}
+
+  @Get()
+  findAll(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number,
+  ) {
+    return this.flowsService.findAll(page, limit);
+  }
+
+  @Get(':id/versions/:versionId')
+  findVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionId', ParseIntPipe) versionId: number,
+  ) {
+    return this.flowsService.findVersion(id, versionId);
+  }
+
+  @Get(':id/versions')
+  listVersions(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.listVersions(id);
+  }
+
+  @Post(':id/versions/:versionId/restore')
+  restoreVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionId', ParseIntPipe) versionId: number,
+  ) {
+    return this.flowsService.restoreVersion(id, versionId);
+  }
+
+  @Post(':id/versions')
+  createVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { message: string },
+  ) {
+    return this.flowsService.createVersion(id, body.message);
+  }
+
+  @Get(':id/breadcrumb')
+  findBreadcrumb(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.getBreadcrumb(id);
+  }
+
+  @Get(':id/tree')
+  findTree(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.getFlowTree(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.findOne(id);
+  }
+
+  @Post()
+  create(@Body() dto: CreateFlowDto) {
+    return this.flowsService.create(dto);
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateFlowDto) {
+    return this.flowsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.flowsService.remove(id);
+  }
+}

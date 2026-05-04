@@ -1,0 +1,14 @@
+.error {
+  color: var(--color-error);
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  margin: 0.5rem 0;
+}
+
+.info {
+  color: var(--color-info);
+  background: var(--bg-surface);
+  border-color: var(--color-info);
+}

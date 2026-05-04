@@ -1,0 +1,747 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.notInstalledCard,
+.statusBar,
+.addPeerRow,
+.tableCard,
+.modal,
+.optionCard {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.notInstalledCard {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  background: transparent;
+}
+
+.notInstalledCard h2,
+.modal h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 22px;
+}
+
+.notInstalledCard p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.optionCard {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  background: transparent;
+}
+
+.optionTitle {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.optionText,
+.optionHint,
+.commandExplanation,
+.modalHint,
+.accordionBody p {
+  color: var(--text-secondary);
+}
+
+.optionHint {
+  font-size: 11px;
+}
+
+.tabBar {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-strong);
+  margin-bottom: 4px;
+  gap: 0;
+}
+
+.tab {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tabActive {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.tabContent {
+  display: grid;
+  gap: 16px;
+}
+
+.guide {
+  display: grid;
+  gap: 8px;
+  background: transparent;
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  background: transparent;
+  padding: 14px 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.statusActions {
+  margin-left: auto;
+}
+
+.statusBar strong,
+.dataCell {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+}
+
+.statusText,
+.nameCell {
+  color: var(--text-primary);
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+.statusDotRunning {
+  background: var(--color-active);
+}
+
+.statusDotStopped {
+  background: var(--color-error);
+}
+
+.warningText {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.serverKeyError {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.keyInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.addPeerRow {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: transparent;
+}
+
+.input {
+  height: 36px;
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  padding: 0 10px;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.primaryButton,
+.secondaryButton,
+.secondaryLargeButton,
+.copyButton,
+.inlineCopy,
+.revokeButton,
+.modalClose {
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.primaryButton {
+  height: 36px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--text-inverse);
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondaryButton,
+.secondaryLargeButton,
+.revokeButton,
+.inlineCopy {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+
+.secondaryButton,
+.revokeButton,
+.inlineCopy {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.secondaryLargeButton {
+  height: 36px;
+  padding: 0 14px;
+}
+
+.secondaryButton:hover,
+.secondaryLargeButton:hover,
+.inlineCopy:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.revokeButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.tableCard {
+  background: transparent;
+  overflow: hidden;
+}
+
+.refreshButton {
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--text-inverse);
+  font-family: var(--font-mono);
+  padding: 0 16px;
+  cursor: pointer;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: var(--bg-surface);
+}
+
+.table th {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-align: left;
+  text-transform: uppercase;
+  padding: 12px 14px;
+}
+
+.table td {
+  border-top: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.actionsHeader,
+.actionsCell {
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.statusactive {
+  color: var(--color-active);
+}
+
+.statusidle {
+  color: var(--primitive-amber);
+}
+
+.statusoffline {
+  color: var(--text-muted);
+}
+
+.emptyState {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 44px;
+}
+
+.removeVpnButton {
+  height: 28px;
+}
+
+.removeVpnButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.commandBlock,
+.relayConfigResult {
+  position: relative;
+}
+
+.commandBlock pre,
+.verifyBlock,
+.relayConfigResult pre {
+  margin: 0;
+  position: relative;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.copyButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.copyButton:hover {
+  color: var(--text-primary);
+}
+
+.accordionItem {
+  background: transparent;
+  overflow: visible;
+}
+
+.accordionHeader {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 32px 1fr 24px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.accordionItemOpen .accordionHeader {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 0;
+}
+
+.accordionHeader span {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.accordionHeader strong {
+  color: var(--text-primary);
+}
+
+.accordionHeader em {
+  color: var(--text-secondary);
+  font-style: normal;
+  text-align: right;
+}
+
+.accordionBody {
+  display: grid;
+  gap: 14px;
+  border-left: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: transparent;
+  padding: 16px;
+}
+
+.accordionBody p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.commandGroup {
+  display: grid;
+  gap: 0;
+}
+
+.commandList {
+  display: grid;
+  gap: 16px;
+}
+
+.commandLabel,
+.verifyLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.commandLabel {
+  color: var(--text-secondary);
+}
+
+.verifyLabel {
+  color: var(--color-active);
+}
+
+.commandExplanation {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.verificationExpected {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 6px;
+}
+
+.relayForm {
+  display: grid;
+  gap: 10px;
+}
+
+.relayConfigResult {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.modalShell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--modal-overlay);
+  z-index: 1201;
+  padding: 24px;
+}
+
+.modal {
+  position: relative;
+  width: min(380px, calc(100vw - 32px));
+  max-width: 380px;
+  display: grid;
+  justify-items: center;
+  gap: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+}
+
+.modal h2 {
+  margin: 0 0 20px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  text-align: center;
+}
+
+.modalClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.modalClose:hover {
+  color: var(--text-primary);
+}
+
+.qrImage {
+  display: block;
+  width: 320px;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  background: white;
+  padding: 12px;
+}
+
+.modalHint,
+.loadingCard {
+  font-size: 12px;
+}
+
+.modalHint {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.modalDownloadButton {
+  width: 100%;
+  margin-top: 16px;
+  height: 36px;
+}
+
+.loadingCard {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 20px;
+}
+
+.relayInfoBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 10px 14px;
+}
+
+.relayInfoIcon {
+  color: var(--color-data);
+}
+
+.relayCardStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.relayCardStatusLabel {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.relayCardHandshake {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relaySoftphoneBlock {
+  margin-top: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.relaySoftphoneTitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.relaySoftphoneRows {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.relaySoftphoneRow {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 8px;
+}
+
+.relaySoftphoneLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relaySoftphoneValue {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.relayGuideLink {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relayGuideLink:hover {
+  color: var(--text-primary);
+}
+
+.relayActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.relayStatusRow {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.relayStatusActive {
+  color: var(--color-success);
+  font-size: 12px;
+}
+
+.relayStatusInactive {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relayDeactivateButton {
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--primitive-red);
+  border-radius: var(--radius-sm);
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.relayDeactivateButton:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.relayInlineError {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.relayValues {
+  margin-top: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.relayValueRow {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+}
+
+.relayValueLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.relayValueText {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .optionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .addPeerRow {
+    flex-direction: column;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+  }
+
+  .relayActions {
+    flex-direction: column;
+  }
+
+  .relayValueRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .relaySoftphoneRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

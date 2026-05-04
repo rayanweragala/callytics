@@ -1,0 +1,33 @@
+{
+  "name": "@callytics/stasis",
+  "version": "0.1.0",
+  "description": "Callytics ARI Stasis application",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:unit": "jest",
+    "test:ci": "jest --ci --coverage"
+  },
+  "dependencies": {
+    "ari-client": "^2.2.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^16.0.0",
+    "libphonenumber-js": "^1.12.42",
+    "pg": "^8.11.0",
+    "redis": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.5.4",
+    "@types/pg": "^8.11.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}

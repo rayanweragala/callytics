@@ -1,0 +1,215 @@
+@import url('https://unpkg.com/@fontsource/space-mono/index.css');
+@import url('reactflow/dist/style.css');
+
+:root {
+  /* ─── PRIMITIVES ─── */
+  --primitive-navy-950:  #0f1117;
+  --primitive-navy-900:  #13162b;
+  --primitive-navy-800:  #1b1f3a;
+  --primitive-navy-700:  #252847;
+  --primitive-navy-600:  #3a3f66;
+  --primitive-navy-500:  #4a5080;
+  --primitive-navy-400:  #6b7299;
+  --primitive-navy-300:  #9098c0;
+  --primitive-navy-200:  #c8cee8;
+
+  --primitive-amber:     #f5a623;
+  --primitive-amber-dim: rgba(245, 166, 35, 0.12);
+  --primitive-amber-mid: rgba(245, 166, 35, 0.25);
+
+  --primitive-cyan:      #5bb8f5;
+  --primitive-cyan-dim:  rgba(91, 184, 245, 0.12);
+
+  --primitive-green:     #3dd68c;
+  --primitive-green-dim: rgba(61, 214, 140, 0.12);
+
+  --primitive-red:       #f25c54;
+  --primitive-red-dim:   rgba(242, 92, 84, 0.12);
+
+  --primitive-orange:    #f5a623;
+  --primitive-orange-dim:rgba(245, 166, 35, 0.12);
+
+  --primitive-blue:      #5bb8f5;
+  --primitive-blue-dim:  rgba(91, 184, 245, 0.12);
+
+  --primitive-text-100:  #e8ecf8;
+  --primitive-text-300:  #9098c0;
+  --primitive-text-500:  #5a6080;
+  --primitive-text-900:  #0f1117;
+
+  /* ─── SEMANTIC TOKENS ─── */
+  --bg-base:        var(--primitive-navy-900);
+  --bg-surface:     var(--primitive-navy-800);
+  --bg-elevated:    var(--primitive-navy-700);
+  --bg-overlay:     var(--primitive-navy-600);
+  --modal-overlay:  rgba(0, 0, 0, 0.7);
+
+  --border-subtle:  var(--primitive-navy-600);
+  --border-default: var(--primitive-navy-500);
+  --border-strong:  var(--primitive-navy-400);
+
+  --text-primary:   var(--primitive-text-100);
+  --text-secondary: var(--primitive-text-300);
+  --text-muted:     var(--primitive-text-500);
+  --text-inverse:   var(--primitive-text-900);
+
+  --color-active:   var(--primitive-green);
+  --color-warning:  var(--primitive-amber);
+  --color-error:    var(--primitive-red);
+  --color-info:     var(--primitive-cyan);
+
+  /* Data values in tables: IPs, ports, numbers, hosts */
+  --color-data:     #4dc8f5;
+
+  --accent:         var(--primitive-amber);
+  --accent-dim:     var(--primitive-amber-dim);
+
+  /* ─── TINTS ─── */
+  --color-active-tint:  var(--primitive-green-dim);
+  --color-error-tint:   var(--primitive-red-dim);
+  --color-warning-tint: var(--primitive-orange-dim);
+  --color-info-tint:    var(--primitive-cyan-dim);
+  --color-muted-tint:   rgba(90, 96, 128, 0.12);
+
+  /* ─── DIFF ROW TINTS ─── */
+  --diff-amber-tint: rgba(245, 166, 35, 0.10);
+  --diff-red-tint:   rgba(242, 92, 84, 0.10);
+  --diff-green-tint: rgba(61, 214, 140, 0.10);
+
+
+  /* ─── SIDEBAR ─── */
+  --sidebar-bg:     var(--primitive-navy-950);
+  --sidebar-width:  200px;
+
+  /* ─── TYPOGRAPHY ─── */
+  --font-mono: 'JetBrains Mono', 'Space Mono', monospace;
+  --font-ui:   'JetBrains Mono', 'Space Mono', monospace;
+
+  /* ─── RADIUS ─── */
+  --radius-sm:   3px;
+  --radius-md:   4px;
+  --radius-lg:   6px;
+  --radius-full: 999px;
+
+  /* ─── RESOURCE USAGE THRESHOLDS ─── */
+  --resource-ok:     var(--color-active);
+  --resource-warn:   var(--primitive-amber);
+  --resource-danger: var(--color-error);
+  --explainer-border-bad: rgba(242,92,84,0.30);
+  --explainer-border-good: rgba(61,214,140,0.30);
+
+  color: var(--text-primary);
+  background: var(--bg-base);
+  font-family: var(--font-mono);
+}
+
+* { box-sizing: border-box; }
+html, body, #root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--bg-base);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fadeIn {
+  animation: fadeIn 0.2s ease;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-base);
+  font-size: 14px;
+}
+a { color: inherit; text-decoration: none; }
+button, input, textarea { font: inherit; }
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--color-active) !important;
+  stroke-width: 2px;
+}
+
+/* ─── GLOBAL TABLE STYLES ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+thead th {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+  background: var(--bg-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+tbody td {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inline row actions/confirmations must not be clipped by table-cell truncation */
+tbody td:has([class*='actions']),
+tbody td:has([class*='actionsInline']),
+tbody td:has([class*='confirmBox']),
+tbody td:has([class*='confirmInline']),
+tbody td:has([class*='inlineWrapper']),
+tbody td:has([class*='inlineDialog']) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Keep inline confirmation UIs readable and consistently anchored to the right edge */
+tbody td [class*='confirmBox'],
+tbody td [class*='inlineDialog'] {
+  max-width: 100%;
+  width: min(100%, 340px);
+  margin-left: auto;
+  box-sizing: border-box;
+}
+
+tbody td [class*='confirmText'],
+tbody td [class*='message'] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.08s;
+}
+
+tbody tr:hover {
+  background: var(--bg-elevated);
+}
+
+/* ─── GLOBAL BUTTON BASE ─── */
+button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity 0.1s, background 0.1s, border-color 0.1s, color 0.1s;
+}

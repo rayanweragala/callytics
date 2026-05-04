@@ -1,0 +1,52 @@
+.edgePath {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.edgeSubflowJump {
+  stroke: var(--color-info);
+  stroke-dasharray: 8 5;
+}
+
+.edgeSelected {
+  stroke: var(--color-active);
+  stroke-width: 2.5;
+}
+
+.deleteButton {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  pointer-events: all;
+}
+
+.deleteButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.label {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: var(--bg-base);
+  padding: 2px 6px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.subflowJumpLabel {
+  color: var(--color-info);
+  border: 1px dashed var(--color-info);
+}

@@ -1,0 +1,139 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg-base) 80%, transparent);
+}
+
+.inlineWrapper {
+  width: 100%;
+}
+
+.dialog,
+.inlineDialog {
+  width: min(100%, 400px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.inlineDialog {
+  width: 100%;
+  gap: 8px;
+  padding: 12px;
+  border-color: var(--border-default);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.inlineDialog .title {
+  display: none;
+}
+
+.message {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.inlineDialog .message {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.inlineDialog .actions {
+  gap: 8px;
+}
+
+.cancelButton,
+.secondaryButton,
+.confirmButton {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+}
+
+.inlineDialog .cancelButton,
+.inlineDialog .secondaryButton,
+.inlineDialog .confirmButton {
+  min-height: 28px;
+  height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.inlineDialog .cancelButton,
+.inlineDialog .secondaryButton {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.inlineDialog .cancelButton:hover,
+.inlineDialog .secondaryButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.inlineDialog .confirmButton {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--color-error);
+}
+
+.inlineDialog .confirmButton:hover {
+  border-color: var(--color-error);
+}
+
+.cancelButton {
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.confirmButton {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg-base);
+}
+
+.secondaryButton {
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}

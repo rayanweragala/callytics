@@ -1,0 +1,1 @@
+import './campaigns.service.spec';

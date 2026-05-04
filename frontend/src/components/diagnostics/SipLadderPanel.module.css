@@ -1,0 +1,172 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  --sip-ladder-z-index: 70;
+  z-index: var(--sip-ladder-z-index);
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  max-width: 100%;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  padding: 24px;
+  pointer-events: auto;
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+  overflow-y: auto;
+}
+
+.inlinePanel {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  min-height: 280px;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.inlinePanel::after {
+  content: '';
+  position: sticky;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  height: 24px;
+  margin-top: -24px;
+  background: var(--primitive-navy-800);
+  pointer-events: none;
+}
+
+.open {
+  transform: translateX(0);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.closeButton {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.loading {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.svgWrap {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  padding: 8px;
+  width: 100%;
+  min-height: 280px;
+}
+
+.errorBox {
+  margin-top: 12px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-lg);
+  color: var(--color-error);
+  background: var(--bg-base);
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.participantLabel {
+  fill: var(--text-secondary);
+}
+
+.lifeline {
+  stroke: var(--border-default);
+}
+
+.timestampLabel {
+  fill: var(--color-data);
+}
+
+/* Arrow color classes — applied to <g>, inherited by line/polygon/text via currentColor */
+.arrowInvite {
+  color: var(--color-active);
+}
+
+.arrowError {
+  color: var(--color-error);
+}
+
+.arrowSuccess {
+  color: var(--color-active);
+}
+
+.arrowWarning {
+  color: var(--primitive-amber);
+}
+
+.arrowData {
+  color: var(--color-data);
+}
+
+.arrowMuted {
+  color: var(--text-secondary);
+}
+
+/* Arrow line inherits color via currentColor */
+.arrowLine {
+  stroke: currentColor;
+  fill: none;
+}
+
+/* Response arrows are dashed */
+.arrowLineDashed {
+  stroke: currentColor;
+  fill: none;
+  stroke-dasharray: 4 3;
+}
+
+.arrowHead {
+  fill: currentColor;
+  stroke: none;
+}
+
+.arrowLabel {
+  fill: currentColor;
+}

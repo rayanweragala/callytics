@@ -1,0 +1,183 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   FlowCanvasNode — Phase 30d Polish — Larger, readable cards
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.node {
+  min-width: 160px;
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: visible; /* allow glow to spill */
+  position: relative;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.invalid {
+  border-color: color-mix(in srgb, var(--color-error) 45%, var(--border-default));
+}
+
+.validationDot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-error);
+  z-index: 2;
+}
+
+/* hover: slightly elevated */
+.node:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+/* selected: unmistakable amber border + glow */
+.selected {
+  border-color: var(--primitive-amber) !important;
+  box-shadow: 0 0 0 3px var(--primitive-amber-dim),
+              0 0 14px var(--primitive-amber-dim);
+}
+
+/* clip overflow for the card body, but allow glow on the wrapper */
+.node > .accent {
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+/* 4px colored left bar — matches node type color */
+.accent {
+  width: 5px;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.body {
+  padding: 10px 14px 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.body:last-child {
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+/* Node type label — 10px muted uppercase mono */
+.type {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+/* Node label — dominant text: larger, white, weight 500 */
+.label {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.meta {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Delete button */
+.deleteButton {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 14px;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.deleteButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+/* Handles — 10px, visible border, amber on focus/hover */
+.handle {
+  width: 10px !important;
+  height: 10px !important;
+  border: 2px solid var(--border-strong) !important;
+  background: var(--bg-surface) !important;
+  transition: border-color 120ms ease, background 120ms ease, width 120ms ease, height 120ms ease !important;
+}
+
+.handle:hover {
+  border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-surface)) !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* On selected nodes, handles are bigger and amber */
+.selected .handle {
+  border-color: var(--accent) !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.handleOpen {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.handleClosed {
+  background: var(--text-muted) !important;
+  border-color: var(--text-muted) !important;
+}
+
+/* Node type color system — sets currentColor for accent bar + handle tint */
+.start         { color: var(--color-active); }
+.playAudio     { color: var(--primitive-cyan); }
+.getDigits     { color: var(--accent); }
+.businessHours { color: var(--accent); }
+.transfer      { color: var(--primitive-blue); }
+.hunt          { color: var(--primitive-blue); }
+.voicemail     { color: var(--text-muted); }
+.hangup        { color: var(--color-active); }
+.webhook       { color: var(--text-muted); }
+.queueLogin    { color: var(--primitive-navy-300); }
+.queue         { color: var(--primitive-navy-300); }
+.conference    { color: var(--primitive-cyan); }
+.callback      { color: var(--primitive-orange); }
+
+.webhookSideEffect {
+  border-style: dashed;
+}
+
+.webhookAccent {
+  background: var(--primitive-navy-700);
+}
+
+.asyncLabel {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: var(--text-muted);
+}

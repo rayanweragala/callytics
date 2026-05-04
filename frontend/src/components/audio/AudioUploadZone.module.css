@@ -1,0 +1,36 @@
+.hiddenInput {
+  display: none;
+}
+
+.zone {
+  width: 100%;
+  min-height: 120px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.zone:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-transform: lowercase;
+}
+
+.fileName {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-primary);
+}

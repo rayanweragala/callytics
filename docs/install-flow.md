@@ -1,5 +1,7 @@
 # Install flow
 
+> Recommended for new users: run `bash scripts/install.sh`. This document explains what the install script does and how to verify and recover manually when needed.
+
 ## Install command
 
 The install entry point is:
@@ -10,6 +12,16 @@ npm install -g callytics
 
 That installs the CLI package globally. The package should include a postinstall path that prepares the local runtime or guides the user into first run.
 
+## Start command (recommended)
+
+After installation, always start Callytics with:
+
+```bash
+bash scripts/install.sh
+```
+
+Do not run `docker compose up` directly for first-time setup. The install script is the supported one-command flow because it prompts for optional features (like VPN) before starting the stack.
+
 ## What happens during install
 
 1. npm installs the CLI package and its Node dependencies.
@@ -19,7 +31,44 @@ That installs the CLI package globally. The package should include a postinstall
 5. It creates the local app directories for persistent storage.
 6. It pulls the required images for Asterisk, Postgres, Redis, backend, and frontend.
 7. It writes a local runtime manifest so future runs know the installed version and data path.
-8. It asks one optional question: configure a SIP trunk now?
+8. It asks one optional question: enable the built-in WireGuard VPN?
+9. It asks one optional question: configure a SIP trunk now?
+
+## VPN prompt behavior
+
+Before `docker compose up`, the install script asks:
+
+```text
+Enable built-in WireGuard VPN?
+Allows remote softphones to connect without port forwarding.
+Requires UDP port 51820 forwarded on your router.
+[y/N]:
+```
+
+If the user answers `y`, install starts services with:
+
+```bash
+docker compose --profile vpn up -d
+```
+
+If the user answers `n` or presses enter, install keeps the existing behavior:
+
+```bash
+docker compose up -d
+```
+
+Automated installs can skip the prompt:
+
+```bash
+scripts/install.sh --vpn
+scripts/install.sh --no-vpn
+```
+
+If VPN is skipped during install, it can be enabled later with:
+
+```bash
+docker compose --profile vpn up -d wireguard
+```
 
 ## SIP prompt behavior
 
@@ -47,13 +96,35 @@ Suggested default ports:
 - `3000` for the frontend web UI
 - `3001` for the backend API
 - `5432` for PostgreSQL, bound locally only
-- `6379` for Redis, bound locally only
+- `6380` for Redis on the host, mapped to container port `6379`
 - `8088` for Asterisk HTTP and ARI, bound locally only
 - `5038` for AMI, bound internally and not exposed publicly by default
-- `5060/udp` for SIP
+- `5080/udp` for SIP
+- `51820/udp` for optional WireGuard VPN
 - `10000-10100/udp` for RTP media in local development
 
 Real port values may need to change if conflicts are found, but the installer should prefer stable defaults and only prompt when a conflict exists.
+
+The current working telephony runtime uses host networking for both `asterisk` and `stasis`.
+
+- `asterisk` uses `network_mode: host`
+- `stasis` uses `network_mode: host`
+- `stasis` reaches ARI at `http://127.0.0.1:8088`
+- `stasis` reaches PostgreSQL at `127.0.0.1:5432`
+
+This replaced the older design where Stasis stayed on bridge networking while Asterisk moved to host networking. That older layout broke ARI connectivity during first-call debugging.
+
+The current backend runtime also includes local audio tooling:
+
+- backend container base `node:20-bookworm-slim`
+- `python3`, `python3-pip`, `ffmpeg`, and `piper-tts` installed in the backend image
+- bundled `en_US-lessac-medium` voice available from first boot
+- no network access required for TTS generation after install
+
+Current audio mount expectations:
+
+- backend mounts `./storage` at `/app/storage`, including `./storage/audio/`
+- Asterisk mounts `./storage/audio/converted` at `/var/lib/asterisk/sounds/callytics`
 
 ## What the user sees when it works
 

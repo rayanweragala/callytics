@@ -1,0 +1,38 @@
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.link,
+.current {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.link {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+}
+
+.current {
+  color: var(--text-primary);
+}
+
+.separator {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}

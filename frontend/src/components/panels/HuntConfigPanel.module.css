@@ -1,0 +1,278 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel,
+.meta {
+  font-family: var(--font-mono);
+}
+
+.fieldLabel {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+}
+
+.input[type='number']::-webkit-inner-spin-button,
+.input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.destinationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.destinationCard {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  padding: 8px;
+}
+
+.destinationRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.targetTypeCell {
+  width: 120px;
+  flex: 0 0 120px;
+}
+
+.orderLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-left: 8px;
+}
+
+.orderLabel {
+  color: var(--primitive-amber);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.orderInput {
+  width: 48px;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.targetTypeSelect {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 0 8px;
+  font-family: var(--font-ui);
+}
+
+.targetValueCell {
+  flex: 1;
+  min-width: 0;
+}
+
+.addButton,
+.removeButton {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  text-transform: lowercase;
+}
+
+.addButton {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+}
+
+.removeButton {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.addButton:hover,
+.removeButton:hover,
+.targetTypeSelect:hover,
+.targetTypeSelect:focus,
+.input:hover,
+.input:focus {
+  border-color: var(--border-strong);
+}
+
+.removeButton:disabled {
+  color: var(--text-muted);
+}
+
+.meta {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.orderError {
+  display: block;
+  margin-top: 6px;
+  color: var(--primitive-red);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.toggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.toggleLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 3px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transition: transform 0.15s;
+}
+
+.toggleOn {
+  background: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.toggleOn span {
+  transform: translateX(18px);
+}
+
+.portalSelectContainer {
+  position: relative;
+}
+
+.portalSelectTrigger,
+.portalSelectSearchInput,
+.portalSelectOption {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+}
+
+.portalSelectTrigger {
+  padding: 10px 12px;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.portalSelectTrigger:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.portalSelectTriggerText {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portalSelectDropdown {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 8px;
+  z-index: 1000;
+}
+
+.portalSelectSearchInput {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.portalSelectOptions {
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portalSelectOption {
+  padding: 10px 12px;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.portalSelectOption:hover,
+.portalSelectHighlighted {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.portalSelectSelected {
+  color: var(--accent);
+}
+
+/* input-size-override */
+.input {
+  font-size: 14px;
+}

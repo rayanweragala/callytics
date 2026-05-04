@@ -1,0 +1,181 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th:nth-child(1) { width: 22%; }
+.table th:nth-child(2) { width: 8%; }
+.table th:nth-child(3) { width: 8%; }
+.table th:nth-child(4) { width: 28%; }
+.table th:nth-child(5) { width: 18%; }
+.table th:nth-child(6) { width: 16%; text-align: right; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+
+.name,
+.meta,
+.duration,
+.createdAt,
+.deletedText,
+.failedText {
+  font-family: var(--font-mono);
+}
+
+.name {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.meta {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.duration,
+.createdAt,
+.deletedText,
+.failedText {
+  font-size: 14px;
+}
+
+.duration {
+  color: var(--color-data);
+  font-weight: 600;
+}
+
+.createdAt {
+  color: var(--color-data);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.previewCell {
+  cursor: pointer;
+}
+
+.secondaryButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: lowercase;
+}
+
+.secondaryButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.downloadButton {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+}
+
+.downloadButton:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.deleteButton {
+  height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.failedText {
+  color: var(--color-error);
+}
+
+.deletedText {
+  color: var(--color-active);
+}
+
+@media (max-width: 1100px) {
+  .tableCard {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .pageHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 680px;
+    table-layout: auto;
+  }
+
+  .secondaryButton,
+  .deleteButton {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .downloadButton {
+    min-height: 44px;
+    min-width: auto;
+  }
+}

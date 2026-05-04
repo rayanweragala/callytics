@@ -1,0 +1,41 @@
+.row {
+  display: grid;
+  grid-template-columns: 140px 1fr auto 70px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.row:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.name,
+.since {
+  font-family: var(--font-mono);
+}
+
+.name {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.address {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.since {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: right;
+}

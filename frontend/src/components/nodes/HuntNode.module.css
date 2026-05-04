@@ -1,0 +1,110 @@
+.node {
+  min-width: 170px;
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  color: var(--color-warning);
+}
+
+.invalid {
+  border-color: color-mix(in srgb, var(--color-error) 45%, var(--border-default));
+}
+
+.validationDot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-error);
+  z-index: 2;
+}
+
+.selected {
+  border-color: currentColor;
+}
+
+.accent {
+  width: 4px;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.body {
+  padding: 10px 14px 12px;
+}
+
+.type,
+.meta,
+.badge {
+  font-family: var(--font-mono);
+}
+
+.type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.label {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.badge {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: lowercase;
+  letter-spacing: 0.08em;
+}
+
+.deleteButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.deleteButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.handle {
+  width: 10px !important;
+  height: 10px !important;
+  border: 1px solid var(--border-default) !important;
+  background: currentColor !important;
+}

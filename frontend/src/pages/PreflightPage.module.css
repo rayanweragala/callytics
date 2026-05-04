@@ -1,0 +1,263 @@
+.tableCard {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  padding: 0 20px 16px;
+}
+
+/* Table header */
+.tableHead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 9px 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.headMeta {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 40px minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 16px;
+  padding: 9px 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+.row:hover {
+  background: var(--surface-elevated);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.primaryButton {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-transform: lowercase;
+}
+
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-transform: lowercase;
+}
+
+.summaryBanner {
+  margin-top: 12px;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.summaryPass {
+  background: var(--color-active);
+  color: var(--text-primary);
+}
+
+.summaryWarn {
+  background: var(--color-warning);
+  color: var(--text-inverse);
+}
+
+.summaryFail {
+  background: var(--color-error);
+  color: var(--text-primary);
+}
+
+.statusIcon {
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.iconPass {
+  color: var(--color-active);
+}
+
+.iconWarn {
+  color: var(--color-warning);
+}
+
+.iconFail {
+  color: var(--color-error);
+}
+
+.iconIdle {
+  color: var(--text-muted);
+}
+
+.checkLabel {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.checkMessage {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.checkDetail {
+  margin-top: 4px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.autoRefreshLine {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.inlineLink {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.historyHead,
+.historyRow {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  gap: 16px;
+  padding: 9px 12px;
+  align-items: center;
+}
+
+.historyHead {
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.historyRow {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  cursor: default;
+}
+
+.historyRow:hover {
+  background: var(--surface-elevated);
+}
+
+.timestamp {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Summary badge — compact */
+.summaryBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  width: fit-content;
+  color: var(--text-primary);
+}
+
+.summaryBadgePass {
+  background: var(--color-active);
+}
+
+.summaryBadgeWarn {
+  background: var(--color-warning);
+  color: var(--text-inverse);
+}
+
+.summaryBadgeFail {
+  background: var(--color-error);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.historyDetails {
+  margin-bottom: 8px;
+}
+
+.empty {
+  padding: 24px 0;
+  color: var(--text-muted);
+}
+
+.pulse {
+  animation: pulseOpacity 1s ease-in-out infinite;
+}
+
+@keyframes pulseOpacity {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}

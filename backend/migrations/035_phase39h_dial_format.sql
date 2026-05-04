@@ -1,0 +1,2 @@
+ALTER TABLE sip_trunks
+  ADD COLUMN IF NOT EXISTS dial_format VARCHAR(50) NOT NULL DEFAULT '{number}';

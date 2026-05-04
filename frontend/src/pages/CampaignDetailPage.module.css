@@ -1,0 +1,238 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summaryCard,
+.contactsCard {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 16px;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
+
+.summaryTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Campaign status badge */
+.campaignStatusBadge {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  text-transform: lowercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--surface-elevated);
+  font-family: var(--font-mono);
+}
+
+.secondaryButton,
+.historyButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.stopButton {
+  background: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: border-color 0.15s;
+}
+
+.stopButton:hover {
+  border-color: var(--color-error);
+}
+
+/* Filter pill active/inactive */
+.filterPill {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 12px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  text-transform: lowercase;
+}
+
+.filterPillActive {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.confirmInline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmText {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.summaryGrid div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Labels: muted */
+.summaryGrid span {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-transform: lowercase;
+}
+
+.summaryGrid strong,
+.mono {
+  font-family: var(--font-mono);
+  color: var(--color-data);
+  font-weight: 600;
+}
+
+.statsRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  margin-bottom: 10px;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressTrack {
+  width: 220px;
+  height: 6px;
+  background: var(--surface-elevated);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--color-active);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Column widths */
+.table th:nth-child(1) { width: 28%; }
+.table th:nth-child(2) { width: 14%; }
+.table th:nth-child(3) { width: 10%; }
+.table th:nth-child(4) { width: 20%; }
+.table th:nth-child(5) { width: 14%; }
+.table th:nth-child(6) { width: 14%; }
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+
+/* Status badge — compact */
+.statusBadge {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  text-transform: lowercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.historyPanel {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.historyRow {
+  display: grid;
+  grid-template-columns: 120px 100px 90px 190px 40px;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.empty {
+  color: var(--text-muted);
+  padding: 16px 0;
+}

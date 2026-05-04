@@ -1,0 +1,252 @@
+.explainerCard {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  padding: 12px 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.body {
+  display: grid;
+  gap: 12px;
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  border-radius: var(--radius-md);
+  background: transparent;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.panelBad {
+  border: 1px solid var(--explainer-border-bad);
+}
+
+.panelGood {
+  border: 1px solid var(--explainer-border-good);
+}
+
+.panelLabelBad,
+.panelLabelGood {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panelLabelBad {
+  color: var(--color-error);
+}
+
+.panelLabelGood {
+  color: var(--color-active);
+}
+
+.flowBad,
+.flowGood {
+  position: relative;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  padding: 10px;
+  overflow: hidden;
+}
+
+.flowRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flowBox {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.flowArrow {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.packetDotBad,
+.packetDotGood {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(0) translateY(0);
+  pointer-events: none;
+}
+
+.packetDotBad {
+  background: var(--color-error);
+}
+
+.packetDotGood {
+  background: var(--color-active);
+}
+
+.natStack {
+  display: inline-grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.natBypassed {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-error);
+  color: var(--color-error);
+  opacity: 0.4;
+}
+
+.bypassedLabel {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.arrowGroup {
+  display: inline-grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.tunnelBadge {
+  font-size: 10px;
+  color: var(--color-active);
+}
+
+.annotationList {
+  display: grid;
+  gap: 6px;
+}
+
+.annotationBad,
+.annotationGood {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.annotationBad {
+  color: var(--color-error);
+}
+
+.annotationGood {
+  color: var(--color-active);
+}
+
+.snippetLabel {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.snippet {
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.ipBad {
+  color: var(--color-error);
+}
+
+.ipGood {
+  color: var(--color-active);
+}
+
+.tableCard {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  overflow: hidden;
+}
+
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.comparisonTable thead {
+  background: var(--bg-surface);
+}
+
+.comparisonTable th {
+  color: var(--primitive-amber);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 10px 12px;
+}
+
+.comparisonTable td {
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px 12px;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.layerCell {
+  color: var(--text-secondary);
+}
+
+.badCell {
+  color: var(--color-error);
+}
+
+.goodCell {
+  color: var(--color-active);
+}
+
+@media (max-width: 800px) {
+  .panelGrid {
+    grid-template-columns: 1fr;
+  }
+}

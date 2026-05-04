@@ -1,7 +1,34 @@
 .env
 .env.*
+!.env.example
 node_modules/
+dist/
+build/
+*.js.map
 *.log
 .DS_Store
 .codex
 .omx/
+
+# Runtime audio storage — generated at runtime, never commit
+storage/audio/converted/*
+storage/audio/originals/*
+storage/audio/previews/*
+storage/audio/tts/*
+storage/audio/voices/*
+storage/voicemail/*
+asterisk/logs/
+*.tsbuildinfo
+.gstack/
+coverage/
+
+# Relay runtime files — contain private keys and VPS details
+wireguard-config/relay-runtime/
+wireguard-config/relay-state.json
+wireguard-config/callytics-relay.conf
+wireguard-config/relay-callytics-private.key
+wireguard-config/relay-callytics-public.key
+asterisk/base/pjsip_relay.conf
+asterisk/base/pjsip_extensions_relay.conf
+asterisk/base/pjsip_callytics_trunks.conf
+asterisk/base/pjsip_callytics_extensions.conf

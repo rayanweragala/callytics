@@ -1,0 +1,166 @@
+name: PR Review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: Review Pull Request
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.draft == false
+    environment: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ensure review tooling is available
+        run: |
+          if ! command -v jq >/dev/null 2>&1 || ! command -v gh >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq gh
+          fi
+
+      - name: Resolve pull request number
+        id: pr-number
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check review configuration
+        id: review-config
+        env:
+          AI_API_URL: ${{ secrets.AI_API_URL }}
+        run: |
+          if [ -z "$AI_API_URL" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch pull request diff
+        if: steps.review-config.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr diff "${{ steps.pr-number.outputs.value }}" --repo "${{ github.repository }}" > diff.txt
+
+      - name: Limit diff size
+        if: steps.review-config.outputs.enabled == 'true'
+        run: |
+          head -c "${{ vars.AI_REVIEW_DIFF_LIMIT }}" diff.txt > diff-small.txt
+
+      - name: Send diff to review API
+        if: steps.review-config.outputs.enabled == 'true'
+        env:
+          AI_API_URL: ${{ secrets.AI_API_URL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
+        run: |
+          auth_args=()
+          if [ -n "$AI_API_KEY" ]; then
+            auth_args=(-H "Authorization: Bearer $AI_API_KEY")
+          fi
+
+          response=$(jq -Rs --arg model "$AI_REVIEW_MODEL" '
+            {
+              model: $model,
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a strict senior code reviewer. Identify bugs, bad practices, security issues, and performance problems. Be concise but clear."
+                },
+                {
+                  role: "user",
+                  content: ("Review this pull request diff:\n" + .)
+                }
+              ]
+            }
+          ' diff-small.txt | curl -sS -X POST "$AI_API_URL" \
+            -H "Content-Type: application/json" \
+            "${auth_args[@]}" \
+            --data-binary @-)
+
+          echo "$response" > review.json
+
+      - name: Format review comment
+        if: steps.review-config.outputs.enabled == 'true'
+        run: |
+          jq -r '.choices[0].message.content // ""' review.json > review-body.txt
+
+          if [ ! -s review-body.txt ]; then
+            echo "should_comment=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if grep -qiE '^(no review content was returned|unable to review|cannot review|no issues found\.?)$' review-body.txt; then
+            echo "should_comment=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          {
+            echo "<!-- pr-review-bot -->"
+            echo "## Review Summary"
+            echo ""
+            cat review-body.txt
+          } > review.txt
+
+          echo "should_comment=true" >> "$GITHUB_ENV"
+
+      - name: Upsert pull request review comment
+        if: steps.review-config.outputs.enabled == 'true' && env.should_comment == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          comment_id=$(gh api \
+            "repos/${{ github.repository }}/issues/${{ steps.pr-number.outputs.value }}/comments" \
+            --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- pr-review-bot -->"))) | .id' \
+            | tail -n 1)
+
+          if [ -n "$comment_id" ]; then
+            gh api \
+              --method PATCH \
+              "repos/${{ github.repository }}/issues/comments/$comment_id" \
+              --field body@"review.txt" >/dev/null
+          else
+            gh pr comment "${{ steps.pr-number.outputs.value }}" \
+              --repo "${{ github.repository }}" \
+              --body-file review.txt
+          fi
+
+      - name: Write review summary
+        if: always()
+        run: |
+          {
+            echo "## PR Review Workflow"
+            echo ""
+            if [ "${{ steps.review-config.outputs.enabled }}" = "true" ]; then
+              if [ "${should_comment:-false}" = "true" ]; then
+                echo "- Status: review completed"
+                echo "- Comment: posted or updated"
+              else
+                echo "- Status: review completed"
+                echo "- Comment: skipped due to empty or low-signal response"
+              fi
+              echo "- Model: ${{ vars.AI_REVIEW_MODEL }}"
+              echo "- Diff limit: ${{ vars.AI_REVIEW_DIFF_LIMIT }} bytes"
+            else
+              echo "- Status: skipped"
+              echo "- Reason: \`AI_API_URL\` is not configured in the \`ci\` GitHub Environment"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

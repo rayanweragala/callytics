@@ -1,0 +1,21 @@
+.active,
+.inactive {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.active {
+  background: var(--color-active);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.inactive {
+  background: var(--text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}

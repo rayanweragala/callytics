@@ -1,0 +1,47 @@
+@keyframes skeletonPulse {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 0.85; }
+  100% { opacity: 0.4; }
+}
+
+.base {
+  background-color: var(--bg-surface);
+  border-radius: 4px;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+.cell {
+  background-color: var(--bg-surface);
+  border-radius: 4px;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.card {
+  background-color: var(--bg-surface);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+  height: 80px;
+  border-radius: 6px;
+  width: 100%;
+}
+
+.text {
+  background-color: var(--bg-surface);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+  height: 12px;
+  border-radius: 3px;
+}

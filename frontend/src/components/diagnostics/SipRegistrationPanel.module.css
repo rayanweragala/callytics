@@ -1,0 +1,142 @@
+.panel {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  padding: 16px;
+  font-family: var(--font-mono);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.headerActions,
+.liveMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveMeta {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.sectionLabel {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 14px 0 8px;
+  text-transform: uppercase;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
+.tableCard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableCard thead {
+  background: var(--bg-surface);
+  color: var(--primitive-amber);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.tableCard th,
+.tableCard td {
+  border-bottom: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.tableCard tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.nameCell {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.dataCell {
+  color: var(--color-data);
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-lg);
+  padding: 4px 8px;
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.registered {
+  color: var(--color-active);
+}
+
+.unregistered,
+.expiresExpired {
+  color: var(--color-error);
+}
+
+.unknown {
+  color: var(--text-secondary);
+}
+
+.expiresHealthy {
+  color: var(--color-data);
+}
+
+.expiresWarning {
+  color: var(--primitive-amber);
+}
+
+.refreshButton {
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 0 10px;
+}
+
+.refreshButton:hover {
+  color: var(--primitive-amber);
+  border-color: var(--primitive-amber);
+}

@@ -1,0 +1,319 @@
+/* NodeConfigPanel.module.css
+ * Phase 30d — Premium config inspector styles.
+ * Consistent with app input styles (elevated background, border-strong border,
+ * amber focus border, mono font). Form labels: 11px muted uppercase.
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.inlineError {
+  color: var(--color-error);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input:disabled {
+  color: var(--text-muted);
+  background: var(--bg-overlay);
+}
+
+.input[type='number']::-webkit-inner-spin-button,
+.input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.menuBranchList,
+.menuBranchGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.menuBranchList {
+  gap: 0;
+}
+
+.menuBranchOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+}
+
+.menuBranchLabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.weekGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.weekRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weekRowTimes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding-left: 20px;
+}
+
+.dayToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* menuBranchSeparator is used inline but not defined in old css — add it */
+.menuBranchSeparator {
+  border-top: 1px solid var(--border-subtle);
+  margin: 4px 0;
+}
+
+.menuActionRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routeList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routeRow {
+  display: grid;
+  grid-template-columns: 44px 88px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.routeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.routeToneSubmenu {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.routeToneMain {
+  background: color-mix(in srgb, var(--primitive-cyan) 18%, transparent);
+  color: var(--primitive-cyan);
+}
+
+.routeToneLoading {
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  color: var(--text-muted);
+}
+
+.routeToneMissing {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+}
+
+.routeDetail {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.toggleField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.toggleLabel {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleSwitch span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 3px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transition: transform 0.15s;
+}
+
+.toggleOn {
+  background: var(--color-active);
+  border-color: var(--color-active);
+}
+
+.toggleOn span {
+  transform: translateX(18px);
+}
+
+/* ─── Inline-style migration classes ─────────────────────────────────────── */
+
+/* Checkbox-row label: override default column flex of .field */
+.fieldRow {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Checkbox label text: suppress the uppercase+tracking from .fieldLabel */
+.fieldLabelPlain {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Full-width overflow-hidden wrapper (e.g. headers section) */
+.fieldFull {
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Header key-value row inside the webhook headers list */
+.headerRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+/* Flex-grow input inside a headerRow */
+.headerInput {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* × remove button inside a headerRow */
+.headerRemoveButton {
+  flex: 0 0 auto;
+  width: 28px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-error);
+}
+
+/* + add header button below the list */
+.addHeaderButton {
+  margin-top: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  width: auto;
+  padding: 0 10px;
+}
+
+/* Branch draft input row (menu node) */
+.branchDraftRow {
+  display: flex;
+  gap: 8px;
+}
+
+/* Inline icon/action button that sits alongside inputs (width:auto variant) */
+.inlineButtonAuto {
+  width: auto;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+/* Wider variant of inlineButtonAuto */
+.inlineButtonWide {
+  width: auto;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+/* Icon-size button (e.g. × remove branch) */
+.iconButton {
+  width: 28px;
+  padding: 0;
+  cursor: pointer;
+}

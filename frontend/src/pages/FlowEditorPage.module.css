@@ -1,0 +1,962 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   FlowEditorPage — Phase 30d Premium Visual Overhaul
+   Three clear zones: Toolbar | Canvas (palette + canvas + config) | Overlays
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Zone root ──────────────────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px); /* fill remaining viewport below app shell */
+  overflow: hidden;
+}
+
+.editorNotice {
+  padding: 10px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--color-error);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.loadRefError {
+  padding: 10px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--color-error);
+  font-size: 13px;
+  margin: 8px 8px 0;
+  flex-shrink: 0;
+}
+
+/* ── Zone 1 — Toolbar ───────────────────────────────────────────────────────── */
+.topBar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 44px;
+  flex-shrink: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topBarCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Toolbar buttons ─────────────────────────────────────────────────────────── */
+.primaryButton,
+.secondaryButton {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 12px;
+  text-transform: lowercase;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--primitive-navy-950);
+  font-weight: 600;
+}
+
+.primaryButton:hover {
+  opacity: 0.88;
+}
+
+.secondaryButton:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.failedButton {
+  background: color-mix(in srgb, var(--color-error) 15%, var(--bg-surface));
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+/* Flow title input — centered in toolbar */
+.flowNameInput {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  text-align: center;
+  min-width: 220px;
+  max-width: 340px;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.flowNameInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
+
+/* Dimmed toolbar button (versions + save when in subflow) */
+.toolbarButtonDimmed {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Toolbar breadcrumb — replaces title input when in subflow */
+.toolbarBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  max-width: 480px;
+}
+
+.toolbarBreadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.toolbarBreadcrumbLink {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  transition: background 120ms ease;
+}
+
+.toolbarBreadcrumbLink:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.toolbarBreadcrumbCurrent {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  padding: 2px 4px;
+}
+
+.toolbarBreadcrumbSep {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.saveStatus {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Inline save warning */
+.inlineSaveWarning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.inlineSaveWarningActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Zone 2 — Three-panel editor shell ──────────────────────────────────────── */
+.editorShell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 300px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left panel — Palette ───────────────────────────────────────────────────── */
+.leftPanel {
+  border-right: 1px solid var(--border-strong);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* sticky search area */
+.paletteStickyTop {
+  flex-shrink: 0;
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panelTitle {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 12px 12px 6px;
+  flex-shrink: 0;
+}
+
+/* palette scroll area */
+.paletteScrollArea {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: 4px 0 8px;
+}
+
+.paletteList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.paletteGroups {
+  display: flex;
+  flex-direction: column;
+}
+
+.paletteGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Category header toggle */
+.paletteGroupToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 6px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.paletteGroupToggle:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.paletteGroupChevron {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--accent);
+  transition: transform 150ms ease;
+  display: inline-block;
+}
+
+.paletteGroupChevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.paletteGroupLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Search */
+.paletteSearchWrap {
+  position: relative;
+  display: block;
+}
+
+.paletteSearchIcon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px;
+  height: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.paletteSearchIcon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.paletteSearchInput {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 6px 10px 6px 30px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease;
+}
+
+.paletteSearchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.paletteSearchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Palette node cards */
+.paletteItem {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: 8px 10px;
+  background: transparent;
+  transition: background 140ms ease, border-color 140ms ease;
+  cursor: grab;
+}
+
+.paletteItem:hover {
+  border-color: var(--border-default);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
+}
+
+/* 4px colored type bar */
+.paletteBar {
+  width: 4px;
+  align-self: stretch;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* Node type color system */
+.barstart    { background: var(--color-active); }
+.barhangup   { background: var(--color-active); }
+.barplayaudio { background: var(--primitive-cyan); } /* cyan */
+.bargetdigits { background: var(--accent); }
+.barmenu      { background: var(--accent); }
+.barbusinesshours { background: var(--accent); }
+.bartransfer  { background: var(--primitive-blue); } /* blue */
+.barhunt      { background: var(--primitive-blue); } /* blue */
+.barqueue     { background: var(--primitive-navy-300); } /* purple */
+.barqueuelogin { background: var(--primitive-navy-300); } /* purple */
+.barconference { background: var(--primitive-cyan); }
+.barvoicemail { background: var(--text-muted); }
+.barwebhook   { background: var(--text-muted); }
+.barcallback  { background: var(--primitive-orange); } /* orange */
+
+.paletteIcon {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.paletteIcon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.paletteItemContent {
+  min-width: 0;
+}
+
+.paletteType {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.paletteLabel {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.paletteDescription {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* ── Canvas panel ───────────────────────────────────────────────────────────── */
+.canvasPanel {
+  background: var(--bg-base);
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  user-select: none;
+}
+
+.canvasWrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Empty canvas hint — centered, pointer-events none so drag still works */
+.canvasHint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 0 40px;
+}
+
+/* ── Right panel — Config ───────────────────────────────────────────────────── */
+.rightPanel {
+  border-left: 1px solid var(--border-strong);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.configPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.configPanelAccentBar {
+  width: 4px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.configPanelMeta {
+  min-width: 0;
+  flex: 1;
+}
+
+.configPanelType {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.configPanelId {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.configScrollArea {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.configEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 10px;
+  color: var(--text-secondary);
+  padding: 24px;
+  text-align: center;
+  min-height: 0;
+}
+
+.configEmptyIcon {
+  width: 32px;
+  height: 32px;
+  opacity: 0.5;
+  color: var(--text-secondary);
+}
+
+.configEmptyIcon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.configEmptyLabel {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── React Flow overrides ───────────────────────────────────────────────────── */
+:global(.react-flow) {
+  background: var(--bg-base);
+}
+
+/* Zoom controls — grouped card with amber hover */
+:global(.react-flow__controls) {
+  box-shadow: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+:global(.react-flow__controls-button) {
+  background: var(--bg-surface) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  width: 30px !important;
+  height: 30px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 14px !important;
+  transition: background 120ms ease, color 120ms ease !important;
+}
+
+:global(.react-flow__controls-button:hover) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated)) !important;
+  color: var(--accent) !important;
+}
+
+:global(.react-flow__controls-button:last-child) {
+  border-bottom: none !important;
+}
+
+/* Mini-map — card treatment */
+.minimap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  width: 160px;
+  height: 108px;
+}
+
+:global(.react-flow__minimap) {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 160px !important;
+  height: 108px !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  z-index: 5;
+  overflow: hidden !important;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+:global(.react-flow__minimap.minimapHidden) {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+:global(.react-flow__minimap svg) {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Mini-map toggle button — sits above the minimap */
+.minimapToggle {
+  position: absolute;
+  bottom: 140px; /* 108px map + 16px map margin + 16px gap */
+  right: 16px;
+  z-index: 6;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  padding: 0;
+}
+
+.minimapToggle:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.minimapToggle svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+:global(.react-flow__attribution) {
+  display: none;
+}
+
+/* Connection handles — always 10px, amber on hover */
+:global(.react-flow__handle) {
+  width: 10px !important;
+  height: 10px !important;
+  border: 2px solid var(--border-strong) !important;
+  transition: border-color 120ms ease, background 120ms ease !important;
+}
+
+:global(.react-flow__handle:hover) {
+  border-color: var(--accent) !important;
+}
+
+/* ── Versions panel (FlowVersionPanel overlay) ──────────────────────────────── */
+.versionsPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  transform: translateX(100%);
+  transition: transform 200ms ease;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+}
+
+.versionsPanelOpen {
+  transform: translateX(0);
+}
+
+.versionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.versionsTitle,
+.compareTitle,
+.compareCanvasTitle {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.versionsTitle,
+.compareCanvasTitle {
+  font-size: 14px;
+}
+
+.compareTitle {
+  font-size: 13px;
+}
+
+.compareSubhead,
+.versionNum,
+.compareSummaryBar,
+.compareListRow {
+  font-family: var(--font-mono);
+}
+
+.versionsCommitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.versionNotice {
+  padding: 0 16px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.versionsList {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.versionItem {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.versionMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.versionNum {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.versionMessage {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.versionActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Compare view layout (rendered inside PageLayout) ─────────────────────── */
+.compareLayoutContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.compareGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
+}
+
+.compareColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.compareCanvasTitleBar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.compareVersionLabel {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.compareVersionMessage {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.compareCanvas {
+  min-height: 360px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: transparent;
+}
+
+.compareLists {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.compareSummaryBar {
+  display: flex;
+  gap: 32px;
+  border-top: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  font-size: 13px;
+  border-radius: var(--radius-lg);
+}
+
+.summaryItem {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.summaryItem span {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.addedText   { color: var(--primitive-green); }
+.removedText { color: var(--primitive-red); }
+.changedText { color: var(--primitive-amber); }
+
+.compareListRow { font-size: 13px; color: var(--text-secondary); }
+
+.subflowDiffSection {
+  border-top: 1px solid var(--border-strong);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subflowDiffList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subflowDiffItem {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  padding: 8px 10px;
+}
+
+.subflowDiffSummary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ── Responsive fallback ────────────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+  .editorShell {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .rightPanel {
+    display: none;
+  }
+}
+
+/* Mini-map hidden state (JS-toggled class) */
+.minimapHidden :global(.react-flow__minimap) {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+/* ─── Palette icon helpers (renderPaletteIcon) ────────────────────────────── */
+
+.paletteIconWrap {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.paletteIconSvg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}

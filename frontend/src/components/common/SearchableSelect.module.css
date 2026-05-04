@@ -1,0 +1,74 @@
+.container {
+  position: relative;
+}
+
+.trigger,
+.searchInput,
+.option {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+}
+
+.trigger {
+  padding: 10px 12px;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.trigger:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.triggerText {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disabled {
+  color: var(--text-muted);
+  background: var(--bg-overlay);
+}
+
+.dropdown {
+  position: fixed;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 8px;
+  z-index: 1200;
+}
+
+.searchInput {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.options {
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.option {
+  padding: 10px 12px;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.option:hover,
+.highlighted {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.selected {
+  color: var(--accent);
+}

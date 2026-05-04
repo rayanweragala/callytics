@@ -1,0 +1,33 @@
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--bg-base);
+}
+
+.contentArea {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  padding: 28px 32px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* ── Tablet: sidebar narrows, content adjusts ── */
+@media (max-width: 1024px) {
+  .contentArea {
+    padding: 20px 24px;
+  }
+}
+
+/* ── Mobile: sidebar goes to top, content full width ── */
+@media (max-width: 768px) {
+  .appShell {
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+  .contentArea {
+    margin-left: 0;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+}

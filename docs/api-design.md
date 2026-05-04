@@ -1,292 +1,160 @@
 # API design
 
-This API is for the localhost web UI. It is REST-first. Realtime updates for the dashboard go through Socket.io, not polling-only endpoints.
+This API is REST-first and grouped by product modules used by the web UI.
 
 ## Flows
 
-### `GET /api/flows`
-
-- What it does:
-  Returns all flows with summary fields such as name, status, entry target, active version, and last updated time
-- Input:
-  Optional query filters for status and search text
-- Returns:
-  A list of flow summaries
-
-### `POST /api/flows`
-
-- What it does:
-  Creates a new flow shell
-- Input:
-  Name, description, entry type, and optional entry value
-- Returns:
-  The created flow summary
-
-### `GET /api/flows/:flowId`
-
-- What it does:
-  Returns one flow with draft metadata and version pointers
-- Input:
-  Flow ID in the path
-- Returns:
-  Full flow metadata
-
-### `GET /api/flows/:flowId/draft`
-
-- What it does:
-  Returns the editable graph for the current draft version
-- Input:
-  Flow ID in the path
-- Returns:
-  Nodes, edges, version info, and validation warnings if any
-
-### `PUT /api/flows/:flowId/draft`
-
-- What it does:
-  Saves the full draft graph
-- Input:
-  Nodes array, edges array, flow metadata, and optional client version token
-- Returns:
-  Updated draft version info and validation result
-
-### `POST /api/flows/:flowId/validate`
-
-- What it does:
-  Runs server-side flow validation without publishing
-- Input:
-  Optional draft payload or existing draft reference
-- Returns:
-  Errors, warnings, and publish readiness status
-
-### `POST /api/flows/:flowId/publish`
-
-- What it does:
-  Marks the current flow version as published so the Stasis app uses it on the next incoming call
-- Input:
-  Flow ID and optional publish note
-- Returns:
-  New published version info and publish metadata
-
-### `POST /api/flows/:flowId/rollback`
-
-- What it does:
-  Re-publishes an older version as the active one
-- Input:
-  Target version ID
-- Returns:
-  Active version info and reload result
+- `GET /flows` - List flows with pagination metadata for the builder and selection UIs.
+- `GET /flows/:id` - Get one flow with its current graph snapshot.
+- `POST /flows` - Create a flow and initial versioned graph.
+- `PUT /flows/:id` - Save a flow update as a new current graph version.
+- `DELETE /flows/:id` - Delete a flow and related graph/version records.
+- `GET /flows/:id/versions` - List saved versions for one flow.
+- `GET /flows/:id/versions/:versionId` - Get one saved flow version snapshot.
+- `POST /flows/:id/versions` - Create an explicit saved version from current graph state.
+- `POST /flows/:id/versions/:versionId/restore` - Restore a saved version into current flow state.
+- `GET /flows/:id/breadcrumb` - Return breadcrumb metadata for flow hierarchy/navigation.
+- `GET /flows/:id/tree` - Return tree data used by flow structure navigation.
 
 ## Audio
 
-### `GET /api/audio`
+- `GET /audio` - List audio assets with pagination.
+- `GET /audio/:id` - Get one audio asset.
+- `GET /audio/voices` - List available TTS voices.
+- `GET /audio/tts/voices` - List Piper TTS-compatible voices.
+- `POST /audio/upload` - Upload and process an audio file.
+- `POST /audio/tts` - Generate and store a TTS audio asset.
+- `POST /audio/tts/preview` - Stream a non-persistent TTS preview.
+- `DELETE /audio/:id` - Delete an audio asset.
 
-- What it does:
-  Returns audio library entries
-- Input:
-  Optional filters for search, source type, and status
-- Returns:
-  Audio file summaries with duration, source, and usage count
+## Recordings
 
-### `POST /api/audio/upload`
+- `GET /recordings` - List call recordings with pagination.
+- `GET /recordings/:id` - Get one recording metadata row.
+- `GET /recordings/:id/stream` - Stream recording media for browser playback.
+- `GET /recordings/:id/download` - Download a recording file.
+- `DELETE /recordings/:id` - Delete recording metadata and backing file when present.
+- `POST /recordings/internal` - Internal runtime endpoint to persist completed recording metadata.
 
-- What it does:
-  Uploads one audio file
-- Input:
-  Multipart file upload and optional tags
-- Returns:
-  Audio asset record with conversion status
+## Extensions
 
-### `POST /api/audio/tts`
+- `GET /extensions` - List SIP extensions.
+- `POST /extensions` - Create a SIP extension and regenerate managed config.
+- `PUT /extensions/:id` - Update a SIP extension and regenerate managed config.
+- `DELETE /extensions/:id` - Delete a SIP extension and regenerate managed config.
+- `GET /extensions/:id/qr-content` - Get provisioning payload used for extension QR setup.
 
-- What it does:
-  Generates a new audio asset from text
-- Input:
-  Text, voice, and optional speaking rate settings
-- Returns:
-  Audio asset record with generation status
+## Inbound Routes
 
-### `GET /api/audio/:audioId`
+- `GET /inbound-routes` - List inbound DID route mappings.
+- `POST /inbound-routes` - Create an inbound route.
+- `PUT /inbound-routes/:id` - Update an inbound route.
+- `DELETE /inbound-routes/:id` - Delete an inbound route.
 
-- What it does:
-  Returns full metadata for one audio asset
-- Input:
-  Audio ID in the path
-- Returns:
-  Metadata, usage references, and preview URL
+## Trunks
 
-### `PUT /api/audio/:audioId`
+- `GET /trunks` - List SIP trunks.
+- `POST /trunks` - Create a SIP trunk and regenerate managed config.
+- `PUT /trunks/:id` - Update a SIP trunk and regenerate managed config.
+- `DELETE /trunks/:id` - Delete a SIP trunk and regenerate managed config.
+- `POST /trunks/:id/test` - Run trunk reachability/qualify test.
+- `POST /trunks/:id/test-outbound` - Start outbound trunk test call flow.
+- `POST /trunks/:id/test-inbound` - Start inbound trunk test flow.
+- `GET /trunks/:id/test-call/:testCallId/status` - Poll test call status.
 
-- What it does:
-  Updates metadata such as display name or tags
-- Input:
-  Editable metadata fields
-- Returns:
-  Updated audio asset
+## Operators
 
-### `POST /api/audio/:audioId/replace`
+- `GET /operators` - List operators.
+- `POST /operators` - Create an operator.
+- `PUT /operators/:id` - Update an operator.
+- `DELETE /operators/:id` - Delete an operator.
 
-- What it does:
-  Replaces the file contents while keeping the logical asset
-- Input:
-  Multipart file upload
-- Returns:
-  Updated asset with fresh conversion status
+## Queues
 
-### `DELETE /api/audio/:audioId`
+- `GET /queues` - List queues.
+- `POST /queues` - Create a queue.
+- `PATCH /queues/:id` - Update queue configuration.
+- `DELETE /queues/:id` - Delete a queue.
 
-- What it does:
-  Deletes an audio asset if safe
-- Input:
-  Audio ID in the path
-- Returns:
-  Success flag or a blocking reason if the file is used in a published flow
+## Campaigns
 
-## Calls
+- `GET /campaigns` - List campaigns with filters/pagination.
+- `GET /campaigns/:id` - Get one campaign.
+- `POST /campaigns` - Create a campaign.
+- `PATCH /campaigns/:id` - Update campaign configuration/state.
+- `DELETE /campaigns/:id` - Delete a campaign.
+- `POST /campaigns/:id/contacts/upload` - Upload campaign contacts from CSV.
+- `GET /campaigns/:id/contacts` - List campaign contacts.
+- `GET /campaigns/:id/contacts/:contactId/attempts` - List attempt history for one contact.
+- `POST /campaigns/:id/schedule` - Schedule a campaign run.
+- `POST /campaigns/:id/stop` - Stop an active campaign.
+- `GET /campaigns/:id/progress` - Get campaign execution progress.
 
-### `GET /api/calls/live`
+## Diagnostics
 
-- What it does:
-  Returns the current live call list as a snapshot
-- Input:
-  Optional filters for queue or state
-- Returns:
-  Active calls and queue summary data
+- `GET /diagnostics/health` - Return service health summary.
+- `GET /diagnostics/resources` - Return CPU/memory/disk/network/channel metrics.
+- `POST /diagnostics/trunks/:id/test` - Run diagnostics test for a specific trunk.
+- `POST /diagnostics/trunks/test-all` - Run diagnostics tests across trunks.
+- `GET /diagnostics/registrations` - List SIP registration states.
+- `GET /diagnostics/failures` - List recent call/trunk failure diagnostics.
+- `GET /diagnostics/sip-messages` - List persisted SIP diagnostics rows.
+- `GET /diagnostics/sip-messages/:callId` - List SIP diagnostics rows for one Call-ID.
 
-### `GET /api/calls/history`
+## Capture
 
-- What it does:
-  Returns historical call logs
-- Input:
-  Date range, direction, flow, queue, answered status, and pagination
-- Returns:
-  Paginated call log rows
+- `GET /capture/packets/:callId` - Get stored SIP packets for one call dialog.
+- `GET /capture/export/dialog/:callId` - Export packets for one dialog as `.pcap`.
+- `GET /capture/export/bulk` - Export filtered packet sets as `.pcap`.
 
-### `GET /api/calls/:callId`
+## Quality
 
-- What it does:
-  Returns one call record and its event timeline
-- Input:
-  Call ID in the path
-- Returns:
-  Full call detail with related events and voicemail or recording links if present
+- `GET /quality/:callId` - Get persisted RTP quality metrics and MOS for one call.
 
-## Reports
+## VPN
 
-### `GET /api/reports/call-volume`
+- `GET /vpn/status` - Get WireGuard service and peer status.
+- `GET /vpn/peers` - List VPN peers with live status fields.
+- `POST /vpn/peers` - Create a VPN peer.
+- `GET /vpn/peers/:id/config` - Download peer WireGuard config.
+- `GET /vpn/peers/:id/qr` - Get QR code for peer onboarding.
+- `DELETE /vpn/peers/:id` - Revoke a peer.
+- `DELETE /vpn` - Stop/disable active VPN service integration.
+- `GET /vpn/relay-guide` - Get guided relay mode setup instructions.
+- `POST /vpn/relay-config` - Save relay mode configuration.
 
-- What it does:
-  Returns grouped call counts over time
-- Input:
-  Date range and grouping level such as hour or day
-- Returns:
-  Time buckets with inbound, outbound, answered, missed, and abandoned counts
+## Firewall
 
-### `GET /api/reports/missed-calls`
+- `GET /firewall/config` - Get SIP firewall configuration.
+- `PUT /firewall/config` - Update SIP firewall configuration.
+- `GET /firewall/preflight` - Run/read firewall readiness checks.
+- `GET /firewall/blocked-ips` - List blocked IPs.
+- `POST /firewall/blocked-ips` - Add a blocked IP.
+- `DELETE /firewall/blocked-ips/:ip` - Remove a blocked IP.
+- `POST /firewall/whitelist` - Add an IP to whitelist.
+- `DELETE /firewall/whitelist/:ip` - Remove an IP from whitelist.
+- `GET /firewall/events` - List firewall event feed history.
+- `GET /firewall/stats` - Get firewall counters and summary stats.
 
-- What it does:
-  Returns missed call rows
-- Input:
-  Date range, flow, queue, and pagination
-- Returns:
-  List of missed calls with timestamp, caller ID, and missed reason
+## Backup
 
-### `GET /api/reports/answered-calls`
+- `POST /backup` - Trigger backup creation.
+- `GET /backup` - List backup history.
+- `DELETE /backup/:id` - Delete a backup archive/history row.
+- `GET /backup/:id/download` - Download a backup archive.
+- `POST /backup/restore` - Restore from uploaded backup archive.
+- `GET /backup/config` - Get backup schedule/retention config.
+- `PUT /backup/config` - Update backup schedule/retention config.
 
-- What it does:
-  Returns answered call rows
-- Input:
-  Date range, agent, queue, and pagination
-- Returns:
-  List of answered calls with answer and talk durations
+## Preflight
 
-### `GET /api/reports/voicemails`
+- `POST /preflight/run` - Run a full preflight check set.
+- `GET /preflight/history` - List recent preflight run history.
 
-- What it does:
-  Returns voicemail activity
-- Input:
-  Date range, mailbox, and pagination
-- Returns:
-  Rows with caller, mailbox, timestamp, and recording reference
+## Asterisk Logs
 
-### `GET /api/reports/flow-performance`
+- `GET /asterisk/logs` - Read paginated/tail Asterisk log content for the viewer.
 
-- What it does:
-  Returns per-flow and per-node traffic metrics
-- Input:
-  Flow ID and date range
-- Returns:
-  Entry counts, branch counts, completion counts, and node drop-off stats
+## Config
 
-### `POST /api/reports/export`
-
-- What it does:
-  Queues a CSV export
-- Input:
-  Report type and filters
-- Returns:
-  Export job record and later a downloadable file reference
-
-## Settings
-
-### `GET /api/settings/system`
-
-- What it does:
-  Returns system-wide settings
-- Input:
-  None
-- Returns:
-  Business hours, ports, retention rules, timezone, and defaults
-
-### `PUT /api/settings/system`
-
-- What it does:
-  Updates system-wide settings
-- Input:
-  Editable settings fields
-- Returns:
-  Updated settings
-
-### `GET /api/settings/sip`
-
-- What it does:
-  Returns SIP trunk settings and current registration status
-- Input:
-  None
-- Returns:
-  Sanitized trunk configuration and status
-
-### `PUT /api/settings/sip`
-
-- What it does:
-  Creates or updates SIP trunk settings
-- Input:
-  Provider connection fields and enable flag
-- Returns:
-  Saved settings and validation status
-
-### `POST /api/settings/sip/test`
-
-- What it does:
-  Runs a connection or registration test against the configured trunk
-- Input:
-  Optional dry-run flag
-- Returns:
-  Success or failure plus diagnostic details
-
-### `GET /api/settings/me`
-
-- What it does:
-  Returns the current user profile and personal UI settings
-- Input:
-  None
-- Returns:
-  User summary and saved preferences
-
-### `PUT /api/settings/me`
-
-- What it does:
-  Updates the current user profile or UI preferences
-- Input:
-  Editable profile and settings fields
-- Returns:
-  Updated user summary and preferences
+- `GET /config/host` - Return host/network information used by provisioning and UI flows.

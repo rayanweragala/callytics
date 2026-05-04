@@ -1,0 +1,372 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.tableCard {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 0;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.exportButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  height: 30px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.exportButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+.topGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+}
+
+.topGridSingle {
+  grid-template-columns: 1fr;
+}
+
+.panel {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0 20px 16px;
+  overflow: hidden;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 170px 170px 180px auto;
+  gap: 8px;
+  margin: 0 0 8px;
+  align-items: center;
+}
+
+.filterPills {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.filterPill {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 12px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.filterPillActive {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.input {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  height: 34px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.clearFiltersButton {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  justify-self: end;
+  padding: 0;
+}
+
+.clearFiltersButton:hover {
+  text-decoration: underline;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table thead th {
+  text-align: left;
+}
+
+/* Column widths */
+.table th:nth-child(1) {
+  width: 11%;
+}
+
+.table th:nth-child(2) {
+  width: 9%;
+}
+
+.table th:nth-child(3) {
+  width: 18%;
+}
+
+.table th:nth-child(4) {
+  width: 11%;
+}
+
+.table th:nth-child(5) {
+  width: 7%;
+}
+
+.table th:nth-child(6) {
+  width: 7%;
+}
+
+.table th:nth-child(7) {
+  width: 11%;
+}
+
+.table th:nth-child(8) {
+  width: 11%;
+}
+
+.table th:nth-child(9) {
+  width: 9%;
+}
+
+.table th:nth-child(10) {
+  width: 6%;
+}
+
+.table th:nth-child(11) {
+  width: 10%;
+  text-align: right;
+}
+
+.actionsHeader {
+  text-align: right;
+}
+
+.traceCell {
+  text-align: right;
+}
+
+.logRow {
+  cursor: pointer;
+}
+
+.logRow:hover {
+  background: var(--surface-elevated);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.flowName {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.timestamp {
+  color: var(--color-data);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  padding: 2px 7px;
+  width: fit-content;
+}
+
+.mosBadge {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+
+.missingQuality {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.mosGood {
+  color: var(--color-active);
+}
+
+.mosFair {
+  color: var(--color-warning);
+}
+
+.mosPoor {
+  color: var(--color-error);
+}
+
+.badgeCompleted {
+  color: var(--accent);
+}
+
+.badgeWarning {
+  color: var(--color-warning);
+}
+
+.badgeError {
+  color: var(--color-error);
+}
+
+.traceIcon {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.traceButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  width: 32px;
+  height: 28px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.traceButton:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.logsButton {
+  width: auto;
+  padding: 0 10px;
+}
+
+.traceButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.paginationWrap {
+  margin-top: 12px;
+}
+
+@media (max-width: 1180px) {
+  .topGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .topGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .filterPills {
+    flex-wrap: wrap;
+  }
+
+  .filterPill,
+  .clearFiltersButton {
+    min-height: 44px;
+  }
+
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 860px;
+    table-layout: auto;
+  }
+
+  .traceButton {
+    min-height: 44px;
+    width: 44px;
+  }
+
+  .pageHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.input {
+  font-size: 14px;
+}

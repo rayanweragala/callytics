@@ -1,0 +1,1 @@
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS default_country TEXT NOT NULL DEFAULT 'US';

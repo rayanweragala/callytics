@@ -1,0 +1,197 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: callytics
+      POSTGRES_USER: callytics
+      POSTGRES_PASSWORD: callytics
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      - callytics_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U callytics -d callytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 127.0.0.1:6380:6379
+    volumes:
+      - callytics_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  asterisk:
+    build: ./docker/asterisk
+    network_mode: "host"
+    environment:
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6380
+      TSHARK_ENABLED: "true"
+      TSHARK_PORT: "5080"
+    volumes:
+      - ./asterisk/base:/etc/asterisk
+      - callytics_asterisk_logs:/var/log/asterisk
+      - callytics_audio_converted:/var/lib/asterisk/sounds/callytics
+      - callytics_voicemail:/var/spool/asterisk/voicemail
+      - asterisk_recordings:/var/lib/asterisk/recording
+      - asterisk_recordings:/var/spool/asterisk/recording
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8088/ari/api-docs/resources.json --user callytics:callytics || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./docker/api/Dockerfile
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./asterisk/base:/etc/asterisk
+      - callytics_asterisk_logs:/var/log/asterisk:ro
+      - callytics_audio_originals:/app/storage/audio/originals
+      - callytics_audio_converted:/app/storage/audio/converted
+      - callytics_audio_previews:/app/storage/audio/previews
+      # First run migration note:
+      # docker run --rm -v $(pwd)/storage/audio/tts:/src -v callytics_audio_tts:/dst alpine cp -r /src/. /dst/
+      - callytics_audio_tts:/app/storage/audio/tts
+      - ./wireguard-config:/app/wireguard-config
+      - callytics_geoip_data:/app/geoip
+      - asterisk_recordings:/var/lib/asterisk/recording
+      - callytics_backup_data:/app/backups
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      ARI_URL: http://127.0.0.1:8088
+      ARI_PASSWORD: callytics
+      AMI_HOST: 127.0.0.1
+      AMI_PORT: 5038
+      AMI_USER: callytics
+      AMI_PASSWORD: callytics
+      HOST_IP: ${HOST_IP:-127.0.0.1}
+      SIP_PORT: ${SIP_PORT:-5080}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: callytics
+      DB_USER: callytics
+      DB_PASS: callytics
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6380
+      BACKEND_PORT: 3001
+      NODE_ENV: development
+      RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
+      GEOIP_DIR: /app/geoip
+    depends_on:
+      asterisk:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    ports:
+      - 127.0.0.1:3000:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  stasis:
+    build:
+      context: .
+      dockerfile: ./docker/stasis/Dockerfile
+    env_file:
+      - .env
+    network_mode: "host"
+    environment:
+      ARI_URL: http://127.0.0.1:8088
+      ARI_USER: callytics
+      ARI_PASS: callytics
+      ARI_APP: callytics
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: callytics
+      DB_USER: callytics
+      DB_PASS: callytics
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6380
+      AMI_HOST: 127.0.0.1
+      AMI_PORT: 5038
+      AMI_USER: callytics
+      AMI_PASS: callytics
+      RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
+      STASIS_HEALTH_PORT: 3002
+    depends_on:
+      asterisk:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  wireguard:
+    image: linuxserver/wireguard
+    profiles: [vpn]
+    network_mode: "bridge"
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    ports:
+      - 51820:51820/udp
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      SERVERURL: ${WIREGUARD_SERVERURL:-auto}
+      SERVERPORT: 51820
+      INTERNAL_SUBNET: 10.8.0.0/24
+      PEERS: 0
+    volumes:
+      - ./wireguard-config:/config
+    # Assumption: 10.8.0.0/24 does not overlap the host LAN or Docker bridge subnet.
+    restart: unless-stopped
+
+volumes:
+  callytics_postgres_data:
+  callytics_redis_data:
+  asterisk_recordings:
+  callytics_asterisk_logs:
+  callytics_audio_converted:
+  callytics_audio_originals:
+  callytics_audio_previews:
+  callytics_audio_tts:
+  callytics_voicemail:
+  callytics_geoip_data:
+  callytics_backup_data:
