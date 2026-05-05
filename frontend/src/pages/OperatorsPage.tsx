@@ -77,6 +77,7 @@ export function OperatorsPage() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const showPagination = total > 0;
 
   const load = useCallback(async (nextPage = page) => {
     setLoadError(null);
@@ -392,23 +393,25 @@ export function OperatorsPage() {
               ]} />
             ))}
           </>
-        ) : operators.length === 0 ? (
-          <div className={styles.emptyState}>No operators yet. Add one above.</div>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>name</th>
-                <th>extension</th>
+                <th>Name</th>
+                <th>Extension</th>
                 <th>pstn fallback</th>
                 <th>pin</th>
-                <th>status</th>
+                <th>Status</th>
                 <th>created</th>
-                <th className={styles.actionsHeader}>actions</th>
+                <th className={styles.actionsHeader}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {operators.map((op) => (
+              {operators.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className={styles.emptyState}>No operators yet.</td>
+                </tr>
+              ) : operators.map((op) => (
                 <Fragment key={op.id}>
                   <tr>
                     <td className={styles.rowValue}>{op.name}</td>
@@ -524,11 +527,13 @@ export function OperatorsPage() {
             </tbody>
           </table>
         )}
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+        {showPagination ? (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        ) : null}
         {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
         <ConfirmDialog
           open={confirmDeleteId !== null}

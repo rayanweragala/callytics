@@ -50,7 +50,7 @@ describe('OperatorsPage', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(screen.getByText('No operators yet. Add one above.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('No operators yet.')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /add operator/i }));
     expect(screen.getByText('new operator')).toBeInTheDocument();
   }

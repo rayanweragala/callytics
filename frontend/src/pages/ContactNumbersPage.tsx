@@ -73,6 +73,7 @@ export function ContactNumbersPage() {
 
   const trunkMap = useMemo(() => new Map(trunks.map((trunk) => [trunk.id, trunk.name])), [trunks]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const showPagination = total > 0;
 
   const load = async (nextPage = page) => {
     setLoadError(null);
@@ -258,22 +259,24 @@ export function ContactNumbersPage() {
       <div className={styles.tableCard}>
         {loading ? (
           <div className={styles.emptyState}>loading…</div>
-        ) : items.length === 0 ? (
-          <div className={styles.emptyState}>No contacts yet.</div>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>label</th>
-                <th>number</th>
+                <th>Name</th>
+                <th>Number</th>
                 <th>trunk</th>
                 <th>notes</th>
                 <th>created</th>
-                <th className={styles.actionsHeader}>actions</th>
+                <th className={styles.actionsHeader}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyState}>No contacts yet.</td>
+                </tr>
+              ) : items.map((item) => (
                 <Fragment key={item.id}>
                   <tr>
                     <td className={styles.rowValue}>{item.label}</td>
@@ -332,11 +335,13 @@ export function ContactNumbersPage() {
             </tbody>
           </table>
         )}
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+        {showPagination ? (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        ) : null}
       </div>
         </>
       ) : null}

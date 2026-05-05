@@ -236,6 +236,8 @@ export function TrunksPage() {
 
   const page = Math.floor(offset / limit) + 1;
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const showPagination = total > 0;
+  const hasTrunks = total > 0;
   const blockingLoadError = !isLoading && !isSettingsInitial ? loadError || settingsLoadError : null;
   const initialPageLoading = (isInitialLoad || isSettingsInitial) && !blockingLoadError;
   const initialPageLoadError = blockingLoadError;
@@ -899,7 +901,7 @@ export function TrunksPage() {
         </section>
       ) : null}
 
-      {!initialPageLoadError ? (
+      {!initialPageLoadError && hasTrunks ? (
       <section className={styles.settingsPanel}>
         <div className={styles.panelTitle}>direct outbound dial</div>
         <div className={styles.settingsGrid}>
@@ -967,8 +969,6 @@ export function TrunksPage() {
               ]} />
             ))}
           </>
-        ) : sortedItems.length === 0 ? (
-          <div className={styles.emptyState}>No trunks configured. Add your first SIP trunk.</div>
         ) : (
           <table className={styles.table}>
             <thead>
@@ -984,7 +984,11 @@ export function TrunksPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map((item) => {
+              {sortedItems.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className={styles.emptyState}>No trunks configured.</td>
+                </tr>
+              ) : sortedItems.map((item) => {
                 const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
                 return (
                   <Fragment key={item.id}>
@@ -1222,7 +1226,7 @@ export function TrunksPage() {
         )}
         </>
         ) : null}
-        <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} />
+      {showPagination ? <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)} /> : null}
         {errorText ? <ErrorMessage message={errorText} /> : null}
       </div>
       <ConfirmDialog

@@ -50,10 +50,12 @@ export function AudioPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [limit, setLimit] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const showPagination = total > 0;
 
   const load = async (nextPage = page, nextLimit = limit) => {
     setIsLoading(true);
@@ -64,6 +66,7 @@ export function AudioPage() {
         listAudioVoices()
       ]);
       setItems(audioResponse.data);
+      setTotal(audioResponse.total);
       setPage(audioResponse.page);
       setLimit(audioResponse.limit);
       setTotalPages(audioResponse.totalPages);
@@ -310,22 +313,24 @@ export function AudioPage() {
               <SkeletonRow key={i} columns={[{ width: '20%' }, { width: '15%' }, { width: '15%' }, { width: '15%' }, { width: '20%' }, { width: '15%' }]} />
             ))}
           </>
-        ) : items.length === 0 ? (
-          <div className={styles.emptyState}>No audio yet.</div>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>name</th>
-                <th>source</th>
+                <th>Name</th>
+                <th>Type</th>
                 <th>status</th>
                 <th>preview</th>
                 <th>created</th>
-                <th className={styles.actionsHeader}>actions</th>
+                <th className={styles.actionsHeader}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyState}>No audio yet.</td>
+                </tr>
+              ) : items.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <div className={styles.name}>{item.name}</div>
@@ -354,7 +359,7 @@ export function AudioPage() {
             </tbody>
           </table>
         )}
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        {showPagination ? <Pagination page={page} totalPages={totalPages} onPageChange={setPage} /> : null}
       </div>
         </>
       ) : null}

@@ -67,6 +67,7 @@ export function CallbacksPage() {
   const pollRef = useRef<number | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const showPagination = total > 0;
 
   const load = useCallback(async (nextPage = page) => {
     const response = await listCallbacks({
@@ -184,8 +185,6 @@ export function CallbacksPage() {
 
       <div className={styles.tableCard}>
         {loading ? <Loading message="Loading callbacks..." /> : null}
-        {!loading && items.length === 0 ? <div className={styles.emptyState}>No callbacks found.</div> : null}
-
         {!loading ? (
           <table className={styles.table}>
             <thead>
@@ -200,7 +199,11 @@ export function CallbacksPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className={styles.emptyState}>No callbacks found.</td>
+                </tr>
+              ) : items.map((item) => (
                 (() => {
                   const operatorDisplay = resolveOperatorDisplay(item);
                   return (
@@ -248,7 +251,7 @@ export function CallbacksPage() {
           ) : null
         ))}
 
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        {showPagination ? <Pagination page={page} totalPages={totalPages} onPageChange={setPage} /> : null}
       </div>
         </>
       ) : null}

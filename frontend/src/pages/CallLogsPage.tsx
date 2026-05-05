@@ -300,6 +300,7 @@ export function CallLogsPage() {
   }, [sipPage, sipStatuses]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const showPagination = total > 0;
   const hasActiveFilters = Boolean(searchInput.trim() || dateFrom || dateTo || endReason || direction !== 'all');
   const showLiveExecutionPanel = liveCalls.length > 0;
   const blockingLoadError = !loading ? errorText : null;
@@ -402,26 +403,28 @@ export function CallLogsPage() {
 
         <div className={styles.tableCard}>
           {loading ? <div className={styles.emptyState}>Loading call logs...</div> : null}
-          {!loading && data.length === 0 ? <div className={styles.emptyState}>No call logs found.</div> : null}
-
-          {!loading && data.length > 0 && (
+          {!loading && (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Caller number</th>
-                  <th>Destination</th>
-                  <th>Flow name</th>
+                  <th>Caller</th>
+                  <th>Direction</th>
+                  <th>Flow</th>
                   <th>Campaign</th>
                   <th>Duration</th>
                   <th>Quality</th>
-                  <th>Start time</th>
+                  <th>Date</th>
                   <th>End reason</th>
                   <th>Logs</th>
-                  <th className={styles.actionsHeader}>Trace</th>
+                  <th className={styles.actionsHeader}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map((item) => {
+                {data.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className={styles.emptyState}>No call logs found.</td>
+                  </tr>
+                ) : data.map((item) => {
                   const quality = qualityByCall[item.callUuid];
                   const from = shiftIso(item.startedAt, -10000);
                   const to = shiftIso(item.endedAt ?? item.startedAt, 10000);
@@ -433,7 +436,7 @@ export function CallLogsPage() {
                       onClick={() => setTraceCallUuid(item.callUuid)}
                     >
                       <td className={styles.mono}>{item.callerNumber || '—'}</td>
-                      <td className={styles.mono}>{item.calleeNumber || '—'}</td>
+                      <td className={styles.mono}>{item.direction || '—'}</td>
                       <td className={styles.flowName}>{item.flowName || '—'}</td>
                       <td className={styles.flowName}>{item.campaignName || '—'}</td>
                       <td className={styles.mono}>{formatDuration(item.durationSeconds)}</td>
@@ -497,9 +500,11 @@ export function CallLogsPage() {
             </table>
           )}
 
-          <div className={styles.paginationWrap}>
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-          </div>
+          {showPagination ? (
+            <div className={styles.paginationWrap}>
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          ) : null}
         </div>
           </>
         ) : null}
