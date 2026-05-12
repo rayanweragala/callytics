@@ -56,4 +56,31 @@ describe('layoutFlow', () => {
     const result = layoutFlow(nodes, []);
     expect(result[0].position).toBeDefined();
   });
+
+  it('keeps grouped child positions relative to their group', () => {
+    const group = {
+      ...createNode('group-1', 'group'),
+      position: { x: 400, y: 300 },
+      style: { width: 480, height: 320 },
+    };
+    const child = {
+      ...createNode('child-1', 'play_audio'),
+      parentId: 'group-1',
+      extent: 'parent' as const,
+      position: { x: 40, y: 40 },
+    };
+    const outside = {
+      ...createNode('outside', 'hangup'),
+      position: { x: 900, y: 700 },
+    };
+
+    const result = layoutFlow(
+      [group, child, outside],
+      [{ id: 'child-outside', source: 'child-1', target: 'outside' }],
+    );
+
+    expect(result.find((node) => node.id === 'child-1')?.position).toEqual({ x: 40, y: 40 });
+    expect(result.find((node) => node.id === 'group-1')?.position).not.toEqual({ x: 400, y: 300 });
+    expect(result.find((node) => node.id === 'outside')?.position).not.toEqual({ x: 900, y: 700 });
+  });
 });

@@ -309,29 +309,6 @@
   font-size: 14px;
 }
 
-.pinCell {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pinRevealedValue {
-  font-size: 0.85rem;
-  color: var(--color-data);
-}
-
-.pinToggle {
-  border: none;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  height: 1.2rem;
-  font-size: 0.875rem;
-  font-family: var(--font-mono);
-}
-
 .inlineHint {
   color: var(--text-muted);
 }

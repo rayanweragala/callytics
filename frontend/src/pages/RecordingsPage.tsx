@@ -145,7 +145,7 @@ export function RecordingsPage() {
                     <div className={styles.name}>{item.callId.slice(0, 16)}</div>
                     <div className={styles.meta}>{item.flowName || 'unknown flow'}</div>
                   </td>
-                  <td className={styles.meta}>inbound</td>
+                  <td className={styles.meta}>{item.recordingType || 'inbound'}</td>
                   <td className={styles.duration}>{formatDuration(item.durationSeconds)}</td>
                   <td className={styles.previewCell} onClick={() => setActiveId(item.id)}>
                     <AudioPreviewPlayer key={item.id} src={`${backendBase}${item.streamUrl}`} isActive={activeId === null || activeId === item.id} />

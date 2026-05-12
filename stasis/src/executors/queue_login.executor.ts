@@ -9,6 +9,7 @@ import { resolveAudioMediaPath } from '../audioResolver';
 import { parseValidTimeoutMs, resolveFlowDefaultTimeoutMs } from '../timeoutResolver';
 
 interface QueueLoginConfig {
+  queue_ids?: number[];
   queue_id?: number;
   prompt_audio_file_id?: number | null;
   prompt_path?: string | null;
@@ -293,49 +294,53 @@ export async function executeQueueLogin(
   ariClient: unknown,
 ): Promise<string> {
   const config = (node.config || {}) as QueueLoginConfig;
-  const queueId = Number(config.queue_id || 0);
+  const queueIds = Array.isArray(config.queue_ids)
+    ? config.queue_ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const queueId = queueIds[0] ?? Number(config.queue_id || 0);
+  const selectedQueueIds = queueIds.length > 0 ? queueIds : (queueId ? [queueId] : []);
 
-  if (!queueId) {
-    stasisLogger.warn('[queue_login] no queue_id configured');
+  if (selectedQueueIds.length === 0) {
+    stasisLogger.warn('[queue_login] no queue_ids configured');
     return routeBackToMenuOnFailure(channel, node, session, ariClient);
   }
 
   // Load queue config
   const queueRows = await query(
-    'SELECT id, pin_retry_attempts FROM queues WHERE id = $1',
-    [queueId],
+    'SELECT id, pin_retry_attempts FROM queues WHERE id = ANY($1::int[])',
+    [selectedQueueIds],
   ) as QueueRow[];
 
-  if (!queueRows.length) {
-    stasisLogger.warn(`[queue_login] queue ${queueId} not found`);
+  if (queueRows.length !== selectedQueueIds.length) {
+    stasisLogger.warn(`[queue_login] one or more queues not found: requested=${selectedQueueIds.join(',')}`);
     return routeBackToMenuOnFailure(channel, node, session, ariClient);
   }
 
-  const queueRow = queueRows[0];
-  const maxAttempts = queueRow.pin_retry_attempts;
-  stasisLogger.log(`[queue_login] start queue=${queueId} maxAttempts=${maxAttempts} channel=${channel.id}`);
+  const maxAttempts = Math.min(...queueRows.map((row) => row.pin_retry_attempts));
+  stasisLogger.log(`[queue_login] start queues=${selectedQueueIds.join(',')} maxAttempts=${maxAttempts} channel=${channel.id}`);
 
-  // Load operator PIN hashes for operators assigned to this queue
+  // Load operator PIN hashes for operators assigned to any selected queue
   const operatorRows = await query(
     `SELECT o.id, o.pin_hash
      FROM operators o
      JOIN queue_operators qo ON qo.operator_id = o.id
-     WHERE qo.queue_id = $1`,
-    [queueId],
+     WHERE qo.queue_id = ANY($1::int[])
+     GROUP BY o.id, o.pin_hash`,
+    [selectedQueueIds],
   ) as OperatorPinRow[];
 
   if (!operatorRows.length) {
-    stasisLogger.warn(`[queue_login] no operators assigned to queue ${queueId}`);
+    stasisLogger.warn(`[queue_login] no operators assigned to queues=${selectedQueueIds.join(',')}`);
     return routeBackToMenuOnFailure(channel, node, session, ariClient);
   }
-  stasisLogger.log(`[queue_login] loaded operators for queue=${queueId} count=${operatorRows.length}`);
+  stasisLogger.log(`[queue_login] loaded operators for queues=${selectedQueueIds.join(',')} count=${operatorRows.length}`);
 
   let attemptsLeft = maxAttempts;
   const inputTimeoutMs = resolveQueueLoginInputTimeoutMs(node, session);
-  stasisLogger.log(`[queue_login] effective input timeout queue=${queueId} timeoutMs=${inputTimeoutMs}`);
+  stasisLogger.log(`[queue_login] effective input timeout queues=${selectedQueueIds.join(',')} timeoutMs=${inputTimeoutMs}`);
 
   while (attemptsLeft > 0) {
-    stasisLogger.log(`[queue_login] attempt start queue=${queueId} attemptsLeft=${attemptsLeft}`);
+    stasisLogger.log(`[queue_login] attempt start queues=${selectedQueueIds.join(',')} attemptsLeft=${attemptsLeft}`);
     const promptPath = await resolveQueueLoginPromptPath(config);
 
     const playbackFactory = ariClient as { Playback: () => { id: string; stop?: () => Promise<void> } };
@@ -403,14 +408,16 @@ export async function executeQueueLogin(
     if (matchedOperator) {
       const operatorId = matchedOperator.id;
       const ariTyped = ariClient as Parameters<typeof loginOperator>[3];
-      await loginOperator(queueId, operatorId, channel.id, ariTyped);
+      for (const selectedQueueId of selectedQueueIds) {
+        await loginOperator(selectedQueueId, operatorId, channel.id, ariTyped);
+      }
       try {
         await startOperatorHoldAudio(channel.id, session, ariClient);
       } catch (error) {
         stasisLogger.warn(`[queue_login] failed to start hold audio channel=${channel.id}:`, error);
       }
 
-      stasisLogger.log(`[queue_login] operator ${operatorId} authenticated on queue ${queueId} channel=${channel.id}`);
+      stasisLogger.log(`[queue_login] operator ${operatorId} authenticated on queues=${selectedQueueIds.join(',')} channel=${channel.id}`);
 
       // Play login success audio if configured
       if (config.login_success_audio_file_id) {
@@ -468,14 +475,16 @@ export async function executeQueueLogin(
         }
       }
 
-      await logoutOperator(operatorId, queueId);
-      stasisLogger.log(`[queue_login] operator ${operatorId} logged out from queue ${queueId}`);
+      for (const selectedQueueId of selectedQueueIds) {
+        await logoutOperator(operatorId, selectedQueueId);
+      }
+      stasisLogger.log(`[queue_login] operator ${operatorId} logged out from queues=${selectedQueueIds.join(',')}`);
 
       return 'authenticated';
     }
 
     attemptsLeft--;
-    stasisLogger.log(`[queue_login] PIN mismatch queue=${queueId} attemptsLeft=${attemptsLeft}`);
+    stasisLogger.log(`[queue_login] PIN mismatch queues=${selectedQueueIds.join(',')} attemptsLeft=${attemptsLeft}`);
 
     // Play wrong PIN audio if configured
     if (config.wrong_pin_audio_file_id) {

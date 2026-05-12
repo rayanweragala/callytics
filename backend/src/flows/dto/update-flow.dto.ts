@@ -28,6 +28,10 @@ export class UpdateFlowDto {
   parentNodeKey?: string;
 
   @IsOptional()
+  @IsString()
+  parentBranchKey?: string;
+
+  @IsOptional()
   @IsBoolean()
   autoSave?: boolean;
 

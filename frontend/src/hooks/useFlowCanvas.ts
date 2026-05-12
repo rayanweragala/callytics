@@ -35,7 +35,7 @@ const menuRoutableBranchSet = new Set(menuBranchOptions);
 
 export { SUBFLOW_JUMP_NODE_ID_PREFIX, menuBranchOptions, menuRoutableBranchSet };
 
-const TERMINAL_NODE_TYPES = new Set<BuilderNodeType>(['hangup', 'voicemail', 'callback', 'queue_login']);
+const TERMINAL_NODE_TYPES = new Set<BuilderNodeType>(['hangup', 'transfer', 'voicemail', 'callback', 'queue_login']);
 const WEBHOOK_EDGE_DASH_STYLE = { strokeDasharray: '6 3' };
 const START_ALLOWED_TARGET_TYPES = new Set<BuilderNodeType>([
   'play_audio',
@@ -44,6 +44,7 @@ const START_ALLOWED_TARGET_TYPES = new Set<BuilderNodeType>([
   'transfer',
   'hunt',
   'queue',
+  'queue_login',
   'hangup',
   'conference',
   'webhook',
@@ -69,6 +70,9 @@ const VOICEMAIL_BLOCKED_SOURCE_TYPES = new Set<BuilderNodeType>([
   'transfer',
   'queue',
 ]);
+export const GROUP_SELECTION_PADDING_X = 24;
+export const GROUP_SELECTION_PADDING_TOP = 64;
+export const GROUP_SELECTION_PADDING_BOTTOM = 24;
 
 function sanitizeMenuBranches(value: unknown): string[] {
   if (!Array.isArray(value)) return ['1', '2'];
@@ -88,6 +92,10 @@ function isWebhookConnection(sourceType: BuilderNodeType, targetType: BuilderNod
   return sourceType === 'webhook' || targetType === 'webhook';
 }
 
+function isWebhookTargetType(targetType: BuilderNodeType): boolean {
+  return targetType === 'webhook';
+}
+
 export function isValidBuilderConnection(
   connection: Pick<Connection, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>,
   nodes: Array<Node<FlowNodeData>>,
@@ -95,18 +103,22 @@ export function isValidBuilderConnection(
   if (!connection.source || !connection.target || connection.source === connection.target) {
     return false;
   }
-  const sourceNode = nodes.find((node) => node.id === connection.source);
   const targetNode = nodes.find((node) => node.id === connection.target);
-  if (!sourceNode || !targetNode) {
+  if (!targetNode) {
     return false;
   }
-  const sourceType = sourceNode.data?.type;
   const targetType = targetNode.data.type;
 
-  if (targetType === 'webhook') {
+  // Webhook must always be connectable from any source node type.
+  if (isWebhookTargetType(targetType)) {
     return true;
   }
 
+  const sourceNode = nodes.find((node) => node.id === connection.source);
+  if (!sourceNode) {
+    return false;
+  }
+  const sourceType = sourceNode.data?.type;
   if (!sourceType) {
     return false;
   }
@@ -124,7 +136,7 @@ export function isValidBuilderConnection(
   if (sourceType === 'start' && !START_ALLOWED_TARGET_TYPES.has(targetType)) {
     return false;
   }
-  if (sourceType === 'start' && (targetType === 'get_digits' || targetType === 'queue_login')) {
+  if (sourceType === 'start' && targetType === 'get_digits') {
     return false;
   }
   if (targetType === 'get_digits' && !GET_DIGITS_ALLOWED_SOURCE_TYPES.has(sourceType)) {
@@ -170,6 +182,22 @@ function getNodeSize(node: Node<FlowNodeData>): { width: number; height: number 
     width: resolveNodeDimension(node.width ?? node.style?.width ?? node.data.config.width, 170),
     height: resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 72),
   };
+}
+
+export function calculateGroupSelectionFrame(groupableSelection: Array<Node<FlowNodeData>>) {
+  const minX = Math.min(...groupableSelection.map((node) => node.position.x));
+  const minY = Math.min(...groupableSelection.map((node) => node.position.y));
+  const maxX = Math.max(
+    ...groupableSelection.map((node) => node.position.x + resolveNodeDimension(node.width ?? node.style?.width, 170)),
+  );
+  const maxY = Math.max(
+    ...groupableSelection.map((node) => node.position.y + resolveNodeDimension(node.height ?? node.style?.height, 72)),
+  );
+  const groupWidth = Math.max(200, maxX - minX + GROUP_SELECTION_PADDING_X * 2);
+  const groupHeight = Math.max(150, maxY - minY + GROUP_SELECTION_PADDING_TOP + GROUP_SELECTION_PADDING_BOTTOM);
+  const groupPosition = { x: minX - GROUP_SELECTION_PADDING_X, y: minY - GROUP_SELECTION_PADDING_TOP };
+
+  return { groupWidth, groupHeight, groupPosition };
 }
 
 export function getContainingGroupNode(
@@ -341,7 +369,7 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       max_timeout_attempts: 3,
       max_invalid_attempts: 3,
       branches: ['1', '2'],
-      submenu_branch_targets: {},
+      submenu_branch_names: {},
     };
     if (t === 'business_hours') return {
       timezone: '',
@@ -355,7 +383,7 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
         sunday: { enabled: false, open: '09:00', close: '17:00' },
       },
     };
-    if (t === 'transfer') return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '' };
+    if (t === 'transfer') return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '', send_to_webhook: false };
     if (t === 'voicemail')
       return {
         mailbox_name: 'main',
@@ -363,8 +391,6 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
         start_audio_id: null,
         end_audio_id: null,
         send_to_webhook: false,
-        webhook_url: '',
-        webhook_secret: '',
       };
     if (t === 'hunt') return {
       destinations: [{ target_type: 'extension', target_value: '101' }],
@@ -374,17 +400,18 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       hold_audio_file_id: null,
       busy_audio_file_id: null,
       on_no_answer: '',
+      send_to_webhook: false,
     };
     if (t === 'webhook') return {
       url: '',
       method: 'POST',
       include_caller: false,
-      include_digits: false,
+      include_session_variables: false,
       timeout_ms: 5000,
       headers: [],
     };
     if (t === 'queue_login') return {
-      queue_id: null,
+      queue_ids: [],
       prompt_audio_file_id: null,
       wrong_pin_audio_file_id: null,
       login_success_audio_file_id: null,
@@ -889,21 +916,8 @@ export function useFlowCanvas(): UseFlowCanvasResult {
 
   const handleGroupSelection = useCallback(() => {
     if (!canGroupSelection) return;
-    const paddingX = 24;
-    const paddingTop = 32;
-    const paddingBottom = 24;
-    const minX = Math.min(...groupableSelection.map((node) => node.position.x));
-    const minY = Math.min(...groupableSelection.map((node) => node.position.y));
-    const maxX = Math.max(
-      ...groupableSelection.map((node) => node.position.x + resolveNodeDimension(node.width ?? node.style?.width, 170)),
-    );
-    const maxY = Math.max(
-      ...groupableSelection.map((node) => node.position.y + resolveNodeDimension(node.height ?? node.style?.height, 72)),
-    );
-    const groupWidth = Math.max(200, maxX - minX + paddingX * 2);
-    const groupHeight = Math.max(150, maxY - minY + paddingTop + paddingBottom);
+    const { groupWidth, groupHeight, groupPosition } = calculateGroupSelectionFrame(groupableSelection);
     const groupId = `group-${Date.now()}`;
-    const groupPosition = { x: minX - paddingX, y: minY - paddingTop };
     const groupNode: Node<FlowNodeData> = {
       id: groupId,
       type: 'group',

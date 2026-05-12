@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFlowCanvas, buildCanvasNode, attachEdgeMetadata, isValidBuilderConnection } from './useFlowCanvas';
+import {
+  useFlowCanvas,
+  buildCanvasNode,
+  attachEdgeMetadata,
+  calculateGroupSelectionFrame,
+  GROUP_SELECTION_PADDING_TOP,
+  isValidBuilderConnection,
+} from './useFlowCanvas';
 import { layoutFlow } from '../utils/layoutFlow';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -182,6 +189,27 @@ describe('buildCanvasNode', () => {
   });
 });
 
+describe('calculateGroupSelectionFrame', () => {
+  it('adds enough top clearance to keep the group label above the topmost child node', () => {
+    const frame = calculateGroupSelectionFrame([
+      {
+        ...makeNode('node-a'),
+        position: { x: 120, y: 180 },
+        style: { width: 170, height: 72 },
+      },
+      {
+        ...makeNode('node-b'),
+        position: { x: 320, y: 240 },
+        style: { width: 170, height: 72 },
+      },
+    ] as never);
+
+    expect(frame.groupPosition).toEqual({ x: 96, y: 116 });
+    expect(frame.groupHeight).toBeGreaterThanOrEqual(200);
+    expect(180 - frame.groupPosition.y).toBe(GROUP_SELECTION_PADDING_TOP);
+  });
+});
+
 // ─── attachEdgeMetadata ───────────────────────────────────────────────────────
 
 describe('attachEdgeMetadata', () => {
@@ -205,8 +233,39 @@ describe('attachEdgeMetadata', () => {
 });
 
 describe('isValidBuilderConnection', () => {
-  it.each(['hangup', 'voicemail', 'callback', 'queue_login'])(
-    'rejects outgoing connections from %s source nodes',
+  it.each(['hangup', 'transfer', 'voicemail', 'callback', 'queue_login'])(
+    'allows outgoing connections from %s source nodes when target is webhook',
+    (sourceType) => {
+      const nodes = [
+        makeNode('source', 'flowNode', sourceType),
+        makeNode('target', 'flowNode', 'webhook'),
+      ];
+
+      expect(
+        isValidBuilderConnection(
+          { source: 'source', target: 'target', sourceHandle: null, targetHandle: null },
+          nodes as never,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it('allows menu to connect to webhook before any other source restrictions are checked', () => {
+    const nodes = [
+      makeNode('source', 'flowNode', 'menu'),
+      makeNode('target', 'flowNode', 'webhook'),
+    ];
+
+    expect(
+      isValidBuilderConnection(
+        { source: 'source', target: 'target', sourceHandle: '1', targetHandle: null },
+        nodes as never,
+      ),
+    ).toBe(true);
+  });
+
+  it.each(['hangup', 'transfer', 'voicemail', 'callback', 'queue_login'])(
+    'rejects outgoing connections from %s source nodes to non-webhook targets',
     (sourceType) => {
       const nodes = [
         makeNode('source', 'flowNode', sourceType),
@@ -221,4 +280,32 @@ describe('isValidBuilderConnection', () => {
       ).toBe(false);
     },
   );
+
+  it('rejects transfer → transfer connection (transfer is a terminal node)', () => {
+    const nodes = [
+      makeNode('source', 'flowNode', 'transfer'),
+      makeNode('target', 'flowNode', 'transfer'),
+    ];
+
+    expect(
+      isValidBuilderConnection(
+        { source: 'source', target: 'target', sourceHandle: null, targetHandle: null },
+        nodes as never,
+      ),
+    ).toBe(false);
+  });
+
+  it('allows start to connect directly to queue_login', () => {
+    const nodes = [
+      makeNode('start', 'flowNode', 'start'),
+      makeNode('queue-login', 'flowNode', 'queue_login'),
+    ];
+
+    expect(
+      isValidBuilderConnection(
+        { source: 'start', target: 'queue-login', sourceHandle: null, targetHandle: null },
+        nodes as never,
+      ),
+    ).toBe(true);
+  });
 });

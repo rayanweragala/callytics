@@ -29,4 +29,9 @@ export class OperatorsController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.operatorsService.remove(id);
   }
+
+  @Get(':id/pin')
+  getPin(@Param('id', ParseIntPipe) id: number) {
+    return this.operatorsService.getPin(id);
+  }
 }

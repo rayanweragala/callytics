@@ -170,6 +170,14 @@ export async function executeQueue(
 
   if (!queueId) {
     logEvent('QueueMissingId', { channelId: channel.id, nodeId: node.nodeKey });
+    session.webhookPayload.queue = {
+      queue_id: queueId,
+      queue_name: '',
+      wait_seconds: 0,
+      agent_extension: null,
+      abandoned: true,
+    };
+    session.webhookPayload.outcome = { status: 'abandoned' };
     return 'abandoned';
   }
 
@@ -180,13 +188,23 @@ export async function executeQueue(
 
   if (!queueRows.length) {
     logEvent('QueueNotFound', { queueId, channelId: channel.id });
+    session.webhookPayload.queue = {
+      queue_id: queueId,
+      queue_name: '',
+      wait_seconds: 0,
+      agent_extension: null,
+      abandoned: true,
+    };
+    session.webhookPayload.outcome = { status: 'abandoned' };
     return 'abandoned';
   }
 
   const queueRow = queueRows[0];
+  const queueName = String(queueRow.name || queueId);
   const maxWaitMs = (queueRow.max_wait_seconds || 300) * 1000;
   const queueStr = String(queueId);
   const channelId = channel.id;
+  const queueEnteredAt = Date.now();
 
   try {
     await playQueuePrompt(channel, session, ariClient, config);
@@ -195,6 +213,18 @@ export async function executeQueue(
   }
 
   const redis = await getRedis();
+
+  const writeQueuePayload = (agentExtension: string | null, abandoned: boolean, outcome: 'completed' | 'timeout' | 'abandoned') => {
+    const waitSeconds = Math.round((Date.now() - queueEnteredAt) / 1000);
+    session.webhookPayload.queue = {
+      queue_id: queueId,
+      queue_name: queueName,
+      wait_seconds: waitSeconds,
+      agent_extension: agentExtension,
+      abandoned,
+    };
+    session.webhookPayload.outcome = { status: outcome };
+  };
 
   try {
     // Queue executor only connects live operator channels tracked in Redis.
@@ -237,8 +267,8 @@ export async function executeQueue(
           await ari.bridges.addChannel({ bridgeId: bridge.id, channel: channelId });
           await ari.bridges.addChannel({ bridgeId: bridge.id, channel: operatorChannelId });
           if (Boolean(config.record_call)) {
-            const queueName = String(queueRow.name || queueId).replace(/[^a-zA-Z0-9_-]/g, '_');
-            await beginNodeRecording(session, bridge.id, `${session.callUuid}-queue-${queueName}-${Date.now()}`, 'queue');
+            const safeQueueName = queueName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            await beginNodeRecording(session, bridge.id, `${session.callUuid}-queue-${safeQueueName}-${Date.now()}`, 'queue');
           }
 
           logEvent('QueueConnected', { customerChannelId: channelId, operatorId, bridgeId: bridge.id, queueId });
@@ -258,6 +288,7 @@ export async function executeQueue(
           });
 
           await onCustomerHangup(Number(operatorId), queueId, ari);
+          writeQueuePayload(String(operatorId), false, 'completed');
           await redis.disconnect();
           return 'connected';
         }
@@ -270,7 +301,7 @@ export async function executeQueue(
     await redis.rPush(`queue:${queueStr}:waiting`, channelId);
     logEvent('QueueCustomerWaiting', { customerChannelId: channelId, queueId });
 
-    return await new Promise<'connected' | 'timeout' | 'abandoned'>((resolve) => {
+    const waitResult = await new Promise<'connected' | 'timeout' | 'abandoned'>((resolve) => {
       const ari = ariClient as {
         on: (event: string, listener: (event: unknown) => void) => void;
         removeListener: (event: string, listener: (event: unknown) => void) => void;
@@ -320,6 +351,19 @@ export async function executeQueue(
       };
       void checkConnected();
     });
+
+    if (waitResult === 'connected') {
+      // Read agent extension from Redis (set by the operator-side handler on connection)
+      const agentExtension = await redis.get(`queue:${queueStr}:customer:${channelId}:channel`).catch(() => null);
+      writeQueuePayload(agentExtension, false, 'completed');
+    } else if (waitResult === 'abandoned') {
+      writeQueuePayload(null, true, 'abandoned');
+    } else {
+      // timeout
+      writeQueuePayload(null, false, 'timeout');
+    }
+
+    return waitResult;
   } finally {
     try {
       await redis.disconnect();
@@ -328,3 +372,4 @@ export async function executeQueue(
     }
   }
 }
+

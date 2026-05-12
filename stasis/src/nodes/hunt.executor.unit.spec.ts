@@ -11,25 +11,37 @@ jest.mock('../huntManager', () => ({
   rejectHuntWaiter: jest.fn(),
 }));
 
+jest.mock('../bridgeRecording', () => ({
+  beginNodeRecording: jest.fn().mockResolvedValue(undefined),
+  persistSessionRecording: jest.fn().mockResolvedValue(null),
+}));
+
 import { executeHunt } from './hunt.executor';
 import { resolveAudioMediaPath } from '../audioResolver';
+import { beginNodeRecording, persistSessionRecording } from '../bridgeRecording';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 
 const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<typeof resolveAudioMediaPath>;
+const beginNodeRecordingMock = beginNodeRecording as jest.MockedFunction<typeof beginNodeRecording>;
+const persistSessionRecordingMock = persistSessionRecording as jest.MockedFunction<typeof persistSessionRecording>;
 const registerHuntWaiterMock = registerHuntWaiter as jest.MockedFunction<typeof registerHuntWaiter>;
 const rejectHuntWaiterMock = rejectHuntWaiter as jest.MockedFunction<typeof rejectHuntWaiter>;
 const huntWaiters = new Map<string, (result: { answered: false; reason: 'failed' | 'destroyed' }) => void>();
 
 function createSession(): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: 'call-1',
     channelId: 'channel-1',
     callerNumber: '1000',
     currentNodeKey: 'hunt-1',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: { id: 'bridge-inbound-1' },
     flow: {
@@ -93,13 +105,15 @@ describe('hunt executor — additional coverage', () => {
         huntWaiters.set(token, resolve as (result: { answered: false; reason: 'failed' | 'destroyed' }) => void);
       }),
     );
-    rejectHuntWaiterMock.mockImplementation((token, reason = 'failed') => {
+    rejectHuntWaiterMock.mockImplementation((token, reason: 'failed' | 'destroyed' = 'failed') => {
       const resolve = huntWaiters.get(token);
       if (!resolve) return;
       huntWaiters.delete(token);
       resolve({ answered: false, reason });
     });
     resolveAudioMediaPathMock.mockResolvedValue(null);
+    beginNodeRecordingMock.mockResolvedValue(undefined);
+    persistSessionRecordingMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -278,7 +292,6 @@ describe('hunt executor — additional coverage', () => {
   });
 
   it('adds outbound leg to the recording bridge when agent answers', async () => {
-
     const ariClient = createAriClient();
     const agentChannel = {
       id: 'agent-channel-1',
@@ -330,5 +343,61 @@ describe('hunt executor — additional coverage', () => {
     await flushPromises(20);
 
     await expect(promise).resolves.toBe('done');
-  })
+  });
+
+  it('stores recording_url in node result payload when hunt webhook delivery is enabled', async () => {
+    const ariClient = createAriClient();
+    const answeredChannel = {
+      id: 'agent-channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+    registerHuntWaiterMock.mockReturnValue(
+      Promise.resolve({ answered: true, channel: answeredChannel }),
+    );
+    persistSessionRecordingMock.mockResolvedValue({
+      id: 777,
+      recordingUrl: 'http://127.0.0.1:3001/recordings/777/download',
+      durationSeconds: 14,
+    });
+
+    const session = createSession();
+    const node: FlowNode = {
+      nodeKey: 'hunt-1',
+      type: 'hunt',
+      label: 'Hunt',
+      config: {
+        strategy: 'sequential',
+        destinations: [{ target_type: 'extension', target_value: 'agent-sip' }],
+        attempt_timeout_ms: 5000,
+        total_timeout_ms: 10000,
+        record_call: true,
+        send_to_webhook: true,
+      },
+    };
+
+    const inboundChannel = {
+      id: 'channel-1',
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const promise = executeHunt(inboundChannel, node, session, ariClient as any);
+    await flushPromises(20);
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    await flushPromises(20);
+
+    await expect(promise).resolves.toBe('done');
+    expect(beginNodeRecordingMock).toHaveBeenCalled();
+    expect(persistSessionRecordingMock).toHaveBeenCalledWith(session);
+    expect(session.webhookPayload).toEqual({
+      outcome: { status: 'completed' },
+      bridge: expect.objectContaining({
+        connected_extension: 'agent-channel-1',
+        talk_duration_seconds: expect.any(Number),
+      }),
+      recording: {
+        url: 'http://127.0.0.1:3001/recordings/777/download',
+        duration_seconds: 14,
+      },
+    });
+  });
 });

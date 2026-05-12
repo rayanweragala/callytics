@@ -29,15 +29,6 @@ export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData & { dif
     <div
       className={`${styles.node} ${selected ? styles.selected : ''} ${data.hasValidationError ? styles.invalid : ''}`}
       style={diffStyle}
-      onDoubleClick={() => data.onOpenSubmenu?.()}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          data.onOpenSubmenu?.();
-        }
-      }}
     >
       {data.hasValidationError ? <span className={styles.validationDot} title={data.validationIssues?.join(', ')} /> : null}
       <span className={styles.accent} />
@@ -76,19 +67,6 @@ export function MenuGroupNode({ data, selected }: NodeProps<FlowNodeData & { dif
               <Handle className={styles.branchHandle} id={branch} type="source" position={Position.Right} />
             </div>
           ))}
-        </div>
-
-        <div className={styles.footer}>
-          <button
-            className={styles.openButton}
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onOpenSubmenu?.();
-            }}
-            type="button"
-          >
-            Open submenu →
-          </button>
         </div>
       </div>
       {selected && data.onDelete ? (

@@ -117,12 +117,8 @@ async function collectMenuAttempt(
   const doubleDigitMode = hasDoubleDigitMenuBranch(node);
   const client = ariClient as {
     Playback: () => { id: string; stop: () => Promise<void> };
-    on: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
-    removeListener: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
-  };
-  const channelEmitter = channel as {
-    on?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
-    removeListener?: (event: string, listener: (event: { channel?: { id?: string }; digit?: string }) => void) => void;
+    on: (event: string, listener: (event: any) => void) => void;
+    removeListener: (event: string, listener: (event: any) => void) => void;
   };
 
   return new Promise(async (resolve, reject) => {
@@ -130,13 +126,28 @@ async function collectMenuAttempt(
     let finished = false;
     let timer: NodeJS.Timeout | null = null;
     let interDigitTimer: NodeJS.Timeout | null = null;
+    let timeoutArmed = false;
     let collectedDigits = '';
+
+    const armTimeout = () => {
+      if (finished || timeoutArmed) return;
+      timeoutArmed = true;
+      timer = setTimeout(() => {
+        stasisLogger.log('[menu] timeout fired');
+        settle('timeout');
+      }, timeoutMs);
+    };
+
+    const onPlaybackFinished = (event: { playback?: { id?: string } }) => {
+      if (event.playback?.id !== playback.id) return;
+      armTimeout();
+    };
 
     const cleanup = () => {
       client.removeListener('ChannelDtmfReceived', onDtmf);
-      channelEmitter.removeListener?.('ChannelDtmfReceived', onDtmf);
       client.removeListener('StasisEnd', onHangup);
       client.removeListener('ChannelDestroyed', onHangup);
+      client.removeListener('PlaybackFinished', onPlaybackFinished);
       if (timer) clearTimeout(timer);
       if (interDigitTimer) clearTimeout(interDigitTimer);
     };
@@ -186,22 +197,19 @@ async function collectMenuAttempt(
 
     stasisLogger.log(`[menu] listening for DTMF on channel=${channel.id}`);
     client.on('ChannelDtmfReceived', onDtmf);
-    channelEmitter.on?.('ChannelDtmfReceived', onDtmf);
     client.on('StasisEnd', onHangup);
     client.on('ChannelDestroyed', onHangup);
-
-    timer = setTimeout(() => {
-      stasisLogger.log('[menu] timeout fired');
-      settle('timeout');
-    }, timeoutMs);
 
     try {
       const promptPath = await resolveAudioMediaPath(node.config, 'prompt_audio_file_id', 'prompt_path');
       if (promptPath) {
         const target = getPlaybackTarget(channel as never, session);
+        client.on('PlaybackFinished', onPlaybackFinished);
         stasisLogger.log(`[menu] play request target=${target.kind}:${target.id} media=sound:${promptPath} at=${new Date().toISOString()}`);
         await playMedia(target, ariClient, 'sound:' + promptPath, playback);
         stasisLogger.log(`[menu] play request returned target=${target.kind}:${target.id} media=sound:${promptPath} playbackId=${playback.id} at=${new Date().toISOString()}`);
+      } else {
+        armTimeout();
       }
     } catch (error) {
       reject(error instanceof Error ? error : new Error('menu_failed'));

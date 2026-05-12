@@ -26,6 +26,42 @@
   margin-top: 0;
 }
 
+.editPanel {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.editPanelHeader {
+  grid-column: 1 / -1;
+}
+
+.panelCloseButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panelCloseButton:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
 .libraryPanel {
   padding: 0 20px 16px;
   overflow: hidden;
@@ -346,6 +382,10 @@
   gap: 8px;
   justify-content: flex-end;
   align-items: center;
+}
+
+.editPanel .actions {
+  grid-column: 1 / -1;
 }
 
 .actionsHeader {

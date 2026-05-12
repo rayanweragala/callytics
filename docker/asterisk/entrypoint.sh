@@ -4,6 +4,11 @@ set -euo pipefail
 SIDECAR_PID=""
 ASTERISK_PID=""
 
+if [ -n "${TZ:-}" ] && [ -f "/usr/share/zoneinfo/${TZ}" ]; then
+  ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime
+  echo "${TZ}" > /etc/timezone
+fi
+
 if [ "${TSHARK_ENABLED:-false}" = "true" ]; then
   node /usr/local/bin/capture-sidecar.js &
   SIDECAR_PID=$!

@@ -16,13 +16,17 @@ const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<t
 const queryMock = query as jest.MockedFunction<typeof query>;
 
 function createSession(): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: 'call-voicemail-1',
     channelId: 'channel-1',
     callerNumber: '94770000000',
     currentNodeKey: 'voicemail_1',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: null,
     flow: {
@@ -56,6 +60,9 @@ function createAriClient() {
 
   return {
     Playback: jest.fn(() => ({ id: 'playback-1' })),
+    bridges: {
+      destroy: jest.fn().mockResolvedValue(undefined),
+    },
     channels: {
       record: jest.fn().mockImplementation(async ({ name }: { name: string }) => {
         setImmediate(() => {
@@ -84,7 +91,7 @@ describe('voicemail.executor', () => {
       .mockResolvedValueOnce(null);
     queryMock
       .mockResolvedValueOnce([{ id: 777 }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ id: 1 }]);
 
     const ariClient = createAriClient();
     const channel = {
@@ -116,7 +123,7 @@ describe('voicemail.executor', () => {
     expect(ariClient.channels.record).toHaveBeenCalledWith(
       expect.objectContaining({
         channelId: 'channel-1',
-        format: 'ulaw',
+        format: 'wav',
         beep: true,
         ifExists: 'overwrite',
         maxDurationSeconds: 60,
@@ -141,49 +148,13 @@ describe('voicemail.executor', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('fires voicemail webhook when webhook_url is configured', async () => {
-    resolveAudioMediaPathMock
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-    queryMock
-      .mockResolvedValueOnce([{ id: 777 }])
-      .mockResolvedValueOnce([]);
-
-    const ariClient = createAriClient();
-    const channel = {
-      id: 'channel-1',
-      play: jest.fn(),
-    };
-
-    const node: FlowNode = {
-      nodeKey: 'voicemail_1',
-      type: 'voicemail',
-      label: 'Leave Voicemail',
-      config: {
-        mailbox_name: 'dispatch',
-        max_duration_seconds: 60,
-        webhook_url: 'https://example.com/voicemail-hook',
-      },
-    };
-
-    await expect(executeVoicemail(channel as never, node, createSession(), ariClient)).resolves.toBe('done');
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://example.com/voicemail-hook',
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-  });
-
   it('test 1 — recording starts only after prompt playback finishes', async () => {
     resolveAudioMediaPathMock
       .mockResolvedValueOnce('callytics/voicemail-prompt')
       .mockResolvedValueOnce(null);
     queryMock
       .mockResolvedValueOnce([{ id: 777 }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ id: 1 }]);
 
     const callOrder: string[] = [];
     const ariClient = createAriClient();
@@ -285,13 +256,47 @@ describe('voicemail.executor', () => {
     expect(queryMock).not.toHaveBeenCalled();
   });
 
+  it('detaches inbound bridge before channel recording starts', async () => {
+    resolveAudioMediaPathMock.mockResolvedValue(null);
+    queryMock
+      .mockResolvedValueOnce([{ id: 777 }])
+      .mockResolvedValueOnce([{ id: 1 }]);
+
+    const ariClient = createAriClient();
+    const session = createSession();
+    session.inboundBridge = { id: 'bridge-inbound-1' };
+
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn(),
+    };
+
+    await expect(
+      executeVoicemail(
+        channel as never,
+        {
+          nodeKey: 'voicemail_1',
+          type: 'voicemail',
+          label: 'Leave Voicemail',
+          config: { mailbox_name: 'main', max_duration_seconds: 60 },
+        },
+        session,
+        ariClient,
+      ),
+    ).resolves.toBe('done');
+
+    expect(ariClient.bridges.destroy).toHaveBeenCalledWith({ bridgeId: 'bridge-inbound-1' });
+    expect(ariClient.channels.record).toHaveBeenCalled();
+    expect(session.inboundBridge).toBeNull();
+  });
+
   it('test 4 — saved recording file contains only voicemail audio, not the prompt', async () => {
     resolveAudioMediaPathMock
       .mockResolvedValueOnce('callytics/busy-prompt')
       .mockResolvedValueOnce(null);
     queryMock
       .mockResolvedValueOnce([{ id: 777 }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ id: 1 }]);
 
     const ariClient = createAriClient();
     let capturedRecordingName = '';
@@ -337,11 +342,50 @@ describe('voicemail.executor', () => {
     expect(savedFilePath).not.toContain('callytics');
   });
 
-  it('fires config-only voicemail webhook after saving the recording', async () => {
+  it('stops recording when # is pressed and saves voicemail', async () => {
     resolveAudioMediaPathMock.mockResolvedValue(null);
     queryMock
       .mockResolvedValueOnce([{ id: 777 }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ id: 777 }]);
+
+    const ariClient = createAriClient();
+    (global.fetch as jest.Mock).mockResolvedValue({ status: 204 });
+
+    (ariClient.channels.record as jest.Mock).mockImplementation(
+      async ({ name }: { name: string }) => {
+        setImmediate(() => {
+          ariClient.emit('ChannelDtmfReceived', { channel: { id: 'channel-1' }, digit: '#' });
+          setImmediate(() => {
+            ariClient.emit('RecordingFinished', {
+              recording: { name, duration: 6 },
+              channel: { id: 'channel-1' },
+            });
+          });
+        });
+      },
+    );
+
+    await expect(
+      executeVoicemail(
+        { id: 'channel-1', play: jest.fn() } as never,
+        { nodeKey: 'voicemail_1', type: 'voicemail', label: 'Leave Voicemail', config: { mailbox_name: 'main', max_duration_seconds: 60 } },
+        createSession(),
+        ariClient,
+      ),
+    ).resolves.toBe('done');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/ari/recordings/live/'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(queryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('stores voicemail recording payload for a connected webhook node when enabled', async () => {
+    resolveAudioMediaPathMock.mockResolvedValue(null);
+    queryMock
+      .mockResolvedValueOnce([{ id: 777 }])
+      .mockResolvedValueOnce([{ id: 777 }]);
 
     const ariClient = createAriClient();
     const channel = {
@@ -358,30 +402,64 @@ describe('voicemail.executor', () => {
         max_duration_seconds: 60,
         start_audio_id: null,
         send_to_webhook: true,
-        webhook_url: 'https://example.com/voicemail-hook',
-        webhook_secret: 'secret-key',
       },
     };
+    const session = createSession();
 
-    await expect(executeVoicemail(channel as never, node, createSession(), ariClient)).resolves.toBe('done');
-    await new Promise((resolve) => setImmediate(resolve));
+    await expect(executeVoicemail(channel as never, node, session, ariClient)).resolves.toBe('done');
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://example.com/voicemail-hook',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-Voicemail-Signature': expect.any(String),
-        }),
-        body: expect.any(String),
-      }),
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(session.webhookPayload).toEqual({
+      outcome: { status: 'completed' },
+      recording: {
+        url: 'http://127.0.0.1:3001/recordings/777/download',
+        duration_seconds: 14,
+      },
+    });
+    expect(session.variables.voicemail_recording_url).toBe(
+      'http://127.0.0.1:3001/recordings/777/download',
     );
+    expect(session.variables.voicemail_duration_seconds).toBe('14');
+  });
 
-    const fetchBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body as string);
-    expect(fetchBody.recording_file_path).toContain('/var/spool/asterisk/recording/voicemail-');
-    expect(fetchBody.recording_duration_seconds).toBe(14);
-    expect(fetchBody.call_uuid).toBe('call-voicemail-1');
+  it('stores voicemail recording session variables even when top-level webhook payload is disabled', async () => {
+    resolveAudioMediaPathMock.mockResolvedValue(null);
+    queryMock
+      .mockResolvedValueOnce([{ id: 778 }])
+      .mockResolvedValueOnce([{ id: 778 }]);
+
+    const ariClient = createAriClient();
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn(),
+    };
+
+    const node: FlowNode = {
+      nodeKey: 'voicemail_1',
+      type: 'voicemail',
+      label: 'Leave Voicemail',
+      config: {
+        mailbox_name: 'dispatch',
+        max_duration_seconds: 60,
+        start_audio_id: null,
+        send_to_webhook: false,
+      },
+    };
+    const session = createSession();
+
+    await expect(executeVoicemail(channel as never, node, session, ariClient)).resolves.toBe('done');
+
+    expect(session.webhookPayload).toEqual({
+      outcome: { status: 'completed' },
+      recording: {
+        url: 'http://127.0.0.1:3001/recordings/778/download',
+        duration_seconds: 14,
+      },
+    });
+    expect(session.variables.voicemail_recording_url).toBe(
+      'http://127.0.0.1:3001/recordings/778/download',
+    );
+    expect(session.variables.voicemail_duration_seconds).toBe('14');
   });
 
 });

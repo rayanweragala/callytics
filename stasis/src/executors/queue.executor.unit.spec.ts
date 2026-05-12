@@ -40,6 +40,7 @@ describe('queue.executor', () => {
       callerNumber: '555-0100',
       currentNodeKey: 'n-1',
       variables: {} as Record<string, unknown>,
+      webhookPayload: {},
       startedAt: new Date(),
       recording: null,
       inboundBridge: null,

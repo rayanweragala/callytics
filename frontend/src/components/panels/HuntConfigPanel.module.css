@@ -150,6 +150,23 @@
   color: var(--text-muted);
 }
 
+.inlineWarning {
+  color: var(--primitive-amber);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.fieldRow {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.fieldLabelPlain {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .orderError {
   display: block;
   margin-top: 6px;

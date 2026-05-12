@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { FlowTreePanel } from './FlowTreePanel';
 import type { FlowTree } from '../types';
 
@@ -32,6 +32,7 @@ describe('FlowTreePanel', () => {
         {
           nodeKey: 'menu1',
           nodeLabel: 'Menu Leaf',
+          branchKey: '1',
           subflowId: 10,
           name: 'Submenu',
           children: [], // no nested children
@@ -52,12 +53,14 @@ describe('FlowTreePanel', () => {
         {
           nodeKey: 'menu1',
           nodeLabel: 'Menu With Child',
+          branchKey: '1',
           subflowId: 10,
           name: 'Submenu',
           children: [
             {
               nodeKey: 'inner1',
               nodeLabel: 'Inner Menu',
+              branchKey: '2',
               subflowId: 11,
               name: 'Inner Submenu',
               children: [],
@@ -81,5 +84,32 @@ describe('FlowTreePanel', () => {
     render(<FlowTreePanel tree={tree} currentFlowId={1} onNavigate={() => {}} />);
     expect(screen.getByText('Simple Flow')).toBeInTheDocument();
     expect(screen.queryByTestId('tree-child-entry')).not.toBeInTheDocument();
+  });
+
+  it('shows inline rename for submenu rows', () => {
+    const onRename = vi.fn();
+    const tree: FlowTree = {
+      id: 1,
+      name: 'Root',
+      children: [
+        {
+          nodeKey: 'menu1',
+          nodeLabel: 'Sales Menu',
+          branchKey: '1',
+          subflowId: 10,
+          name: 'Sales Submenu',
+          children: [],
+        },
+      ],
+    };
+
+    render(<FlowTreePanel tree={tree} currentFlowId={1} onNavigate={() => {}} onRename={onRename} />);
+
+    expect(screen.getByText('branch 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Rename submenu'));
+    fireEvent.change(screen.getByDisplayValue('Sales Submenu'), { target: { value: 'Updated submenu' } });
+    fireEvent.keyDown(screen.getByDisplayValue('Updated submenu'), { key: 'Enter' });
+
+    expect(onRename).toHaveBeenCalledWith(10, 'Updated submenu');
   });
 });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Edge, Node } from 'reactflow';
 import type { FlowNodeData } from '../../types';
 import { getFlow } from '../../lib/api';
-import { mapFlowToNodes, mapFlowToEdges } from '../../pages/FlowEditorPage.helpers';
+import { mapFlowToNodes, mapFlowToEdges, sanitizeMenuBranchFlows } from '../../pages/FlowEditorPage.helpers';
 import styles from './FlowSimulator.module.css';
 
 type BuilderEdgeData = {
@@ -85,41 +85,6 @@ function resolveAutoAdvance(node: Node<FlowNodeData>, edges: Edge<BuilderEdgeDat
 
 function isTerminalType(type: string): boolean {
   return TERMINAL_NODE_TYPES.has(type);
-}
-
-function resolveSubmenuTargetNodeId(
-  node: Node<FlowNodeData>,
-  branchKey: string,
-  nodeMap: Map<string, Node<FlowNodeData>>,
-): string | null {
-  const rawTargets = node.data.config?.submenu_branch_targets;
-  const targets = rawTargets && typeof rawTargets === 'object' && !Array.isArray(rawTargets)
-    ? (rawTargets as Record<string, unknown>)
-    : {};
-  const targetKey = String(targets[branchKey] || '').trim();
-  if (!targetKey) return null;
-
-  const subflowId = Number(node.data.subflowId || 0);
-  const directCandidates = [
-    targetKey,
-    `${subflowId}:${targetKey}`,
-    `${subflowId}::${targetKey}`,
-    `subflow-${subflowId}:${targetKey}`,
-    `${subflowId}/${targetKey}`,
-  ];
-
-  for (const candidate of directCandidates) {
-    if (nodeMap.has(candidate)) return candidate;
-  }
-
-  for (const candidateNode of nodeMap.values()) {
-    if (candidateNode.id === targetKey) return candidateNode.id;
-    if (subflowId > 0 && candidateNode.id.includes(String(subflowId)) && candidateNode.id.endsWith(`:${targetKey}`)) {
-      return candidateNode.id;
-    }
-  }
-
-  return null;
 }
 
 function branchTone(type: string): string {
@@ -307,44 +272,23 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
     }
 
     // If menu has submenu mapping -> load subflow and push context
-    if (node.data.type === 'menu' && branchKey !== 'complete' && Number(node.data.subflowId || 0) > 0) {
-      const rawTargets = node.data.config?.submenu_branch_targets;
-      const targets = rawTargets && typeof rawTargets === 'object' && !Array.isArray(rawTargets)
-        ? (rawTargets as Record<string, unknown>)
-        : {};
-      const targetKey = String(targets[branchKey] || '').trim();
-      const subflowId = Number(node.data.subflowId || 0);
-      if (targetKey && subflowId > 0) {
+    if (node.data.type === 'menu' && branchKey !== 'complete') {
+      const submenuFlows = sanitizeMenuBranchFlows(node.data.config?.submenu_branch_flows);
+      const submenuFlow = submenuFlows[branchKey];
+      if (submenuFlow) {
         try {
-          const response = await getFlow(String(subflowId));
+          const response = await getFlow(String(submenuFlow.flowId));
           const flowData = response.data;
           const subNodes = mapFlowToNodes(flowData);
           const subEdges = mapFlowToEdges(flowData);
-          const subNodeMap = new Map(subNodes.map((n) => [n.id, n]));
-
-          // Pass 1: match by React Flow id
-          let targetNode = subNodeMap.get(targetKey as string);
-
-          // Pass 2: try matching by original nodeKey or id patterns
-          if (!targetNode) {
-            targetNode = subNodes.find((n) => {
-              if (n.id === targetKey) return true;
-              if (String(n.id).endsWith(`:${targetKey}`)) return true;
-              return false;
-            });
-          }
-
-          // Pass 3: fall back to a node of type 'start'
-          if (!targetNode) {
-            targetNode = subNodes.find((n) => n.data.type === 'start');
-          }
+          const targetNode = subNodes.find((n) => n.data.type === 'start') || subNodes.find((n) => n.data.type !== 'group');
 
           if (!targetNode) {
             setSimState({
               ...simState,
               visited: nextVisited,
               done: true,
-              doneReason: `Subflow ${subflowId} has no start node`,
+              doneReason: `Subflow ${submenuFlow.flowId} has no start node`,
             });
             return;
           }
@@ -355,14 +299,14 @@ export function FlowSimulator({ nodes, edges, onClose, onSubflowEnter, onSubflow
             visited: nextVisited,
             isDeadEnd: false,
             doneReason: undefined,
-            submenuStack: [...simState.submenuStack, { menuNodeId: node.id, menuLabel: node.data.label || node.id }],
-            flowStack: [...(simState.flowStack || [{ flowId: 0, nodes, edges, label: 'Main Flow' }]), { flowId: subflowId, nodes: subNodes, edges: subEdges, label: flowData.name }],
+            submenuStack: [...simState.submenuStack, { menuNodeId: node.id, menuLabel: `${node.data.label || node.id} / ${branchKey}` }],
+            flowStack: [...(simState.flowStack || [{ flowId: 0, nodes, edges, label: 'Main Flow' }]), { flowId: submenuFlow.flowId, nodes: subNodes, edges: subEdges, label: flowData.name }],
             notice: null,
           });
-          onSubflowEnter?.(subflowId);
+          onSubflowEnter?.(submenuFlow.flowId);
           return;
         } catch (err) {
-          setSimState((prev) => prev ? { ...prev, notice: `Failed to load submenu #${subflowId}` } : prev);
+          setSimState((prev) => prev ? { ...prev, notice: `Failed to load submenu #${submenuFlow.flowId}` } : prev);
           return;
         }
       }

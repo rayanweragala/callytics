@@ -4,6 +4,15 @@ import { createReadStream } from 'fs';
 import { CreateRecordingDto } from './dto/create-recording.dto';
 import { RecordingsService } from './recordings.service';
 
+function recordingContentType(format: string | null | undefined): string {
+  const normalized = String(format || '').trim().toLowerCase();
+  if (normalized === 'wav') return 'audio/wav';
+  if (normalized === 'ulaw' || normalized === 'mulaw') return 'audio/basic';
+  if (normalized === 'mp3') return 'audio/mpeg';
+  if (normalized === 'ogg') return 'audio/ogg';
+  return 'application/octet-stream';
+}
+
 @Controller('recordings')
 export class RecordingsController {
   constructor(private readonly recordingsService: RecordingsService) {}
@@ -32,8 +41,9 @@ export class RecordingsController {
 
   @Get(':id/stream')
   async stream(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    const recording = await this.recordingsService.getOne(id);
     const filePath = await this.recordingsService.getFilePath(id);
-    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Type', recordingContentType(recording.data.format));
     res.setHeader('Content-Disposition', 'inline');
     createReadStream(filePath).pipe(res);
   }
@@ -42,7 +52,7 @@ export class RecordingsController {
   async download(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
     const recording = await this.recordingsService.getOne(id);
     const filePath = await this.recordingsService.getFilePath(id);
-    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Type', recordingContentType(recording.data.format));
     res.setHeader('Content-Disposition', `attachment; filename="${recording.data.fileName}"`);
     createReadStream(filePath).pipe(res);
   }

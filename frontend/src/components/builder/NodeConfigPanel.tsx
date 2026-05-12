@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Edge, Node } from 'reactflow';
-import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ConferenceNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig } from '../../types';
+import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ConferenceNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig, WebhookNodeConfig } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
@@ -8,6 +8,8 @@ import styles from './NodeConfigPanel.module.css';
 import pageStyles from '../../pages/FlowEditorPage.module.css';
 import {
   conditionValues,
+  sanitizeMenuBranchFlows,
+  sanitizeMenuBranchNames,
   isValidDigitConditionValue,
   isValidMenuBranchValue,
   sanitizeMenuBranches,
@@ -37,10 +39,8 @@ const businessHoursDays: Array<{ key: string; label: string }> = [
 const quickMenuBranchOptions = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
 
 export interface NodeConfigPanelMenuExtra {
-  submenuNodeOptionsLoading: boolean;
-  submenuStartNodeKey: string | null;
   selectedMenuLocalEdgeBranches: Set<string>;
-  selectedMenuSubmenuTargets: Record<string, string>;
+  selectedMenuBranchFlows: Record<string, { flowId: number; name: string }>;
 }
 
 export interface NodeConfigPanelProps {
@@ -56,8 +56,8 @@ export interface NodeConfigPanelProps {
   onConfigReplace: (nextConfig: Record<string, unknown>) => void;
   onEdgeConditionChange: (value: string | null) => void;
   onMenuBranchToggle: (branch: string, checked: boolean) => void;
-  onMenuSubflowTargetChange: (branch: string, targetNodeKey: string | null) => void;
-  onOpenSubmenuAction?: (nodeId: string) => void;
+  onOpenSubmenuAction?: (nodeId: string, branch?: string) => void;
+  onRenameSubmenu?: (flowId: number, name: string) => void | Promise<void>;
   
   menuExtra: NodeConfigPanelMenuExtra;
   flowDefaultTimeout?: number;
@@ -97,6 +97,7 @@ export function NodeConfigPanel({
   onEdgeConditionChange,
   onMenuBranchToggle,
   onOpenSubmenuAction,
+  onRenameSubmenu,
   menuExtra,
   flowDefaultTimeout = 10000,
   queueItems,
@@ -138,6 +139,12 @@ export function NodeConfigPanel({
   const selectedVoicemailOutroAudio = selectedConfig.end_audio_id
     ? audioItems.find((item) => item.id === Number(selectedConfig.end_audio_id))
     : null;
+  const selectedNodeHasOutgoingWebhook = Boolean(selectedNode && edges.some((edge) => {
+    if (edge.source !== selectedNode.id) {
+      return false;
+    }
+    return nodes.find((node) => node.id === edge.target)?.data.type === 'webhook';
+  }));
 
   const playAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.audio_file_id));
   const getDigitsAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
@@ -145,6 +152,11 @@ export function NodeConfigPanel({
   const transferNoAnswerAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.no_answer_sound_id));
   const callbackDtmfPromptAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.dtmf_prompt_audio_id));
   const callbackConfirmationAudioItem = audioItems.find((a) => String(a.id) === String(selectedConfig.confirmation_audio_id));
+  const selectionRenderKey = selectedNode
+    ? `node:${selectedNode.id}`
+    : selectedEdge
+    ? `edge:${selectedEdge.id}`
+    : 'empty';
 
   const edgeConditionOptions = (() => {
     if (!selectedEdge || !selectedEdgeSourceNode) return [] as Array<{ value: string; label: string }>;
@@ -174,7 +186,7 @@ export function NodeConfigPanel({
           </div>
         </div>
       ) : null}
-      <div className={pageStyles.configScrollArea}>
+      <div className={pageStyles.configScrollArea} key={selectionRenderKey}>
         {selectedEdge ? (
           <div className={styles.form}>
           {selectedEdgeSourceNode &&
@@ -338,10 +350,11 @@ export function NodeConfigPanel({
               edges={edges}
               onConfigChange={onConfigChange}
               onConfigValueChange={onConfigValueChange}
-              onMenuBranchToggle={onMenuBranchToggle}
-              onOpenSubmenuAction={onOpenSubmenuAction}
-              saveAttempted={saveAttempted}
-            />
+            onMenuBranchToggle={onMenuBranchToggle}
+            onOpenSubmenuAction={onOpenSubmenuAction}
+            onRenameSubmenu={onRenameSubmenu}
+            saveAttempted={saveAttempted}
+          />
           ) : null}
 
           {selectedNode.data.type === 'hunt' ? (
@@ -354,6 +367,7 @@ export function NodeConfigPanel({
               extensionOptions={extensionOptions}
               contactOptions={contactOptions}
               contacts={contactNumbers}
+              hasOutgoingWebhook={selectedNodeHasOutgoingWebhook}
               onConfigReplace={onConfigReplace}
             />
           ) : null}
@@ -460,7 +474,7 @@ export function NodeConfigPanel({
                     options={audioOptions}
                     value={transferConfig.waiting_sound_id ? String(transferConfig.waiting_sound_id) : null}
                     onChange={(value) => onConfigValueChange('waiting_sound_id', value ? Number(value) : null)}
-                    placeholder="None (silence)"
+                    placeholder="MOH"
                   />
                 </label>
                 {(() => {
@@ -503,6 +517,23 @@ export function NodeConfigPanel({
                   </button>
                 </div>
                 <span className={styles.meta}>Records the conversation after the call is transferred.</span>
+                {Boolean(transferConfig.record_call) ? (
+                  <>
+                    <label className={`${styles.field} ${styles.fieldRow}`}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(transferConfig.send_to_webhook)}
+                        onChange={(event) => onConfigValueChange('send_to_webhook', event.target.checked)}
+                      />
+                      <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>
+                        Send recording with webhook request
+                      </span>
+                    </label>
+                    {Boolean(transferConfig.send_to_webhook) && !selectedNodeHasOutgoingWebhook ? (
+                      <span className={styles.inlineWarning}>Connect a Webhook node to receive the recording.</span>
+                    ) : null}
+                  </>
+                ) : null}
               </>
             );
           })() : null}
@@ -789,31 +820,8 @@ export function NodeConfigPanel({
                   Send recording with webhook request
                 </span>
               </label>
-              {Boolean(selectedConfig.send_to_webhook) ? (
-                <>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Webhook URL</span>
-                    <input
-                      className={styles.input}
-                      value={String(selectedConfig.webhook_url || '')}
-                      onChange={(event) => onConfigChange('webhook_url', event.target.value)}
-                      placeholder="https://your-server.com/voicemail-hook"
-                    />
-                    <span className={styles.meta}>Stasis sends the saved recording path, call metadata, and duration to this URL.</span>
-                    {saveAttempted && !String(selectedConfig.webhook_url || '').trim() ? (
-                      <span className={styles.inlineError}>Webhook URL is required</span>
-                    ) : null}
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Secret (optional)</span>
-                    <input
-                      className={styles.input}
-                      value={String(selectedConfig.webhook_secret || '')}
-                      onChange={(event) => onConfigChange('webhook_secret', event.target.value)}
-                      placeholder="shared signing key"
-                    />
-                  </label>
-                </>
+              {Boolean(selectedConfig.send_to_webhook) && !selectedNodeHasOutgoingWebhook ? (
+                <span className={styles.inlineWarning}>Connect a Webhook node to receive the recording.</span>
               ) : null}
             </>
           ) : null}
@@ -843,8 +851,6 @@ export function NodeConfigPanel({
             <QueueConfigPanel
               config={selectedConfig}
               queueItems={queueItems}
-              audioItems={audioItems}
-              audioOptions={audioOptions}
               onConfigValueChange={onConfigValueChange}
               saveAttempted={saveAttempted}
             />
@@ -895,7 +901,8 @@ interface MenuConfigProps {
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
   onMenuBranchToggle: (branch: string, checked: boolean) => void;
-  onOpenSubmenuAction?: (nodeId: string) => void;
+  onOpenSubmenuAction?: (nodeId: string, branch?: string) => void;
+  onRenameSubmenu?: (flowId: number, name: string) => void | Promise<void>;
   saveAttempted?: boolean;
 }
 
@@ -913,6 +920,7 @@ function MenuConfig({
   onConfigValueChange,
   onMenuBranchToggle,
   onOpenSubmenuAction,
+  onRenameSubmenu,
   saveAttempted = false,
 }: MenuConfigProps) {
   const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -920,9 +928,36 @@ function MenuConfig({
   const menuPromptItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
   const timeoutItem = audioItems.find((a) => String(a.id) === String(selectedConfig.timeout_prompt_audio_id));
   const invalidItem = audioItems.find((a) => String(a.id) === String(selectedConfig.invalid_prompt_audio_id));
-  const failureItem = audioItems.find((a) => String(a.id) === String(selectedConfig.final_failure_audio_id));
+  const { selectedMenuLocalEdgeBranches, selectedMenuBranchFlows } = menuExtra;
+  const selectedMenuBranchNames = sanitizeMenuBranchNames(selectedConfig.submenu_branch_names);
+  const [renamingBranch, setRenamingBranch] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const activeRenamedSubmenuName = renamingBranch ? selectedMenuBranchFlows[renamingBranch]?.name || '' : '';
 
-  const { submenuNodeOptionsLoading, submenuStartNodeKey, selectedMenuLocalEdgeBranches, selectedMenuSubmenuTargets } = menuExtra;
+  useEffect(() => {
+    if (!renamingBranch) {
+      setRenameDraft('');
+      return;
+    }
+    setRenameDraft(activeRenamedSubmenuName);
+  }, [renamingBranch, activeRenamedSubmenuName]);
+
+  const updateBranchNames = (nextBranchNames: Record<string, string>) => {
+    onConfigValueChange('submenu_branch_names', nextBranchNames);
+  };
+
+  const submitSubmenuRename = async (branch: string, flowId: number) => {
+    const nextName = renameDraft.trim();
+    if (!nextName) {
+      setRenameDraft(selectedMenuBranchFlows[branch]?.name || '');
+      setRenamingBranch(null);
+      return;
+    }
+    if (nextName !== selectedMenuBranchFlows[branch]?.name) {
+      await onRenameSubmenu?.(flowId, nextName);
+    }
+    setRenamingBranch(null);
+  };
   const localRouteLabels = selectedMenuBranches.reduce<Record<string, string>>((acc, branch) => {
     const matchingEdge = edges.find((edge) => {
       if (edge.source !== selectedNode.id) return false;
@@ -999,19 +1034,6 @@ function MenuConfig({
         return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={invalidItem?.id} src={`${BASE}${srcPath}`} /> : null;
       })()}
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>final failure audio</span>
-        <SearchableSelect
-          options={audioOptions}
-          value={selectedConfig.final_failure_audio_id ? String(selectedConfig.final_failure_audio_id) : null}
-          onChange={(value) => onConfigChange('final_failure_audio_id', value || '')}
-          placeholder="select goodbye prompt"
-        />
-      </label>
-      {(() => {
-        const srcPath = failureItem?.previewUrl || failureItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={failureItem?.id} src={`${BASE}${srcPath}`} /> : null;
-      })()}
-      <label className={styles.field}>
         <span className={styles.fieldLabel}>timeout_ms</span>
         <input
           className={styles.input}
@@ -1084,51 +1106,26 @@ function MenuConfig({
         ) : null}
       </div>
       <div className={styles.field}>
-        <span className={styles.fieldLabel}>submenu</span>
-        <div className={styles.menuActionRow}>
-          <button
-            type="button"
-            className={`${styles.input} ${styles.inlineButtonWide}`}
-            onClick={() => onOpenSubmenuAction?.(selectedNode.id)}
-          >
-            {selectedNode.data.subflowId ? 'Open submenu' : 'Create submenu'}
-          </button>
-          <div className={styles.meta}>
-            {selectedNode.data.subflowId
-              ? `Submenu #${selectedNode.data.subflowId}`
-              : 'Creates a submenu flow for this menu and opens it.'}
-          </div>
-        </div>
-      </div>
-      <div className={styles.field}>
         <span className={styles.fieldLabel}>branch routing</span>
         <div className={styles.routeList}>
           {selectedMenuBranches.map((branch) => {
             const hasLocalRoute = selectedMenuLocalEdgeBranches.has(branch);
-            const submenuTarget = selectedMenuSubmenuTargets[branch];
+            const submenuFlow = selectedMenuBranchFlows[branch];
             const routeType = hasLocalRoute
               ? 'main flow'
-              : submenuTarget
+              : submenuFlow
               ? 'submenu'
-              : submenuNodeOptionsLoading
-              ? 'loading'
-              : 'missing';
+              : 'unrouted';
             const routeDetail = hasLocalRoute
               ? localRouteLabels[branch] || 'connected node'
-              : submenuTarget
-              ? submenuTarget
-              : submenuNodeOptionsLoading
-              ? 'loading submenu start...'
-              : selectedNode.data.subflowId
-              ? 'no route selected'
+              : submenuFlow
+              ? submenuFlow.name
               : 'create submenu or draw a local edge';
             const toneClass =
               routeType === 'submenu'
                 ? styles.routeToneSubmenu
                 : routeType === 'main flow'
                 ? styles.routeToneMain
-                : routeType === 'loading'
-                ? styles.routeToneLoading
                 : styles.routeToneMissing;
 
             return (
@@ -1136,6 +1133,65 @@ function MenuConfig({
                 <span className={styles.menuBranchLabel}>{branch}</span>
                 <span className={`${styles.routeBadge} ${toneClass}`}>{routeType}</span>
                 <div className={styles.routeDetail}>{routeDetail}</div>
+                {hasLocalRoute ? null : submenuFlow ? (
+                  <div className={styles.submenuNameRow}>
+                    <button
+                      type="button"
+                      className={`${styles.input} ${styles.inlineButtonAuto}`}
+                      onClick={() => onOpenSubmenuAction?.(selectedNode.id, branch)}
+                    >
+                      Open submenu
+                    </button>
+                    {renamingBranch === branch ? (
+                      <input
+                        autoFocus
+                        className={styles.input}
+                        value={renameDraft}
+                        onBlur={() => void submitSubmenuRename(branch, submenuFlow.flowId)}
+                        onChange={(event) => setRenameDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void submitSubmenuRename(branch, submenuFlow.flowId);
+                          }
+                          if (event.key === 'Escape') {
+                            event.preventDefault();
+                            setRenameDraft(submenuFlow.name);
+                            setRenamingBranch(null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <button
+                        aria-label={`Rename submenu ${branch}`}
+                        className={`${styles.input} ${styles.iconButton}`}
+                        onClick={() => {
+                          setRenameDraft(submenuFlow.name);
+                          setRenamingBranch(branch);
+                        }}
+                        type="button"
+                      >
+                        ✎
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.branchDraftRow}>
+                    <input
+                      className={styles.input}
+                      placeholder={`${selectedNode.data.label || 'Menu'} ${branch} submenu`}
+                      value={selectedMenuBranchNames[branch] || ''}
+                      onChange={(event) => updateBranchNames({ ...selectedMenuBranchNames, [branch]: event.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className={`${styles.input} ${styles.inlineButtonAuto}`}
+                      onClick={() => onOpenSubmenuAction?.(selectedNode.id, branch)}
+                    >
+                      Create submenu
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1144,13 +1200,12 @@ function MenuConfig({
           <div className={styles.meta}>Add branches first, then route each branch to the main flow or submenu.</div>
         ) : null}
       </div>
-      <div className={styles.meta}>subflow: {selectedNode.data.subflowId ? `#${selectedNode.data.subflowId}` : 'created on save'}</div>
     </>
   );
 }
 
 interface WebhookConfigPanelProps {
-  config: Record<string, unknown>;
+  config: Partial<WebhookNodeConfig> & Record<string, unknown>;
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
   saveAttempted?: boolean;
@@ -1218,10 +1273,10 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
       <label className={`${styles.field} ${styles.fieldRow}`}>
         <input
           type="checkbox"
-          checked={Boolean(config['include_digits'])}
-          onChange={(e) => onConfigValueChange('include_digits', e.target.checked)}
+          checked={Boolean(config['include_session_variables'])}
+          onChange={(e) => onConfigValueChange('include_session_variables', e.target.checked)}
         />
-        <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>include session variables</span>
+        <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Include collected variables</span>
       </label>
       <div className={`${styles.field} ${styles.fieldFull}`}>
         <span className={styles.fieldLabel}>headers</span>
@@ -1271,34 +1326,74 @@ interface QueueLoginConfigPanelProps {
 function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioItems, audioOptions, onConfigValueChange, saveAttempted }: QueueLoginConfigPanelProps) {
   const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const queueOptions = (queueItems ?? []).map((q) => ({ value: String(q.id), label: q.name }));
+  const timeoutModeOptions = [
+    { value: 'flow_default', label: 'use flow default' },
+    { value: 'custom', label: 'custom timeout' },
+  ];
   const useFlowDefaultTimeout = config['use_flow_default_timeout'] !== false;
+  const selectedQueueIds = Array.isArray(config['queue_ids'])
+    ? (config['queue_ids'] as unknown[]).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+    : (Number(config['queue_id'] || 0) > 0 ? [Number(config['queue_id'])] : []);
+  const queueIdSet = new Set(selectedQueueIds);
   const promptItem = audioItems.find((a) => String(a.id) === String(config['prompt_audio_file_id']));
   const wrongPinItem = audioItems.find((a) => String(a.id) === String(config['wrong_pin_audio_file_id']));
   const successItem = audioItems.find((a) => String(a.id) === String(config['login_success_audio_file_id']));
+
+  const addQueueId = (value: string | null) => {
+    const queueId = Number(value || 0);
+    if (!Number.isInteger(queueId) || queueId <= 0 || queueIdSet.has(queueId)) {
+      return;
+    }
+    onConfigValueChange('queue_ids', [...selectedQueueIds, queueId]);
+  };
+
+  const toggleQueueId = (queueId: number, checked: boolean) => {
+    if (checked) {
+      if (queueIdSet.has(queueId)) return;
+      onConfigValueChange('queue_ids', [...selectedQueueIds, queueId]);
+      return;
+    }
+    onConfigValueChange('queue_ids', selectedQueueIds.filter((value) => value !== queueId));
+  };
+
   return (
     <>
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>queue</span>
+        <span className={styles.fieldLabel}>queues</span>
         <SearchableSelect
-          options={queueOptions}
-          value={config['queue_id'] ? String(config['queue_id']) : null}
-          onChange={(value) => onConfigValueChange('queue_id', value ? Number(value) : null)}
-          placeholder="select queue"
+          options={queueOptions.filter((option) => !queueIdSet.has(Number(option.value)))}
+          value={null}
+          onChange={addQueueId}
+          placeholder="add queue"
         />
-        {saveAttempted && !config['queue_id'] ? (
-          <span className={styles.inlineError}>Queue is required</span>
+        <div className={styles.meta}>Select one or more queues. Operator login will apply to all selected queues.</div>
+        <div className={styles.checkboxList}>
+          {(queueItems ?? []).map((queue) => (
+            <label key={queue.id} className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={queueIdSet.has(queue.id)}
+                onChange={(event) => toggleQueueId(queue.id, event.target.checked)}
+              />
+              <span>{queue.name}</span>
+            </label>
+          ))}
+        </div>
+        {selectedQueueIds.length > 0 ? (
+          <div className={styles.meta}>Selected queue IDs: {selectedQueueIds.join(', ')}</div>
+        ) : null}
+        {saveAttempted && selectedQueueIds.length === 0 ? (
+          <span className={styles.inlineError}>At least one queue is required</span>
         ) : null}
       </label>
       <label className={styles.field}>
         <span className={styles.fieldLabel}>input timeout mode</span>
-        <select
-          className={styles.input}
+        <SearchableSelect
+          options={timeoutModeOptions}
           value={useFlowDefaultTimeout ? 'flow_default' : 'custom'}
-          onChange={(event) => onConfigValueChange('use_flow_default_timeout', event.target.value === 'flow_default')}
-        >
-          <option value="flow_default">use flow default</option>
-          <option value="custom">custom timeout</option>
-        </select>
+          onChange={(value) => onConfigValueChange('use_flow_default_timeout', value !== 'custom')}
+          placeholder="select timeout mode"
+        />
       </label>
       {useFlowDefaultTimeout ? (
         <div className={styles.meta}>Effective timeout: {flowDefaultTimeout} ms (from start node default).</div>
@@ -1369,16 +1464,12 @@ function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioIt
 interface QueueConfigPanelProps {
   config: Record<string, unknown>;
   queueItems?: import('../../types').QueueItem[];
-  audioItems: AudioFileItem[];
-  audioOptions: Array<{ value: string; label: string }>;
   onConfigValueChange: (field: string, value: unknown) => void;
   saveAttempted?: boolean;
 }
 
-function QueueConfigPanel({ config, queueItems, audioItems, audioOptions, onConfigValueChange, saveAttempted }: QueueConfigPanelProps) {
- const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+function QueueConfigPanel({ config, queueItems, onConfigValueChange, saveAttempted }: QueueConfigPanelProps) {
  const queueOptions = (queueItems ?? []).map((q) => ({ value: String(q.id), label: q.name }));
- const promptItem = audioItems.find((a) => String(a.id) === String(config['prompt_audio_file_id']));
   return (
     <>
       <label className={styles.field}>
@@ -1393,19 +1484,6 @@ function QueueConfigPanel({ config, queueItems, audioItems, audioOptions, onConf
           <span className={styles.inlineError}>Queue is required</span>
         ) : null}
       </label>
-      <label className={styles.field}>
-        <span className={styles.fieldLabel}>prompt audio</span>
-        <SearchableSelect
-          options={audioOptions}
-          value={config['prompt_audio_file_id'] ? String(config['prompt_audio_file_id']) : null}
-          onChange={(value) => onConfigValueChange('prompt_audio_file_id', value ? Number(value) : null)}
-          placeholder="optional — queue entry prompt"
-        />
-      </label>
-      {(() => {
-        const srcPath = promptItem?.previewUrl || promptItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${BASE}${srcPath}`} /> : null;
-      })()}
       <div className={styles.toggleField}>
         <span className={styles.toggleLabel}>Record call</span>
         <button

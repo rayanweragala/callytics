@@ -23,6 +23,9 @@ export class CallRecordingEntity {
   @Column({ type: 'varchar', length: 20, default: 'wav' })
   format!: string;
 
+  @Column({ name: 'recording_type', type: 'text', default: 'inbound' })
+  recordingType!: string;
+
   @Column({ name: 'duration_seconds', type: 'integer', nullable: true })
   durationSeconds!: number | null;
 

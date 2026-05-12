@@ -31,6 +31,11 @@
   color: var(--text-primary);
 }
 
+.context {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .separator {
   color: var(--text-muted);
   font-family: var(--font-mono);

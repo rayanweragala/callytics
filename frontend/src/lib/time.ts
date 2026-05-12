@@ -12,18 +12,42 @@ export function formatUptime(seconds: number): string {
   return [hours, minutes, secs].map((value) => String(value).padStart(2, '0')).join(':');
 }
 
+const DEFAULT_DISPLAY_TIMEZONE = 'UTC';
+
+function resolveDisplayTimezone(): string {
+  const value = import.meta.env.VITE_DISPLAY_TIMEZONE?.trim();
+  if (!value) return DEFAULT_DISPLAY_TIMEZONE;
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: value }).format(new Date(0));
+    return value;
+  } catch {
+    return DEFAULT_DISPLAY_TIMEZONE;
+  }
+}
+
+function buildFormatter(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: resolveDisplayTimezone(),
+    ...options,
+  });
+}
+
 /**
  * Formats a date-time value as "13 Apr 2026, 09:57"
  * Day-month-year, 24h time, no seconds.
  */
 export function formatDateTime(value: string | Date): string {
   const d = typeof value === 'string' ? new Date(value) : value;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = d.toLocaleString('en-GB', { month: 'short' });
-  const year = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${day} ${month} ${year}, ${hh}:${mm}`;
+  const parts = buildFormatter({
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const map = new Map(parts.map((part) => [part.type, part.value]));
+  return `${map.get('day')} ${map.get('month')} ${map.get('year')}, ${map.get('hour')}:${map.get('minute')}`;
 }
 
 
@@ -37,12 +61,12 @@ export function formatPacketTimestamp(utcTime: string): string {
   if ([hh, mm, ss].some(Number.isNaN)) return utcTime;
   const d = new Date();
   d.setUTCHours(hh, mm, ss, 0);
-  return d.toLocaleTimeString('en-GB', {
+  return buildFormatter({
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  });
+  }).format(d);
 }
 
 /**

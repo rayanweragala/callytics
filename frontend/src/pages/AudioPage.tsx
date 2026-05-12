@@ -1,5 +1,5 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { createTts, deleteAudio, listAudio, listAudioVoices, previewTts as requestTtsPreview, uploadAudio } from '../lib/api';
+import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { createTts, deleteAudio, listAudio, listAudioVoices, previewTts as requestTtsPreview, updateAudio, uploadAudio } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { AudioPreviewPlayer } from '../components/audio/AudioPreviewPlayer';
 import { AudioUploadZone } from '../components/audio/AudioUploadZone';
@@ -34,6 +34,7 @@ export function AudioPage() {
   const [uploadName, setUploadName] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [ttsText, setTtsText] = useState('');
+  const [ttsName, setTtsName] = useState('');
   const [ttsVoice, setTtsVoice] = useState(DEFAULT_TTS_VOICE);
   const [ttsSpeed, setTtsSpeed] = useState(1);
   const [ttsPitch, setTtsPitch] = useState(0);
@@ -44,7 +45,7 @@ export function AudioPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [ttsFieldErrors, setTtsFieldErrors] = useState<{ text?: string }>({});
+  const [ttsFieldErrors, setTtsFieldErrors] = useState<{ name?: string; text?: string }>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
@@ -55,6 +56,11 @@ export function AudioPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [editItemId, setEditItemId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
   const showPagination = total > 0;
 
   const load = async (nextPage = page, nextLimit = limit) => {
@@ -155,7 +161,8 @@ export function AudioPage() {
   };
 
   const validateTts = (): boolean => {
-    const nextErrors: { text?: string } = {};
+    const nextErrors: { name?: string; text?: string } = {};
+    if (!ttsName.trim()) nextErrors.name = 'display name is required';
     if (!ttsText.trim()) nextErrors.text = 'prompt text is required';
     setTtsFieldErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -185,8 +192,9 @@ export function AudioPage() {
     setTtsState('busy');
     setTtsError(null);
     try {
-      await createTts({ name: '', text: ttsText, voice: ttsVoice, speed: ttsSpeed, pitch: ttsPitch, normalizeVolume });
+      await createTts({ name: ttsName.trim(), text: ttsText, voice: ttsVoice, speed: ttsSpeed, pitch: ttsPitch, normalizeVolume });
       clearPreview();
+      setTtsName('');
       setTtsText('');
       setTtsSpeed(1);
       setTtsPitch(0);
@@ -215,6 +223,52 @@ export function AudioPage() {
       if (failedDeleteTimerRef.current) window.clearTimeout(failedDeleteTimerRef.current);
       failedDeleteTimerRef.current = window.setTimeout(() => setFailedDeleteId(c => c === id ? null : c), 6000);
       setConfirmId(null);
+    }
+  };
+
+  const openEdit = (item: AudioFileItem) => {
+    setEditItemId(item.id);
+    setEditName(item.name);
+    setEditError(null);
+  };
+
+  const closeEdit = () => {
+    setEditItemId(null);
+    setEditName('');
+    setEditError(null);
+    setSavingEdit(false);
+  };
+
+  useEffect(() => {
+    if (editItemId === null) {
+      return;
+    }
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (editPanelRef.current?.contains(target)) return;
+      closeEdit();
+    };
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [editItemId]);
+
+  const saveEdit = async () => {
+    if (editItemId === null) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
+      setEditError('display name is required');
+      return;
+    }
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const response = await updateAudio(editItemId, { name: trimmedName });
+      setItems((current) => current.map((item) => (item.id === editItemId ? response.data : item)));
+      closeEdit();
+    } catch (error) {
+      setEditError(getApiError(error, 'failed to update audio name'));
+      setSavingEdit(false);
     }
   };
 
@@ -248,6 +302,20 @@ export function AudioPage() {
         <section className={styles.panel}>
           <div className={styles.panelTitle}>piper tts</div>
           <div className={styles.ttsFormGrid}>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>display name</span>
+              <input
+                className={styles.input}
+                placeholder="display name"
+                value={ttsName}
+                onChange={(e) => {
+                  setTtsName(e.target.value);
+                  clearTtsFeedback();
+                  setTtsFieldErrors((current) => ({ ...current, name: undefined }));
+                }}
+              />
+              {ttsFieldErrors.name && <div className={styles.fieldError}>{ttsFieldErrors.name}</div>}
+            </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>voice</span>
               <SearchableSelect options={voiceOptions} value={ttsVoice} onChange={(v) => { clearTtsFeedback(); setTtsVoice(v || ''); }} />
@@ -331,7 +399,8 @@ export function AudioPage() {
                   <td colSpan={6} className={styles.emptyState}>No audio yet.</td>
                 </tr>
               ) : items.map((item) => (
-                <tr key={item.id}>
+                <Fragment key={item.id}>
+                <tr>
                   <td>
                     <div className={styles.name}>{item.name}</div>
                     <div className={styles.meta}>{item.ttsVoice || item.originalFilename || '—'}</div>
@@ -348,6 +417,7 @@ export function AudioPage() {
                         <div className={styles.deletedText}>deleted</div>
                       ) : (
                         <>
+                          <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => openEdit(item)} type="button">edit</button>
                           <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmId(item.id)}>delete</button>
                           {failedDeleteId === item.id && <div className={styles.failedText}>failed</div>}
                         </>
@@ -355,6 +425,28 @@ export function AudioPage() {
                     </div>
                   </td>
                 </tr>
+                {editItemId === item.id ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <div className={styles.editPanel} ref={editPanelRef}>
+                        <div className={styles.editPanelHeader}>
+                          <span className={styles.fieldLabel}>edit audio name</span>
+                          <button className={styles.panelCloseButton} type="button" onClick={closeEdit} aria-label="Close edit panel">×</button>
+                        </div>
+                        <label className={`${styles.field} ${styles.fullWidth}`}>
+                          <span className={styles.fieldLabel}>display name</span>
+                          <input className={styles.input} value={editName} onChange={(event) => { setEditName(event.target.value); setEditError(null); }} />
+                        </label>
+                        {editError ? <div className={`${styles.failedText} ${styles.fullWidth}`}>{editError}</div> : null}
+                        <div className={styles.actions}>
+                          <button className={styles.secondaryButton} type="button" onClick={closeEdit} disabled={savingEdit}>cancel</button>
+                          <button className={styles.primaryButton} type="button" onClick={() => void saveEdit()} disabled={savingEdit}>{savingEdit ? 'saving…' : 'save'}</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>

@@ -72,4 +72,21 @@ describe('FlowCanvasNode conference rendering', () => {
     expect(screen.getByTestId('handle-target-default')).toBeInTheDocument();
     expect(screen.queryByTestId('handle-source-default')).not.toBeInTheDocument();
   });
+
+  it('does not render the delete button for a selected start node', () => {
+    render(
+      <FlowCanvasNode
+        {...createProps()}
+        selected
+        data={{
+          type: 'start',
+          label: 'Start',
+          config: {},
+          onDelete: vi.fn(),
+        } as FlowNodeData}
+      />,
+    );
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });

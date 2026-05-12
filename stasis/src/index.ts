@@ -6,9 +6,11 @@ import * as http from "node:http";
 import * as ari from "ari-client";
 import {
   addSession,
+  type CallSession,
   createSession,
   getActiveSessionCount,
   getSession,
+  markCallEnded,
   removeSession,
 } from "./callSession";
 import { closeDbPool } from "./db";
@@ -23,6 +25,7 @@ import {
   publishSipTraffic,
   publishCallEvent,
 } from "./telemetry";
+import { persistSessionRecording } from "./bridgeRecording";
 import { resolveTransferWaiter, rejectTransferWaiter } from "./transferManager";
 import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManager";
 import { resolveCallbackWaiter, hasCallbackWaiter } from "./callbackManager";
@@ -61,6 +64,13 @@ const testCallStates = new Map<
   { testCallId: string; type: "outbound" | "inbound"; answered: boolean }
 >();
 const directOutboundCalls = new Map<string, DirectOutboundActiveCall>();
+const transferOutboundLegs = new Map<
+  string,
+  {
+    inboundChannelId: string;
+    channel: { id: string; hangup: () => Promise<void> };
+  }
+>();
 const FLOW_DRAIN_TIMEOUT_MS = 30_000;
 
 type AriLifecycleClient = {
@@ -875,71 +885,14 @@ async function stopInboundRecording(name: string): Promise<void> {
   }
 }
 
-async function persistRecording(session: {
-  callUuid: string;
-  channelId: string;
-  flow: { id: number };
-  recording: {
-    name: string;
-    fileName: string;
-    filePath: string;
-    format: string;
-    startedAt: Date;
-    endedAt: Date | null;
-  } | null;
-}): Promise<void> {
-  if (!session.recording) {
+async function persistRecording(session: CallSession): Promise<void> {
+  const recording = session.recording;
+  const persisted = await persistSessionRecording(session);
+  if (!persisted || !recording) {
     return;
   }
 
-  const endedAt = session.recording.endedAt || new Date();
-  const durationSeconds = Math.max(
-    0,
-    Math.round(
-      (endedAt.getTime() - session.recording.startedAt.getTime()) / 1000,
-    ),
-  );
-
-  if (!session.recording.endedAt) {
-    try {
-      await stopInboundRecording(session.recording.name);
-    } catch (error) {
-      stasisLogger.error(
-        `[recording] stop failed call_id=${session.callUuid} file=${session.recording.fileName}:`,
-        error,
-      );
-    }
-  }
-
-  const response = await fetch(`${BACKEND_URL}/recordings/internal`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-token": RECORDINGS_INTERNAL_TOKEN,
-    },
-    body: JSON.stringify({
-      callId: session.callUuid,
-      channelId: session.channelId,
-      flowId: session.flow.id,
-      fileName: session.recording.fileName,
-      filePath: session.recording.filePath,
-      format: session.recording.format,
-      durationSeconds,
-      startedAt: session.recording.startedAt.toISOString(),
-      endedAt: endedAt.toISOString(),
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `record_persist_failed status=${response.status} body=${body}`,
-    );
-  }
-
-  stasisLogger.log(
-    `[recording] saved call_id=${session.callUuid} file=${session.recording.fileName} duration=${durationSeconds}s`,
-  );
+  stasisLogger.log(`[recording] saved call_id=${session.callUuid} file=${recording.fileName} duration=${persisted.durationSeconds}s`);
 }
 
 async function start(): Promise<void> {
@@ -1118,10 +1071,30 @@ async function start(): Promise<void> {
         }
 
         if (event.args?.[0] === "transfer-outbound" && event.args[1]) {
+          logEvent("TransferOutboundHandlerEntered", {
+            inboundChannelId: event.args[1],
+            outboundChannelId: channel.id,
+            stasisArgs: event.args,
+          });
+          transferOutboundLegs.set(channel.id, {
+            inboundChannelId: event.args[1],
+            channel,
+          });
+          logEvent("TransferOutboundLegTracked", {
+            inboundChannelId: event.args[1],
+            outboundChannelId: channel.id,
+          });
+          logEvent("TransferOutboundImmediateResolveStart", {
+            inboundChannelId: event.args[1],
+            outboundChannelId: channel.id,
+          });
           resolveTransferWaiter(event.args[1], channel);
-          stasisLogger.log(
-            `Transfer leg answered: ${channel.id} for ${event.args[1]}`,
-          );
+          transferOutboundLegs.delete(channel.id);
+          logEvent("TransferOutboundImmediateResolveDone", {
+            inboundChannelId: event.args[1],
+            outboundChannelId: channel.id,
+          });
+          stasisLogger.log(`Transfer leg entered Stasis: ${channel.id} for ${event.args[1]}`);
           return;
         }
 
@@ -1410,8 +1383,53 @@ async function start(): Promise<void> {
           try {
             await channel.hangup();
           } catch {}
+          markCallEnded(session);
           removeSession(channel.id);
         }
+      },
+    );
+
+    client.on(
+      "ChannelStateChange",
+      (
+        event: {
+          channel?: {
+            id?: string;
+            state?: string;
+          };
+        },
+      ) => {
+        const channelId = String(event.channel?.id || "");
+        const state = String(event.channel?.state || "");
+        if (!channelId || state !== "Up") {
+          if (channelId) {
+            logEvent("TransferOutboundStateIgnored", { channelId, state });
+          }
+          return;
+        }
+        logEvent("TransferOutboundStateUp", { channelId });
+        const transferLeg = transferOutboundLegs.get(channelId);
+        if (!transferLeg) {
+          logEvent("TransferOutboundLegNotTracked", { channelId, state });
+          return;
+        }
+        logEvent("TransferOutboundLegResolveStart", {
+          channelId,
+          inboundChannelId: transferLeg.inboundChannelId,
+        });
+        transferOutboundLegs.delete(channelId);
+        logEvent("TransferOutboundLegResolveDeletedFromMap", {
+          channelId,
+          inboundChannelId: transferLeg.inboundChannelId,
+        });
+        resolveTransferWaiter(transferLeg.inboundChannelId, transferLeg.channel);
+        logEvent("TransferOutboundLegResolveDone", {
+          channelId,
+          inboundChannelId: transferLeg.inboundChannelId,
+        });
+        stasisLogger.log(
+          `Transfer leg answered: ${channelId} for ${transferLeg.inboundChannelId}`,
+        );
       },
     );
 
@@ -1428,6 +1446,10 @@ async function start(): Promise<void> {
         channel: { id: string },
       ) => {
         const channelId = channel.id;
+        const session = getSession(channelId);
+        if (session) {
+          markCallEnded(session);
+        }
         if (await campaignExecutor.handleChannelEnd(channelId)) {
           return;
         }
@@ -1479,8 +1501,12 @@ async function start(): Promise<void> {
         }
         rejectHuntWaiter(channelId, "destroyed");
         rejectTransferWaiter(channelId, "destroyed");
+        const transferLeg = transferOutboundLegs.get(channelId);
+        if (transferLeg) {
+          transferOutboundLegs.delete(channelId);
+          rejectTransferWaiter(transferLeg.inboundChannelId, "destroyed");
+        }
         rtcpAmiAccumulator.delete(channelId);
-        const session = getSession(channelId);
         if (!session) {
           return;
         }
@@ -1628,6 +1654,11 @@ async function start(): Promise<void> {
         }
         rejectHuntWaiter(channel.id, "destroyed");
         rejectTransferWaiter(channel.id, "destroyed");
+        const transferLeg = transferOutboundLegs.get(channel.id);
+        if (transferLeg) {
+          transferOutboundLegs.delete(channel.id);
+          rejectTransferWaiter(transferLeg.inboundChannelId, "destroyed");
+        }
         if (!getSession(channel.id)) {
           return;
         }

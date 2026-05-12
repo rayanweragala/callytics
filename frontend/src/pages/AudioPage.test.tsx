@@ -24,6 +24,7 @@ vi.mock('../lib/api', () => {
     createTts: vi.fn(),
     deleteAudio: vi.fn(),
     previewTts: vi.fn(),
+    updateAudio: vi.fn(),
   };
 });
 

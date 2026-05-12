@@ -14,13 +14,17 @@ import { FlowNode } from '../flowLoader';
 const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<typeof resolveAudioMediaPath>;
 
 function createSession(): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: 'call-1',
     channelId: 'channel-1',
     callerNumber: '1000',
     currentNodeKey: 'menu-1',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: null,
     flow: {
@@ -194,6 +198,9 @@ describe('menu executor — audio and first-attempt behaviour', () => {
     const promise = executeMenu(channel, node, session, ariClient);
     await flushPromises(20);
 
+    ariClient.emit('PlaybackFinished', { playback: { id: 'playback-1' } });
+    await flushPromises(20);
+
     // Let the first timeout fire
     await jest.advanceTimersByTimeAsync(5000);
     await flushPromises(20);
@@ -207,6 +214,39 @@ describe('menu executor — audio and first-attempt behaviour', () => {
       expect.objectContaining({ media: 'sound:callytics/timeout_prompt_audio_id' }),
       expect.anything(),
     );
+  });
+
+  it('does not start timeout countdown until prompt playback finishes', async () => {
+    let resolvePlay!: () => void;
+    const playPromise = new Promise<void>((res) => { resolvePlay = res; });
+    resolveAudioMediaPathMock.mockResolvedValue('callytics/prompt');
+
+    const ariClient = createAriClient();
+    const channel = {
+      id: 'channel-1',
+      play: jest.fn().mockReturnValue(playPromise),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+    const node = makeMenuNode({ max_timeout_attempts: 1 });
+
+    const promise = executeMenu(channel, node, createSession(), ariClient);
+    await flushPromises(20);
+
+    let settled = false;
+    promise.then(() => { settled = true; });
+
+    await jest.advanceTimersByTimeAsync(5000);
+    await flushPromises(20);
+    expect(settled).toBe(false);
+
+    resolvePlay();
+    await flushPromises(20);
+    ariClient.emit('PlaybackFinished', { playback: { id: 'playback-1' } });
+    await flushPromises(20);
+
+    await jest.advanceTimersByTimeAsync(5000);
+    await flushPromises(20);
+    await expect(promise).resolves.toBe('hangup');
   });
 
   it('resolves "hangup" immediately when StasisEnd fires mid-prompt', async () => {
@@ -343,5 +383,3 @@ describe('menu executor - barge-in behaviour', () => {
     resolvePlay();
   })
 })
-
-

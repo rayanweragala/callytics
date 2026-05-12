@@ -26,13 +26,17 @@ const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<t
 const registerHuntWaiterMock = registerHuntWaiter as jest.MockedFunction<typeof registerHuntWaiter>;
 
 function createSession(): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: 'call-1',
     channelId: 'channel-1',
     callerNumber: '1000',
     currentNodeKey: 'start',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: { id: 'bridge-inbound-1' },
     flow: {

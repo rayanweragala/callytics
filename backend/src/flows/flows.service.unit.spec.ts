@@ -813,35 +813,59 @@ describe("FlowsService", () => {
   });
 
   describe("remove", () => {
-    it("should remove a flow and its versions", async () => {
-      const flow = { id: 1 };
+    it("should remove a flow subtree and its versions", async () => {
+      const flow = { id: 1, parentFlowId: null };
+      const child = { id: 2, parentFlowId: 1 };
       mockManager.findOne.mockResolvedValue(flow);
-      mockManager.find.mockResolvedValue([{ id: 10 }]);
+      mockManager.find
+        .mockResolvedValueOnce([child])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 10, flowId: 1 }, { id: 11, flowId: 2 }]);
 
       const result = await service.remove(1);
 
       expect(result.data.deleted).toBe(true);
-      expect(mockManager.delete).toHaveBeenCalledWith(CallFlowEntity, {
-        id: 1,
+      expect(mockManager.find).toHaveBeenCalledWith(CallFlowEntity, {
+        where: { parentFlowId: 1 },
+        order: { id: 'ASC' },
       });
+      expect(mockManager.find).toHaveBeenCalledWith(FlowVersionEntity, {
+        where: { flowId: expect.anything() },
+      });
+      expect(mockManager.createQueryBuilder).toHaveBeenCalled();
     });
 
     it("should handle flow removal with no versions", async () => {
-      const flow = { id: 1 };
+      const flow = { id: 1, parentFlowId: null };
       mockManager.findOne.mockResolvedValue(flow);
-      mockManager.find.mockResolvedValue([]); // no versions
+      mockManager.find
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]); // no versions
 
       const result = await service.remove(1);
 
       expect(result.data.deleted).toBe(true);
-      expect(mockManager.delete).toHaveBeenCalledWith(CallFlowEntity, {
-        id: 1,
-      });
+      expect(mockManager.createQueryBuilder).toHaveBeenCalled();
     });
 
     it("should throw NotFoundException if flow to remove does not exist", async () => {
       mockManager.findOne.mockResolvedValue(null);
       await expect(service.remove(1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("rename", () => {
+    it("updates a flow name without touching versions", async () => {
+      const flow = { id: 4, name: "Old", updatedAt: new Date() };
+      callFlowsRepo.findOne.mockResolvedValue(flow);
+      callFlowsRepo.save.mockImplementation(async (value: any) => value);
+
+      const result = await service.rename(4, "Renamed submenu");
+
+      expect(result.data).toEqual({ id: 4, name: "Renamed submenu" });
+      expect(callFlowsRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 4, name: "Renamed submenu" }),
+      );
     });
   });
 
@@ -1044,17 +1068,25 @@ describe("FlowsService", () => {
   describe("getBreadcrumb", () => {
     it("should return breadcrumb for a flow", async () => {
       const flow1 = { id: 1, name: "Parent", parentFlowId: null };
-      const flow2 = { id: 2, name: "Child", parentFlowId: 1 };
-      callFlowsRepo.findOne
-        .mockResolvedValueOnce(flow2)
-        .mockResolvedValueOnce(flow1)
-        .mockResolvedValueOnce(null);
+      const flow2 = { id: 2, name: "Child", parentFlowId: 1, parentNodeKey: "menu-1", parentBranchKey: "1" };
+      callFlowsRepo.findOne.mockImplementation(({ where }) => {
+        if (where.id === 2) return Promise.resolve(flow2);
+        if (where.id === 1) return Promise.resolve({ ...flow1, currentVersionId: 11 });
+        return Promise.resolve(null);
+      });
+      flowVersionsRepo.findOne.mockResolvedValue({ id: 11 });
+      flowNodesRepo.findOne.mockResolvedValue({ nodeKey: "menu-1", label: "Main Menu" });
 
       const result = await service.getBreadcrumb(2);
 
       expect(result.data).toHaveLength(2);
       expect(result.data[0].flowId).toBe(1);
       expect(result.data[1].flowId).toBe(2);
+      expect(result.data[1]).toEqual(expect.objectContaining({
+        parentNodeKey: "menu-1",
+        parentNodeLabel: "Main Menu",
+        parentBranchKey: "1",
+      }));
     });
 
     it("should throw NotFoundException if no breadcrumb found", async () => {
@@ -1067,6 +1099,7 @@ describe("FlowsService", () => {
     it("should return flow tree", async () => {
       const flow = { id: 1, name: "Root", currentVersionId: 10 };
       callFlowsRepo.findOne.mockResolvedValue(flow);
+      callFlowsRepo.find.mockResolvedValue([]);
       flowNodesRepo.find.mockResolvedValue([]);
 
       const result = await service.getFlowTree(1);
@@ -1076,14 +1109,14 @@ describe("FlowsService", () => {
 
     it("should traverse flow tree with subflows", async () => {
       const rootFlow = { id: 1, name: "Root", currentVersionId: 10 };
-      const childFlow = { id: 2, name: "Child" };
+      const childFlow = { id: 2, name: "Child", currentVersionId: 11, parentFlowId: 1, parentNodeKey: "m1", parentBranchKey: "1" };
       const menuNode = {
         id: 1,
         type: "menu",
         nodeKey: "m1",
         label: "Menu 1",
-        subflowId: 2,
-        configJson: { submenu_branch_targets: { "1": "next" } },
+        subflowId: null,
+        configJson: { branches: ["1", "2"] },
       };
 
       callFlowsRepo.findOne.mockImplementation(({ where }) => {
@@ -1091,11 +1124,21 @@ describe("FlowsService", () => {
         if (where.id === 2) return Promise.resolve(childFlow);
         return Promise.resolve(null);
       });
-      flowNodesRepo.find.mockResolvedValue([menuNode]);
+      callFlowsRepo.find.mockImplementation(({ where }) => {
+        if (where.parentFlowId === 1) return Promise.resolve([childFlow]);
+        return Promise.resolve([]);
+      });
+      flowNodesRepo.find.mockImplementation(({ where }) => {
+        if (where.flowVersionId === 10) {
+          return Promise.resolve([menuNode]);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await service.getFlowTree(1);
 
       expect(result.data.children).toHaveLength(1);
+      expect(result.data.children[0].branchKey).toBe("1");
       expect(result.data.children[0].subflowId).toBe(2);
     });
 
@@ -1118,6 +1161,7 @@ describe("FlowsService", () => {
       const result = await service.createSubflow(
         1,
         "n1",
+        "1",
         "Subflow Name",
         mockManager,
       );
@@ -1127,7 +1171,7 @@ describe("FlowsService", () => {
 
     it("should return existing subflow id", async () => {
       mockManager.findOne.mockResolvedValue({ id: 2 });
-      const result = await service.createSubflow(1, "n1", "Name", mockManager);
+      const result = await service.createSubflow(1, "n1", "1", "Name", mockManager);
       expect(result).toBe(2);
     });
   });
@@ -1394,7 +1438,7 @@ describe("FlowsService", () => {
       const node = {
         nodeKey: "ql1",
         type: "queue_login",
-        config: { queue_id: 1, use_flow_default_timeout: true },
+        config: { queue_ids: [1], use_flow_default_timeout: true },
       };
       expect(() => validateNodeConfig(node)).not.toThrow();
     });
@@ -1403,7 +1447,7 @@ describe("FlowsService", () => {
       const node = {
         nodeKey: "ql1",
         type: "queue_login",
-        config: { queue_id: 1, use_flow_default_timeout: false },
+        config: { queue_ids: [1], use_flow_default_timeout: false },
       };
       expect(() => validateNodeConfig(node)).not.toThrow();
     });
@@ -1413,7 +1457,7 @@ describe("FlowsService", () => {
         nodeKey: "ql1",
         type: "queue_login",
         config: {
-          queue_id: 1,
+          queue_ids: [1],
           use_flow_default_timeout: false,
           input_timeout_ms: 15000,
         },
@@ -1571,7 +1615,7 @@ describe("FlowsService", () => {
         {
           nodeKey: "ql1",
           type: "queue_login",
-          config: { queue_id: 1, use_flow_default_timeout: false },
+          config: { queue_ids: [1], use_flow_default_timeout: false },
         },
       ];
       expect(() => validateNodesConfig(nodes)).toThrow(BadRequestException);
@@ -1616,6 +1660,10 @@ describe("FlowsService", () => {
         config: { url: "https://example.com/hook" },
       },
       { nodeKey: "q1", type: "queue", config: { queue_id: 1 } },
+      { nodeKey: "ql1", type: "queue_login", config: { queue_ids: [1], use_flow_default_timeout: true } },
+      { nodeKey: "hangup1", type: "hangup", config: {} },
+      { nodeKey: "vm1", type: "voicemail", config: { start_audio_id: 1 } },
+      { nodeKey: "cb1", type: "callback", config: { number_source: "ani", destination_value: "1001" } },
       {
         nodeKey: "h1",
         type: "hunt",
@@ -1627,6 +1675,13 @@ describe("FlowsService", () => {
 
     it("passes when webhook has zero outgoing edges", () => {
       expect(() => validateEdgesConfig([], nodes)).not.toThrow();
+    });
+
+    it("allows start to connect directly to queue_login", () => {
+      const edges = [
+        { sourceNodeKey: "start", targetNodeKey: "ql1", condition: null },
+      ];
+      expect(() => validateEdgesConfig(edges, nodes)).not.toThrow();
     });
 
     it("allows webhook to route to another node", () => {
@@ -1644,15 +1699,48 @@ describe("FlowsService", () => {
       expect(() => validateEdgesConfig(edges, nodes)).not.toThrow();
     });
 
-    it("passes webhook edge targets from play_audio, menu, queue, hunt, and transfer sources", () => {
+    it("allows any source node type to connect to webhook without source-specific edge validation", () => {
       const edges = [
         { sourceNodeKey: "p1", targetNodeKey: "wh1", condition: null },
-        { sourceNodeKey: "m1", targetNodeKey: "wh1", condition: "1" },
+        { sourceNodeKey: "m1", targetNodeKey: "wh1", condition: null },
         { sourceNodeKey: "q1", targetNodeKey: "wh1", condition: null },
         { sourceNodeKey: "h1", targetNodeKey: "wh1", condition: null },
         { sourceNodeKey: "t1", targetNodeKey: "wh1", condition: null },
       ];
       expect(() => validateEdgesConfig(edges, nodes)).not.toThrow();
+    });
+
+    it("allows menu to connect to webhook before menu branch validation runs", () => {
+      const edges = [
+        { sourceNodeKey: "m1", targetNodeKey: "wh1", condition: null },
+      ];
+      expect(() => validateEdgesConfig(edges, nodes)).not.toThrow();
+    });
+
+    it("allows terminal node types to connect to webhook targets", () => {
+      const edges = [
+        { sourceNodeKey: "hangup1", targetNodeKey: "wh1", condition: null },
+        { sourceNodeKey: "t1", targetNodeKey: "wh1", condition: null },
+        { sourceNodeKey: "vm1", targetNodeKey: "wh1", condition: null },
+        { sourceNodeKey: "cb1", targetNodeKey: "wh1", condition: null },
+        { sourceNodeKey: "ql1", targetNodeKey: "wh1", condition: null },
+      ];
+      expect(() => validateEdgesConfig(edges, nodes)).not.toThrow();
+    });
+
+    it.each([
+      ["hangup1", "hangup"],
+      ["t1", "transfer"],
+      ["vm1", "voicemail"],
+      ["cb1", "callback"],
+      ["ql1", "queue_login"],
+    ])("rejects %s terminal node edges to non-webhook targets", (sourceNodeKey, sourceType) => {
+      const edges = [
+        { sourceNodeKey, targetNodeKey: "p1", condition: null },
+      ];
+      expect(() => validateEdgesConfig(edges, nodes)).toThrow(
+        `Edge from ${sourceNodeKey}: ${sourceType} nodes cannot have outgoing edges`,
+      );
     });
   });
 });

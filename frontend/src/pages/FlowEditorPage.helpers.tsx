@@ -5,6 +5,7 @@ import type {
   FlowNodeData,
   FlowSnapshot,
   FlowSnapshotSubflow,
+  SubmenuBranchFlow,
 } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -17,6 +18,11 @@ type BuilderEdgeData = {
   subflowJumpLabel?: string;
   onDelete?: (edgeId: string) => void;
 };
+
+export interface ClipboardSelection {
+  nodes: Array<Node<FlowNodeData>>;
+  edges: Array<Edge<BuilderEdgeData>>;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -35,9 +41,16 @@ export const SUBFLOW_JUMP_NODE_ID_PREFIX = '__submenu_jump_anchor__';
 export const QUEUE_LOGIN_TIMEOUT_MIN_MS = 1000;
 export const QUEUE_LOGIN_TIMEOUT_MAX_MS = 120000;
 export const QUEUE_LOGIN_TIMEOUT_DEFAULT_MS = 10000;
-const GHOST_BRANCH_HEADER_OFFSET = 90;
-const GHOST_BRANCH_ROW_STRIDE = 28;
-const GHOST_NODE_HALF_HEIGHT = 18;
+const SUBFLOW_JUMP_NODE_WIDTH = 176;
+const SUBFLOW_JUMP_NODE_HEIGHT = 44;
+const SUBFLOW_JUMP_VERTICAL_PADDING = 80;
+const SUBFLOW_JUMP_MIN_COLUMN_GAP = 280;
+const SUBFLOW_JUMP_COLUMN_SHIFT_STEP = 120;
+const SUBFLOW_JUMP_COLLISION_PADDING = 20;
+
+function rangesOverlap(startA: number, endA: number, startB: number, endB: number): boolean {
+  return startA < endB && startB < endA;
+}
 
 export const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'start', label: 'start' },
@@ -75,12 +88,66 @@ export function sanitizeMenuSubmenuTargets(value: unknown): Record<string, strin
   return Object.fromEntries(entries);
 }
 
+export function sanitizeMenuBranchNames(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([branch, label]) => [String(branch || '').trim(), String(label || '').trim()] as const)
+    .filter(([branch, label]) => isValidMenuBranchValue(branch) && Boolean(label));
+  return Object.fromEntries(entries);
+}
+
+export function sanitizeMenuBranchFlows(value: unknown): Record<string, SubmenuBranchFlow> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([branch, rawFlow]) => {
+      const flow = rawFlow && typeof rawFlow === 'object' && !Array.isArray(rawFlow)
+        ? rawFlow as Record<string, unknown>
+        : null;
+      const flowId = Number(flow?.flowId || 0);
+      const name = String(flow?.name || '').trim();
+      return [String(branch || '').trim(), flowId, name] as const;
+    })
+    .filter(([branch, flowId, name]) => isValidMenuBranchValue(branch) && flowId > 0 && Boolean(name));
+
+  return Object.fromEntries(entries.map(([branch, flowId, name]) => [branch, { flowId, name }]));
+}
+
 export function resolveMenuBranchValue(
   branchKey: string | null | undefined,
   condition: string | null | undefined
 ): string | null {
   const resolved = String(condition || branchKey || '').trim();
   return isValidMenuBranchValue(resolved) ? resolved : null;
+}
+
+export function buildPendingSubmenuIgnoreBranches(
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+  pendingRoute: { nodeId: string; branch: string } | null | undefined,
+): Array<{ nodeId: string; branch: string }> {
+  if (!pendingRoute) {
+    return [];
+  }
+
+  const menuNode = nodes.find((node) => node.id === pendingRoute.nodeId && node.data.type === 'menu') || null;
+  if (!menuNode) {
+    return [pendingRoute];
+  }
+
+  const configuredBranches = sanitizeMenuBranches(menuNode.data.config.branches);
+  const submenuFlows = sanitizeMenuBranchFlows(menuNode.data.config.submenu_branch_flows);
+  const locallyRoutedBranches = new Set(
+    edges
+      .filter((edge) => edge.source === menuNode.id)
+      .map((edge) => resolveMenuBranchValue(edge.data?.branchKey, edge.data?.condition))
+      .filter((branch): branch is string => Boolean(branch)),
+  );
+
+  const ignoredBranches = configuredBranches
+    .filter((branch) => !locallyRoutedBranches.has(branch) && !submenuFlows[branch])
+    .map((branch) => ({ nodeId: menuNode.id, branch }));
+
+  return ignoredBranches.length > 0 ? ignoredBranches : [pendingRoute];
 }
 
 export function buildMenuSubmenuTargets(options: {
@@ -117,6 +184,190 @@ export function buildMenuSubmenuTargets(options: {
   return nextTargets;
 }
 
+export function expandClipboardSelectionNodes(
+  nodes: Array<Node<FlowNodeData>>,
+  selectedNodeIds: string[],
+): Array<Node<FlowNodeData>> {
+  const eligibleNodes = nodes.filter(
+    (node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX),
+  );
+  const nodeMap = new Map(eligibleNodes.map((node) => [node.id, node]));
+  const selectedIds = new Set(selectedNodeIds.filter((nodeId) => nodeMap.has(nodeId)));
+  const pendingGroupIds = Array.from(selectedIds).filter(
+    (nodeId) => nodeMap.get(nodeId)?.data.type === 'group',
+  );
+
+  while (pendingGroupIds.length > 0) {
+    const parentGroupId = pendingGroupIds.pop()!;
+    for (const node of eligibleNodes) {
+      if (node.parentId !== parentGroupId || selectedIds.has(node.id)) continue;
+      selectedIds.add(node.id);
+      if (node.data.type === 'group') {
+        pendingGroupIds.push(node.id);
+      }
+    }
+  }
+
+  return eligibleNodes.filter((node) => selectedIds.has(node.id));
+}
+
+export function buildClipboardSelection(
+  nodes: Array<Node<FlowNodeData>>,
+  edges: Array<Edge<BuilderEdgeData>>,
+  selectedNodeIds: string[],
+): ClipboardSelection | null {
+  const copiedNodes = expandClipboardSelectionNodes(nodes, selectedNodeIds);
+  if (copiedNodes.length === 0) {
+    return null;
+  }
+
+  const copiedNodeIds = new Set(copiedNodes.map((node) => node.id));
+  const copiedEdges = edges.filter(
+    (edge) =>
+      copiedNodeIds.has(edge.source) &&
+      copiedNodeIds.has(edge.target) &&
+      !edge.data?.isSubflowJump,
+  );
+
+  return {
+    nodes: copiedNodes.map((node) => ({
+      ...node,
+      data: {
+        label: node.data.label,
+        type: node.data.type,
+        config: JSON.parse(JSON.stringify(node.data.config || {})) as Record<string, unknown>,
+        subflowId: node.data.subflowId ?? null,
+      } as FlowNodeData,
+    })),
+    edges: copiedEdges.map((edge) => ({
+      ...edge,
+      data: {
+        branchKey: edge.data?.branchKey ?? null,
+        condition: edge.data?.condition ?? null,
+        sourceNodeType: edge.data?.sourceNodeType || 'hangup',
+      },
+    })),
+  };
+}
+
+export function buildPastedClipboardSelection(
+  copied: ClipboardSelection,
+  options?: {
+    offsetX?: number;
+    offsetY?: number;
+    timestamp?: number;
+    existingStartNodeId?: string | null;
+  },
+): ClipboardSelection {
+  const offsetX = options?.offsetX ?? 40;
+  const offsetY = options?.offsetY ?? 40;
+  const timestamp = options?.timestamp ?? Date.now();
+  const existingStartNodeId = options?.existingStartNodeId ?? null;
+  const idMap = new Map<string, string>();
+  const copiedStartNodeId = copied.nodes.find((node) => node.data.type === 'start')?.id ?? null;
+
+  copied.nodes.forEach((node, index) => {
+    if (node.data.type === 'start' && existingStartNodeId) {
+      idMap.set(node.id, existingStartNodeId);
+      return;
+    }
+    idMap.set(node.id, `${node.data.type}-${timestamp}-${index}`);
+  });
+
+  const nextNodes = copied.nodes.flatMap((node) => {
+    if (node.data.type === 'start' && existingStartNodeId) {
+      return [];
+    }
+    const nextId = idMap.get(node.id)!;
+    const parentId = node.parentId ? idMap.get(node.parentId) : undefined;
+    const config = JSON.parse(JSON.stringify(node.data.config || {})) as Record<string, unknown>;
+    if (node.data.type === 'menu') {
+      config.submenu_branch_flows = {};
+      delete config.submenu_branch_targets;
+    }
+    return [{
+      ...node,
+      id: nextId,
+      parentId,
+      extent: parentId ? node.extent : undefined,
+      position: parentId
+        ? { ...node.position }
+        : { x: node.position.x + offsetX, y: node.position.y + offsetY },
+      selected: true,
+      data: {
+        ...node.data,
+        config,
+        subflowId: node.data.type === 'menu' ? null : node.data.subflowId ?? null,
+      },
+    } as Node<FlowNodeData>];
+  });
+
+  const nextEdges: Array<Edge<BuilderEdgeData>> = [];
+  copied.edges.forEach((edge, index) => {
+    if (copiedStartNodeId && edge.target === copiedStartNodeId && existingStartNodeId) {
+      return;
+    }
+    const source = idMap.get(edge.source);
+    const target = idMap.get(edge.target);
+    if (!source || !target || source === target) {
+      return;
+    }
+    nextEdges.push({
+      ...edge,
+      id: `edge-${timestamp}-${index}`,
+      source,
+      target,
+      selected: false,
+    });
+  });
+
+  return { nodes: nextNodes, edges: nextEdges };
+}
+
+export function renameSubmenuFlowReferences(
+  nodes: Array<Node<FlowNodeData>>,
+  flowId: number,
+  name: string,
+): Array<Node<FlowNodeData>> {
+  let changed = false;
+
+  const nextNodes = nodes.map((node) => {
+    if (node.data.type !== 'menu') {
+      return node;
+    }
+
+    const submenuFlows = sanitizeMenuBranchFlows(node.data.config.submenu_branch_flows);
+    let branchChanged = false;
+    const nextSubmenuFlows = Object.fromEntries(
+      Object.entries(submenuFlows).map(([branch, submenuFlow]) => {
+        if (submenuFlow.flowId !== flowId || submenuFlow.name === name) {
+          return [branch, submenuFlow];
+        }
+        branchChanged = true;
+        return [branch, { ...submenuFlow, name }];
+      }),
+    );
+
+    if (!branchChanged) {
+      return node;
+    }
+
+    changed = true;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        config: {
+          ...node.data.config,
+          submenu_branch_flows: nextSubmenuFlows,
+        },
+      },
+    };
+  });
+
+  return changed ? nextNodes : nodes;
+}
+
 export interface FlowNodeValidationIssue {
   nodeId: string;
   nodeLabel: string;
@@ -148,15 +399,6 @@ function hasEnabledBusinessHoursSchedule(config: Record<string, unknown>): boole
     }
     return Boolean((entry as Record<string, unknown>).enabled);
   });
-}
-
-function hasWebhookPredecessor(
-  nodeId: string,
-  nodes: Array<Node<FlowNodeData>>,
-  edges: Array<Edge<BuilderEdgeData>>,
-): boolean {
-  const nodeTypeMap = new Map(nodes.map((node) => [node.id, node.data.type]));
-  return edges.some((edge) => edge.target === nodeId && nodeTypeMap.get(edge.source) === 'webhook');
 }
 
 export function validateNodeConfigurations(
@@ -221,17 +463,27 @@ export function validateNodeConfigurations(
           break;
         }
         case 'queue':
-        case 'queue_login':
           if (!isPositiveId(config.queue_id)) {
             issues.push('queue is required');
+          }
+          break;
+        case 'queue_login':
+          {
+            const queueIds = Array.isArray(config.queue_ids)
+              ? config.queue_ids
+              : (isPositiveId(config.queue_id) ? [config.queue_id] : []);
+            if (queueIds.length === 0) {
+              issues.push('at least one queue is required');
+              break;
+            }
+            if (!(queueIds as unknown[]).every((value) => isPositiveId(value))) {
+              issues.push('queue list contains invalid queue IDs');
+            }
           }
           break;
         case 'voicemail':
           if (!isPositiveId(config.start_audio_id)) {
             issues.push('intro message is required');
-          }
-          if (Boolean(config.send_to_webhook) && !hasWebhookPredecessor(node.id, nodes, edges)) {
-            issues.push('send recording to webhook requires a webhook directly before this node');
           }
           break;
         case 'webhook': {
@@ -337,7 +589,7 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
       max_timeout_attempts: 3,
       max_invalid_attempts: 3,
       branches: ['1', '2'],
-      submenu_branch_targets: {},
+      submenu_branch_names: {},
     };
   if (type === 'business_hours')
     return {
@@ -353,7 +605,7 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
       },
     };
   if (type === 'transfer')
-    return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '' };
+    return { target_type: 'extension', target_value: '', timeout_ms: 30000, on_no_answer: '', send_to_webhook: false };
   if (type === 'voicemail')
     return { mailbox_name: 'main', max_duration_seconds: 60, start_audio_id: null, end_audio_id: null, send_to_webhook: false };
   if (type === 'hunt')
@@ -365,19 +617,20 @@ export function typeConfig(type: BuilderNodeType): Record<string, unknown> {
       hold_audio_file_id: null,
       busy_audio_file_id: null,
       on_no_answer: '',
+      send_to_webhook: false,
     };
   if (type === 'webhook')
     return {
       url: '',
       method: 'POST',
       include_caller: false,
-      include_digits: false,
+      include_session_variables: false,
       timeout_ms: 5000,
       headers: [],
     };
   if (type === 'queue_login')
     return {
-      queue_id: null,
+      queue_ids: [],
       prompt_audio_file_id: null,
       wrong_pin_audio_file_id: null,
       login_success_audio_file_id: null,
@@ -553,18 +806,28 @@ export function serializeNodeForSave(node: Node<FlowNodeData>) {
         ),
       }
       : node.data.type === 'menu'
-      ? {
-          ...node.data.config,
-          branches: sanitizeMenuBranches(node.data.config.branches),
-          submenu_branch_targets: sanitizeMenuSubmenuTargets(
-            node.data.config.submenu_branch_targets
-          ),
-        }
+      ? (() => {
+          const menuConfig = {
+            ...node.data.config,
+            branches: sanitizeMenuBranches(node.data.config.branches),
+            submenu_branch_names: sanitizeMenuBranchNames(node.data.config.submenu_branch_names),
+          } as Record<string, unknown>;
+          delete menuConfig.submenu_branch_flows;
+          delete menuConfig.submenu_branch_targets;
+          return menuConfig;
+        })()
       : node.data.type === 'transfer'
       ? {
           ...node.data.config,
           target_type: String((node.data.config as Record<string, unknown>).target_type || 'extension'),
         }
+      : node.data.type === 'voicemail'
+      ? (() => {
+          const voicemailConfig = { ...node.data.config } as Record<string, unknown>;
+          delete voicemailConfig.webhook_url;
+          delete voicemailConfig.webhook_secret;
+          return voicemailConfig;
+        })()
       : node.data.config;
   return {
     nodeKey: node.id,
@@ -582,7 +845,10 @@ export function createSavePayload(
   flow: FlowDetail,
   nodes: Array<Node<FlowNodeData>>,
   edges: Array<Edge<BuilderEdgeData>>,
-  versionMessage?: string
+  versionMessage?: string,
+  options?: {
+    autoSave?: boolean;
+  },
 ) {
   const nodeTypeMap = new Map(nodes.map((node) => [node.id, node.data.type]));
   const persistedEdges = edges
@@ -597,12 +863,18 @@ export function createSavePayload(
       targetNodeKey: edge.target,
       branchKey: String(edge.data?.branchKey || edge.data?.condition || 'default'),
       condition: edge.data?.condition ?? null,
+      sourceHandle: edge.sourceHandle ?? null,
+      targetHandle: edge.targetHandle ?? null,
     }));
   return {
     name: flow.name,
     description: flow.description || '',
     slug: flow.slug,
     versionMessage,
+    autoSave: options?.autoSave ? true : undefined,
+    parentFlowId: flow.parentFlowId ?? undefined,
+    parentNodeKey: flow.parentNodeKey ?? undefined,
+    parentBranchKey: flow.parentBranchKey ?? undefined,
     nodes: nodes.map(serializeNodeForSave),
     edges: persistedEdges,
   };
@@ -610,9 +882,14 @@ export function createSavePayload(
 
 export async function validateFlowBeforeSave(
   nodes: Array<Node<FlowNodeData>>,
-  edges: Array<Edge<BuilderEdgeData>>
+  edges: Array<Edge<BuilderEdgeData>>,
+  options?: {
+    ignoreMenuBranches?: Array<{ nodeId: string; branch: string }>;
+  }
 ): Promise<string | null> {
-  const { getFlow } = await import('../lib/api');
+  const ignoredMenuBranches = new Set(
+    (options?.ignoreMenuBranches || []).map(({ nodeId, branch }) => `${nodeId}::${branch}`)
+  );
   const nodeTypeMap = new Map(nodes.map((node) => [node.id, node.data.type]));
   const persistedEdges = edges
     .filter((edge) => {
@@ -633,24 +910,10 @@ export async function validateFlowBeforeSave(
     current.push({ branchKey: edge.branchKey, condition: edge.condition });
     sourceOutgoing.set(edge.sourceNodeKey, current);
   }
-  const subflowNodeKeysById = new Map<number, Set<string>>();
-  async function loadSubflowNodeKeys(subflowId: number): Promise<Set<string> | null> {
-    if (subflowNodeKeysById.has(subflowId)) return subflowNodeKeysById.get(subflowId) || null;
-    try {
-      const response = await getFlow(String(subflowId));
-      const nodeKeys = new Set(response.data.nodes.map((item) => item.nodeKey));
-      subflowNodeKeysById.set(subflowId, nodeKeys);
-      return nodeKeys;
-    } catch {
-      return null;
-    }
-  }
   for (const node of nodes) {
     if (node.data.type !== 'menu') continue;
     const configuredBranches = sanitizeMenuBranches(node.data.config.branches);
-    const submenuTargets = sanitizeMenuSubmenuTargets(node.data.config.submenu_branch_targets);
-    const subflowId = Number(node.data.subflowId || 0);
-    if (subflowId <= 0) continue;
+    const submenuFlows = sanitizeMenuBranchFlows(node.data.config.submenu_branch_flows);
     const outgoing = sourceOutgoing.get(node.id) || [];
     const routedBranches = new Set(
       outgoing
@@ -659,17 +922,11 @@ export async function validateFlowBeforeSave(
     );
     const missing: string[] = [];
     for (const branch of configuredBranches) {
+      if (ignoredMenuBranches.has(`${node.id}::${branch}`)) continue;
       if (routedBranches.has(branch)) continue;
-      const submenuTarget = String(submenuTargets[branch] || '').trim();
-      if (!submenuTarget) {
+      if (!submenuFlows[branch]) {
         missing.push(branch);
-        continue;
       }
-      const nodeKeys = await loadSubflowNodeKeys(subflowId);
-      if (!nodeKeys)
-        return `Menu "${node.data.label || node.id}" points to submenu #${subflowId}, but it could not be loaded.`;
-      if (!nodeKeys.has(submenuTarget))
-        return `Menu "${node.data.label || node.id}" maps branch "${branch}" to missing submenu node "${submenuTarget}".`;
     }
     if (missing.length > 0)
       return `Menu "${node.data.label || node.id}" is missing route(s) for: ${missing.join(', ')}.`;
@@ -685,7 +942,8 @@ export async function validateFlowBeforeSave(
       node.data.type === 'voicemail' ||
       node.data.type === 'callback' ||
       node.data.type === 'queue_login' ||
-      node.data.type === 'queue'
+      node.data.type === 'queue' ||
+      node.data.type === 'webhook'
     )
       continue;
     const outgoingCount = (sourceOutgoing.get(node.id) || []).length;
@@ -715,6 +973,7 @@ export function createDraftFlow(): FlowDetail {
     slug: 'untitled-flow',
     parentFlowId: null,
     parentNodeKey: null,
+    parentBranchKey: null,
     createdAt: now,
     updatedAt: now,
     versionId: 0,
@@ -817,16 +1076,20 @@ export function mapFlowToEdges(flow: FlowDetail): Edge<BuilderEdgeData>[] {
     .map((edge) => {
       const sourceNodeType = nodeTypeMap.get(edge.sourceNodeKey) || 'hangup';
       const sourceHandle =
-        sourceNodeType === 'menu'
+        edge.sourceHandle ??
+        (sourceNodeType === 'menu'
           ? edge.condition || edge.branchKey || undefined
           : sourceNodeType === 'get_digits'
             ? edge.condition || undefined
-            : undefined;
+            : sourceNodeType === 'business_hours'
+              ? edge.condition || edge.branchKey || undefined
+              : undefined);
       return {
         id: String(edge.id),
         source: edge.sourceNodeKey,
         target: edge.targetNodeKey,
         sourceHandle,
+        targetHandle: edge.targetHandle ?? undefined,
         label: undefined,
         type: 'flowEdge',
         selectable: true,
@@ -863,6 +1126,7 @@ export function mapSnapshotToNodes(snapshot: FlowSnapshot): Array<Node<FlowNodeD
     slug: '',
     parentFlowId: null,
     parentNodeKey: null,
+    parentBranchKey: null,
     createdAt: '',
     updatedAt: '',
     versionId: 0,
@@ -915,6 +1179,7 @@ export function mapSnapshotToEdges(snapshot: FlowSnapshot): Edge<BuilderEdgeData
     slug: '',
     parentFlowId: null,
     parentNodeKey: null,
+    parentBranchKey: null,
     createdAt: '',
     updatedAt: '',
     versionId: 0,
@@ -936,6 +1201,8 @@ export function mapSnapshotToEdges(snapshot: FlowSnapshot): Edge<BuilderEdgeData
       targetNodeKey: edge.targetNodeKey,
       branchKey: edge.branchKey,
       condition: edge.condition,
+      sourceHandle: edge.sourceHandle ?? null,
+      targetHandle: edge.targetHandle ?? null,
     })),
   };
   return mapFlowToEdges(flowLike);
@@ -965,29 +1232,82 @@ export function buildSubflowJumpVisuals(
     const parentPos = getAbsolutePos(parent);
     return { x: parentPos.x + node.position.x, y: parentPos.y + node.position.y };
   }
+  function getAbsoluteRect(node: Node<FlowNodeData>): { left: number; right: number; top: number; bottom: number } {
+    const position = getAbsolutePos(node);
+    const width =
+      node.data.type === 'group'
+        ? Math.max(200, resolveNodeDimension(node.width ?? node.style?.width ?? node.data.config.width, 200))
+        : resolveNodeDimension(node.width ?? node.style?.width ?? node.data.config.width, 170);
+    const height =
+      node.data.type === 'group'
+        ? Math.max(150, resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 150))
+        : resolveNodeDimension(node.height ?? node.style?.height ?? node.data.config.height, 72);
+    return {
+      left: position.x,
+      right: position.x + width,
+      top: position.y,
+      bottom: position.y + height,
+    };
+  }
+  const occupiedRects = nodes
+    .filter((node) => !String(node.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX))
+    .map((node) => ({ ...getAbsoluteRect(node), padding: SUBFLOW_JUMP_COLLISION_PADDING }));
   const visualNodes: Array<Node<FlowNodeData>> = [];
   const visualEdges: Array<Edge<BuilderEdgeData>> = [];
   for (const menuNode of nodes) {
     if (menuNode.data.type !== 'menu') continue;
     const configuredBranches = sanitizeMenuBranches(menuNode.data.config.branches);
-    const submenuTargets = sanitizeMenuSubmenuTargets(menuNode.data.config.submenu_branch_targets);
+    const submenuFlows = sanitizeMenuBranchFlows(menuNode.data.config.submenu_branch_flows);
     const locallyConnectedBranches = localMenuEdgeBranches.get(menuNode.id) || new Set<string>();
-    const absolutePosition = getAbsolutePos(menuNode);
-    const subflowId = Number(menuNode.data.subflowId || 0);
+    const menuRect = getAbsoluteRect(menuNode);
+    let anchorX = menuRect.right + SUBFLOW_JUMP_MIN_COLUMN_GAP;
+    let previousAnchorBottom: number | null = null;
+
+    while (true) {
+      const overlappingRects = occupiedRects.filter((rect) => (
+        rangesOverlap(anchorX, anchorX + SUBFLOW_JUMP_NODE_WIDTH, rect.left, rect.right)
+        && rangesOverlap(
+          menuRect.top,
+          menuRect.top + SUBFLOW_JUMP_NODE_HEIGHT,
+          rect.top - rect.padding,
+          rect.bottom + rect.padding,
+        )
+      ));
+      if (overlappingRects.length === 0) {
+        break;
+      }
+      anchorX = Math.max(
+        anchorX + SUBFLOW_JUMP_COLUMN_SHIFT_STEP,
+        ...overlappingRects.map((rect) => rect.right + rect.padding + SUBFLOW_JUMP_COLUMN_SHIFT_STEP),
+      );
+    }
+
     for (let branchIndex = 0; branchIndex < configuredBranches.length; branchIndex++) {
       const branch = configuredBranches[branchIndex];
       if (locallyConnectedBranches.has(branch)) continue;
-      const targetNodeKey = String(submenuTargets[branch] || '').trim();
-      if (!targetNodeKey) continue;
+      const submenuFlow = submenuFlows[branch];
+      if (!submenuFlow) continue;
       const anchorId = `${SUBFLOW_JUMP_NODE_ID_PREFIX}${menuNode.id}__${branch}`;
-      const anchorX = absolutePosition.x + 480;
-      const anchorY =
-        absolutePosition.y +
-        GHOST_BRANCH_HEADER_OFFSET +
-        branchIndex * GHOST_BRANCH_ROW_STRIDE -
-        GHOST_NODE_HALF_HEIGHT;
-      const jumpTargetLabel =
-        subflowId > 0 ? `subflow #${subflowId}:${targetNodeKey}` : `submenu:${targetNodeKey}`;
+      let anchorY: number = previousAnchorBottom === null
+        ? menuRect.top
+        : previousAnchorBottom + SUBFLOW_JUMP_VERTICAL_PADDING;
+      while (true) {
+        const overlappingRects = occupiedRects.filter((rect) => (
+          rangesOverlap(anchorX, anchorX + SUBFLOW_JUMP_NODE_WIDTH, rect.left, rect.right)
+          && rangesOverlap(
+            anchorY,
+            anchorY + SUBFLOW_JUMP_NODE_HEIGHT,
+            rect.top - rect.padding,
+            rect.bottom + rect.padding,
+          )
+        ));
+        if (overlappingRects.length === 0) {
+          break;
+        }
+        anchorY = Math.max(...overlappingRects.map((rect) => rect.bottom + rect.padding));
+      }
+      previousAnchorBottom = anchorY + SUBFLOW_JUMP_NODE_HEIGHT;
+      const jumpTargetLabel = `${branch} -> ${submenuFlow.name}`;
       visualNodes.push({
         id: anchorId,
         position: { x: anchorX, y: anchorY },
@@ -996,7 +1316,8 @@ export function buildSubflowJumpVisuals(
         connectable: false,
         data: { label: jumpTargetLabel, type: 'hangup', config: {} },
         style: {
-          width: 176,
+          width: SUBFLOW_JUMP_NODE_WIDTH,
+          minHeight: SUBFLOW_JUMP_NODE_HEIGHT,
           padding: '10px 12px',
           border: '1px dashed var(--color-info)',
           borderRadius: '8px',
@@ -1005,6 +1326,13 @@ export function buildSubflowJumpVisuals(
           fontFamily: "'Space Mono', monospace",
           fontSize: '11px',
         },
+      });
+      occupiedRects.push({
+        left: anchorX,
+        right: anchorX + SUBFLOW_JUMP_NODE_WIDTH,
+        top: anchorY,
+        bottom: anchorY + SUBFLOW_JUMP_NODE_HEIGHT,
+        padding: SUBFLOW_JUMP_VERTICAL_PADDING,
       });
       visualEdges.push({
         id: `submenu-jump-edge::${menuNode.id}::${branch}`,
