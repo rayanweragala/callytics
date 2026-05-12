@@ -173,6 +173,59 @@
   color: var(--text-muted);
 }
 
+.itemMetaRow {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.branchMeta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primitive-amber);
+}
+
+.renameButton {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--primitive-amber);
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+
+.itemButton:hover .renameButton,
+.renameButton:focus {
+  opacity: 1;
+}
+
+.renameButton:hover {
+  background: color-mix(in srgb, var(--primitive-amber) 12%, transparent);
+}
+
+.renameInput {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--primitive-amber);
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 5px;
+}
+
+.renameInput:focus {
+  outline: none;
+}
+
 .empty {
   color: var(--text-muted);
   font-size: 11px;

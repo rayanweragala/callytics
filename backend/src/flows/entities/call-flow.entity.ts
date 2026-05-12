@@ -32,6 +32,9 @@ export class CallFlowEntity {
   @Column({ name: 'parent_node_key', type: 'varchar', length: 64, nullable: true })
   parentNodeKey!: string | null;
 
+  @Column({ name: 'parent_branch_key', type: 'varchar', length: 16, nullable: true })
+  parentBranchKey!: string | null;
+
   @Column({ name: 'is_template', type: 'boolean', default: false })
   isTemplate!: boolean;
 

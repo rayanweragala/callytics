@@ -4,7 +4,7 @@ import { resolveAudioMediaPath } from '../audioResolver';
 import { FlowNode } from '../flowLoader';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { logEvent } from '../logger';
-import { beginNodeRecording } from '../bridgeRecording';
+import { beginNodeRecording, persistSessionRecording } from '../bridgeRecording';
 import { formatDialNumber } from '../lib/formatDialNumber';
 import { fetchTrunkDialFormat } from '../lib/trunkResolver';
 
@@ -45,6 +45,11 @@ interface HuntAttemptResult {
   status: 'answered' | 'timeout' | 'failed' | 'hangup';
   channel: HuntExecutorChannel | null;
   attemptChannelId: string;
+}
+
+interface HuntWebhookConfig extends Record<string, unknown> {
+  record_call?: boolean;
+  send_to_webhook?: boolean;
 }
 
 const activeHuntTokens = new Set<string>();
@@ -548,6 +553,7 @@ export async function executeHunt(
   ariClient: unknown,
 ): Promise<string> {
   const client = ariClient as AriLike;
+  const nodeConfig = (node.config || {}) as HuntWebhookConfig;
   const bridgeId = getSessionBridgeId(session);
   const destinationConfigs = normalizeDestinations(node.config);
   const strategy = String(node.config.strategy || 'sequential').trim().toLowerCase();
@@ -636,21 +642,40 @@ export async function executeHunt(
   };
 
   const finalizeAnswer = async (answeredChannel: HuntExecutorChannel): Promise<string> => {
+    const endPromise = waitForChannelEnd(client, [channel.id, answeredChannel.id]);
     await stopHold();
     await hangupChannels(pendingChannels, answeredChannel.id);
     pendingChannels = [answeredChannel];
     logEvent('HuntAnsweredBridgeAdd', { inboundChannelId: channel.id, outboundChannelId: answeredChannel.id, bridgeId });
     await client.bridges.addChannel({ bridgeId, channel: answeredChannel.id });
-    if (Boolean(node.config.record_call)) {
+    const connectedAt = new Date();
+    if (Boolean(nodeConfig.record_call)) {
       const ts = Date.now();
       await beginNodeRecording(session, bridgeId, `${session.callUuid}-hunt-${ts}`, 'hunt');
     }
-    const endedChannelId = await waitForChannelEnd(client, [channel.id, answeredChannel.id]);
+    const endedChannelId = await endPromise;
+    const disconnectedAt = new Date();
     if (endedChannelId === channel.id) {
       await hangupChannels([answeredChannel]);
     } else {
       await channel.hangup().catch(() => undefined);
     }
+    if (Boolean(nodeConfig.record_call) && Boolean(nodeConfig.send_to_webhook)) {
+      const persisted = await persistSessionRecording(session);
+      if (persisted) {
+        session.webhookPayload.recording = {
+          url: persisted.recordingUrl,
+          duration_seconds: persisted.durationSeconds ?? 0,
+        };
+      }
+    }
+    session.webhookPayload.bridge = {
+      connected_extension: answeredChannel.id,
+      connected_at: connectedAt.toISOString(),
+      disconnected_at: disconnectedAt.toISOString(),
+      talk_duration_seconds: Math.round((disconnectedAt.getTime() - connectedAt.getTime()) / 1000),
+    };
+    session.webhookPayload.outcome = { status: 'completed' };
     return 'done';
   };
 

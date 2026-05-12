@@ -1,8 +1,9 @@
-import { Body, Controller, DefaultValuePipe, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { CreateTtsDto } from './dto/create-tts.dto';
 import { PreviewTtsDto } from './dto/preview-tts.dto';
+import { UpdateAudioDto } from './dto/update-audio.dto';
 import { AudioService } from './audio.service';
 
 @Controller('audio')
@@ -54,5 +55,10 @@ export class AudioController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.audioService.remove(id);
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAudioDto) {
+    return this.audioService.update(id, dto.name);
   }
 }

@@ -292,6 +292,18 @@ export class AudioService implements OnModuleInit {
     return { data: { id, deleted: true } };
   }
 
+  async update(id: number, name: string): Promise<{ data: AudioResponse }> {
+    const item = await this.audioRepository.findOne({ where: { id } });
+    if (!item) throw new NotFoundException(`Audio file ${id} not found`);
+
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new BadRequestException('name is required');
+
+    item.name = trimmedName;
+    const saved = await this.audioRepository.save(item);
+    return { data: await this.toResponse(saved) };
+  }
+
   private async processAudio(id: number, inputPath: string): Promise<AudioFileEntity> {
     const convertedPath = join(this.convertedDir, `${id}.wav`);
     const ulawPath = join(this.convertedDir, `${id}.ulaw`);

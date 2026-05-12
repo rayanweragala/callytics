@@ -32,21 +32,48 @@ function createMenuFlowPayload(name = 'Menu Flow') {
     name,
     description: 'Integration test flow with menu group',
     nodes: [
-      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 120, positionY: 80, config: {} },
       {
         nodeKey: 'menu-1',
         type: 'menu',
         label: 'Main Menu',
         positionX: 120,
-        positionY: 0,
+        positionY: 240,
         config: {
           timeout_ms: 5000,
           branches: ['1', '2'],
           prompt_audio_file_id: 1,
         },
       },
+      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 120, positionY: 400, config: {} },
     ],
-    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null }],
+    edges: [
+      { sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'menu-1', targetNodeKey: 'hangup', branchKey: '1', condition: '1' },
+      { sourceNodeKey: 'menu-1', targetNodeKey: 'hangup', branchKey: '2', condition: '2' },
+    ],
+  };
+}
+
+function createBranchSubmenuPayload(options: {
+  name: string;
+  parentFlowId: number;
+  parentNodeKey: string;
+  parentBranchKey: string;
+  nodes?: Array<Record<string, unknown>>;
+  edges?: Array<Record<string, unknown>>;
+}) {
+  return {
+    name: options.name,
+    description: `${options.name} branch submenu`,
+    parentFlowId: options.parentFlowId,
+    parentNodeKey: options.parentNodeKey,
+    parentBranchKey: options.parentBranchKey,
+    nodes: options.nodes ?? [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 180, positionY: 0, config: {} },
+    ],
+    edges: options.edges ?? [{ sourceNodeKey: 'start', targetNodeKey: 'hangup', branchKey: 'default', condition: null }],
   };
 }
 
@@ -71,6 +98,88 @@ function createConferenceFlowPayload(name = 'Conference Flow') {
       },
     ],
     edges: [{ sourceNodeKey: 'start', targetNodeKey: 'conference-1', branchKey: 'default', condition: null }],
+  };
+}
+
+function createVoicemailCallbackWebhookFlowPayload(name = 'Terminal Webhook Flow') {
+  return {
+    name,
+    description: 'Integration test flow with terminal nodes wired to webhooks',
+    nodes: [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      {
+        nodeKey: 'voicemail-1',
+        type: 'voicemail',
+        label: 'Voicemail',
+        positionX: 160,
+        positionY: 0,
+        config: { start_audio_id: 1 },
+      },
+      {
+        nodeKey: 'callback-1',
+        type: 'callback',
+        label: 'Callback',
+        positionX: 160,
+        positionY: 160,
+        config: { number_source: 'ani', destination_value: '1001' },
+      },
+      {
+        nodeKey: 'webhook-voicemail',
+        type: 'webhook',
+        label: 'Voicemail Webhook',
+        positionX: 360,
+        positionY: 0,
+        config: { url: 'https://example.com/voicemail' },
+      },
+      {
+        nodeKey: 'webhook-callback',
+        type: 'webhook',
+        label: 'Callback Webhook',
+        positionX: 360,
+        positionY: 160,
+        config: { url: 'https://example.com/callback' },
+      },
+    ],
+    edges: [
+      { sourceNodeKey: 'start', targetNodeKey: 'voicemail-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'start', targetNodeKey: 'callback-1', branchKey: 'callback', condition: null },
+      { sourceNodeKey: 'voicemail-1', targetNodeKey: 'webhook-voicemail', branchKey: 'webhook', condition: null },
+      { sourceNodeKey: 'callback-1', targetNodeKey: 'webhook-callback', branchKey: 'webhook', condition: null },
+    ],
+  };
+}
+
+function createMenuWebhookFlowPayload(name = 'Menu Webhook Flow') {
+  return {
+    name,
+    description: 'Integration test flow with menu group wired to webhook',
+    nodes: [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      {
+        nodeKey: 'menu-1',
+        type: 'menu',
+        label: 'Menu Group',
+        positionX: 160,
+        positionY: 0,
+        config: {
+          timeout_ms: 5000,
+          branches: ['1', '2'],
+          prompt_audio_file_id: 1,
+        },
+      },
+      {
+        nodeKey: 'webhook-menu',
+        type: 'webhook',
+        label: 'Menu Webhook',
+        positionX: 360,
+        positionY: 0,
+        config: { url: 'https://example.com/menu' },
+      },
+    ],
+    edges: [
+      { sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'menu-1', targetNodeKey: 'webhook-menu', branchKey: 'webhook', condition: null },
+    ],
   };
 }
 
@@ -168,6 +277,35 @@ describe('Flows API', () => {
     expect(response.body.data).toEqual(expect.objectContaining({ name: 'Updated Flow' }));
   });
 
+  it('PUT /flows/:id accepts voicemail and callback nodes wired to webhook nodes', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Original Flow'));
+
+    const response = await request(app.getHttpServer())
+      .put(`/flows/${created.body.data.id}`)
+      .send(createVoicemailCallbackWebhookFlowPayload());
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.edges).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceNodeKey: 'voicemail-1', targetNodeKey: 'webhook-voicemail' }),
+      expect.objectContaining({ sourceNodeKey: 'callback-1', targetNodeKey: 'webhook-callback' }),
+    ]));
+  });
+
+  it('PUT /flows/:id accepts a menu group node wired to a webhook node', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Original Flow'));
+
+    const response = await request(app.getHttpServer())
+      .put(`/flows/${created.body.data.id}`)
+      .send(createMenuWebhookFlowPayload());
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.edges).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceNodeKey: 'menu-1', targetNodeKey: 'webhook-menu' }),
+    ]));
+  });
+
   it('persists and returns node group ids on create and fetch', async () => {
     const app = await getApp();
     const created = await request(app.getHttpServer()).post('/flows').send(createGroupedFlowPayload());
@@ -189,7 +327,7 @@ describe('Flows API', () => {
     ]));
   });
 
-  it('auto-creates a menu subflow on save and exposes breadcrumb ancestry', async () => {
+  it('creates branch submenus explicitly and exposes breadcrumb ancestry', async () => {
     const app = await getApp();
     const created = await request(app.getHttpServer()).post('/flows').send(createMenuFlowPayload());
 
@@ -198,51 +336,67 @@ describe('Flows API', () => {
     expect(menuNode).toEqual(expect.objectContaining({
       nodeKey: 'menu-1',
       type: 'menu',
-      subflowId: expect.any(Number),
+      subflowId: null,
+      config: expect.objectContaining({
+        submenu_branch_flows: {},
+      }),
     }));
 
-    const subflowId = Number(menuNode.subflowId);
-    const subflow = await request(app.getHttpServer()).get(`/flows/${subflowId}`);
+    const subflow = await request(app.getHttpServer())
+      .post('/flows')
+      .send(createBranchSubmenuPayload({
+        name: 'Sales submenu',
+        parentFlowId: created.body.data.id,
+        parentNodeKey: 'menu-1',
+        parentBranchKey: '1',
+      }));
 
-    expect(subflow.status).toBe(200);
+    expect(subflow.status).toBe(201);
     expect(subflow.body.data).toEqual(expect.objectContaining({
-      id: subflowId,
+      id: expect.any(Number),
       parentFlowId: created.body.data.id,
       parentNodeKey: 'menu-1',
+      parentBranchKey: '1',
       nodes: expect.arrayContaining([
         expect.objectContaining({ nodeKey: 'start', type: 'start' }),
       ]),
     }));
 
+    const subflowId = Number(subflow.body.data.id);
+
     const breadcrumb = await request(app.getHttpServer()).get(`/flows/${subflowId}/breadcrumb`);
 
     expect(breadcrumb.status).toBe(200);
     expect(breadcrumb.body.data).toEqual([
-      { flowId: created.body.data.id, flowName: created.body.data.name },
-      { flowId: subflowId, flowName: subflow.body.data.name },
+      {
+        flowId: created.body.data.id,
+        flowName: created.body.data.name,
+        parentNodeKey: null,
+        parentNodeLabel: null,
+        parentBranchKey: null,
+      },
+      {
+        flowId: subflowId,
+        flowName: subflow.body.data.name,
+        parentNodeKey: 'menu-1',
+        parentNodeLabel: 'Main Menu',
+        parentBranchKey: '1',
+      },
     ]);
   });
 
-  it('GET /flows/:id/tree returns the nested menu subflow hierarchy from the root flow', async () => {
+  it('GET /flows/:id/tree returns the nested branch submenu hierarchy from the root flow', async () => {
     const app = await getApp();
     const created = await request(app.getHttpServer()).post('/flows').send(createMenuFlowPayload('Tree Root'));
 
     expect(created.status).toBe(201);
-    const firstMenuNode = created.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-1');
-    const firstSubflowId = Number(firstMenuNode?.subflowId || 0);
-    expect(firstSubflowId).toBeGreaterThan(0);
-
-    const childFlowResponse = await request(app.getHttpServer()).get(`/flows/${firstSubflowId}`);
-    expect(childFlowResponse.status).toBe(200);
-
-    const childUpdate = await request(app.getHttpServer())
-      .put(`/flows/${firstSubflowId}`)
-      .send({
+    const firstSubflow = await request(app.getHttpServer())
+      .post('/flows')
+      .send(createBranchSubmenuPayload({
         name: 'Main Menu Subflow',
-        description: 'Nested menu child',
-        slug: childFlowResponse.body.data.slug,
-        parentFlowId: childFlowResponse.body.data.parentFlowId,
-        parentNodeKey: childFlowResponse.body.data.parentNodeKey,
+        parentFlowId: created.body.data.id,
+        parentNodeKey: 'menu-1',
+        parentBranchKey: '1',
         nodes: [
           { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
           {
@@ -255,12 +409,22 @@ describe('Flows API', () => {
           },
         ],
         edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-2', branchKey: 'default', condition: null }],
-      });
+      }));
 
-    expect(childUpdate.status).toBe(200);
-    const nestedMenuNode = childUpdate.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-2');
-    const nestedSubflowId = Number(nestedMenuNode?.subflowId || 0);
-    expect(nestedSubflowId).toBeGreaterThan(0);
+    expect(firstSubflow.status).toBe(201);
+    const firstSubflowId = Number(firstSubflow.body.data.id);
+
+    const nestedSubflow = await request(app.getHttpServer())
+      .post('/flows')
+      .send(createBranchSubmenuPayload({
+        name: 'HR submenu',
+        parentFlowId: firstSubflowId,
+        parentNodeKey: 'menu-2',
+        parentBranchKey: '2',
+      }));
+
+    expect(nestedSubflow.status).toBe(201);
+    const nestedSubflowId = Number(nestedSubflow.body.data.id);
 
     const treeResponse = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}/tree`);
 
@@ -272,14 +436,16 @@ describe('Flows API', () => {
         {
           nodeKey: 'menu-1',
           nodeLabel: 'Main Menu',
+          branchKey: '1',
           subflowId: firstSubflowId,
-          name: childUpdate.body.data.name,
+          name: 'Main Menu Subflow',
           children: [
             {
               nodeKey: 'menu-2',
               nodeLabel: 'HR Menu',
+              branchKey: '2',
               subflowId: nestedSubflowId,
-              name: expect.any(String),
+              name: 'HR submenu',
               children: [],
             },
           ],

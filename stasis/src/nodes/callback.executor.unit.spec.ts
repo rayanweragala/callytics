@@ -22,13 +22,17 @@ const publishMock = publish as jest.MockedFunction<typeof publish>;
 const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<typeof resolveAudioMediaPath>;
 
 function createSession(): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: '1777089800.18',
     channelId: '1777089800.18',
     callerNumber: '2001',
     currentNodeKey: 'callback-1',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: null,
     flow: {
@@ -47,6 +51,12 @@ function createAriClient() {
     removeListener: jest.fn(),
     Playback: jest.fn(() => ({ id: 'playback-1' })),
   };
+}
+
+async function flushPromises(count = 8): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 describe('callback executor', () => {
@@ -86,10 +96,11 @@ describe('callback executor', () => {
       },
     };
 
+    const session = createSession();
     const result = await executeCallbackNode(
       channel,
       node,
-      createSession(),
+      session,
       createAriClient() as unknown,
     );
 
@@ -103,6 +114,11 @@ describe('callback executor', () => {
         operatorId: 2,
       }),
     );
+    expect(session.variables.callback_number).toBeUndefined();
+    expect(session.webhookPayload).toEqual({
+      callback: { number: '2001', source: 'ani' },
+      outcome: { status: 'completed' },
+    });
   });
 
   it('keeps collected dtmf digits on timeout instead of publishing empty number', async () => {
@@ -152,7 +168,8 @@ describe('callback executor', () => {
       },
     };
 
-    const run = executeCallbackNode(channel, node, createSession(), ariClient as unknown);
+    const session = createSession();
+    const run = executeCallbackNode(channel, node, session, ariClient as unknown);
     for (let i = 0; i < 20; i += 1) {
       if ((listeners.get('ChannelDtmfReceived')?.size || 0) > 0) break;
       await Promise.resolve();
@@ -180,6 +197,11 @@ describe('callback executor', () => {
         destinationTrunkId: 3,
       }),
     );
+    expect(session.variables.callback_number).toBe('7766221199');
+    expect(session.webhookPayload).toEqual({
+      callback: { number: '7766221199', source: 'dtmf' },
+      outcome: { status: 'completed' },
+    });
   });
 
   it('uses callback timeout_ms from node config for dtmf collection', async () => {
@@ -230,7 +252,8 @@ describe('callback executor', () => {
       },
     };
 
-    const run = executeCallbackNode(channel, node, createSession(), ariClient as unknown);
+    const session = createSession();
+    const run = executeCallbackNode(channel, node, session, ariClient as unknown);
     for (let i = 0; i < 20; i += 1) {
       if ((listeners.get('ChannelDtmfReceived')?.size || 0) > 0) break;
       await Promise.resolve();
@@ -254,6 +277,10 @@ describe('callback executor', () => {
     jest.useRealTimers();
 
     expect(result).toBe('done');
+    expect(session.webhookPayload).toEqual({
+      callback: { number: '7', source: 'dtmf' },
+      outcome: { status: 'completed' },
+    });
     expect(publishMock).toHaveBeenCalledWith(
       'callback:created',
       expect.objectContaining({
@@ -327,7 +354,7 @@ describe('callback executor', () => {
       channel: { id: channel.id },
       digit: '9',
     });
-    await Promise.resolve();
+    await flushPromises(10);
 
     expect(playbackStop).toHaveBeenCalledTimes(1);
 
@@ -343,5 +370,70 @@ describe('callback executor', () => {
         customerNumber: '9',
       }),
     );
+  });
+
+  it('plays confirmation audio when configured and waits for playback completion before hangup', async () => {
+    queryMock.mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM operators o')) return [{ id: 2 }];
+      if (sql.includes('FROM call_logs')) return [{ id: 140 }];
+      return [];
+    });
+    resolveAudioMediaPathMock.mockImplementation(async (_nodeConfig, audioIdField) => {
+      if (audioIdField === 'confirmation_audio_id') return 'custom/callback_confirmation';
+      return null;
+    });
+
+    const listeners = new Map<string, Set<(event: any) => void>>();
+    const ariClient = {
+      on: jest.fn((event: string, listener: (event: any) => void) => {
+        const set = listeners.get(event) || new Set();
+        set.add(listener);
+        listeners.set(event, set);
+      }),
+      removeListener: jest.fn((event: string, listener: (event: any) => void) => {
+        listeners.get(event)?.delete(listener);
+      }),
+      emit(event: string, payload: any) {
+        for (const listener of Array.from(listeners.get(event) || [])) {
+          listener(payload);
+        }
+      },
+      Playback: jest.fn(() => ({ id: 'playback-confirm-1' })),
+    };
+
+    const channel = {
+      id: '1777096000.70',
+      caller: { number: '2001' },
+      play: jest.fn().mockResolvedValue(undefined),
+      hangup: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const node: FlowNode = {
+      nodeKey: 'callback-1',
+      type: 'callback',
+      label: 'Callback',
+      config: {
+        number_source: 'ani',
+        destination_type: 'extension',
+        destination_value: '1234',
+        operator_id: null,
+        confirmation_audio_id: 55,
+      },
+    };
+
+    const run = executeCallbackNode(channel, node, createSession(), ariClient as unknown);
+    await flushPromises(10);
+
+    expect(channel.play).toHaveBeenCalledWith(
+      { media: 'sound:custom/callback_confirmation' },
+      expect.objectContaining({ id: 'playback-confirm-1' }),
+    );
+    expect(channel.hangup).not.toHaveBeenCalled();
+
+    ariClient.emit('PlaybackFinished', { playback: { id: 'playback-confirm-1' } });
+    const result = await run;
+
+    expect(result).toBe('done');
+    expect(channel.hangup).toHaveBeenCalledTimes(1);
   });
 });

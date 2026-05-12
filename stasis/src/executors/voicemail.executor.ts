@@ -1,4 +1,3 @@
-import { createHmac } from 'crypto';
 import { stasisLogger } from "../logger";
 import { resolveAudioMediaPath } from '../audioResolver';
 import { CallSession } from '../callSession';
@@ -15,14 +14,45 @@ interface RecordingFinishedEvent {
   };
 }
 
+interface DtmfEvent {
+  channel?: { id?: string };
+  digit?: string;
+}
+
 interface VoicemailConfig {
   mailbox_name?: string;
   max_duration_seconds?: number;
   start_audio_id?: number | null;
   end_audio_id?: number | null;
-  send_to_webhook?: boolean;
-  webhook_url?: string;
-  webhook_secret?: string;
+}
+
+const VOICEMAIL_RECORDING_FORMAT = 'wav';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
+
+async function detachInboundBridgeForVoicemail(session: CallSession, ariClient: unknown): Promise<void> {
+  if (!session.inboundBridge?.id) {
+    return;
+  }
+
+  const bridgeId = session.inboundBridge.id;
+  const client = ariClient as {
+    bridges?: {
+      destroy?: (params: { bridgeId: string }) => Promise<void>;
+    };
+  };
+
+  if (!client.bridges?.destroy) {
+    stasisLogger.warn(`[voicemail] inbound bridge present but destroy API unavailable bridge=${bridgeId} call=${session.callUuid}`);
+    return;
+  }
+
+  try {
+    await client.bridges.destroy({ bridgeId });
+    stasisLogger.log(`[voicemail] detached channel from inbound bridge bridge=${bridgeId} call=${session.callUuid}`);
+    session.inboundBridge = null;
+  } catch (error) {
+    stasisLogger.warn(`[voicemail] failed detaching inbound bridge bridge=${bridgeId} call=${session.callUuid}:`, error);
+  }
 }
 
 async function waitForPlaybackFinished(
@@ -90,8 +120,40 @@ async function playOutroIfConfigured(
 
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
-  await channel.play({ media: 'sound:' + outroPath }, playback);
-  await waitForPlaybackFinished(ariClient, playback.id, channel.id);
+  try {
+    await channel.play({ media: 'sound:' + outroPath }, playback);
+    await waitForPlaybackFinished(ariClient, playback.id, channel.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Channel not found') || message.includes('hangup')) {
+      stasisLogger.log(`[voicemail] skip outro playback call=${channel.id} reason=channel_unavailable`);
+      return;
+    }
+    throw error;
+  }
+}
+
+async function stopLiveRecording(recordingName: string): Promise<void> {
+  const ariUrl = (process.env.ARI_URL || 'http://127.0.0.1:8088').replace(/\/+$/, '');
+  const ariUser = process.env.ARI_USER || 'callytics';
+  const ariPass = process.env.ARI_PASS || 'callytics';
+  const response = await fetch(
+    `${ariUrl}/ari/recordings/live/${encodeURIComponent(recordingName)}/stop`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${ariUser}:${ariPass}`).toString('base64')}`,
+      },
+    },
+  );
+
+  if (response.status === 404) {
+    return;
+  }
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`record_stop_failed status=${response.status} body=${body}`);
+  }
 }
 
 function waitForRecordingFinished(
@@ -101,10 +163,12 @@ function waitForRecordingFinished(
 ): Promise<number | null> {
   const client = ariClient as {
     on: (event: string, listener: (event: RecordingFinishedEvent) => void) => void;
-    removeListener: (event: string, listener: (event: RecordingFinishedEvent) => void) => void;
+    removeListener: (event: string, listener: (event: RecordingFinishedEvent | DtmfEvent) => void) => void;
   };
 
   return new Promise((resolve, reject) => {
+    let stopRequested = false;
+
     const onFinished = (event: RecordingFinishedEvent) => {
       if (event.recording?.name !== recordingName) {
         return;
@@ -112,6 +176,23 @@ function waitForRecordingFinished(
       cleanup();
       const duration = Number(event.recording?.duration ?? NaN);
       resolve(Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null);
+    };
+
+    const onDtmf = (event: DtmfEvent) => {
+      if (event.channel?.id && event.channel.id !== channelId) {
+        return;
+      }
+      if (String(event.digit || '').trim() !== '#') {
+        return;
+      }
+      if (stopRequested) {
+        return;
+      }
+      stopRequested = true;
+      stasisLogger.log(`[voicemail] stop requested via # channel=${channelId} recording=${recordingName}`);
+      void stopLiveRecording(recordingName).catch((error) => {
+        stasisLogger.warn(`[voicemail] stop via # failed channel=${channelId} recording=${recordingName}:`, error);
+      });
     };
 
     const onHangup = (event: RecordingFinishedEvent) => {
@@ -123,11 +204,13 @@ function waitForRecordingFinished(
 
     const cleanup = () => {
       client.removeListener('RecordingFinished', onFinished);
+      client.removeListener('ChannelDtmfReceived', onDtmf);
       client.removeListener('StasisEnd', onHangup);
       client.removeListener('ChannelDestroyed', onHangup);
     };
 
     client.on('RecordingFinished', onFinished);
+    client.on('ChannelDtmfReceived', onDtmf as unknown as (event: RecordingFinishedEvent) => void);
     client.on('StasisEnd', onHangup);
     client.on('ChannelDestroyed', onHangup);
   });
@@ -155,13 +238,13 @@ async function persistVoicemailRecording(
   recordingName: string,
   startedAt: Date,
   durationSeconds: number | null,
-): Promise<void> {
+): Promise<number> {
   const callLogId = await resolveCallLogId(session.callUuid);
   const endedAt = new Date();
-  const fileName = `${recordingName}.ulaw`;
-  const filePath = `/var/spool/asterisk/recording/${fileName}`;
+  const fileName = `${recordingName}.${VOICEMAIL_RECORDING_FORMAT}`;
+  const filePath = `/var/lib/asterisk/recording/${fileName}`;
 
-  await query(
+  const rows = await query(
     `
       INSERT INTO call_recordings (
         call_id,
@@ -177,6 +260,7 @@ async function persistVoicemailRecording(
         ended_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
     `,
     [
       session.callUuid,
@@ -186,63 +270,26 @@ async function persistVoicemailRecording(
       'voicemail',
       fileName,
       filePath,
-      'ulaw',
+      VOICEMAIL_RECORDING_FORMAT,
       durationSeconds,
       startedAt.toISOString(),
       endedAt.toISOString(),
     ],
   );
+
+  const id = Number(rows[0]?.id || 0);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error(`voicemail_recording_insert_missing_id recording=${fileName}`);
+  }
+
+  return id;
 }
 
-function fireVoicemailWebhookAsync(
-  config: VoicemailConfig,
-  session: CallSession,
-  node: FlowNode,
-  payload: {
-    recording_file_path: string;
-    recording_duration_seconds: number;
-  },
-): void {
-  const url = String(config.webhook_url || '').trim();
-  if (!url) {
-    return;
-  }
-
-  const secret = String(config.webhook_secret || '').trim();
-  const body = {
-    call_uuid: session.callUuid,
-    channel_id: session.channelId,
-    caller_number: session.callerNumber,
-    flow_id: session.flow.id,
-    flow_name: session.flow.name,
-    node_key: node.nodeKey,
-    node_label: node.label,
-    mailbox_name: String(config.mailbox_name || 'main').trim() || 'main',
-    timestamp: new Date().toISOString(),
-    variables: { ...session.variables },
-    ...payload,
-  };
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (secret) {
-    headers['X-Voicemail-Signature'] = createHmac('sha256', secret).update(JSON.stringify(body)).digest('hex');
-  }
-
-  void (async () => {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      stasisLogger.log(`[voicemail] webhook fired url=${url} status=${response.status} call=${session.callUuid}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      stasisLogger.warn(`[voicemail] webhook failed url=${url} err=${message} call=${session.callUuid}`);
-    }
-  })();
+function buildRecordingDownloadUrl(recordingId: number): string {
+  const trimmedBase = BACKEND_URL.replace(/\/+$/, '');
+  // Tech debt note: do not expose RECORDINGS_INTERNAL_TOKEN in this webhook URL.
+  // If download auth is tightened later, prefer signed or header-based auth over plaintext query params.
+  return `${trimmedBase}/recordings/${recordingId}/download`;
 }
 
 export async function executeVoicemail(
@@ -258,6 +305,7 @@ export async function executeVoicemail(
   const startedAt = new Date();
 
   await playPromptIfConfigured(channel, node, ariClient);
+  await detachInboundBridgeForVoicemail(session, ariClient);
 
   const client = ariClient as {
     channels: {
@@ -275,7 +323,7 @@ export async function executeVoicemail(
   await client.channels.record({
     channelId: channel.id,
     name: recordingName,
-    format: 'ulaw',
+    format: VOICEMAIL_RECORDING_FORMAT,
     maxDurationSeconds,
     beep: true,
     ifExists: 'overwrite',
@@ -287,12 +335,12 @@ export async function executeVoicemail(
     return 'done';
   }
   
-  await persistVoicemailRecording(session, channel.id, recordingName, startedAt, durationSeconds);
-  const filePath = `/var/spool/asterisk/recording/${recordingName}.ulaw`;
-  fireVoicemailWebhookAsync(config, session, node, {
-    recording_file_path: filePath,
-    recording_duration_seconds: durationSeconds,
-  });
+  const recordingId = await persistVoicemailRecording(session, channel.id, recordingName, startedAt, durationSeconds);
+  const recordingUrl = buildRecordingDownloadUrl(recordingId);
+  session.variables.voicemail_recording_url = recordingUrl;
+  session.variables.voicemail_duration_seconds = String(durationSeconds);
+  session.webhookPayload.recording = { url: recordingUrl, duration_seconds: durationSeconds ?? 0 };
+  session.webhookPayload.outcome = { status: 'completed' };
   await playOutroIfConfigured(channel, node, ariClient);
   stasisLogger.log(`[voicemail] mailbox=${mailboxName} call=${session.callUuid} recording=${recordingName}`);
   return 'done';

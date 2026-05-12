@@ -30,9 +30,38 @@ interface TraceNode {
   errorMessage: string | null;
 }
 
+const DEFAULT_DISPLAY_TIMEZONE = 'UTC';
+
 @Injectable()
 export class CallLogsService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+
+  private getDisplayTimezone(): string {
+    const value = process.env.TZ?.trim();
+    if (!value) return DEFAULT_DISPLAY_TIMEZONE;
+    try {
+      new Intl.DateTimeFormat('en-GB', { timeZone: value }).format(new Date(0));
+      return value;
+    } catch {
+      return DEFAULT_DISPLAY_TIMEZONE;
+    }
+  }
+
+  private formatCsvTimestamp(value: unknown): string {
+    if (!value) return '';
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: this.getDisplayTimezone(),
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(date);
+  }
 
   private buildWhereClause(params: ListCallLogsParams): CallLogsWhereClause {
     const whereParts: string[] = [];
@@ -203,9 +232,9 @@ export class CallLogsService {
     ];
     const lines = [header.join(',')];
     for (const row of rows as Array<Record<string, unknown>>) {
-      const startedAtIso = row.startedAt ? new Date(String(row.startedAt)).toISOString() : '';
+      const startedAtDisplay = this.formatCsvTimestamp(row.startedAt);
       const cols = [
-        startedAtIso,
+        startedAtDisplay,
         row.callerNumber ? String(row.callerNumber) : '',
         row.direction ? String(row.direction) : '',
         row.durationSeconds === null || row.durationSeconds === undefined ? '' : String(Number(row.durationSeconds)),

@@ -53,6 +53,7 @@ describe('HuntConfigPanel coverage boost', () => {
         extensionOptions={extensionOptions}
         contactOptions={contactOptions}
         contacts={contacts}
+        hasOutgoingWebhook={false}
         onConfigReplace={onConfigReplace}
       />
     );
@@ -82,6 +83,7 @@ describe('HuntConfigPanel coverage boost', () => {
           extensionOptions={extensionOptions}
           contactOptions={contactOptions}
           contacts={contacts}
+          hasOutgoingWebhook={false}
           onConfigReplace={handleConfigReplace}
         />
       );

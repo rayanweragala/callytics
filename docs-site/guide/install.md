@@ -26,6 +26,14 @@ cp .env.example .env
 bash scripts/install.sh
 ```
 
+## Required configuration before first start
+
+Before running `bash scripts/install.sh`, copy `.env.example` to `.env` and set these values:
+
+- `HOST_IP` - set to your machine's LAN IP address, not `127.0.0.1`. Run `ip route get 1 | awk '{print $7; exit}'` to find it. Leaving it as `127.0.0.1` means softphones on other devices will fail to register and SIP QR codes will be wrong.
+- `RECORDINGS_INTERNAL_TOKEN` - change from the default value. Used to authenticate internal recording requests between Stasis and backend.
+- `SIP_PORT` - default `5080`. Only change if that port is already in use on your host.
+
 For manual install flow internals and recovery/reference steps, see `docs/install-flow.md`.
 
 The first boot is slower than later restarts. The Asterisk image builds from source inside the container and usually takes 3-5 minutes on a small VPS. PostgreSQL starts with the `callytics` database, backend migrations run automatically, and the frontend is served on `http://localhost:3000`.

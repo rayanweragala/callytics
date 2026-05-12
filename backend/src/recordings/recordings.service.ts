@@ -16,6 +16,7 @@ export interface RecordingResponse {
   fileName: string;
   filePath: string;
   format: string;
+  recordingType: string;
   durationSeconds: number | null;
   startedAt: string;
   endedAt: string | null;
@@ -76,6 +77,7 @@ export class RecordingsService implements OnModuleInit {
       fileName: normalizedFileName,
       filePath: join('/var/lib/asterisk/recording', normalizedFileName),
       format: dto.format || 'wav',
+      recordingType: 'inbound',
       durationSeconds: dto.durationSeconds ?? null,
       startedAt: new Date(dto.startedAt),
       endedAt: dto.endedAt ? new Date(dto.endedAt) : null,
@@ -92,10 +94,19 @@ export class RecordingsService implements OnModuleInit {
     if (!item) throw new NotFoundException(`Recording ${id} not found`);
     try {
       await fs.access(item.filePath);
+      return item.filePath;
     } catch {
+      const alternatePath = this.resolveAlternateRecordingPath(item.filePath);
+      if (alternatePath) {
+        try {
+          await fs.access(alternatePath);
+          return alternatePath;
+        } catch {
+          // fall through to not found
+        }
+      }
       throw new NotFoundException(`Recording file for ${id} not found`);
     }
-    return item.filePath;
   }
 
   async remove(id: number): Promise<{ data: { id: number; deleted: true } }> {
@@ -135,12 +146,23 @@ export class RecordingsService implements OnModuleInit {
       fileName: item.fileName,
       filePath: item.filePath,
       format: item.format,
+      recordingType: item.recordingType || 'inbound',
       durationSeconds: item.durationSeconds,
       startedAt: item.startedAt.toISOString(),
       endedAt: item.endedAt ? item.endedAt.toISOString() : null,
       createdAt: item.createdAt.toISOString(),
       streamUrl: `/recordings/${item.id}/stream`,
     };
+  }
+
+  private resolveAlternateRecordingPath(filePath: string): string | null {
+    if (filePath.startsWith('/var/spool/asterisk/recording/')) {
+      return filePath.replace('/var/spool/asterisk/recording/', '/var/lib/asterisk/recording/');
+    }
+    if (filePath.startsWith('/var/lib/asterisk/recording/')) {
+      return filePath.replace('/var/lib/asterisk/recording/', '/var/spool/asterisk/recording/');
+    }
+    return null;
   }
 
   private async ensureSchema(): Promise<void> {

@@ -201,4 +201,61 @@ describe('OperatorsService', () => {
       }),
     ]);
   });
+
+  it('findAll retries without pin when cached schema state is stale and operators.pin is missing', async () => {
+    let operatorListCalls = 0;
+    mockDataSource.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM information_schema.columns') && sql.includes("column_name = 'pin'")) {
+        return [{ '?column?': 1 }];
+      }
+      if (sql.includes('FROM information_schema.columns') && sql.includes("column_name IN ('callback_number', 'callback_trunk_id')")) {
+        return [];
+      }
+      if (sql.includes('SELECT COUNT(*)::int AS total FROM operators')) {
+        return [{ total: 1 }];
+      }
+      if (sql.includes('FROM operators') && sql.includes('ORDER BY name ASC')) {
+        operatorListCalls += 1;
+        if (operatorListCalls === 1) {
+          throw new Error('column "pin" does not exist');
+        }
+        return [
+          {
+            id: 55,
+            name: 'Dana',
+            pin_hash: 'hashed',
+            extension_id: null,
+            contact_number_id: null,
+            created_at: '2026-04-20T09:00:00.000Z',
+            updated_at: '2026-04-20T09:00:00.000Z',
+          },
+        ];
+      }
+      if (sql.includes('FROM operators o')) {
+        return [
+          {
+            extension_id: null,
+            extension_username: null,
+            extension_transport_type: null,
+            contact_id: null,
+            contact_label: null,
+            contact_number: null,
+            contact_trunk_id: null,
+          },
+        ];
+      }
+      return [];
+    });
+
+    const result = await service.findAll();
+
+    expect(operatorListCalls).toBe(2);
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: 55,
+        name: 'Dana',
+        hasPIN: true,
+      }),
+    ]);
+  });
 });

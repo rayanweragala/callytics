@@ -1,0 +1,160 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+}
+
+.noChanges {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.addedTitle { color: var(--primitive-green); }
+.removedTitle { color: var(--primitive-red); }
+.changedTitle { color: var(--primitive-amber); }
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.itemComplex {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.itemHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.nodeType {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  text-transform: lowercase;
+}
+
+.nodeLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.configTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.configTable th {
+  text-align: left;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-weight: normal;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.configTable td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fieldCell {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  width: 30%;
+}
+
+.oldValCell {
+  color: var(--primitive-red);
+  text-decoration: line-through;
+  opacity: 0.7;
+  word-break: break-all;
+}
+
+.newValCell {
+  color: var(--primitive-green);
+  word-break: break-all;
+}
+
+.emptyVal {
+  font-style: italic;
+  opacity: 0.5;
+}
+
+.jsonValue {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: color-mix(in srgb, var(--bg-surface) 50%, transparent);
+  padding: 6px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+.addedBadge, .removedBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.addedBadge { background: color-mix(in srgb, var(--primitive-green) 20%, transparent); color: var(--primitive-green); }
+.removedBadge { background: color-mix(in srgb, var(--primitive-red) 20%, transparent); color: var(--primitive-red); }
+
+.edgeDesc {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.edgeDesc span {
+  color: var(--text-primary);
+}

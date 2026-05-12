@@ -69,6 +69,11 @@ export class FlowsController {
     return this.flowsService.update(id, dto);
   }
 
+  @Put(':id/name')
+  rename(@Param('id', ParseIntPipe) id: number, @Body() body: { name?: string }) {
+    return this.flowsService.rename(id, body.name);
+  }
+
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.flowsService.remove(id);

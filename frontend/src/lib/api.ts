@@ -111,6 +111,9 @@ export interface SaveFlowPayload {
   slug?: string;
   versionMessage?: string;
   autoSave?: boolean;
+  parentFlowId?: number;
+  parentNodeKey?: string;
+  parentBranchKey?: string;
   nodes: Array<{
     nodeKey: string;
     type: string;
@@ -126,6 +129,8 @@ export interface SaveFlowPayload {
     targetNodeKey: string;
     branchKey?: string;
     condition?: string | null;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
   }>;
 }
 
@@ -191,6 +196,11 @@ export async function deleteFlow(id: number): Promise<DeleteFlowResponse> {
   return response.data;
 }
 
+export async function renameFlow(id: number, name: string): Promise<{ data: { id: number; name: string } }> {
+  const response = await api.put<{ data: { id: number; name: string } }>(`/flows/${id}/name`, { name });
+  return response.data;
+}
+
 export async function listFlowVersions(id: number): Promise<FlowVersionsResponse> {
   const response = await api.get<FlowVersionsResponse>(`/flows/${id}/versions`);
   return response.data;
@@ -251,6 +261,11 @@ export async function previewTts(payload: { text: string; voice: string; speed?:
 
 export async function deleteAudio(id: number): Promise<DeleteFlowResponse> {
   const response = await api.delete<DeleteFlowResponse>(`/audio/${id}`);
+  return response.data;
+}
+
+export async function updateAudio(id: number, payload: { name: string }): Promise<AudioDetailResponse> {
+  const response = await api.put<AudioDetailResponse>(`/audio/${id}`, payload);
   return response.data;
 }
 
@@ -719,6 +734,11 @@ export async function updateOperator(id: number, payload: {
   callback_trunk_id?: number;
 }): Promise<DetailResponse<OperatorItem>> {
   const response = await api.put<DetailResponse<OperatorItem>>(`/operators/${id}`, payload);
+  return response.data;
+}
+
+export async function getOperatorPin(id: number): Promise<{ pin: string | null }> {
+  const response = await api.get<{ pin: string | null }>(`/operators/${id}/pin`);
   return response.data;
 }
 

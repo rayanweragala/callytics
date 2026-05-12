@@ -32,3 +32,4 @@ asterisk/base/pjsip_relay.conf
 asterisk/base/pjsip_extensions_relay.conf
 asterisk/base/pjsip_callytics_trunks.conf
 asterisk/base/pjsip_callytics_extensions.conf
+asterisk/base/extensions_callytics_inbound.conf

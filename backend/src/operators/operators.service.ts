@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   OnModuleInit,
@@ -115,30 +116,22 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const offset = (safePage - 1) * safeLimit;
-    const includePinColumn = await this.hasPinColumn();
+    let includePinColumn = await this.hasPinColumn();
     const includeCallbackColumns = await this.hasCallbackColumns();
-    const pinColumnSelect = includePinColumn ? ',\n        pin' : '';
-    const callbackColumnSelect = includeCallbackColumns
-      ? `,
-        callback_number,
-        callback_trunk_id`
-      : '';
     const totalRows = await this.dataSource.query('SELECT COUNT(*)::int AS total FROM operators');
     const total = Number(totalRows[0]?.total ?? 0);
-    const rows = await this.dataSource.query(
-      `SELECT
-        id,
-        name,
-        pin_hash,
-        extension_id,
-        contact_number_id${pinColumnSelect}${callbackColumnSelect},
-        created_at,
-        updated_at
-      FROM operators
-      ORDER BY name ASC
-      LIMIT $1 OFFSET $2`,
-      [safeLimit, offset],
-    );
+    let rows: Record<string, unknown>[] = [];
+    try {
+      rows = await this.queryOperatorsPage(safeLimit, offset, includePinColumn, includeCallbackColumns);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!includePinColumn || !message.includes('column "pin" does not exist')) {
+        throw error;
+      }
+      this.pinColumnAvailable = false;
+      includePinColumn = false;
+      rows = await this.queryOperatorsPage(safeLimit, offset, includePinColumn, includeCallbackColumns);
+    }
     const items = rows.map((row: Record<string, unknown>) => this.operatorsRepository.create({
       id: Number(row.id),
       name: String(row.name),
@@ -158,6 +151,35 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
       return this.toResponse(item, pin);
     }));
     return { data: responses, total, page: safePage, limit: safeLimit };
+  }
+
+  private async queryOperatorsPage(
+    limit: number,
+    offset: number,
+    includePinColumn: boolean,
+    includeCallbackColumns: boolean,
+  ): Promise<Record<string, unknown>[]> {
+    const pinColumnSelect = includePinColumn ? ',\n        pin' : '';
+    const callbackColumnSelect = includeCallbackColumns
+      ? `,
+        callback_number,
+        callback_trunk_id`
+      : '';
+
+    return this.dataSource.query(
+      `SELECT
+        id,
+        name,
+        pin_hash,
+        extension_id,
+        contact_number_id${pinColumnSelect}${callbackColumnSelect},
+        created_at,
+        updated_at
+      FROM operators
+      ORDER BY name ASC
+      LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
   }
 
   async create(dto: CreateOperatorDto): Promise<{ data: OperatorResponse }> {
@@ -242,6 +264,44 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
     this.runtimePins.delete(id);
 
     return { data: { id, deleted: true } };
+  }
+
+  async getPin(id: number): Promise<{ pin: string | null }> {
+    const entity = await this.operatorsRepository.findOne({ where: { id } });
+    if (!entity) {
+      throw new NotFoundException(`Operator ${id} not found`);
+    }
+
+    let persistedPin: string | null = null;
+    try {
+      const rows = await this.dataSource.query('SELECT pin FROM operators WHERE id = $1 LIMIT 1', [id]);
+      persistedPin = rows[0]?.pin ? String(rows[0].pin) : null;
+      this.pinColumnAvailable = true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('column "pin" does not exist')) {
+        throw error;
+      }
+      this.pinColumnAvailable = false;
+    }
+
+    if (persistedPin) {
+      this.runtimePins.set(id, persistedPin);
+      return { pin: persistedPin };
+    }
+
+    const runtimePin = this.runtimePins.get(id) ?? null;
+    if (runtimePin) {
+      return { pin: runtimePin };
+    }
+
+    if (entity.pinHash) {
+      throw new ConflictException(
+        'PIN is hashed and cannot be retrieved. Set a new PIN to reveal it.',
+      );
+    }
+
+    return { pin: null };
   }
 
   private async cleanupRedis(id: number): Promise<void> {

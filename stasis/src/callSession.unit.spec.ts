@@ -1,4 +1,4 @@
-import { addSession, createSession, getSession, removeSession } from './callSession';
+import { addSession, createSession, getSession, markCallEnded, removeSession } from './callSession';
 
 describe('callSession', () => {
   beforeEach(() => {
@@ -42,5 +42,15 @@ describe('callSession', () => {
     addSession(sB);
     expect(getSession('cA')).toBe(sA);
     expect(getSession('cB')).toBe(sB);
+  });
+
+  it('markCallEnded stamps the session once and preserves the first value', () => {
+    const session = createSession('c4', '1000', { id: 1 } as any, 's1');
+    const first = new Date('2026-05-11T10:00:00.000Z');
+    const second = new Date('2026-05-11T10:00:05.000Z');
+
+    expect(markCallEnded(session, first)).toBe('2026-05-11T10:00:00.000Z');
+    expect(markCallEnded(session, second)).toBe('2026-05-11T10:00:00.000Z');
+    expect(session.call_ended_at).toBe('2026-05-11T10:00:00.000Z');
   });
 });

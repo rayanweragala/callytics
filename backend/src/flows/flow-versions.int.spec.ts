@@ -30,21 +30,48 @@ function createMenuFlowPayload(name = 'Menu Flow') {
     name,
     description: 'Integration test flow with menu group',
     nodes: [
-      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 120, positionY: 80, config: {} },
       {
         nodeKey: 'menu-1',
         type: 'menu',
         label: 'Main Menu',
         positionX: 120,
-        positionY: 0,
+        positionY: 240,
         config: {
           timeout_ms: 5000,
           branches: ['1', '2'],
           prompt_audio_file_id: 1,
         },
       },
+      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 120, positionY: 400, config: {} },
     ],
-    edges: [{ sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null }],
+    edges: [
+      { sourceNodeKey: 'start', targetNodeKey: 'menu-1', branchKey: 'default', condition: null },
+      { sourceNodeKey: 'menu-1', targetNodeKey: 'hangup', branchKey: '1', condition: '1' },
+      { sourceNodeKey: 'menu-1', targetNodeKey: 'hangup', branchKey: '2', condition: '2' },
+    ],
+  };
+}
+
+function createBranchSubmenuPayload(options: {
+  name: string;
+  parentFlowId: number;
+  parentNodeKey: string;
+  parentBranchKey: string;
+  nodes?: Array<Record<string, unknown>>;
+  edges?: Array<Record<string, unknown>>;
+}) {
+  return {
+    name: options.name,
+    description: `${options.name} branch submenu`,
+    parentFlowId: options.parentFlowId,
+    parentNodeKey: options.parentNodeKey,
+    parentBranchKey: options.parentBranchKey,
+    nodes: options.nodes ?? [
+      { nodeKey: 'start', type: 'start', label: 'Start', positionX: 0, positionY: 0, config: {} },
+      { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 200, positionY: 0, config: {} },
+    ],
+    edges: options.edges ?? [{ sourceNodeKey: 'start', targetNodeKey: 'hangup', branchKey: 'default', condition: null }],
   };
 }
 
@@ -162,6 +189,49 @@ describe('Flow Versions API', () => {
     ]));
   });
 
+  it('PUT /flows/:id with only layout changes updates the working snapshot without creating a new committed version', async () => {
+    const app = await getApp();
+    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Layout Flow'));
+    const flowId = created.body.data.id;
+
+    const layoutOnlyUpdate = {
+      ...createFlowPayload('Layout Flow'),
+      nodes: [
+        { nodeKey: 'start', type: 'start', label: 'Start', positionX: 40, positionY: 20, config: {} },
+        {
+          nodeKey: 'play-1',
+          type: 'play_audio',
+          label: 'Greeting',
+          positionX: 260,
+          positionY: 40,
+          config: { audio_file_id: 1 },
+        },
+        { nodeKey: 'hangup', type: 'hangup', label: 'Hangup', positionX: 420, positionY: 60, config: {} },
+      ],
+      edges: [
+        { sourceNodeKey: 'start', targetNodeKey: 'play-1', branchKey: 'default', condition: null },
+        { sourceNodeKey: 'play-1', targetNodeKey: 'hangup', branchKey: 'default', condition: null },
+      ],
+    };
+
+    const updated = await request(app.getHttpServer())
+      .put(`/flows/${flowId}`)
+      .send(layoutOnlyUpdate);
+    expect(updated.status).toBe(200);
+
+    const listedAfterUpdate = await request(app.getHttpServer()).get(`/flows/${flowId}/versions`);
+    expect(listedAfterUpdate.status).toBe(200);
+    expect(listedAfterUpdate.body.data).toHaveLength(1);
+
+    const fetched = await request(app.getHttpServer()).get(`/flows/${flowId}`);
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.data.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nodeKey: 'start', positionX: 40, positionY: 20 }),
+      expect.objectContaining({ nodeKey: 'play-1', positionX: 260, positionY: 40 }),
+      expect.objectContaining({ nodeKey: 'hangup', positionX: 420, positionY: 60 }),
+    ]));
+  });
+
   it('POST /flows/:id/versions/:versionId/restore restores snapshot as current flow state', async () => {
     const app = await getApp();
     const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Restore Flow'));
@@ -221,8 +291,17 @@ describe('Flow Versions API', () => {
     expect(created.status).toBe(201);
 
     const rootFlowId = created.body.data.id as number;
-    const menuNode = created.body.data.nodes.find((node: { nodeKey: string }) => node.nodeKey === 'menu-1');
-    const subflowId = Number(menuNode?.subflowId || 0);
+    const createdSubflow = await request(app.getHttpServer())
+      .post('/flows')
+      .send(createBranchSubmenuPayload({
+        name: 'Branch 1 submenu',
+        parentFlowId: rootFlowId,
+        parentNodeKey: 'menu-1',
+        parentBranchKey: '1',
+      }));
+
+    expect(createdSubflow.status).toBe(201);
+    const subflowId = Number(createdSubflow.body.data.id || 0);
     expect(subflowId).toBeGreaterThan(0);
 
     const subflowFetched = await request(app.getHttpServer()).get(`/flows/${subflowId}`);
@@ -236,6 +315,7 @@ describe('Flow Versions API', () => {
         slug: subflowFetched.body.data.slug,
         parentFlowId: subflowFetched.body.data.parentFlowId,
         parentNodeKey: subflowFetched.body.data.parentNodeKey,
+        parentBranchKey: subflowFetched.body.data.parentBranchKey,
         nodes: [
           { nodeKey: 'start', type: 'start', label: 'Start A', positionX: 0, positionY: 0, config: {} },
           { nodeKey: 'hangup', type: 'hangup', label: 'Hangup A', positionX: 200, positionY: 0, config: {} },
@@ -257,6 +337,7 @@ describe('Flow Versions API', () => {
         slug: subflowFetched.body.data.slug,
         parentFlowId: subflowFetched.body.data.parentFlowId,
         parentNodeKey: subflowFetched.body.data.parentNodeKey,
+        parentBranchKey: subflowFetched.body.data.parentBranchKey,
         nodes: [
           { nodeKey: 'start', type: 'start', label: 'Start B', positionX: 0, positionY: 0, config: {} },
           { nodeKey: 'hangup', type: 'hangup', label: 'Hangup B', positionX: 200, positionY: 0, config: {} },

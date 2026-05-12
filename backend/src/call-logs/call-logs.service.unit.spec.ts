@@ -4,6 +4,7 @@ import { CallLogsService } from './call-logs.service';
 
 describe('CallLogsService', () => {
   let service: CallLogsService;
+  const originalTz = process.env.TZ;
   const mockDataSource = {
     query: jest.fn(),
   };
@@ -18,6 +19,10 @@ describe('CallLogsService', () => {
 
     service = module.get(CallLogsService);
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    process.env.TZ = originalTz;
   });
 
   it('returns trace nodes ordered with durationMs computed', async () => {
@@ -61,5 +66,26 @@ describe('CallLogsService', () => {
       nodeKey: 'menu_1',
       durationMs: null,
     }));
+  });
+
+  it('formats CDR export timestamps in the configured display timezone', async () => {
+    process.env.TZ = 'Asia/Colombo';
+    mockDataSource.query.mockResolvedValueOnce([
+      {
+        startedAt: '2026-04-17T10:00:00.000Z',
+        callerNumber: '94770000000',
+        direction: 'inbound',
+        durationSeconds: 45,
+        endReason: 'completed',
+        flowName: 'Main flow',
+        trunkName: 'Main trunk',
+      },
+    ]);
+
+    const csv = await service.exportCsv({});
+
+    expect(csv).toContain('17 Apr 2026, 15:30:00');
+    expect(csv).toContain('94770000000');
+    expect(csv).not.toContain('2026-04-17T10:00:00.000Z');
   });
 });

@@ -24,18 +24,16 @@ describe('NodeConfigPanel', () => {
     selectedEdgeSourceNode: null,
     audioItems: mockAudioItems,
     nodes: [],
+    edges: [],
     onLabelChange: vi.fn(),
     onConfigChange: vi.fn(),
     onConfigValueChange: vi.fn(),
     onConfigReplace: vi.fn(),
     onEdgeConditionChange: vi.fn(),
     onMenuBranchToggle: vi.fn(),
-    onMenuSubflowTargetChange: vi.fn(),
     menuExtra: {
-      submenuNodeOptionsLoading: false,
-      submenuStartNodeKey: null,
       selectedMenuLocalEdgeBranches: new Set<string>(),
-      selectedMenuSubmenuTargets: {},
+      selectedMenuBranchFlows: {},
     },
   };
 
@@ -124,21 +122,12 @@ describe('NodeConfigPanel', () => {
 
   it('renders explicit submenu action and branch routing states for menu nodes', () => {
     const onOpenSubmenuAction = vi.fn();
-    const node = {
-      ...mockNode('menu', {
-        prompt_audio_file_id: 1,
-        timeout_ms: 5000,
-        branches: ['1', '2'],
-      }),
-      data: {
-        ...mockNode('menu', {
-          prompt_audio_file_id: 1,
-          timeout_ms: 5000,
-          branches: ['1', '2'],
-        }).data,
-        subflowId: null,
-      },
-    };
+    const node = mockNode('menu', {
+      prompt_audio_file_id: 1,
+      timeout_ms: 5000,
+      branches: ['1', '2'],
+      submenu_branch_names: { '1': 'Sales submenu' },
+    });
 
     render(
       <NodeConfigPanel
@@ -162,10 +151,8 @@ describe('NodeConfigPanel', () => {
           } as any,
         ]}
         menuExtra={{
-          submenuNodeOptionsLoading: false,
-          submenuStartNodeKey: 'start',
           selectedMenuLocalEdgeBranches: new Set(['2']),
-          selectedMenuSubmenuTargets: { '1': 'start' },
+          selectedMenuBranchFlows: {},
         }}
         onOpenSubmenuAction={onOpenSubmenuAction}
       />,
@@ -173,50 +160,156 @@ describe('NodeConfigPanel', () => {
 
     expect(screen.getByRole('button', { name: 'Create submenu' })).toBeInTheDocument();
     expect(screen.getByText('branch routing')).toBeInTheDocument();
-    expect(screen.getByText('start')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Sales submenu')).toBeInTheDocument();
+    expect(screen.getByText('unrouted')).toBeInTheDocument();
     expect(screen.getByText('main flow')).toBeInTheDocument();
     expect(screen.getByText('Main prompt')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Create submenu' }));
-    expect(onOpenSubmenuAction).toHaveBeenCalledWith('node-1');
+    expect(onOpenSubmenuAction).toHaveBeenCalledWith('node-1', '1');
   });
 
   it('shows open submenu when subflow already exists', () => {
-    const node = {
-      ...mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] }),
-      data: {
-        ...mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] }).data,
-        subflowId: 77,
-      },
-    };
+    const onOpenSubmenuAction = vi.fn();
+    const node = mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] });
 
     render(
       <NodeConfigPanel
         {...baseProps}
         selectedNode={node}
         menuExtra={{
-          submenuNodeOptionsLoading: false,
-          submenuStartNodeKey: 'start',
           selectedMenuLocalEdgeBranches: new Set(),
-          selectedMenuSubmenuTargets: { '1': 'start' },
+          selectedMenuBranchFlows: { '1': { flowId: 77, name: 'Billing submenu' } },
         }}
+        onOpenSubmenuAction={onOpenSubmenuAction}
       />,
     );
 
     expect(screen.getByRole('button', { name: 'Open submenu' })).toBeInTheDocument();
-    expect(screen.getByText('Submenu #77')).toBeInTheDocument();
+    expect(screen.getByText('Billing submenu')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open submenu' }));
+    expect(onOpenSubmenuAction).toHaveBeenCalledWith('node-1', '1');
+  });
+
+  it('keeps the submenu rename draft during parent rerenders', () => {
+    const node = mockNode('menu', { prompt_audio_file_id: 1, timeout_ms: 5000, branches: ['1'] });
+    const initialProps = {
+      ...baseProps,
+      selectedNode: node,
+      menuExtra: {
+        selectedMenuLocalEdgeBranches: new Set<string>(),
+        selectedMenuBranchFlows: { '1': { flowId: 77, name: 'Billing submenu' } },
+      },
+    };
+
+    const { rerender } = render(<NodeConfigPanel {...initialProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename submenu 1' }));
+    const renameInput = screen.getByDisplayValue('Billing submenu');
+    fireEvent.change(renameInput, { target: { value: 'Billing submenu updated' } });
+
+    rerender(
+      <NodeConfigPanel
+        {...baseProps}
+        selectedNode={node}
+        menuExtra={{
+          selectedMenuLocalEdgeBranches: new Set<string>(),
+          selectedMenuBranchFlows: { '1': { flowId: 77, name: 'Billing submenu' } },
+        }}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('Billing submenu updated')).toBeInTheDocument();
+  });
+
+  it('renders a custom submenu name input before submenu creation', () => {
+    const node = mockNode('menu', {
+      prompt_audio_file_id: 1,
+      timeout_ms: 5000,
+      branches: ['1'],
+      submenu_branch_names: { '1': 'VIP branch' },
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} />);
+
+    expect(screen.getByDisplayValue('VIP branch')).toBeInTheDocument();
+  });
+
+  it('does not render final failure audio for menu nodes', () => {
+    const node = mockNode('menu', {
+      prompt_audio_file_id: 1,
+      timeout_ms: 5000,
+      branches: ['1'],
+      final_failure_audio_id: 2,
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} />);
+
+    expect(screen.queryByText('final failure audio')).not.toBeInTheDocument();
+  });
+
+  it('resets audio preview when switching to a different node with the same audio source', async () => {
+    const audioItemsWithPreview: AudioFileItem[] = [
+      { ...mockAudioItems[0], previewUrl: '/audio/previews/test-audio.wav' },
+      mockAudioItems[1],
+    ];
+    const firstNode = {
+      id: 'play-1',
+      type: 'flowNode',
+      position: { x: 0, y: 0 },
+      data: { type: 'play_audio', label: 'First node', config: { audio_file_id: 1, audio_file_path: '' } } as FlowNodeData,
+    };
+    const secondNode = {
+      id: 'play-2',
+      type: 'flowNode',
+      position: { x: 0, y: 0 },
+      data: { type: 'play_audio', label: 'Second node', config: { audio_file_id: 1, audio_file_path: '' } } as FlowNodeData,
+    };
+
+    const { rerender } = render(<NodeConfigPanel {...baseProps} audioItems={audioItemsWithPreview} selectedNode={firstNode} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'play' }));
+    expect(await screen.findByRole('button', { name: 'pause' })).toBeInTheDocument();
+
+    rerender(<NodeConfigPanel {...baseProps} audioItems={audioItemsWithPreview} selectedNode={secondNode} />);
+
+    expect(screen.getByRole('button', { name: 'play' })).toBeInTheDocument();
+  });
+
+  it('hides audio preview controls when selection is cleared', async () => {
+    const audioItemsWithPreview: AudioFileItem[] = [
+      { ...mockAudioItems[0], previewUrl: '/audio/previews/test-audio.wav' },
+      mockAudioItems[1],
+    ];
+    const node = {
+      id: 'play-1',
+      type: 'flowNode',
+      position: { x: 0, y: 0 },
+      data: { type: 'play_audio', label: 'Audio node', config: { audio_file_id: 1, audio_file_path: '' } } as FlowNodeData,
+    };
+
+    const { rerender } = render(<NodeConfigPanel {...baseProps} audioItems={audioItemsWithPreview} selectedNode={node} />);
+
+    expect(screen.getByRole('button', { name: 'play' })).toBeInTheDocument();
+
+    rerender(<NodeConfigPanel {...baseProps} audioItems={audioItemsWithPreview} selectedNode={null} selectedEdge={null} selectedEdgeSourceNode={null} />);
+
+    expect(screen.getByText('Select a node to configure it')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'play' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'pause' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'mute' })).not.toBeInTheDocument();
   });
 
   it('renders prompt audio field for queue_login node', () => {
-    const node = mockNode('queue_login', { queue_id: 1, prompt_audio_file_id: null });
+    const node = mockNode('queue_login', { queue_ids: [1], prompt_audio_file_id: null });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
     expect(screen.getByText('prompt audio')).toBeInTheDocument();
   });
 
-  it('renders prompt audio field for queue node', () => {
+  it('does not render prompt audio field for queue node', () => {
     const node = mockNode('queue', { queue_id: 1, prompt_audio_file_id: null });
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
-    expect(screen.getByText('prompt audio')).toBeInTheDocument();
+    expect(screen.queryByText('prompt audio')).not.toBeInTheDocument();
   });
 
   it('always shows voicemail webhook toggle without requiring a webhook node edge', () => {
@@ -232,22 +325,94 @@ describe('NodeConfigPanel', () => {
     expect(screen.getByLabelText('Send recording with webhook request')).toBeInTheDocument();
   });
 
-  it('shows voicemail webhook URL and optional secret fields when enabled', () => {
+  it('shows inline warning when voicemail webhook recording is enabled without an outgoing webhook edge', () => {
     const node = mockNode('voicemail', {
       mailbox_name: 'main',
       max_duration_seconds: 60,
       start_audio_id: 1,
       send_to_webhook: true,
-      webhook_url: 'https://example.com/hook',
-      webhook_secret: 'secret',
     });
 
     render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
 
-    expect(screen.getByText('Webhook URL')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('https://example.com/hook')).toBeInTheDocument();
-    expect(screen.getByText('Secret (optional)')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('secret')).toBeInTheDocument();
+    expect(screen.getByText('Connect a Webhook node to receive the recording.')).toBeInTheDocument();
+  });
+
+  it('does not show voicemail webhook warning when an outgoing webhook edge exists', () => {
+    const node = mockNode('voicemail', {
+      mailbox_name: 'main',
+      max_duration_seconds: 60,
+      start_audio_id: 1,
+      send_to_webhook: true,
+    });
+    const webhookNode = {
+      id: 'webhook-1',
+      type: 'flowNode',
+      position: { x: 200, y: 100 },
+      data: { type: 'webhook', label: 'Webhook', config: { url: 'https://example.com/hook' } } as FlowNodeData,
+    };
+    const edges = [{ id: 'vm-webhook', source: node.id, target: webhookNode.id }];
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} nodes={[node, webhookNode]} edges={edges} saveAttempted={false} />);
+
+    expect(screen.queryByText('Connect a Webhook node to receive the recording.')).not.toBeInTheDocument();
+  });
+
+  it('shows transfer recording webhook toggle only when record call is enabled', () => {
+    const node = mockNode('transfer', {
+      target_type: 'extension',
+      target_value: '1001',
+      record_call: true,
+      send_to_webhook: false,
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+
+    expect(screen.getByLabelText('Send recording with webhook request')).toBeInTheDocument();
+  });
+
+  it('shows transfer inline warning when recording webhook is enabled without an outgoing webhook edge', () => {
+    const node = mockNode('transfer', {
+      target_type: 'extension',
+      target_value: '1001',
+      record_call: true,
+      send_to_webhook: true,
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+
+    expect(screen.getByText('Connect a Webhook node to receive the recording.')).toBeInTheDocument();
+  });
+
+  it('shows hunt inline warning when recording webhook is enabled without an outgoing webhook edge', () => {
+    const node = mockNode('hunt', {
+      destinations: [{ target_type: 'extension', target_value: '1001' }],
+      record_call: true,
+      send_to_webhook: true,
+    });
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} saveAttempted={false} />);
+
+    expect(screen.getByText('Connect a Webhook node to receive the recording.')).toBeInTheDocument();
+  });
+
+  it('does not show hunt warning when an outgoing webhook edge exists', () => {
+    const node = mockNode('hunt', {
+      destinations: [{ target_type: 'extension', target_value: '1001' }],
+      record_call: true,
+      send_to_webhook: true,
+    });
+    const webhookNode = {
+      id: 'webhook-1',
+      type: 'flowNode',
+      position: { x: 200, y: 100 },
+      data: { type: 'webhook', label: 'Webhook', config: { url: 'https://example.com/hook' } } as FlowNodeData,
+    };
+    const edges = [{ id: 'hunt-webhook', source: node.id, target: webhookNode.id }];
+
+    render(<NodeConfigPanel {...baseProps} selectedNode={node} nodes={[node, webhookNode]} edges={edges} saveAttempted={false} />);
+
+    expect(screen.queryByText('Connect a Webhook node to receive the recording.')).not.toBeInTheDocument();
   });
 
   it('renders editable get_digits edge condition input with current 2-digit value', () => {

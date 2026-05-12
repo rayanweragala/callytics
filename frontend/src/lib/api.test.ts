@@ -134,6 +134,12 @@ describe('api library', () => {
     expect(axios.delete).toHaveBeenCalledWith('/audio/1');
   });
 
+  it('updateAudio calls correct endpoint', async () => {
+    (axios.put as any).mockResolvedValue({ data: {} });
+    await api.updateAudio(1, { name: 'Updated Name' });
+    expect(axios.put).toHaveBeenCalledWith('/audio/1', { name: 'Updated Name' });
+  });
+
   it('listRecordings calls correct endpoint', async () => {
     (axios.get as any).mockResolvedValue({ data: { data: [], total: 0 } });
     await api.listRecordings(1, 20);

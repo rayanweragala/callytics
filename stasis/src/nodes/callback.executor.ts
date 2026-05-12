@@ -30,6 +30,23 @@ interface CallbackCreatedPayload {
   failReason?: 'caller_hangup' | 'dtmf_timeout' | 'executor_error';
 }
 
+function storeCallbackOutcome(
+  session: CallSession,
+  callbackNumber: string | null,
+  source: 'ani' | 'dtmf',
+  options?: { persistToVariables?: boolean },
+): void {
+  const normalizedNumber = String(callbackNumber || '').trim();
+  if (!normalizedNumber) {
+    return;
+  }
+  if (options?.persistToVariables) {
+    session.variables.callback_number = normalizedNumber;
+  }
+  session.webhookPayload.callback = { number: normalizedNumber, source };
+  session.webhookPayload.outcome = { status: 'completed' };
+}
+
 function waitForPlaybackFinished(
   ariClient: unknown,
   playbackId: string,
@@ -85,16 +102,17 @@ async function playAudioIfPresent(
   audioIdField: string,
   pathField: string,
   ariClient: unknown,
-): Promise<void> {
+): Promise<boolean> {
   const audioPath = await resolveAudioMediaPath(nodeConfig, audioIdField, pathField);
   if (!audioPath) {
-    return;
+    return false;
   }
 
   const playbackFactory = ariClient as { Playback: () => { id: string } };
   const playback = playbackFactory.Playback();
   await channel.play({ media: `sound:${audioPath}` }, playback);
   await waitForPlaybackFinished(ariClient, playback.id, channel.id);
+  return true;
 }
 
 function collectDtmfDigits(
@@ -281,6 +299,7 @@ export async function executeCallbackNode(
         ? rawCaller.trim()
         : String(rawSessionCaller || '').trim();
       customerNumber = ani || null;
+      storeCallbackOutcome(session, customerNumber, 'ani');
     } else {
       const dtmfPromptPath = await resolveAudioMediaPath(
         node.config as Record<string, unknown>,
@@ -336,6 +355,7 @@ export async function executeCallbackNode(
         published = true;
       } else {
         customerNumber = dtmfResult.number;
+        storeCallbackOutcome(session, customerNumber, 'dtmf', { persistToVariables: true });
       }
     }
 
@@ -359,13 +379,22 @@ export async function executeCallbackNode(
       published = true;
     }
 
-    await playAudioIfPresent(
+    const playedConfirmation = await playAudioIfPresent(
       channel,
-      node.config,
+      node.config as Record<string, unknown>,
       'confirmation_audio_id',
       'confirmation_audio_path',
       ariClient,
     );
+    if (!playedConfirmation) {
+      await playAudioIfPresent(
+        channel,
+        node.config as Record<string, unknown>,
+        'confirmation_audio_file_id',
+        'confirmation_audio_file_path',
+        ariClient,
+      );
+    }
 
     await channel.hangup().catch(() => undefined);
     return 'done';

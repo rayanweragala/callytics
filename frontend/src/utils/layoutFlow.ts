@@ -89,22 +89,31 @@ export function layoutFlow(nodes: Array<Node<FlowNodeData>>, edges: Array<Edge>)
   });
 
   const dimensions = new Map<string, { width: number; height: number }>();
+  const groupNodeIds = new Set(nodes.filter((node) => node.data.type === 'group').map((node) => node.id));
+  const layoutNodes = nodes.filter((node) => !node.parentId || !groupNodeIds.has(node.parentId));
+  const resolveLayoutNodeId = (nodeId: string): string | null => {
+    const node = nodes.find((candidate) => candidate.id === nodeId);
+    if (!node) return null;
+    return node.parentId && groupNodeIds.has(node.parentId) ? node.parentId : node.id;
+  };
 
-  nodes.forEach((node) => {
+  layoutNodes.forEach((node) => {
     const size = getNodeDimensions(node);
     dimensions.set(node.id, size);
     g.setNode(node.id, size);
   });
 
   edges.forEach((edge) => {
-    if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
-      g.setEdge(edge.source, edge.target);
+    const sourceId = resolveLayoutNodeId(edge.source);
+    const targetId = resolveLayoutNodeId(edge.target);
+    if (sourceId && targetId && sourceId !== targetId && g.hasNode(sourceId) && g.hasNode(targetId)) {
+      g.setEdge(sourceId, targetId);
     }
   });
 
   dagre.layout(g);
 
-  const preliminary = nodes.map((node) => {
+  const preliminary = layoutNodes.map((node) => {
     const dagreNode = g.node(node.id);
     const size = dimensions.get(node.id) || { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
     return {
@@ -136,6 +145,9 @@ export function layoutFlow(nodes: Array<Node<FlowNodeData>>, edges: Array<Edge>)
   }
 
   return nodes.map((node) => {
+    if (node.parentId && groupNodeIds.has(node.parentId)) {
+      return node;
+    }
     const size = dimensions.get(node.id) || { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
     const next = adjusted.get(node.id);
     if (!next) {

@@ -28,13 +28,17 @@ const logEventMock = logEvent as jest.MockedFunction<typeof logEvent>;
 const fetchMock = jest.spyOn(globalThis, 'fetch');
 
 function createSession(callId = 'call-1'): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: callId,
     channelId: callId,
     callerNumber: '1000',
     currentNodeKey: 'conference-1',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: { id: 'bridge-inbound-1' },
     flow: {

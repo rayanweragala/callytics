@@ -27,6 +27,10 @@ export class CreateFlowDto {
   @IsString()
   parentNodeKey?: string;
 
+  @IsOptional()
+  @IsString()
+  parentBranchKey?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

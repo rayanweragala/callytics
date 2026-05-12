@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     nodejs \
+    tzdata \
     libssl-dev \
     libncurses5-dev \
     libnewt-dev \

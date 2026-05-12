@@ -206,6 +206,7 @@ export interface TransferNodeConfig {
   waiting_sound_id?: number | null;
   no_answer_sound_id?: number | null;
   record_call?: boolean;
+  send_to_webhook?: boolean;
 }
 
 export interface HuntDestination {
@@ -218,6 +219,8 @@ export interface HuntDestination {
 export interface HuntNodeConfig {
   destinations: HuntDestination[];
   ring_timeout_ms?: number;
+  record_call?: boolean;
+  send_to_webhook?: boolean;
 }
 
 export interface CallbackNodeConfig {
@@ -239,6 +242,15 @@ export interface ConferenceNodeConfig {
   moderatorId: number | null;
 }
 
+export interface WebhookNodeConfig {
+  url: string;
+  method: 'GET' | 'POST';
+  include_caller?: boolean;
+  include_session_variables?: boolean;
+  timeout_ms?: number | null;
+  headers?: Array<{ key: string; value: string }>;
+}
+
 export interface FlowNodeData {
   label: string;
   type: BuilderNodeType;
@@ -252,6 +264,11 @@ export interface FlowNodeData {
   onOpenSubmenu?: () => void;
   isEditing?: boolean;
   subflowId?: number | null;
+}
+
+export interface SubmenuBranchFlow {
+  flowId: number;
+  name: string;
 }
 
 export interface FlowApiNode {
@@ -272,6 +289,8 @@ export interface FlowApiEdge {
   targetNodeKey: string;
   branchKey: string;
   condition: string | null;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
 }
 
 export interface FlowSummary {
@@ -288,6 +307,7 @@ export interface FlowDetail {
   slug: string;
   parentFlowId: number | null;
   parentNodeKey: string | null;
+  parentBranchKey: string | null;
   createdAt: string;
   updatedAt: string;
   versionId: number;
@@ -299,11 +319,15 @@ export interface FlowDetail {
 export interface FlowBreadcrumbItem {
   flowId: number;
   flowName: string;
+  parentNodeKey: string | null;
+  parentNodeLabel: string | null;
+  parentBranchKey: string | null;
 }
 
 export interface FlowTreeChild {
   nodeKey: string;
   nodeLabel: string;
+  branchKey: string | null;
   subflowId: number;
   name: string;
   children: FlowTreeChild[];
@@ -342,6 +366,8 @@ export interface FlowSnapshot {
     targetNodeKey: string;
     branchKey: string;
     condition: string | null;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
   }>;
   subflows?: FlowSnapshotSubflow[];
 }
@@ -595,6 +621,7 @@ export interface RecordingItem {
   fileName: string;
   filePath: string;
   format: string;
+  recordingType: string;
   durationSeconds: number | null;
   startedAt: string;
   endedAt: string | null;

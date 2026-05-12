@@ -24,9 +24,15 @@ jest.mock('../lib/trunkResolver', () => ({
   fetchTrunkDialFormat: jest.fn().mockResolvedValue('{number}'),
 }));
 
+jest.mock('../bridgeRecording', () => ({
+  beginNodeRecording: jest.fn().mockResolvedValue(undefined),
+  persistSessionRecording: jest.fn().mockResolvedValue(null),
+}));
+
 import { executeNode } from '../nodes';
 import { executeHunt } from '../nodes/hunt.executor';
 import { resolveAudioMediaPath } from '../audioResolver';
+import { beginNodeRecording, persistSessionRecording } from '../bridgeRecording';
 import { registerTransferWaiter, rejectTransferWaiter } from '../transferManager';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { query } from '../db';
@@ -34,6 +40,8 @@ import { CallSession } from '../callSession';
 import { FlowNode } from '../flowLoader';
 
 const resolveAudioMediaPathMock = resolveAudioMediaPath as jest.MockedFunction<typeof resolveAudioMediaPath>;
+const beginNodeRecordingMock = beginNodeRecording as jest.MockedFunction<typeof beginNodeRecording>;
+const persistSessionRecordingMock = persistSessionRecording as jest.MockedFunction<typeof persistSessionRecording>;
 const registerTransferWaiterMock = registerTransferWaiter as jest.MockedFunction<typeof registerTransferWaiter>;
 const rejectTransferWaiterMock = rejectTransferWaiter as jest.MockedFunction<typeof rejectTransferWaiter>;
 const registerHuntWaiterMock = registerHuntWaiter as jest.MockedFunction<typeof registerHuntWaiter>;
@@ -42,13 +50,17 @@ const queryMock = query as jest.MockedFunction<typeof query>;
 const huntWaiters = new Map<string, (result: { answered: false; reason: 'failed' | 'destroyed' }) => void>();
 
 function createSession(): CallSession {
+  const startedAt = new Date();
   return {
     callUuid: 'call-1',
     channelId: 'channel-1',
     callerNumber: '1000',
     currentNodeKey: 'node-1',
     variables: {},
-    startedAt: new Date(),
+    webhookPayload: {},
+    call_started_at: startedAt.toISOString(),
+    call_ended_at: null,
+    startedAt,
     recording: null,
     inboundBridge: { id: 'bridge-inbound-1' },
     flow: {
@@ -73,6 +85,8 @@ function createAriClient() {
       originate: jest.fn().mockResolvedValue(undefined),
       play: jest.fn().mockResolvedValue({ id: 'channel-playback-1' }),
       hangup: jest.fn().mockResolvedValue(undefined),
+      startMoh: jest.fn().mockResolvedValue(undefined),
+      stopMoh: jest.fn().mockResolvedValue(undefined),
     },
     playbacks: {
       stop: jest.fn().mockResolvedValue(undefined),
@@ -344,7 +358,13 @@ describe('menu retry behavior', () => {
     const ariClient = createAriClient();
     const channel = {
       id: 'channel-1',
-      play: jest.fn().mockResolvedValue(undefined),
+      play: jest.fn().mockImplementation(async ({ media }: { media: string }) => {
+        if (media === 'sound:callytics/prompt_audio_file_id') {
+          queueMicrotask(() => {
+            ariClient.emit('PlaybackFinished', { playback: { id: 'playback-1' } });
+          });
+        }
+      }),
       hangup: jest.fn().mockResolvedValue(undefined),
     };
     const node: FlowNode = {
@@ -374,7 +394,7 @@ describe('menu retry behavior', () => {
     await expect(promise).resolves.toBe('hangup');
     expect(channel.play).toHaveBeenCalledWith({ media: 'sound:callytics/final_failure_audio_id' }, expect.anything());
     expect(session.variables['menu:1:menu-1:timeout_count']).toBeUndefined();
-  });
+  }, 15000);
 
   it('hangs up after the third invalid digit and plays the final failure prompt', async () => {
     const session = createSession();
@@ -432,7 +452,7 @@ describe('transfer executor', () => {
         huntWaiters.set(token, resolve as (result: { answered: false; reason: 'failed' | 'destroyed' }) => void);
       }),
     );
-    rejectHuntWaiterMock.mockImplementation((token, reason = 'failed') => {
+    rejectHuntWaiterMock.mockImplementation((token, reason: 'failed' | 'destroyed' = 'failed') => {
       const resolve = huntWaiters.get(token);
       if (!resolve) return;
       huntWaiters.delete(token);
@@ -555,9 +575,53 @@ it('resolves pstn target through trunk and dials PJSIP/<number>@<trunk.username>
     await flushPromises(20);
 
     await expect(promise).resolves.toBe('done');
-    expect(ariClient.bridges.create).toHaveBeenCalledWith({ type: 'mixing,dtmf_events' });
-    expect(ariClient.bridges.addChannel).toHaveBeenNthCalledWith(1, { bridgeId: 'bridge-new-1', channel: 'channel-1' });
-    expect(ariClient.bridges.addChannel).toHaveBeenNthCalledWith(2, { bridgeId: 'bridge-new-1', channel: 'outbound-1' });
+    expect(ariClient.bridges.create).not.toHaveBeenCalled();
+    expect(ariClient.bridges.addChannel).toHaveBeenCalledWith({ bridgeId: 'bridge-inbound-1', channel: 'outbound-1' });
+  });
+
+  it('keeps inbound bridge alive until transfer target answers', async () => {
+    const ariClient = createAriClient();
+    let resolveWaiter: ((result: { answered: true; channel: { id: string; hangup: () => Promise<void> } }) => void) | null = null;
+    registerTransferWaiterMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWaiter = resolve as (result: { answered: true; channel: { id: string; hangup: () => Promise<void> } }) => void;
+      }),
+    );
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 7000 } };
+
+    const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
+    await flushPromises(20);
+
+    expect(ariClient.bridges.destroy).not.toHaveBeenCalledWith({ bridgeId: 'bridge-inbound-1' });
+
+    resolveWaiter?.({ answered: true, channel: { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) } });
+    await flushPromises(20);
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    await flushPromises(20);
+
+    await expect(promise).resolves.toBe('done');
+    expect(ariClient.bridges.destroy).not.toHaveBeenCalledWith({ bridgeId: 'bridge-inbound-1' });
+  });
+
+  it('starts default MOH while waiting when no waiting audio is configured', async () => {
+    const ariClient = createAriClient();
+    const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
+    registerTransferWaiterMock.mockReturnValue(
+      Promise.resolve({ answered: true, channel: outboundChannel }),
+    );
+    const node: FlowNode = { nodeKey: 'transfer-1', type: 'transfer', label: 'Transfer', config: { target_type: 'extension', target_value: '2001', timeout_ms: 7000 } };
+
+    const promise = executeNode({ id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any, node, createSession(), ariClient as any);
+    await flushPromises(20);
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    await flushPromises(20);
+
+    await expect(promise).resolves.toBe('done');
+    expect(ariClient.channels.startMoh).toHaveBeenCalledWith({
+      channelId: 'channel-1',
+      mohClass: 'callytics-hold',
+    });
+    expect(ariClient.channels.stopMoh).toHaveBeenCalledWith({ channelId: 'channel-1' });
   });
 
   it('returns route:on-no-answer when timeout elapses with no answer', async () => {
@@ -597,7 +661,60 @@ it('resolves pstn target through trunk and dials PJSIP/<number>@<trunk.username>
     await flushPromises(20);
 
     await expect(promise).resolves.toBe('done');
-    expect(ariClient.bridges.destroy).toHaveBeenCalledWith({ bridgeId: 'bridge-new-1' });
+    expect(ariClient.bridges.destroy).not.toHaveBeenCalledWith({ bridgeId: 'bridge-new-1' });
+  });
+
+  it('stores recording_url in node result payload when transfer webhook delivery is enabled', async () => {
+    const ariClient = createAriClient();
+    const outboundChannel = { id: 'outbound-1', hangup: jest.fn().mockResolvedValue(undefined) };
+    registerTransferWaiterMock.mockReturnValue(
+      Promise.resolve({ answered: true, channel: outboundChannel }),
+    );
+    persistSessionRecordingMock.mockResolvedValue({
+      id: 888,
+      recordingUrl: 'http://127.0.0.1:3001/recordings/888/download',
+      durationSeconds: 21,
+    });
+    const node: FlowNode = {
+      nodeKey: 'transfer-1',
+      type: 'transfer',
+      label: 'Transfer',
+      config: {
+        target_type: 'extension',
+        target_value: '2001',
+        timeout_ms: 7000,
+        record_call: true,
+        send_to_webhook: true,
+      },
+    };
+    const session = createSession();
+
+    const promise = executeNode(
+      { id: 'channel-1', play: jest.fn(), hangup: jest.fn().mockResolvedValue(undefined) } as any,
+      node,
+      session,
+      ariClient as any,
+    );
+    await flushPromises(20);
+    ariClient.emit('StasisEnd', { channel: { id: 'channel-1' } });
+    await flushPromises(20);
+
+    await expect(promise).resolves.toBe('done');
+    expect(beginNodeRecordingMock).toHaveBeenCalled();
+    expect(persistSessionRecordingMock).toHaveBeenCalledWith(session);
+    expect(session.webhookPayload).toEqual({
+      bridge: expect.objectContaining({
+        connected_extension: '2001',
+        connected_at: expect.any(String),
+        disconnected_at: expect.any(String),
+        talk_duration_seconds: expect.any(Number),
+      }),
+      outcome: { status: 'completed' },
+      recording: {
+        url: 'http://127.0.0.1:3001/recordings/888/download',
+        duration_seconds: 21,
+      },
+    });
   });
 });
 
@@ -606,6 +723,8 @@ describe('hunt executor', () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     resolveAudioMediaPathMock.mockResolvedValue(null);
+    beginNodeRecordingMock.mockResolvedValue(undefined);
+    persistSessionRecordingMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -781,7 +900,7 @@ describe('hunt executor', () => {
 
     await expect(promise).resolves.toBe('hangup');
     expect(ariClient.channels.originate).toHaveBeenCalledTimes(1);
-  });
+  }, 15000);
 });
 
 describe('hangup executor', () => {

@@ -20,9 +20,13 @@ import { executeCallbackNode } from "./callback.executor";
 import { executeConference } from "./conference.executor";
 import { logEvent } from "../logger";
 import { INTER_DIGIT_TIMEOUT_MS, resolveNodeTimeoutMs } from "../timeoutResolver";
-import { beginNodeRecording } from "../bridgeRecording";
+import { beginNodeRecording, persistSessionRecording } from "../bridgeRecording";
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:3001';
+const DEFAULT_TRANSFER_MOH_CLASS =
+  process.env.TRANSFER_MOH_CLASS
+  || process.env.QUEUE_LOGIN_MOH_CLASS
+  || 'callytics-hold';
 
 type PlaybackTarget =
   | {
@@ -601,6 +605,8 @@ async function executeTransfer(
         media: string;
         offsetms?: number;
       }) => Promise<{ id: string }>;
+      startMoh?: (params: { channelId: string; mohClass?: string }) => Promise<void>;
+      stopMoh?: (params: { channelId: string }) => Promise<void>;
     };
     bridges: {
       create: (params: { type: string }) => Promise<{ id: string }>;
@@ -623,16 +629,6 @@ async function executeTransfer(
     ) => void;
   };
 
-  if (session.inboundBridge) {
-    try {
-      await client.bridges.destroy({ bridgeId: session.inboundBridge.id });
-      logEvent("BridgeDestroyed", { bridgeId: session.inboundBridge.id, channelCountAtDestroy: 1 });
-    } catch (error) {
-      logEvent("BridgeDestroyFailed", { bridgeId: session.inboundBridge.id, error });
-    }
-    session.inboundBridge = null;
-  }
-
   const waitForAnswer = registerTransferWaiter(channel.id);
   const appName = process.env.ARI_APP || "callytics";
 
@@ -649,6 +645,7 @@ async function executeTransfer(
     "no_answer_sound_id",
   );
   let waitingSoundLoop: { stop: () => Promise<void> } | null = null;
+  let mohStarted = false;
 
   const onInboundEndedWhileRinging = (event: { channel?: { id?: string } }) => {
     if (event.channel?.id !== channel.id) {
@@ -694,6 +691,12 @@ async function executeTransfer(
         channel.id,
         `sound:${waitingSoundMediaPath}`,
       );
+    } else if (client.channels.startMoh) {
+      await client.channels.startMoh({
+        channelId: channel.id,
+        mohClass: DEFAULT_TRANSFER_MOH_CLASS,
+      });
+      mohStarted = true;
     }
 
     const transferResult: TransferWaiterResult = await new Promise((resolve) => {
@@ -738,10 +741,19 @@ async function executeTransfer(
       await waitingSoundLoop.stop();
       waitingSoundLoop = null;
     }
+    if (mohStarted && client.channels.stopMoh) {
+      await client.channels.stopMoh({ channelId: channel.id }).catch(() => undefined);
+      mohStarted = false;
+    }
 
     if (transferResult.answered === false) {
       const reason = transferResult.reason;
       logEvent("TransferNoAnswer", { destination, reason, channelId: channel.id });
+
+      session.webhookPayload.outcome = {
+        status: reason === "caller_disconnected" ? "failed" : "no_answer",
+        reason,
+      };
 
       if (reason !== "caller_disconnected" && noAnswerSoundMediaPath) {
         await playTransferNoAnswerSound(
@@ -760,32 +772,186 @@ async function executeTransfer(
     }
 
     const outboundChannel = transferResult.channel;
+    const connectedAt = new Date();
+    logEvent("TransferAnsweredHandlerEntered", {
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+    });
+    logEvent("TransferJoinStart", {
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+      hasInboundBridge: Boolean(session.inboundBridge?.id),
+    });
 
-    const bridge = await client.bridges.create({ type: "mixing,dtmf_events" });
-    await client.bridges.addChannel({
-      bridgeId: bridge.id,
-      channel: channel.id,
+    logEvent("TransferBridgeLookupStart", {
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+      inboundBridgeId: session.inboundBridge?.id || null,
     });
-    await client.bridges.addChannel({
-      bridgeId: bridge.id,
-      channel: outboundChannel.id,
+    let bridgeId = session.inboundBridge?.id || "";
+    logEvent("TransferBridgeLookupDone", {
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+      selectedBridgeId: bridgeId || null,
     });
-    if (Boolean(targetConfig.record_call)) {
-      await beginNodeRecording(session, bridge.id, `${session.callUuid}-transfer-${Date.now()}`, 'transfer');
+    if (bridgeId) {
+      logEvent("TransferBridgeReuse", {
+        bridgeId,
+        inboundChannelId: channel.id,
+        outboundChannelId: outboundChannel.id,
+      });
+    } else {
+      const bridge = await client.bridges.create({ type: "mixing,dtmf_events" });
+      bridgeId = bridge.id;
+      session.inboundBridge = { id: bridgeId };
+      logEvent("TransferBridgeCreated", {
+        bridgeId,
+        inboundChannelId: channel.id,
+        outboundChannelId: outboundChannel.id,
+      });
+      logEvent("TransferBridgeAddCallerStart", { bridgeId, inboundChannelId: channel.id });
+      try {
+        await client.bridges.addChannel({
+          bridgeId,
+          channel: channel.id,
+        });
+      } catch (error) {
+        logEvent("TransferBridgeAddCallerFailed", { bridgeId, inboundChannelId: channel.id, error });
+        throw error;
+      }
+      logEvent("TransferBridgeAddCallerDone", { bridgeId, inboundChannelId: channel.id });
+      logEvent("TransferBridgeCallerAdded", { bridgeId, inboundChannelId: channel.id });
     }
+
+    logEvent("TransferBridgeAddOutboundStart", {
+      bridgeId,
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+    });
+    try {
+      await client.bridges.addChannel({
+        bridgeId,
+        channel: outboundChannel.id,
+      });
+    } catch (error) {
+      logEvent("TransferBridgeAddOutboundFailed", {
+        bridgeId,
+        inboundChannelId: channel.id,
+        outboundChannelId: outboundChannel.id,
+        error,
+      });
+      throw error;
+    }
+    logEvent("TransferBridgeAddOutboundDone", {
+      bridgeId,
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+    });
+    logEvent("TransferBridgeOutboundAdded", {
+      bridgeId,
+      inboundChannelId: channel.id,
+      outboundChannelId: outboundChannel.id,
+    });
+
+    if (Boolean(targetConfig.record_call)) {
+      await beginNodeRecording(session, bridgeId, `${session.callUuid}-transfer-${Date.now()}`, 'transfer');
+    }
+
+    let teardownTriggered = false;
+    const hangupPeer = (params: {
+      endedChannelId: string;
+      peerChannelId: string;
+      peer: { hangup?: () => Promise<void> };
+    }) => {
+      if (teardownTriggered) {
+        return;
+      }
+      teardownTriggered = true;
+      logEvent("TransferSymmetricTeardownStart", {
+        endedChannelId: params.endedChannelId,
+        peerChannelId: params.peerChannelId,
+      });
+      if (params.peer?.hangup) {
+        void params.peer.hangup().catch((error) => {
+          logEvent("TransferSymmetricTeardownPeerHangupFailed", {
+            endedChannelId: params.endedChannelId,
+            peerChannelId: params.peerChannelId,
+            error,
+          });
+        });
+      } else {
+        void client.channels.hangup({ channelId: params.peerChannelId }).catch((error) => {
+          logEvent("TransferSymmetricTeardownPeerHangupFailed", {
+            endedChannelId: params.endedChannelId,
+            peerChannelId: params.peerChannelId,
+            error,
+          });
+        });
+      }
+    };
+
+    const onTransferLegEnded = (event: { channel?: { id?: string } }) => {
+      const endedChannelId = String(event.channel?.id || "");
+      if (!endedChannelId) {
+        return;
+      }
+      if (endedChannelId === outboundChannel.id) {
+        hangupPeer({
+          endedChannelId,
+          peerChannelId: channel.id,
+          peer: channel,
+        });
+        return;
+      }
+      if (endedChannelId === channel.id) {
+        hangupPeer({
+          endedChannelId,
+          peerChannelId: outboundChannel.id,
+          peer: outboundChannel,
+        });
+      }
+    };
+
+    client.on("StasisEnd", onTransferLegEnded);
+    client.on("ChannelDestroyed", onTransferLegEnded);
+
     const endedChannelId = await waitForChannelEnd(ariClient, [
       channel.id,
       outboundChannel.id,
     ]);
+    client.removeListener("StasisEnd", onTransferLegEnded);
+    client.removeListener("ChannelDestroyed", onTransferLegEnded);
     const survivingChannel = endedChannelId === channel.id ? outboundChannel : channel;
     if (survivingChannel?.hangup) {
       await survivingChannel.hangup().catch(() => undefined);
+    } else {
+      await client.channels.hangup({ channelId: endedChannelId === channel.id ? outboundChannel.id : channel.id }).catch(() => undefined);
     }
-    try {
-      await client.bridges.destroy({ bridgeId: bridge.id });
-    } catch {
-      // bridge may already be destroyed if both legs ended — safe to ignore.
+    if (!session.inboundBridge || session.inboundBridge.id !== bridgeId) {
+      try {
+        await client.bridges.destroy({ bridgeId });
+      } catch {
+        // bridge may already be destroyed if both legs ended — safe to ignore.
+      }
     }
+    if (Boolean(targetConfig.record_call) && Boolean(targetConfig.send_to_webhook)) {
+      const persisted = await persistSessionRecording(session);
+      if (persisted) {
+        session.webhookPayload.recording = {
+          url: persisted.recordingUrl,
+          duration_seconds: persisted.durationSeconds ?? 0,
+        };
+      }
+    }
+    const disconnectedAt = new Date();
+    const connectedExtension = String(targetConfig.target_value || '').trim();
+    session.webhookPayload.bridge = {
+      connected_extension: connectedExtension,
+      connected_at: connectedAt.toISOString(),
+      disconnected_at: disconnectedAt.toISOString(),
+      talk_duration_seconds: Math.round((disconnectedAt.getTime() - connectedAt.getTime()) / 1000),
+    };
+    session.webhookPayload.outcome = { status: 'completed' };
     return "done";
   } catch (error) {
     waitForAnswerSettled = true;
@@ -793,6 +959,10 @@ async function executeTransfer(
     if (waitingSoundLoop) {
       await waitingSoundLoop.stop();
       waitingSoundLoop = null;
+    }
+    if (mohStarted && client.channels.stopMoh) {
+      await client.channels.stopMoh({ channelId: channel.id }).catch(() => undefined);
+      mohStarted = false;
     }
     logEvent("TransferFailed", { channelId: channel.id, error });
     return onNoAnswer ? `route:${onNoAnswer}` : "hangup";
@@ -861,7 +1031,10 @@ function nodeExecConfig(node: FlowNode): Record<string, unknown> {
     };
   }
   if (node.type === "queue" || node.type === "queue_login") {
-    return { queue_id: node.config.queue_id };
+    return {
+      queue_id: node.config.queue_id,
+      queue_ids: Array.isArray(node.config.queue_ids) ? node.config.queue_ids : undefined,
+    };
   }
   if (node.type === "transfer") {
     return {

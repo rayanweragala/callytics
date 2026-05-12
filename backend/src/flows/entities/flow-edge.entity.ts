@@ -20,6 +20,12 @@ export class FlowEdgeEntity {
   @Column({ type: 'varchar', length: 100, nullable: true })
   condition!: string | null;
 
+  @Column({ name: 'source_handle', type: 'varchar', length: 100, nullable: true })
+  sourceHandle!: string | null;
+
+  @Column({ name: 'target_handle', type: 'varchar', length: 100, nullable: true })
+  targetHandle!: string | null;
+
   @Column({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 }

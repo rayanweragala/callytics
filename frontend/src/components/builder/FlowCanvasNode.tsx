@@ -35,7 +35,7 @@ function toneClass(type: FlowNodeData['type']): string {
 
 export function FlowCanvasNode({ data, selected }: NodeProps<FlowNodeData & { diffColor?: string }>) {
   const isWebhookNode = data.type === 'webhook';
-  const isTerminalNode = data.type === 'hangup' || data.type === 'voicemail' || data.type === 'callback' || data.type === 'queue_login';
+  const isTerminalNode = data.type === 'hangup';
   const diffStyle = data.diffColor ? { borderColor: `var(${data.diffColor})`, boxShadow: `0 0 0 2px color-mix(in srgb, var(${data.diffColor}) 20%, transparent)` } : undefined;
 
   return (

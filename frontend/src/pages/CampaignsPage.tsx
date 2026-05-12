@@ -105,6 +105,7 @@ export function CampaignsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const showPagination = total > 0;
   const formOpen = createOpen || editingCampaign !== null;
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : editingCampaign ? 'save campaign' : 'add campaign';
   const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
@@ -569,9 +570,7 @@ export function CampaignsPage() {
 
         <div className={styles.tableCard}>
           {loading ? <Loading message="Loading campaigns..." /> : null}
-          {!loading && campaigns.length === 0 ? <div className={styles.emptyState}>No campaigns yet.</div> : null}
-
-          {!loading && campaigns.length > 0 && (
+          {!loading && (
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -585,7 +584,11 @@ export function CampaignsPage() {
                 </tr>
               </thead>
               <tbody>
-                {campaigns.map((campaign) => {
+                {campaigns.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className={styles.emptyState}>No campaigns yet.</td>
+                  </tr>
+                ) : campaigns.map((campaign) => {
                   const percent = campaign.totalContacts > 0
                     ? Math.max(0, Math.min(100, Math.round((campaign.answeredCount / campaign.totalContacts) * 100)))
                     : 0;
@@ -620,7 +623,7 @@ export function CampaignsPage() {
             </table>
           )}
 
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          {showPagination ? <Pagination page={page} totalPages={totalPages} onPageChange={setPage} /> : null}
           {successText ? <div className={styles.successRibbon}>{successText}</div> : null}
           {!formOpen ? <ErrorMessage message={errorText} /> : null}
         </div>

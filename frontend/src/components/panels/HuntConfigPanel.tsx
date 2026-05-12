@@ -12,6 +12,7 @@ interface HuntConfigPanelProps {
   extensionOptions: SearchableSelectOption[];
   contactOptions: SearchableSelectOption[];
   contacts: ContactNumber[];
+  hasOutgoingWebhook: boolean;
   onConfigReplace: (nextConfig: Record<string, unknown>) => void;
 }
 
@@ -56,6 +57,7 @@ export function HuntConfigPanel({
   extensionOptions,
   contactOptions,
   contacts,
+  hasOutgoingWebhook,
   onConfigReplace,
 }: HuntConfigPanelProps) {
   const strategy = String(config.strategy || 'sequential');
@@ -89,6 +91,8 @@ export function HuntConfigPanel({
       hold_audio_file_id: config.hold_audio_file_id ?? null,
       busy_audio_file_id: config.busy_audio_file_id ?? null,
       on_no_answer: String(config.on_no_answer || ''),
+      record_call: Boolean(config.record_call),
+      send_to_webhook: Boolean(config.send_to_webhook),
       ...config,
       ...patch,
     });
@@ -272,6 +276,23 @@ export function HuntConfigPanel({
         </button>
       </div>
       <span className={styles.meta}>Records the conversation when a destination answers.</span>
+      {Boolean(config.record_call) ? (
+        <>
+          <label className={`${styles.field} ${styles.fieldRow}`}>
+            <input
+              type="checkbox"
+              checked={Boolean(config.send_to_webhook)}
+              onChange={(event) => updateConfig({ send_to_webhook: event.target.checked })}
+            />
+            <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>
+              Send recording with webhook request
+            </span>
+          </label>
+          {Boolean(config.send_to_webhook) && !hasOutgoingWebhook ? (
+            <span className={styles.inlineWarning}>Connect a Webhook node to receive the recording.</span>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

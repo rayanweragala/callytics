@@ -63,7 +63,7 @@ describe('queue_login.executor', () => {
         versionId: 1,
         nodes: [
           { nodeKey: 'menu-1', type: 'menu', label: 'Menu', config: { invalid_prompt_audio_id: 9 } },
-          { nodeKey: 'queue-login-1', type: 'queue_login', label: 'Queue Login', config: { queue_id: 1 } },
+          { nodeKey: 'queue-login-1', type: 'queue_login', label: 'Queue Login', config: { queue_ids: [1] } },
         ],
         edges: [
           { sourceNodeKey: 'menu-1', targetNodeKey: 'queue-login-1', branchKey: '9', condition: '9' },
@@ -82,7 +82,7 @@ describe('queue_login.executor', () => {
       .mockResolvedValueOnce([{ id: 1, pin_retry_attempts: 3 }] as any)
       .mockResolvedValueOnce([] as any);
 
-    const node = { nodeKey: 'queue-login-1', config: { queue_id: 1 } };
+    const node = { nodeKey: 'queue-login-1', config: { queue_ids: [1] } };
     const result = await executeQueueLogin(fakeChannel as any, node as any, makeSession() as any, fakeAri as any);
 
     expect(result).toBe('route:menu-1');
@@ -97,7 +97,7 @@ describe('queue_login.executor', () => {
     const session = makeSession();
     session.flow.edges = [{ sourceNodeKey: 'start', targetNodeKey: 'queue-login-1', branchKey: 'default', condition: null }];
 
-    const node = { nodeKey: 'queue-login-1', config: { queue_id: 1 } };
+    const node = { nodeKey: 'queue-login-1', config: { queue_ids: [1] } };
     const result = await executeQueueLogin(fakeChannel as any, node as any, session as any, fakeAri as any);
 
     expect(result).toBe('failed');
@@ -130,7 +130,7 @@ describe('queue_login.executor', () => {
 
     const promise = executeQueueLogin(
       channel as any,
-      { nodeKey: 'queue-login-1', config: { queue_id: 1 } } as any,
+      { nodeKey: 'queue-login-1', config: { queue_ids: [1] } } as any,
       makeSession() as any,
       ari as any,
     );
@@ -187,7 +187,7 @@ describe('queue_login.executor', () => {
 
     const promise = executeQueueLogin(
       channel as any,
-      { nodeKey: 'queue-login-1', config: { queue_id: 1 } } as any,
+      { nodeKey: 'queue-login-1', config: { queue_ids: [1] } } as any,
       session,
       ari as any,
     );
@@ -243,7 +243,7 @@ describe('queue_login.executor', () => {
 
     const promise = executeQueueLogin(
       channel as any,
-      { nodeKey: 'queue-login-1', config: { queue_id: 1 } } as any,
+      { nodeKey: 'queue-login-1', config: { queue_ids: [1] } } as any,
       makeSession() as any,
       ari as any,
     );

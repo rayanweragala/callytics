@@ -33,6 +33,7 @@ services:
     build: ./docker/asterisk
     network_mode: "host"
     environment:
+      TZ: ${TZ:-UTC}
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: 6380
       TSHARK_ENABLED: "true"
@@ -74,6 +75,7 @@ services:
       - callytics_backup_data:/app/backups
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
+      TZ: ${TZ:-UTC}
       ARI_URL: http://127.0.0.1:8088
       ARI_PASSWORD: callytics
       AMI_HOST: 127.0.0.1
@@ -112,6 +114,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/web/Dockerfile
+    environment:
+      VITE_DISPLAY_TIMEZONE: ${VITE_DISPLAY_TIMEZONE:-UTC}
     ports:
       - 127.0.0.1:3000:3000
     volumes:
@@ -129,6 +133,7 @@ services:
       - .env
     network_mode: "host"
     environment:
+      TZ: ${TZ:-UTC}
       ARI_URL: http://127.0.0.1:8088
       ARI_USER: callytics
       ARI_PASS: callytics

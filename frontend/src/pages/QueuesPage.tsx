@@ -109,6 +109,7 @@ export function QueuesPage() {
   const editPanelRef = useRef<HTMLDivElement | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const showPagination = total > 0;
 
   const load = useCallback(async (nextPage = page) => {
     setLoadError(null);
@@ -379,22 +380,24 @@ export function QueuesPage() {
               ]} />
             ))}
           </>
-        ) : queues.length === 0 ? (
-          <div className={styles.emptyState}>No queues yet. Add one above.</div>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>name</th>
-                <th>operators</th>
+                <th>Name</th>
+                <th>Members</th>
                 <th>max wait</th>
                 <th>PIN retries</th>
                 <th>created</th>
-                <th className={styles.actionsHeader}>actions</th>
+                <th className={styles.actionsHeader}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {queues.map((q) => (
+              {queues.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyState}>No queues yet.</td>
+                </tr>
+              ) : queues.map((q) => (
                 <Fragment key={q.id}>
                   <tr>
                     <td className={styles.rowValue}>{q.name}</td>
@@ -508,11 +511,13 @@ export function QueuesPage() {
             </tbody>
           </table>
         )}
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+        {showPagination ? (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        ) : null}
         {!createOpen && errorText && editState === null ? <ErrorMessage message={errorText} /> : null}
       </div>
 

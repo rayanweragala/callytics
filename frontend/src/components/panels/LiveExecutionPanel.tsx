@@ -128,6 +128,7 @@ export function LiveExecutionPanel({
   loading,
 }: LiveExecutionPanelProps) {
   const liveTotalPages = Math.max(1, Math.ceil(liveTotal / PAGE_SIZE));
+  const showPagination = liveCalls.length > 0 || liveTotalPages > 1;
 
   return (
     <section className={styles.panel}>
@@ -201,15 +202,17 @@ export function LiveExecutionPanel({
           </div>
         )}
       </div>
-      <div className={styles.paginationFooter}>
-        <button className={styles.paginationButton} disabled={page <= 0} onClick={() => setPage(Math.max(0, page - 1))} type="button" aria-label="Go to previous page">
-          ← Newer
-        </button>
-        <div className={styles.pageIndicator}>{page + 1} / {liveTotalPages}</div>
-        <button className={styles.paginationButton} disabled={page >= liveTotalPages - 1} onClick={() => setPage(Math.min(liveTotalPages - 1, page + 1))} type="button" aria-label="Go to next page">
-          Older →
-        </button>
-      </div>
+      {showPagination ? (
+        <div className={styles.paginationFooter}>
+          <button className={styles.paginationButton} disabled={page <= 0} onClick={() => setPage(Math.max(0, page - 1))} type="button" aria-label="Go to previous page">
+            ← Newer
+          </button>
+          <div className={styles.pageIndicator}>{page + 1} / {liveTotalPages}</div>
+          <button className={styles.paginationButton} disabled={page >= liveTotalPages - 1} onClick={() => setPage(Math.min(liveTotalPages - 1, page + 1))} type="button" aria-label="Go to next page">
+            Older →
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -48,7 +48,6 @@ const emptyForm: OperatorFormState = { name: '', extensionId: '', contactNumberI
 export function OperatorsPage() {
   const windowWidth = useWindowWidth();
   const [operators, setOperators] = useState<OperatorItem[]>([]);
-  const [revealedPins, setRevealedPins] = useState<Set<number>>(new Set());
   const [newOperatorPin, setNewOperatorPin] = useState<string | null>(null);
   const [extensions, setExtensions] = useState<ExtensionItem[]>([]);
   const [contactNumbers, setContactNumbers] = useState<ContactNumber[]>([]);
@@ -77,6 +76,7 @@ export function OperatorsPage() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const showPagination = total > 0;
 
   const load = useCallback(async (nextPage = page) => {
     setLoadError(null);
@@ -230,11 +230,6 @@ export function OperatorsPage() {
       const nextPage = Math.min(page, Math.max(1, Math.ceil(nextTotal / PAGE_LIMIT)));
       await load(nextPage);
       if (nextPage !== page) setPage(nextPage);
-      setRevealedPins((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
       if (editingId === id) {
         setEditingId(null);
       }
@@ -243,15 +238,6 @@ export function OperatorsPage() {
     } finally {
       setDeletingId(null);
     }
-  };
-
-  const togglePinVisibility = (id: number) => {
-    setRevealedPins((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   const pageActions = (
@@ -392,44 +378,32 @@ export function OperatorsPage() {
               ]} />
             ))}
           </>
-        ) : operators.length === 0 ? (
-          <div className={styles.emptyState}>No operators yet. Add one above.</div>
         ) : (
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>name</th>
-                <th>extension</th>
+                <th>Name</th>
+                <th>Extension</th>
                 <th>pstn fallback</th>
                 <th>pin</th>
-                <th>status</th>
+                <th>Status</th>
                 <th>created</th>
-                <th className={styles.actionsHeader}>actions</th>
+                <th className={styles.actionsHeader}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {operators.map((op) => (
+              {operators.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className={styles.emptyState}>No operators yet.</td>
+                </tr>
+              ) : operators.map((op) => (
                 <Fragment key={op.id}>
                   <tr>
                     <td className={styles.rowValue}>{op.name}</td>
                     <td className={styles.dataMono}>{op.extension?.username || '—'}</td>
                     <td className={styles.rowMuted}>{op.contactNumber?.label || '—'}</td>
                     <td>
-                      <div className={styles.pinCell}>
-                        <span className={`${styles.dataMono} ${revealedPins.has(op.id) ? styles.pinRevealedValue : ''}`}>
-                          {op.pin ? (revealedPins.has(op.id) ? op.pin : '••••') : '—'}
-                        </span>
-                        {op.pin ? (
-                          <button
-                            className={styles.pinToggle}
-                            type="button"
-                            onClick={() => togglePinVisibility(op.id)}
-                            aria-label={revealedPins.has(op.id) ? `Hide PIN for ${op.name}` : `Show PIN for ${op.name}`}
-                          >
-                            {revealedPins.has(op.id) ? '[hide]' : '[show]'}
-                          </button>
-                        ) : null}
-                      </div>
+                      <span className={styles.dataMono}>{op.hasPIN ? '••••' : '—'}</span>
                     </td>
                     <td><StatusBadge status={op.status} /></td>
                     <td className={styles.createdAt}>{formatDateTime(op.createdAt)}</td>
@@ -524,11 +498,13 @@ export function OperatorsPage() {
             </tbody>
           </table>
         )}
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+        {showPagination ? (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        ) : null}
         {!createOpen && errorText && editingId === null ? <ErrorMessage message={errorText} /> : null}
         <ConfirmDialog
           open={confirmDeleteId !== null}

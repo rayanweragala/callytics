@@ -28,6 +28,7 @@ export function RecordingsPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +56,7 @@ export function RecordingsPage() {
 
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const showPagination = total > 0;
 
   const load = async (nextPage = page, nextLimit = limit) => {
     setIsLoading(true);
@@ -66,6 +68,7 @@ export function RecordingsPage() {
         return;
       }
       setItems(response.data);
+      setTotal(response.total);
       setPage(response.page);
       setLimit(response.limit);
       setTotalPages(response.totalPages);
@@ -119,28 +122,30 @@ export function RecordingsPage() {
                   ]} />
                 ))}
               </>
-            ) : items.length === 0 ? (
-              <div className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</div>
             ) : (
               <table className={styles.table}>
             <thead>
               <tr>
-                <th>name</th>
+                <th>Filename</th>
                 <th>source</th>
-                <th>duration</th>
+                <th>Duration</th>
                 <th>preview</th>
-                <th>created</th>
-                <th>actions</th>
+                <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</td>
+                </tr>
+              ) : items.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <div className={styles.name}>{item.callId.slice(0, 16)}</div>
                     <div className={styles.meta}>{item.flowName || 'unknown flow'}</div>
                   </td>
-                  <td className={styles.meta}>inbound</td>
+                  <td className={styles.meta}>{item.recordingType || 'inbound'}</td>
                   <td className={styles.duration}>{formatDuration(item.durationSeconds)}</td>
                   <td className={styles.previewCell} onClick={() => setActiveId(item.id)}>
                     <AudioPreviewPlayer key={item.id} src={`${backendBase}${item.streamUrl}`} isActive={activeId === null || activeId === item.id} />
@@ -164,11 +169,13 @@ export function RecordingsPage() {
             </tbody>
               </table>
             )}
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
+            {showPagination ? (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            ) : null}
             {errorText ? <ErrorMessage message={errorText} /> : null}
           </div>
           <ConfirmDialog

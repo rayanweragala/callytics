@@ -1,0 +1,5 @@
+ALTER TABLE flow_edges
+  ADD COLUMN IF NOT EXISTS source_handle VARCHAR(100);
+
+ALTER TABLE flow_edges
+  ADD COLUMN IF NOT EXISTS target_handle VARCHAR(100);
