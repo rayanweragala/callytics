@@ -84,6 +84,7 @@ export default defineConfig({
           text: 'Features',
           items: [
             { text: 'Overview', link: '/features/' },
+            { text: 'Screenshots', link: '/features/screenshots' },
             { text: 'IVR Flow Builder', link: '/features/ivr' },
             { text: 'SIP Extensions', link: '/features/extensions' },
             { text: 'SIP Trunks', link: '/features/trunks' },
