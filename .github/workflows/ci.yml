@@ -173,7 +173,7 @@ jobs:
         run: |
           start=$(date +%s)
           echo "started_at=$start" >> "$GITHUB_OUTPUT"
-          npm run test:int -- --coverage 2>&1 | tee /tmp/backend-int.log
+          npm run test:ci 2>&1 | tee /tmp/backend-int.log
           status=${PIPESTATUS[0]}
           end=$(date +%s)
           echo "finished_at=$end" >> "$GITHUB_OUTPUT"
