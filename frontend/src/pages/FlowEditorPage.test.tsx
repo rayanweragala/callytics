@@ -423,6 +423,8 @@ describe('FlowEditorPage submenu behavior', () => {
 
     renderFlowEditor('/flows/55');
 
+    await screen.findByRole('navigation', { name: 'Flow breadcrumb' });
+    expect(screen.getByText('Billing submenu')).toBeInTheDocument();
     const createButton = await screen.findByRole('button', { name: 'Create submenu' });
     fireEvent.click(createButton);
 
