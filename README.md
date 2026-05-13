@@ -10,27 +10,32 @@ callytics is a self-hosted call center platform for developers and small busines
 
 It is built around Asterisk ARI + Stasis, so call flows are database-driven and update instantly from the UI, with no manual dialplan editing required.
 
+## Screenshots
+
+**Flow Builder Canvas — a full IVR flow with multiple nodes**
+
+![Flow Builder Canvas](./docs/screenshots/flow-builder.png)
+
+**SIP Ladder Diagram — a live call's SIP exchange**
+
+![SIP Ladder Diagram](./docs/screenshots/sip-ladder.png)
+
+**Dashboard / Diagnostics page**
+
+![Dashboard / Diagnostics page](./docs/screenshots/dashboard-diagnostics.png)
+
+**Call Logs page**
+
+![Call Logs page](./docs/screenshots/call-logs.png)
+
 ## Features
 
-- Visual IVR flow builder with 13 node types
-- SIP extensions, trunks, and inbound DID routing
-- Outbound call campaigns with CSV upload and sliding window dialer
-- Call queues and operator management
-- Hunt groups with sequential, random, and group dial strategies
-- Conference rooms via Asterisk ConfBridge
-- Callback node for caller-requested callbacks
-- Audio upload, ffmpeg conversion, and offline Piper TTS
-- Call recordings with browser preview and download
-- Live dashboard with active calls, queue status, and recent events
-- Call logs with execution trace and RTP quality scoring
-- SIP capture with live packet stream, ladder diagrams, and pcap export
-- Network diagnostics with trunk testing, SIP registration status, and resource usage
-- Asterisk log viewer with plain-English translation
-- SIP firewall with auto-blocking, live feed, and GeoIP
-- Backup and restore with scheduling and retention
-- WireGuard VPN with peer management, QR onboarding, and VPN-only extension controls
-- IVR templates with one-click import and JSON import
-- Network preflight wizard
+- Programmable IVR with a visual flow builder, 13 node types, templates, and instant database-driven updates
+- SIP operations for extensions, trunks, inbound DID routing, hunt groups, queues, callbacks, conferences, and outbound campaigns
+- Audio tooling for uploads, `ffmpeg` conversion, offline Piper TTS, call recordings, browser preview, and download
+- Live visibility through dashboards, recent events, call logs, execution traces, RTP quality scoring, and Asterisk log translation
+- SIP and network diagnostics including live packet capture, ladder diagrams, pcap export, trunk testing, registration status, and resource usage
+- Security and platform operations with SIP auto-blocking, GeoIP, WireGuard peer management, VPN-only extension controls, backups, restore, and network preflight checks
 
 ## Quick start
 
@@ -90,3 +95,7 @@ MIT
 - Audio not playing: check that the audio file was uploaded and converted successfully in the Audio page, verify Asterisk container is healthy.
 - One-way audio: disable SIP ALG on your router, check NAT detection result in the preflight wizard.
 - Docker socket permission denied: ensure the user running Docker is in the docker group (`sudo usermod -aG docker $USER`).
+
+## Contributing
+
+Contributions are welcome. Open an issue to report a bug, suggest an improvement, or discuss an idea before larger changes. If you have a fix ready, open a pull request. Feedback, bug reports, and documentation improvements are just as valuable as code contributions.

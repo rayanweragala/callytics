@@ -75,6 +75,19 @@ function createBranchSubmenuPayload(options: {
   };
 }
 
+async function createFlowId(
+  app: Awaited<ReturnType<typeof getApp>>,
+  payload = createFlowPayload(),
+): Promise<number> {
+  const created = await request(app.getHttpServer()).post('/flows').send(payload);
+
+  expect(created.status).toBe(201);
+  const flowId = Number(created.body?.data?.id);
+  expect(flowId).toBeGreaterThan(0);
+
+  return flowId;
+}
+
 describe('Flow Versions API', () => {
   afterAll(async () => {
     await closeApp();
@@ -87,37 +100,37 @@ describe('Flow Versions API', () => {
 
   it('POST /flows/:id/versions reuses current version when snapshot is unchanged and list/detail return it', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Versioned Flow'));
+    const flowId = await createFlowId(app, createFlowPayload('Versioned Flow'));
 
     const committed = await request(app.getHttpServer())
-      .post(`/flows/${created.body.data.id}/versions`)
+      .post(`/flows/${flowId}/versions`)
       .send({ message: 'First save' });
 
     expect(committed.status).toBe(201);
     expect(committed.body.data).toEqual(expect.objectContaining({
-      flowId: created.body.data.id,
+      flowId,
       versionNum: 1,
       message: 'Saved from editor',
       nodeCount: 3,
     }));
 
-    const listed = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}/versions`);
+    const listed = await request(app.getHttpServer()).get(`/flows/${flowId}/versions`);
     expect(listed.status).toBe(200);
     expect(listed.body.data).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: committed.body.data.id,
-        flowId: created.body.data.id,
+        flowId,
         versionNum: committed.body.data.versionNum,
         message: 'Saved from editor',
         nodeCount: 3,
       }),
     ]));
 
-    const detailed = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}/versions/${committed.body.data.id}`);
+    const detailed = await request(app.getHttpServer()).get(`/flows/${flowId}/versions/${committed.body.data.id}`);
     expect(detailed.status).toBe(200);
     expect(detailed.body.data).toEqual(expect.objectContaining({
       id: committed.body.data.id,
-      flowId: created.body.data.id,
+      flowId,
       versionNum: committed.body.data.versionNum,
       message: 'Saved from editor',
       nodeCount: 3,
@@ -130,8 +143,7 @@ describe('Flow Versions API', () => {
 
   it('POST /flows creates visible committed versions for editor saves and PUT /flows/:id creates a new root version', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Saved Flow'));
-    const flowId = created.body.data.id;
+    const flowId = await createFlowId(app, createFlowPayload('Saved Flow'));
 
     const initialVersions = await request(app.getHttpServer()).get(`/flows/${flowId}/versions`);
     expect(initialVersions.status).toBe(200);
@@ -191,8 +203,7 @@ describe('Flow Versions API', () => {
 
   it('PUT /flows/:id with only layout changes updates the working snapshot without creating a new committed version', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Layout Flow'));
-    const flowId = created.body.data.id;
+    const flowId = await createFlowId(app, createFlowPayload('Layout Flow'));
 
     const layoutOnlyUpdate = {
       ...createFlowPayload('Layout Flow'),
@@ -234,8 +245,7 @@ describe('Flow Versions API', () => {
 
   it('POST /flows/:id/versions/:versionId/restore restores snapshot as current flow state', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Restore Flow'));
-    const flowId = created.body.data.id;
+    const flowId = await createFlowId(app, createFlowPayload('Restore Flow'));
 
     const committed = await request(app.getHttpServer())
       .post(`/flows/${flowId}/versions`)
