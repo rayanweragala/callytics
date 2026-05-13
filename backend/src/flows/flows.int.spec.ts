@@ -183,6 +183,19 @@ function createMenuWebhookFlowPayload(name = 'Menu Webhook Flow') {
   };
 }
 
+async function createFlowId(
+  app: Awaited<ReturnType<typeof getApp>>,
+  payload = createFlowPayload(),
+): Promise<number> {
+  const created = await request(app.getHttpServer()).post('/flows').send(payload);
+
+  expect(created.status).toBe(201);
+  const flowId = Number(created.body?.data?.id);
+  expect(flowId).toBeGreaterThan(0);
+
+  return flowId;
+}
+
 describe('Flows API', () => {
   afterAll(async () => {
     await closeApp();
@@ -229,13 +242,13 @@ describe('Flows API', () => {
 
   it('GET /flows/:id returns the flow with nodes and edges arrays', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Detailed Flow'));
+    const flowId = await createFlowId(app, createFlowPayload('Detailed Flow'));
 
-    const response = await request(app.getHttpServer()).get(`/flows/${created.body.data.id}`);
+    const response = await request(app.getHttpServer()).get(`/flows/${flowId}`);
 
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual(expect.objectContaining({
-      id: created.body.data.id,
+      id: flowId,
       name: 'Detailed Flow',
       nodes: expect.any(Array),
       edges: expect.any(Array),
@@ -267,10 +280,10 @@ describe('Flows API', () => {
 
   it('PUT /flows/:id updates the name and returns the updated flow', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Original Flow'));
+    const flowId = await createFlowId(app, createFlowPayload('Original Flow'));
 
     const response = await request(app.getHttpServer())
-      .put(`/flows/${created.body.data.id}`)
+      .put(`/flows/${flowId}`)
       .send(createFlowPayload('Updated Flow'));
 
     expect(response.status).toBe(200);
@@ -279,10 +292,10 @@ describe('Flows API', () => {
 
   it('PUT /flows/:id accepts voicemail and callback nodes wired to webhook nodes', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Original Flow'));
+    const flowId = await createFlowId(app, createFlowPayload('Original Flow'));
 
     const response = await request(app.getHttpServer())
-      .put(`/flows/${created.body.data.id}`)
+      .put(`/flows/${flowId}`)
       .send(createVoicemailCallbackWebhookFlowPayload());
 
     expect(response.status).toBe(200);
@@ -294,10 +307,10 @@ describe('Flows API', () => {
 
   it('PUT /flows/:id accepts a menu group node wired to a webhook node', async () => {
     const app = await getApp();
-    const created = await request(app.getHttpServer()).post('/flows').send(createFlowPayload('Original Flow'));
+    const flowId = await createFlowId(app, createFlowPayload('Original Flow'));
 
     const response = await request(app.getHttpServer())
-      .put(`/flows/${created.body.data.id}`)
+      .put(`/flows/${flowId}`)
       .send(createMenuWebhookFlowPayload());
 
     expect(response.status).toBe(200);
