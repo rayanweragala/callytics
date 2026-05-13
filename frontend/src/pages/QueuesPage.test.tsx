@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueuesPage } from './QueuesPage';
-import { MemoryRouter } from 'react-router-dom';
+
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listQueues: vi.fn(),
@@ -35,11 +36,7 @@ describe('QueuesPage', () => {
     (api.listOperators as any).mockResolvedValue({ data: [], total: 0 });
     (api.listAllAudio as any).mockResolvedValue({ data: [], total: 0 });
 
-    render(
-      <MemoryRouter>
-        <QueuesPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<QueuesPage />);
 
     await waitFor(() => expect(screen.getByText('Support Queue')).toBeInTheDocument());
   });
@@ -49,11 +46,7 @@ describe('QueuesPage', () => {
     (api.listOperators as any).mockResolvedValue({ data: [], total: 0 });
     (api.listAllAudio as any).mockResolvedValue({ data: [], total: 0 });
 
-    render(
-      <MemoryRouter>
-        <QueuesPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<QueuesPage />);
 
     await waitFor(() => expect(screen.getByText('Support Queue')).toBeInTheDocument());
     
@@ -69,11 +62,7 @@ describe('QueuesPage', () => {
       total: 1,
     });
 
-    render(
-      <MemoryRouter>
-        <QueuesPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<QueuesPage />);
 
     await waitFor(() => expect(screen.getByText('Support Queue')).toBeInTheDocument());
   });

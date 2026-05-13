@@ -1,8 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+
 import { describe, expect, it, vi } from 'vitest';
 import { QualityDrawer } from './QualityDrawer';
+import { renderWithRouter } from '../../test/renderWithRouter';
 
 const navigateSpy = vi.fn();
 const getCallQualityMock = vi.fn();
@@ -23,11 +24,7 @@ describe('QualityDrawer', () => {
   it('shows no-data message when quality is unavailable', async () => {
     getCallQualityMock.mockResolvedValueOnce(null);
 
-    render(
-      <MemoryRouter>
-        <QualityDrawer callId="call-1" onClose={vi.fn()} />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<QualityDrawer callId="call-1" onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('No quality data available for this call.')).toBeInTheDocument();
@@ -46,11 +43,7 @@ describe('QualityDrawer', () => {
       recordedAt: '2026-04-22T19:00:00.000Z',
     });
 
-    render(
-      <MemoryRouter>
-        <QualityDrawer callId="call-2" onClose={onClose} />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<QualityDrawer callId="call-2" onClose={onClose} />);
 
     await waitFor(() => {
       expect(screen.getByText('3.91')).toBeInTheDocument();

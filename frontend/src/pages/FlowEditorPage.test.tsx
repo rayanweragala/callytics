@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { Edge, Node } from 'reactflow';
 import type { FlowDetail, FlowNodeData } from '../types';
@@ -159,12 +160,20 @@ function buildFlowDetail(overrides?: Partial<FlowDetail>): FlowDetail {
 function renderFlowEditor(initialEntry = '/flows/1') {
   const router = createMemoryRouter(
     [{ path: '/flows/:id', element: <FlowEditorPage /> }],
-    { initialEntries: [initialEntry] },
+    {
+      initialEntries: [initialEntry],
+      future: { v7_startTransition: true, v7_relativeSplatPath: true },
+    },
   );
 
   return {
     router,
-    ...render(<RouterProvider router={router} />),
+    ...render(
+      <RouterProvider
+        router={router}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      />,
+    ),
   };
 }
 
@@ -421,12 +430,13 @@ describe('FlowEditorPage submenu behavior', () => {
     });
     flowCanvasMock.useFlowCanvas.mockImplementation(() => currentCanvasState);
 
+    const user = userEvent.setup();
     renderFlowEditor('/flows/55');
 
     await screen.findByRole('navigation', { name: 'Flow breadcrumb' });
     expect(screen.getByText('Billing submenu')).toBeInTheDocument();
     const createButton = await screen.findByRole('button', { name: 'Create submenu' });
-    fireEvent.click(createButton);
+    await user.click(createButton);
 
     await waitFor(() => {
       expect(api.createFlow).toHaveBeenCalledWith(expect.objectContaining({

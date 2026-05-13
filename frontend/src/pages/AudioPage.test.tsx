@@ -2,7 +2,6 @@
 import { vi, describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../lib/api', () => {
   return {
@@ -29,14 +28,11 @@ vi.mock('../lib/api', () => {
 });
 
 import { AudioPage } from './AudioPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 describe('AudioPage coverage boost', () => {
   it('renders audio items and handles delete click', async () => {
-    render(
-      <MemoryRouter>
-        <AudioPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<AudioPage />);
 
     expect(await screen.findByText('Welcome')).toBeInTheDocument();
     expect(await screen.findByText('Intro')).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { FirewallPage } from './FirewallPage';
 import type { FirewallConfig, FirewallFeedEvent, FirewallStats } from '../types';
@@ -86,7 +86,10 @@ describe('FirewallPage', () => {
     expect(await screen.findByText(/198\.51\.100\.8 failed registration/)).toBeInTheDocument();
     const handler = socketState.handlers.get('firewall:feed');
     expect(handler).toBeDefined();
-    handler?.({ ...feed, ip: '203.0.113.77', createdAt: '2026-04-27T10:01:00.000Z' });
+    await act(async () => {
+      handler?.({ ...feed, ip: '203.0.113.77', createdAt: '2026-04-27T10:01:00.000Z' });
+      await Promise.resolve();
+    });
 
     expect(await screen.findByText(/203\.0\.113\.77 failed registration/)).toBeInTheDocument();
   });

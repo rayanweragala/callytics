@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FlowTreePanel } from './FlowTreePanel';
 import type { FlowTree } from '../types';
 
@@ -86,7 +87,8 @@ describe('FlowTreePanel', () => {
     expect(screen.queryByTestId('tree-child-entry')).not.toBeInTheDocument();
   });
 
-  it('shows inline rename for submenu rows', () => {
+  it('shows inline rename for submenu rows', async () => {
+    const user = userEvent.setup();
     const onRename = vi.fn();
     const tree: FlowTree = {
       id: 1,
@@ -106,9 +108,11 @@ describe('FlowTreePanel', () => {
     render(<FlowTreePanel tree={tree} currentFlowId={1} onNavigate={() => {}} onRename={onRename} />);
 
     expect(screen.getByText('branch 1')).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Rename submenu'));
-    fireEvent.change(screen.getByDisplayValue('Sales Submenu'), { target: { value: 'Updated submenu' } });
-    fireEvent.keyDown(screen.getByDisplayValue('Updated submenu'), { key: 'Enter' });
+    await user.click(screen.getByTitle('Rename submenu'));
+    const input = screen.getByDisplayValue('Sales Submenu');
+    await user.clear(input);
+    await user.type(input, 'Updated submenu');
+    await user.keyboard('{Enter}');
 
     expect(onRename).toHaveBeenCalledWith(10, 'Updated submenu');
   });

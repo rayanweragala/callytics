@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CampaignsPage } from './CampaignsPage';
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listCampaigns: vi.fn(async () => ({
@@ -46,42 +47,26 @@ describe('CampaignsPage', () => {
   });
 
   it('renders campaign list', async () => {
-    render(
-      <MemoryRouter>
-        <CampaignsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CampaignsPage />);
 
     await waitFor(() => expect(screen.getByText('April Outreach')).toBeInTheDocument());
   });
 
   it('status badge renders class for running status', async () => {
-    render(
-      <MemoryRouter>
-        <CampaignsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CampaignsPage />);
 
     const badge = await screen.findByText('running');
     expect(badge.className).toContain('statusRunning');
   });
 
   it('progress bar shows for running campaign', async () => {
-    render(
-      <MemoryRouter>
-        <CampaignsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CampaignsPage />);
 
     await waitFor(() => expect(screen.getByText('14/100')).toBeInTheDocument());
   });
 
   it('new campaign button opens drawer', async () => {
-    render(
-      <MemoryRouter>
-        <CampaignsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CampaignsPage />);
 
     fireEvent.click(screen.getByRole('button', { name: /new campaign/i }));
     await waitFor(() => expect(screen.getByText('new campaign')).toBeInTheDocument());
@@ -90,21 +75,13 @@ describe('CampaignsPage', () => {
   it('shows empty state', async () => {
     (api.listCampaigns as any).mockResolvedValueOnce({ campaigns: [], total: 0 });
 
-    render(
-      <MemoryRouter>
-        <CampaignsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CampaignsPage />);
 
     await waitFor(() => expect(screen.getByText('No campaigns yet.')).toBeInTheDocument());
   });
 
   it('create button visible', async () => {
-    render(
-      <MemoryRouter>
-        <CampaignsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CampaignsPage />);
 
     expect(await screen.findByRole('button', { name: /new campaign/i })).toBeVisible();
   });

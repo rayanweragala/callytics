@@ -1,5 +1,11 @@
 import { defineConfig, type Plugin } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { createLogger } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+
+const logger = createLogger();
+const suppressedWarnings = [
+  'optimizeDeps.esbuildOptions',
+];
 
 const mockCssModulesPlugin: Plugin = {
   name: 'mock-css-modules',
@@ -20,6 +26,15 @@ export default defineConfig({
     ...(process.env.VITEST ? [mockCssModulesPlugin] : []),
     react(),
   ],
+  customLogger: {
+    ...logger,
+    warn(msg, options) {
+      if (suppressedWarnings.some((fragment) => msg.includes(fragment))) {
+        return;
+      }
+      logger.warn(msg, options);
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,
@@ -36,6 +51,7 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
+    reporters: process.argv.includes('--coverage') ? ['default'] : ['verbose'],
     coverage: {
       provider: 'v8' as const,
       // Coverage measured only on lib/ and utils/ — the pure logic layer.

@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../lib/api';
 import { CallbacksPage } from './CallbacksPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listCallbacks: vi.fn(),
@@ -40,11 +41,7 @@ describe('CallbacksPage', () => {
   });
 
   it('renders callback row and pending action buttons', async () => {
-    render(
-      <MemoryRouter>
-        <CallbacksPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CallbacksPage />);
 
     await waitFor(() => expect(screen.getByText('+94770000001')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Call Now' })).toBeInTheDocument();
@@ -52,11 +49,7 @@ describe('CallbacksPage', () => {
   });
 
   it('triggers execute endpoint', async () => {
-    render(
-      <MemoryRouter>
-        <CallbacksPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CallbacksPage />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Call Now' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Call Now' }));
@@ -67,11 +60,7 @@ describe('CallbacksPage', () => {
   });
 
   it('shows inline cancel confirm and confirms cancel', async () => {
-    render(
-      <MemoryRouter>
-        <CallbacksPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CallbacksPage />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ExtensionsPage } from './ExtensionsPage';
-import { MemoryRouter } from 'react-router-dom';
+
 import * as api from '../lib/api';
 import QRCode from 'qrcode';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('qrcode', () => ({
   default: {
@@ -42,11 +43,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
     
@@ -60,11 +57,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByText('VPN Only')).toBeInTheDocument());
   });
@@ -75,11 +68,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'edit' }));
@@ -105,11 +94,7 @@ describe('ExtensionsPage coverage boost', () => {
       },
     });
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: /add extension/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /add extension/i }));
@@ -139,11 +124,7 @@ describe('ExtensionsPage coverage boost', () => {
       },
     });
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'edit' }));
@@ -163,11 +144,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
     vi.mocked(api.getExtensionQrContent).mockResolvedValue({ data: { content: qrContent } });
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByText('101')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'qr' }));
@@ -192,11 +169,7 @@ describe('ExtensionsPage coverage boost', () => {
       },
     });
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: /add extension/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /add extension/i }));
@@ -219,11 +192,7 @@ describe('ExtensionsPage coverage boost', () => {
       vpsPublicIp: '203.0.113.20',
     });
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     expect(await screen.findByText('sip:101@203.0.113.20:5080;transport=udp')).toBeInTheDocument();
     expect(screen.getByText('relay')).toBeInTheDocument();
@@ -236,11 +205,7 @@ describe('ExtensionsPage coverage boost', () => {
     vi.mocked(api.getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null, transitioning: false, error: null });
     vi.mocked(api.getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
 
-    render(
-      <MemoryRouter>
-        <ExtensionsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<ExtensionsPage />);
 
     // Should show the LAN IP from hostConfig, not a VPS IP
     expect(await screen.findByText(/sip:101@127\.0\.0\.1/)).toBeInTheDocument();

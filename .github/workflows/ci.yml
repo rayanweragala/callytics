@@ -48,7 +48,19 @@ jobs:
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
-        run: npm run test:ci
+        run: |
+          start=$(date +%s)
+          echo "started_at=$start" >> "$GITHUB_OUTPUT"
+          npm run test:ci 2>&1 | tee /tmp/stasis-test.log
+          status=${PIPESTATUS[0]}
+          end=$(date +%s)
+          echo "finished_at=$end" >> "$GITHUB_OUTPUT"
+          echo "duration=$((end-start))" >> "$GITHUB_OUTPUT"
+          tests_line=$(grep -E '^Tests:' /tmp/stasis-test.log | tail -n 1 || true)
+          echo "tests_line<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${tests_line:-Tests: unavailable}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          exit $status
         working-directory: stasis
 
       - name: Write stasis job summary
@@ -64,6 +76,10 @@ jobs:
             echo "- App: stasis"
             echo "- Node: 20"
             echo "- Status: ${status}"
+            echo "- Tests: ${{ steps.run-stasis-tests.outputs.tests_line }}"
+            echo "- Started: $(date -u -d @${{ steps.run-stasis-tests.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Finished: $(date -u -d @${{ steps.run-stasis-tests.outputs.finished_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Duration: ${{ steps.run-stasis-tests.outputs.duration }}s"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload stasis coverage artifact
@@ -132,19 +148,51 @@ jobs:
           path: backend/node_modules
           key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
-      - name: Run backend tests with coverage
-        id: run-backend-tests
-        run: npm run test:ci
+      - name: Run backend unit tests
+        id: run-backend-unit
+        run: |
+          start=$(date +%s)
+          echo "started_at=$start" >> "$GITHUB_OUTPUT"
+          npm run test:unit 2>&1 | tee /tmp/backend-unit.log
+          status=${PIPESTATUS[0]}
+          end=$(date +%s)
+          echo "finished_at=$end" >> "$GITHUB_OUTPUT"
+          echo "duration=$((end-start))" >> "$GITHUB_OUTPUT"
+          tests_line=$(grep -E '^Tests:' /tmp/backend-unit.log | tail -n 1 || true)
+          echo "tests_line<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${tests_line:-Tests: unavailable}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          exit $status
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://callytics:callytics@localhost:5432/callytics
+          DATABASE_URL: postgresql://callytics:***@localhost:5432/callytics
+          NODE_ENV: test
+
+      - name: Run backend integration tests
+        id: run-backend-int
+        run: |
+          start=$(date +%s)
+          echo "started_at=$start" >> "$GITHUB_OUTPUT"
+          npm run test:int -- --coverage 2>&1 | tee /tmp/backend-int.log
+          status=${PIPESTATUS[0]}
+          end=$(date +%s)
+          echo "finished_at=$end" >> "$GITHUB_OUTPUT"
+          echo "duration=$((end-start))" >> "$GITHUB_OUTPUT"
+          tests_line=$(grep -E '^Tests:' /tmp/backend-int.log | tail -n 1 || true)
+          echo "tests_line<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${tests_line:-Tests: unavailable}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          exit $status
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://callytics:***@localhost:5432/callytics
           NODE_ENV: test
 
       - name: Write backend job summary
         if: always()
         run: |
           status="passed"
-          if [ "${{ steps.run-backend-tests.outcome }}" != "success" ]; then
+          if [ "${{ steps.run-backend-unit.outcome }}" != "success" ] || [ "${{ steps.run-backend-int.outcome }}" != "success" ]; then
             status="failed"
           fi
           {
@@ -153,6 +201,14 @@ jobs:
             echo "- App: backend"
             echo "- Node: 20"
             echo "- Status: ${status}"
+            echo "- Unit tests: ${{ steps.run-backend-unit.outputs.tests_line }}"
+            echo "- Unit started: $(date -u -d @${{ steps.run-backend-unit.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Unit finished: $(date -u -d @${{ steps.run-backend-unit.outputs.finished_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Unit duration: ${{ steps.run-backend-unit.outputs.duration }}s"
+            echo "- Integration tests: ${{ steps.run-backend-int.outputs.tests_line }}"
+            echo "- Integration started: $(date -u -d @${{ steps.run-backend-int.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Integration finished: $(date -u -d @${{ steps.run-backend-int.outputs.finished_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Integration duration: ${{ steps.run-backend-int.outputs.duration }}s"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload backend coverage artifact
@@ -197,7 +253,19 @@ jobs:
 
       - name: Run frontend tests with coverage
         id: run-frontend-tests
-        run: npm run test:ci
+        run: |
+          start=$(date +%s)
+          echo "started_at=$start" >> "$GITHUB_OUTPUT"
+          npm run test:ci 2>&1 | tee /tmp/frontend-test.log
+          status=${PIPESTATUS[0]}
+          end=$(date +%s)
+          echo "finished_at=$end" >> "$GITHUB_OUTPUT"
+          echo "duration=$((end-start))" >> "$GITHUB_OUTPUT"
+          tests_line=$(grep -E '^Tests:' /tmp/frontend-test.log | tail -n 1 || true)
+          echo "tests_line<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${tests_line:-Tests: unavailable}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          exit $status
         working-directory: frontend
 
       - name: Write frontend job summary
@@ -213,6 +281,10 @@ jobs:
             echo "- App: frontend"
             echo "- Node: 20"
             echo "- Status: ${status}"
+            echo "- Tests: ${{ steps.run-frontend-tests.outputs.tests_line }}"
+            echo "- Started: $(date -u -d @${{ steps.run-frontend-tests.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Finished: $(date -u -d @${{ steps.run-frontend-tests.outputs.finished_at }} '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- Duration: ${{ steps.run-frontend-tests.outputs.duration }}s"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload frontend coverage artifact

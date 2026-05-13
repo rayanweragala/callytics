@@ -2,6 +2,57 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 import React from 'react';
 
+
+const WARN_ALLOWLIST: RegExp[] = [];
+
+const originalWarn = console.warn.bind(console);
+const originalError = console.error.bind(console);
+
+function serializeConsoleArgs(args: unknown[]) {
+  return args.map((arg) => {
+    if (typeof arg === 'string') return arg;
+    if (arg instanceof Error) return `${arg.name}: ${arg.message}`;
+    try {
+      return JSON.stringify(arg);
+    } catch {
+      return String(arg);
+    }
+  }).join(' ');
+}
+
+function isAllowlisted(args: unknown[]) {
+  const message = serializeConsoleArgs(args);
+  return WARN_ALLOWLIST.some((pattern) => pattern.test(message));
+}
+
+console.warn = (...args: unknown[]) => {
+  if (isAllowlisted(args)) {
+    originalWarn(...args);
+    return;
+  }
+
+  const message = serializeConsoleArgs(args);
+  if (process.env.CI === 'true') {
+    throw new Error(`Unexpected console.warn: ${message}`);
+  }
+
+  originalWarn(...args);
+};
+
+console.error = (...args: unknown[]) => {
+  if (isAllowlisted(args)) {
+    originalError(...args);
+    return;
+  }
+
+  const message = serializeConsoleArgs(args);
+  if (process.env.CI === 'true') {
+    throw new Error(`Unexpected console.error: ${message}`);
+  }
+
+  originalError(...args);
+};
+
 // Add CSS custom property shim
 const cssVars = {
   '--bg-base': '#0a0a0a',
@@ -21,6 +72,7 @@ Object.entries(cssVars).forEach(([key, value]) => {
 
 // Mock missing browser APIs
 Element.prototype.scrollIntoView = vi.fn();
+HTMLAnchorElement.prototype.click = vi.fn();
 
 class MockResizeObserver {
   observe = vi.fn();

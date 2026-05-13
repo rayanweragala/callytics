@@ -6,11 +6,13 @@
   "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
     "test": "jest",
+    "test:fast": "jest --passWithNoTests",
     "test:unit": "jest",
-    "test:ci": "jest --ci --coverage"
+    "test:ci": "jest --ci --coverage",
+    "test:full": "jest --ci --coverage --detectOpenHandles",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "ari-client": "^2.2.0",

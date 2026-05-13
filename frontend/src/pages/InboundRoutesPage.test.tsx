@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { InboundRoutesPage } from './InboundRoutesPage';
-import { MemoryRouter } from 'react-router-dom';
+
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listInboundRoutes: vi.fn(),
@@ -29,11 +30,7 @@ describe('InboundRoutesPage coverage boost', () => {
     (api.listInboundRoutes as any).mockResolvedValue(mockRoutes);
     (api.listFlows as any).mockResolvedValue(mockFlows);
 
-    render(
-      <MemoryRouter>
-        <InboundRoutesPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<InboundRoutesPage />);
 
     await waitFor(() => expect(screen.getByText('123456')).toBeInTheDocument());
     
@@ -53,11 +50,7 @@ describe('InboundRoutesPage coverage boost', () => {
       },
     });
 
-    render(
-      <MemoryRouter>
-        <InboundRoutesPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<InboundRoutesPage />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: /add route/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /add route/i }));
