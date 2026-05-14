@@ -277,6 +277,25 @@ describe('FlowEditorPage config panel visibility', () => {
   });
 });
 
+describe('FlowEditorPage palette', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    setWindowWidth(1440);
+    currentCanvasState = buildCanvasState();
+    flowCanvasMock.useFlowCanvas.mockImplementation(() => currentCanvasState);
+  });
+
+  it('shows Conference Room in the visible node palette', async () => {
+    renderFlowEditor();
+
+    await waitFor(() => expect(api.listExtensions).toHaveBeenCalled());
+
+    expect(screen.getByText('Conference Room')).toBeInTheDocument();
+    expect(screen.getByText('conference')).toBeInTheDocument();
+  });
+});
+
 describe('FlowEditorPage start-node protection', () => {
   beforeEach(() => {
     vi.clearAllMocks();

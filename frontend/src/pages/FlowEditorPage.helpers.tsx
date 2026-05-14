@@ -64,6 +64,7 @@ export const palette: Array<{ type: BuilderNodeType; label: string }> = [
   { type: 'webhook', label: 'Webhook' },
   { type: 'queue_login', label: 'Queue Login' },
   { type: 'queue', label: 'Queue' },
+  { type: 'conference', label: 'Conference Room' },
   { type: 'callback', label: 'Callback' },
   { type: 'hangup', label: 'hangup' },
 ];
@@ -1427,6 +1428,8 @@ export function minimapNodeColor(node: Node<FlowNodeData>): string {
       return 'var(--color-warning)';
     case 'queue':
       return 'var(--color-warning)';
+    case 'conference':
+      return 'var(--accent)';
     case 'callback':
       return 'var(--color-info)';
     default:
