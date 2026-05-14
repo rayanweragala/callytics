@@ -162,7 +162,7 @@ function renderFlowEditor(initialEntry = '/flows/1') {
     [{ path: '/flows/:id', element: <FlowEditorPage /> }],
     {
       initialEntries: [initialEntry],
-      future: { v7_startTransition: true, v7_relativeSplatPath: true },
+      future: { v7_relativeSplatPath: true },
     },
   );
 
@@ -171,7 +171,7 @@ function renderFlowEditor(initialEntry = '/flows/1') {
     ...render(
       <RouterProvider
         router={router}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        future={{ v7_startTransition: true }}
       />,
     ),
   };
