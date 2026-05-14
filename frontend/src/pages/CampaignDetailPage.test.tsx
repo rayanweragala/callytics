@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { CampaignDetailPage } from './CampaignDetailPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   getCampaign: vi.fn(async () => ({
@@ -45,13 +46,9 @@ vi.mock('../lib/api', () => ({
 
 describe('CampaignDetailPage', () => {
   const renderPage = () =>
-    render(
-      <MemoryRouter initialEntries={['/campaigns/1']}>
-        <Routes>
+    renderWithRouter(<Routes>
           <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+        </Routes>, { initialEntries: ['/campaigns/1'] });
 
   it('renders campaign name', async () => {
     renderPage();

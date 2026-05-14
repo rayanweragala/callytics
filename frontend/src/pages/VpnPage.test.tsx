@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   activateVpnRelayTunnel,
@@ -15,6 +15,7 @@ import {
   revokeVpnPeer,
 } from '../lib/api';
 import { VpnPage } from './VpnPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   createVpnPeer: vi.fn(),
@@ -101,7 +102,7 @@ describe('VpnPage', () => {
       subnetConflictDetail: null,
     });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     expect(await screen.findByText('Built-in VPN')).toBeInTheDocument();
     expect(screen.getByText('External Relay')).toBeInTheDocument();
@@ -120,7 +121,7 @@ describe('VpnPage', () => {
       subnetConflictDetail: null,
     });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     await screen.findByText('Built-in VPN');
     fireEvent.click(screen.getByRole('button', { name: 'copy' }));
@@ -131,7 +132,7 @@ describe('VpnPage', () => {
     vi.mocked(getVpnStatus).mockResolvedValue(installedStatus);
     vi.mocked(listVpnPeers).mockResolvedValue(peers);
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     expect(await screen.findByText('Alice Phone')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
@@ -142,7 +143,7 @@ describe('VpnPage', () => {
     vi.mocked(getVpnStatus).mockResolvedValue(installedStatus);
     vi.mocked(listVpnPeers).mockResolvedValue(peers);
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     await screen.findByText('Alice Phone');
     fireEvent.click(screen.getAllByRole('button', { name: 'QR' })[0]);
@@ -156,7 +157,7 @@ describe('VpnPage', () => {
     vi.mocked(listVpnPeers).mockResolvedValue(peers);
     vi.mocked(revokeVpnPeer).mockResolvedValue(undefined);
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     await screen.findByText('Alice Phone');
     fireEvent.click(screen.getAllByRole('button', { name: 'revoke' })[0]);
@@ -186,7 +187,7 @@ describe('VpnPage', () => {
       },
     });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     await screen.findByPlaceholderText('peer name');
     fireEvent.change(screen.getByPlaceholderText('peer name'), { target: { value: 'New Phone' } });
@@ -221,7 +222,7 @@ describe('VpnPage', () => {
       ],
     });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Relay Setup Guide' }));
     fireEvent.click(await screen.findByRole('button', { name: /Generate the Callytics-side peer config/i }));
@@ -265,7 +266,7 @@ describe('VpnPage', () => {
     });
     vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: true, vpsPublicIp: '203.0.113.20', transitioning: false, error: null });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Relay Setup Guide' }));
     fireEvent.click(await screen.findByRole('button', { name: /Generate the Callytics-side peer config/i }));
@@ -300,7 +301,7 @@ describe('VpnPage', () => {
     });
     vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: true, handshakeEstablished: false, vpsPublicIp: '203.0.113.20', transitioning: false, error: null });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Relay Setup Guide' }));
     fireEvent.click(await screen.findByRole('button', { name: /Generate the Callytics-side peer config/i }));
@@ -330,7 +331,7 @@ describe('VpnPage', () => {
       vpsPublicIp: '203.0.113.55',
     });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     expect(await screen.findByText('Relay tunnel active')).toBeInTheDocument();
     expect(screen.getByText('Awaiting VPS handshake')).toBeInTheDocument();
@@ -363,7 +364,7 @@ describe('VpnPage', () => {
     vi.mocked(getVpnRelayStatus).mockResolvedValue({ active: false, handshakeEstablished: false, vpsPublicIp: null, transitioning: false, error: null });
     vi.mocked(getVpnRelayConfig).mockResolvedValue({ config: null, vpsPublicKey: null, vpsPublicIp: null });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     // Wait for the page to settle
     expect(await screen.findByText('External Relay')).toBeInTheDocument();
@@ -392,7 +393,7 @@ describe('VpnPage', () => {
       ],
     });
 
-    render(<MemoryRouter><VpnPage /></MemoryRouter>);
+    renderWithRouter(<VpnPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'View Setup Guide' }));
     fireEvent.click(await screen.findByRole('button', { name: /Configure WireGuard on the VPS/i }));

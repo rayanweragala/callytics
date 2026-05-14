@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { describe, expect, it, vi } from 'vitest';
 import { CallLogsPage } from './CallLogsPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   getDiagnosticsHealth: vi.fn(async () => ({
@@ -26,11 +27,7 @@ vi.mock('../lib/socket', () => ({
 
 describe('CallLogsPage', () => {
   it('renders the page heading and table shell', async () => {
-    render(
-      <MemoryRouter>
-        <CallLogsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CallLogsPage />);
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Call Logs' })).toBeInTheDocument());
     expect(screen.getByPlaceholderText('Search caller number')).toBeInTheDocument();

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { ContactNumbersPage } from './ContactNumbersPage';
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   getContactNumbers: vi.fn(),
@@ -30,11 +31,7 @@ describe('ContactNumbersPage', () => {
   it('renders empty state when no contacts are returned', async () => {
     (api.getContactNumbers as any).mockResolvedValue({ data: [], total: 0 });
 
-    render(
-      <MemoryRouter>
-        <ContactNumbersPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<ContactNumbersPage />);
 
     await waitFor(() => expect(screen.getByText('No contacts yet.')).toBeInTheDocument());
   });
@@ -58,11 +55,7 @@ describe('ContactNumbersPage', () => {
       total: 1,
     });
 
-    render(
-      <MemoryRouter>
-        <ContactNumbersPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<ContactNumbersPage />);
 
     await waitFor(() => expect(screen.getByText('Sales Mobile')).toBeInTheDocument());
     expect(screen.getByText('+94714008762')).toBeInTheDocument();
@@ -82,11 +75,7 @@ describe('ContactNumbersPage', () => {
       },
     });
 
-    render(
-      <MemoryRouter>
-        <ContactNumbersPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<ContactNumbersPage />);
 
     await waitFor(() => expect(screen.getByText('No contacts yet.')).toBeInTheDocument());
 
@@ -127,11 +116,7 @@ describe('ContactNumbersPage', () => {
     });
     (api.deleteContactNumber as any).mockResolvedValue(undefined);
 
-    render(
-      <MemoryRouter>
-        <ContactNumbersPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<ContactNumbersPage />);
 
     await waitFor(() => expect(screen.getByText('Night Escalation')).toBeInTheDocument());
 
@@ -148,11 +133,7 @@ describe('ContactNumbersPage', () => {
     (api.getContactNumbers as any).mockResolvedValue({ data: [], total: 0 });
     (api.createContactNumber as any).mockRejectedValue(new Error('boom'));
 
-    render(
-      <MemoryRouter>
-        <ContactNumbersPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<ContactNumbersPage />);
 
     await waitFor(() => expect(screen.getByText('No contacts yet.')).toBeInTheDocument());
 

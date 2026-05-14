@@ -10,15 +10,18 @@
     "stasis"
   ],
   "scripts": {
+    "test": "npm run test:ci",
+    "test:fast": "npm run test:fast --workspace stasis && npm run test:fast --workspace backend",
+    "test:ci": "npm run test:ci --workspace stasis && npm run test:ci --workspace backend && npm run test:ci --workspace frontend",
+    "test:full": "npm run test:full --workspace stasis && npm run test:full --workspace backend && npm run test:full --workspace frontend",
+    "test:unit": "npm run test --workspace stasis && npm run test:unit --workspace backend",
+    "test:int": "npm run test:int --workspace backend",
     "dev": "docker compose up -d",
     "dev:build": "docker compose up -d --build",
     "dev:rebuild:app": "docker compose up -d --build backend stasis frontend",
     "start": "docker compose up -d",
     "stop": "docker compose down",
     "logs": "docker compose logs -f",
-    "status": "docker compose ps",
-    "test": "npm run test:unit && npm run test:int",
-    "test:unit": "npm run test --workspace stasis && npm run test:unit --workspace backend",
-    "test:int": "npm run test:int --workspace backend"
+    "status": "docker compose ps"
   }
 }

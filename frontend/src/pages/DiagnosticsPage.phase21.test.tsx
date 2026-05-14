@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiagnosticsPage } from './DiagnosticsPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 import {
   getDiagnosticsFailures,
   getDiagnosticsHealth,
@@ -127,11 +128,7 @@ describe('DiagnosticsPage Phase 21 drill-down behavior', () => {
   });
 
   it('Panel D: opens ladder on row click, updates call-id on second click, and shows no-call-id note', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <DiagnosticsPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderWithRouter(<DiagnosticsPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Traffic' }));
 
@@ -152,11 +149,7 @@ describe('DiagnosticsPage Phase 21 drill-down behavior', () => {
   });
 
   it('Panel E: clicking failure row opens ladder with rendered failure highlight', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <DiagnosticsPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderWithRouter(<DiagnosticsPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Traffic' }));
 

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { describe, expect, it, vi } from 'vitest';
 import { DiagnosticsPage } from './DiagnosticsPage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   getDiagnosticsHealth: vi.fn(async () => ({
@@ -43,11 +44,7 @@ vi.mock('../lib/socket', () => ({
 
 describe('DiagnosticsPage', () => {
   it('renders diagnostics panels without crashing', async () => {
-    render(
-      <MemoryRouter>
-        <DiagnosticsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<DiagnosticsPage />);
 
     // Default tab is Network
     await waitFor(() => expect(screen.getByText('System Health')).toBeInTheDocument());

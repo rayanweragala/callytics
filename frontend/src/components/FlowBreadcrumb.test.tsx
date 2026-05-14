@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FlowBreadcrumb } from './FlowBreadcrumb';
-import { MemoryRouter } from 'react-router-dom';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 describe('FlowBreadcrumb', () => {
   const items = [
@@ -10,22 +10,14 @@ describe('FlowBreadcrumb', () => {
   ];
 
   it('renders without crashing', () => {
-    render(
-      <MemoryRouter>
-        <FlowBreadcrumb items={items} onNavigate={() => {}} />
-      </MemoryRouter>
-    );
+    renderWithRouter(<FlowBreadcrumb items={items} onNavigate={() => {}} />);
     expect(screen.getByText('Root')).toBeInTheDocument();
     expect(screen.getByText('Child')).toBeInTheDocument();
     expect(screen.getByText(/Sales Menu \/ 1/)).toBeInTheDocument();
   });
 
   it('renders nothing if only one item', () => {
-    const { container } = render(
-      <MemoryRouter>
-        <FlowBreadcrumb items={[{ flowId: 1, flowName: 'Root', parentNodeKey: null, parentNodeLabel: null, parentBranchKey: null }]} onNavigate={() => {}} />
-      </MemoryRouter>
-    );
+    const { container } = renderWithRouter(<FlowBreadcrumb items={[{ flowId: 1, flowName: 'Root', parentNodeKey: null, parentNodeLabel: null, parentBranchKey: null }]} onNavigate={() => {}} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

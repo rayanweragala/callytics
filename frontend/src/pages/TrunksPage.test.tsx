@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { TrunksPage } from './TrunksPage';
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   getSettings: vi.fn(),
@@ -61,11 +62,7 @@ describe('TrunksPage', () => {
   });
 
   it('shows action row buttons: edit, delete, and overflow menu', async () => {
-    render(
-      <MemoryRouter>
-        <TrunksPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<TrunksPage />);
 
     await waitFor(() => expect(screen.getByText('Main Trunk')).toBeInTheDocument());
 
@@ -75,11 +72,7 @@ describe('TrunksPage', () => {
   });
 
   it('opens overflow and triggers quick test action', async () => {
-    render(
-      <MemoryRouter>
-        <TrunksPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<TrunksPage />);
 
     await waitFor(() => expect(screen.getByText('Main Trunk')).toBeInTheDocument());
 
@@ -92,11 +85,7 @@ describe('TrunksPage', () => {
   });
 
   it('shows the direct outbound settings note when no default trunk is selected', async () => {
-    render(
-      <MemoryRouter>
-        <TrunksPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<TrunksPage />);
 
     await waitFor(() => expect(screen.getByText('Direct outbound dial is disabled. Select a default trunk to enable it.')).toBeInTheDocument());
     expect(screen.getByText('default outbound trunk')).toBeInTheDocument();

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { FlowsPage } from './FlowsPage';
-import { MemoryRouter } from 'react-router-dom';
+
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listFlows: vi.fn(),
@@ -24,11 +25,7 @@ describe('FlowsPage coverage boost', () => {
   it('renders flows and shows the create button', async () => {
     (api.listFlows as any).mockResolvedValue(mockFlows);
 
-    render(
-      <MemoryRouter>
-        <FlowsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<FlowsPage />);
 
     await waitFor(() => expect(screen.getByText('Main Flow')).toBeInTheDocument());
 

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { Edge, Node } from 'reactflow';
 import type { FlowDetail, FlowNodeData } from '../types';
@@ -159,12 +160,20 @@ function buildFlowDetail(overrides?: Partial<FlowDetail>): FlowDetail {
 function renderFlowEditor(initialEntry = '/flows/1') {
   const router = createMemoryRouter(
     [{ path: '/flows/:id', element: <FlowEditorPage /> }],
-    { initialEntries: [initialEntry] },
+    {
+      initialEntries: [initialEntry],
+      future: { v7_relativeSplatPath: true },
+    },
   );
 
   return {
     router,
-    ...render(<RouterProvider router={router} />),
+    ...render(
+      <RouterProvider
+        router={router}
+        future={{ v7_startTransition: true }}
+      />,
+    ),
   };
 }
 
@@ -265,6 +274,25 @@ describe('FlowEditorPage config panel visibility', () => {
       gridTemplateColumns: '220px minmax(0, 1fr) 10px 440px',
     });
     expect(view.container.querySelector(`.${styles.rightPanel}`)).toHaveStyle({ width: '440px' });
+  });
+});
+
+describe('FlowEditorPage palette', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    setWindowWidth(1440);
+    currentCanvasState = buildCanvasState();
+    flowCanvasMock.useFlowCanvas.mockImplementation(() => currentCanvasState);
+  });
+
+  it('shows Conference Room in the visible node palette', async () => {
+    renderFlowEditor();
+
+    await waitFor(() => expect(api.listExtensions).toHaveBeenCalled());
+
+    expect(screen.getByText('Conference Room')).toBeInTheDocument();
+    expect(screen.getByText('conference')).toBeInTheDocument();
   });
 });
 
@@ -421,12 +449,13 @@ describe('FlowEditorPage submenu behavior', () => {
     });
     flowCanvasMock.useFlowCanvas.mockImplementation(() => currentCanvasState);
 
+    const user = userEvent.setup();
     renderFlowEditor('/flows/55');
 
     await screen.findByRole('navigation', { name: 'Flow breadcrumb' });
     expect(screen.getByText('Billing submenu')).toBeInTheDocument();
     const createButton = await screen.findByRole('button', { name: 'Create submenu' });
-    fireEvent.click(createButton);
+    await user.click(createButton);
 
     await waitFor(() => {
       expect(api.createFlow).toHaveBeenCalledWith(expect.objectContaining({

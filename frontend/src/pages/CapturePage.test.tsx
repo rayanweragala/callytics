@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SipPacket } from '../types';
 import { CapturePage } from './CapturePage';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 const apiMocks = vi.hoisted(() => ({
   exportCaptureBulk: vi.fn(),
@@ -43,11 +44,7 @@ describe('CapturePage', () => {
   });
 
   it('renders empty state before packet selection', () => {
-    render(
-      <MemoryRouter>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />);
 
     expect(screen.getByText('Select a packet to inspect')).toBeInTheDocument();
     expect(socketMocks.diagnosticsSocket.emit).toHaveBeenCalledWith('capture:subscribe');
@@ -67,11 +64,7 @@ describe('CapturePage', () => {
       },
     ]);
 
-    render(
-      <MemoryRouter initialEntries={['/capture?callId=call-123']}>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />, { initialEntries: ['/capture?callId=call-123'] });
 
     await waitFor(() => {
       expect(apiMocks.getCapturePackets).toHaveBeenCalledWith('call-123');
@@ -80,41 +73,36 @@ describe('CapturePage', () => {
   });
 
   it('does not fetch historical packets without callId query param', () => {
-    render(
-      <MemoryRouter initialEntries={['/capture']}>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />, { initialEntries: ['/capture'] });
 
     expect(apiMocks.getCapturePackets).not.toHaveBeenCalled();
   });
 
   it('renders live packet row and verdict after selecting a packet', async () => {
-    render(
-      <MemoryRouter>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />);
 
-    socketMocks.handlers['sip:packet']?.({
-      id: '1-0',
-      timestamp: '10:00:00.000',
-      method: 'INVITE',
-      from: 'a',
-      to: 'b',
-      callId: 'call-1',
-      direction: 'in',
-      rawJson: '{}',
-    });
-    socketMocks.handlers['sip:packet']?.({
-      id: '2-0',
-      timestamp: '10:00:01.000',
-      method: '200',
-      from: 'a',
-      to: 'b',
-      callId: 'call-1',
-      direction: 'in',
-      rawJson: '{}',
+    await act(async () => {
+      socketMocks.handlers['sip:packet']?.({
+        id: '1-0',
+        timestamp: '10:00:00.000',
+        method: 'INVITE',
+        from: 'a',
+        to: 'b',
+        callId: 'call-1',
+        direction: 'in',
+        rawJson: '{}',
+      });
+      socketMocks.handlers['sip:packet']?.({
+        id: '2-0',
+        timestamp: '10:00:01.000',
+        method: '200',
+        from: 'a',
+        to: 'b',
+        callId: 'call-1',
+        direction: 'in',
+        rawJson: '{}',
+      });
+      await Promise.resolve();
     });
 
     const row = await screen.findByRole('button', { name: /10:00:01.000/i });
@@ -126,14 +114,13 @@ describe('CapturePage', () => {
   });
 
   it('filters packets by method', async () => {
-    render(
-      <MemoryRouter>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />);
 
-    socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
-    socketMocks.handlers['sip:packet']?.({ id: '2-0', timestamp: '10:00:01.000', method: 'BYE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
+    await act(async () => {
+      socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
+      socketMocks.handlers['sip:packet']?.({ id: '2-0', timestamp: '10:00:01.000', method: 'BYE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
+      await Promise.resolve();
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'All' }));
     fireEvent.click(screen.getByRole('button', { name: 'INVITE' }));
@@ -147,13 +134,12 @@ describe('CapturePage', () => {
   });
 
   it('supports raw json toggle in headers accordion', async () => {
-    render(
-      <MemoryRouter>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />);
 
-    socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{"layers":{"sip.Call-ID":["call-1"]}}' });
+    await act(async () => {
+      socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{"layers":{"sip.Call-ID":["call-1"]}}' });
+      await Promise.resolve();
+    });
 
     fireEvent.click(await screen.findByRole('button', { name: /10:00:00.000/i }));
     fireEvent.click(await screen.findByText(/INVITE · 10:00:00.000/i));
@@ -164,13 +150,12 @@ describe('CapturePage', () => {
   });
 
   it('calls bulk and dialog export endpoints from page actions', async () => {
-    render(
-      <MemoryRouter>
-        <CapturePage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<CapturePage />);
 
-    socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
+    await act(async () => {
+      socketMocks.handlers['sip:packet']?.({ id: '1-0', timestamp: '10:00:00.000', method: 'INVITE', from: 'a', to: 'b', callId: 'call-1', direction: 'in', rawJson: '{}' });
+      await Promise.resolve();
+    });
     fireEvent.click(await screen.findByRole('button', { name: /10:00:00.000/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /^Export \.pcap$/i }));

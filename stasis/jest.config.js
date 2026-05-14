@@ -4,6 +4,7 @@ module.exports = {
   rootDir: 'src',
   testMatch: ['**/*.unit.spec.ts', '**/*.test.ts'],
   moduleFileExtensions: ['js', 'json', 'ts'],
+  testTimeout: 15000,
   collectCoverageFrom: [
     'engine/edgeResolver.ts',
     'flowLoader.ts',

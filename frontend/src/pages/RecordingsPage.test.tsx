@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { RecordingsPage } from './RecordingsPage';
-import { MemoryRouter } from 'react-router-dom';
+
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listRecordings: vi.fn(),
@@ -25,11 +26,7 @@ describe('RecordingsPage coverage boost', () => {
     (api.listRecordings as any).mockResolvedValue(mockRecordings);
     (api.listFlows as any).mockResolvedValue({ data: [] });
 
-    render(
-      <MemoryRouter>
-        <RecordingsPage />
-      </MemoryRouter>
-    );
+    renderWithRouter(<RecordingsPage />);
 
     await waitFor(() => expect(screen.getByText('call-1')).toBeInTheDocument());
   });

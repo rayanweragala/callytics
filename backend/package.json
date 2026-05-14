@@ -6,13 +6,15 @@
   "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
     "test": "jest",
+    "test:fast": "jest --selectProjects unit --passWithNoTests",
     "test:unit": "jest --selectProjects unit --passWithNoTests",
     "test:int": "jest --selectProjects integration --runInBand",
     "test:cov": "jest --coverage",
-    "test:ci": "jest --ci --coverage --runInBand"
+    "test:ci": "jest --ci --coverage --runInBand",
+    "test:full": "jest --ci --coverage --runInBand --detectOpenHandles",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@maxmind/geoip2-node": "^6.3.4",

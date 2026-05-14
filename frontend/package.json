@@ -5,14 +5,16 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "test": "vitest run",
+    "test:fast": "vitest run --reporter=verbose",
+    "test:ci": "vitest run --coverage",
+    "test:full": "vitest run --coverage --reporter=verbose",
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
-    "format": "prettier --write .",
-    "test": "vitest run",
-    "test:ci": "vitest run --coverage"
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.5",
@@ -24,6 +26,9 @@
     "reactflow": "^11.11.4",
     "socket.io-client": "^4.8.1"
   },
+  "optionalDependencies": {
+    "@swc/core-linux-x64-gnu": "^1.15.33"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -33,7 +38,7 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react-swc": "^4.3.0",
     "@vitest/coverage-v8": "^4.1.4",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",

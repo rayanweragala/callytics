@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { OperatorsPage } from './OperatorsPage';
 import * as api from '../lib/api';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   listOperators: vi.fn(),
@@ -44,11 +45,7 @@ describe('OperatorsPage', () => {
   });
 
   async function openCreateForm() {
-    render(
-      <MemoryRouter>
-        <OperatorsPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<OperatorsPage />);
 
     await waitFor(() => expect(screen.getByText('No operators yet.')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /add operator/i }));

@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { PreflightPage } from './PreflightPage';
 import * as api from '../lib/api';
 import styles from './PreflightPage.module.css';
+import { renderWithRouter } from '../test/renderWithRouter';
 
 vi.mock('../lib/api', () => ({
   getPreflightHistory: vi.fn(),
@@ -76,11 +77,7 @@ describe('PreflightPage', () => {
   });
 
   it('renders without crashing with empty history', async () => {
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'preflight wizard' })).toBeInTheDocument();
@@ -91,11 +88,7 @@ describe('PreflightPage', () => {
   it('run checks button triggers POST /preflight/run', async () => {
     (api.getPreflightHistory as any).mockResolvedValueOnce(pagedHistory([])).mockResolvedValueOnce(pagedHistory([passRun]));
 
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'run checks' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'run checks' }));
@@ -108,11 +101,7 @@ describe('PreflightPage', () => {
   it('summary banner renders with warn class when summary is warn', async () => {
     (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([warnRun]));
 
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     const banner = await screen.findByText('Some warnings detected. Review the items below.');
     expect(banner).toHaveClass(styles.summaryBanner);
@@ -122,11 +111,7 @@ describe('PreflightPage', () => {
   it('summary banner renders with fail class when summary is fail', async () => {
     (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([failRun]));
 
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     const banner = await screen.findByText('One or more checks failed. Review the issues below.');
     expect(banner).toHaveClass(styles.summaryBanner);
@@ -136,11 +121,7 @@ describe('PreflightPage', () => {
   it('auto-refresh countdown text is visible when summary is warn', async () => {
     (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([warnRun]));
 
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     await waitFor(() => expect(screen.getByText(/Re-checking in 30s/)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'stop auto-refresh' })).toBeInTheDocument();
@@ -149,11 +130,7 @@ describe('PreflightPage', () => {
   it('history table renders correct number of rows from mock history response', async () => {
     (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([passRun, warnRun, failRun]));
 
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     await waitFor(() => expect(screen.getByText('Run history')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'view' })).toHaveLength(3);
@@ -174,11 +151,7 @@ describe('PreflightPage', () => {
 
     (api.getPreflightHistory as any).mockResolvedValue(pagedHistory([passRun, historyOnlyWarnRun]));
 
-    render(
-      <MemoryRouter>
-        <PreflightPage />
-      </MemoryRouter>,
-    );
+    renderWithRouter(<PreflightPage />);
 
     const viewButtons = await screen.findAllByRole('button', { name: 'view' });
     expect(screen.queryByText('history row warn detail')).not.toBeInTheDocument();
