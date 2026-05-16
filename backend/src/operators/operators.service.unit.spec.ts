@@ -163,6 +163,7 @@ describe('OperatorsService', () => {
           {
             extension_id: 301,
             extension_username: '2002',
+            extension_password: 'secret2002',
             extension_transport_type: 'webrtc',
             contact_id: 401,
             contact_label: 'Dana Mobile',
@@ -189,6 +190,7 @@ describe('OperatorsService', () => {
         extension: {
           id: 301,
           username: '2002',
+          password: 'secret2002',
           transportType: 'webrtc',
         },
         contactNumber: expect.objectContaining({

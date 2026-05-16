@@ -4,6 +4,7 @@ function createService() {
   return new AsteriskConfigService(
     { find: jest.fn() } as any,
     { find: jest.fn().mockResolvedValue([]) } as any,
+    { find: jest.fn().mockResolvedValue([]) } as any,
     { query: jest.fn() } as any,
     {} as any,
   );
@@ -66,11 +67,15 @@ describe('AsteriskConfigService config generation', () => {
 
   it('generates correct inbound routes config with one exten line per route and no duplicates', () => {
     const service = createService();
-    const content = (service as any).buildInboundRoutesConfig([
-      { did: '1234' },
-      { did: '5678' },
-    ]);
+    const content = (service as any).buildInboundRoutesConfig(
+      [
+        { did: '1234' },
+        { did: '5678' },
+      ],
+      [{ username: '1000' }],
+    );
 
+    expect(content).toContain('exten => 1000,1,Dial(PJSIP/1000,30)');
     expect(content).toContain('exten => 1234,1,Stasis(callytics)');
     expect(content).toContain('exten => 5678,1,Stasis(callytics)');
     expect(content.match(/exten => 1234,1,Stasis\(callytics\)/g)).toHaveLength(1);

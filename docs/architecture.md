@@ -2,7 +2,9 @@
 
 ## Core Architecture
 
-`callytics` runs as a Docker Compose stack centered on Asterisk 20 for telephony, a NestJS backend for APIs and orchestration, a Node-based Stasis runtime for call execution, React + Vite for the UI, PostgreSQL for persistent state, and Redis for real-time event transport. Asterisk and Stasis run with host networking to keep ARI/AMI and RTP behavior stable, while application data and generated artifacts are persisted through database tables and named volumes.
+`callytics` runs as a Docker Compose stack centered on Asterisk 20 for telephony, a NestJS backend for APIs and orchestration, a Node-based Stasis runtime for call execution, React + Vite for the UI, PostgreSQL for persistent state, and Redis for real-time event transport. Asterisk and Stasis run with host networking to keep ARI/AMI and RTP behavior stable, while application data and generated artifacts are persisted through database tables and named volumes. The frontend also includes an in-browser WebRTC softphone for operator extensions.
+
+On backend startup, `AsteriskConfigService` regenerates the WebRTC transport configuration automatically. That startup sync binds the WebSocket transport on port `8088`, enables ICE support for WebRTC media negotiation, and auto-discovers Docker bridge subnets so Asterisk writes correct `local_net` entries for RTP routing.
 
 ## Call Execution Engine
 

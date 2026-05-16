@@ -39,6 +39,8 @@ interface SipCodeInfo {
 
 const SIP_CODE_INFO: Record<number, SipCodeInfo> = {
   100: { title: 'Processing', explanation: 'Request received, searching for destination. Not an error.' },
+  180: { title: 'Ringing', explanation: 'Destination endpoint received the INVITE AND is actively alerting user. Local ringback tone is typically generated.'},
+  183: { title: 'Session Progress', explanation: 'Call is progressing, and media is being sent early (e.g., custom ringback tone or network announcement) before answer.' },
   200: { title: 'Success', explanation: 'Request accepted. For INVITE this means call connected.' },
   202: { title: 'Accepted', explanation: 'Request accepted for processing, not yet completed.' },
   301: { title: 'Moved Permanently', explanation: 'Endpoint has a new permanent address. Update your config.' },

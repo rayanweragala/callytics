@@ -36,7 +36,7 @@ You design and publish flows in the browser. The backend stores and prepares tha
 
 ## Service Breakdown
 
-**Asterisk** is the telephony engine. It accepts SIP traffic on port `5080`, handles RTP media, manages bridges and recordings, and exposes two control interfaces: ARI on `127.0.0.1:8088` and AMI on `127.0.0.1:5038`.
+**Asterisk** is the telephony engine. It accepts SIP traffic on port `5080`, handles RTP media, manages bridges and recordings, and exposes two control interfaces: ARI plus WebRTC WebSocket transport on `127.0.0.1:8088`, and AMI on `127.0.0.1:5038`.
 
 **Stasis** is the call execution runtime. It connects to Asterisk over ARI WebSocket, receives live `StasisStart` events, loads the published call flow, walks each node, sends ARI commands back to Asterisk, and publishes timeline and telemetry events to Redis.
 
@@ -46,7 +46,7 @@ You design and publish flows in the browser. The backend stores and prepares tha
 
 **Redis** is the live event and coordination layer. It runs on `127.0.0.1:6380` on the host (mapped from container port `6379`) and carries telemetry between Stasis and the backend, queue and operator state, campaign coordination, SIP capture data, and short-lived runtime state.
 
-**Frontend** is the React browser application. It connects to the backend on port `3001` and uses Socket.IO for real-time updates across all live pages.
+**Frontend** is the React browser application. It connects to the backend on port `3001`, uses Socket.IO for real-time updates across all live pages, and can also host the in-browser WebRTC softphone for operator extensions.
 
 ## Why Host Networking
 
@@ -55,6 +55,8 @@ ARI communicates over `127.0.0.1:8088` and AMI over `127.0.0.1:5038`. Both are l
 SIP binds on `0.0.0.0:5080`, not the default `5060`, because the host machine typically already occupies port `5060` with a system SIP service or another process. Using `5080` avoids that conflict.
 
 Host networking also means Asterisk, Stasis, and the backend all share the same network namespace. RTP media and SIP signaling bind directly to the host's network interfaces, avoiding the bridge and NAT translation problems that commonly break SIP audio paths in Docker setups.
+
+For the browser softphone, the backend regenerates the WebRTC transport config on startup. That config binds the WebSocket transport on port `8088`, enables ICE support, and auto-discovers Docker bridge subnets so Asterisk writes the correct `local_net` entries for WebRTC RTP negotiation.
 
 The optional WireGuard VPN container is different: it terminates VPN tunnels rather than owning SIP/RTP sockets, so it can run on a bridge network and publish only UDP port `51820`.
 

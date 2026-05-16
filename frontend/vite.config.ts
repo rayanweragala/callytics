@@ -26,6 +26,14 @@ export default defineConfig({
     ...(process.env.VITEST ? [mockCssModulesPlugin] : []),
     react(),
   ],
+  optimizeDeps: {
+    include: ['jssip'],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/jssip/, /node_modules/],
+    },
+  },
   customLogger: {
     ...logger,
     warn(msg, options) {

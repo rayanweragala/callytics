@@ -49,6 +49,16 @@ The first boot is slower than later restarts. The Asterisk image builds from sou
 | `frontend` | `3000` | React dashboard for IVR editing, operators, queues, campaigns, firewall, diagnostics, recordings, and configuration. |
 | `stasis` | no public HTTP port | Node execution engine that receives ARI calls from Asterisk, loads the published flow, runs nodes, and emits Redis timeline events. |
 
+## WebRTC softphone support
+
+The browser softphone does not require a separate app. It connects through Asterisk's WebSocket transport on port `8088`, which is now regenerated automatically during backend startup.
+
+The backend also writes WebRTC-specific Asterisk settings automatically:
+
+- WebSocket transport binds on port `8088`
+- ICE support is enabled for WebRTC media negotiation
+- Docker bridge subnets are auto-discovered and written as `local_net` entries so RTP routing stays correct
+
 ## First Boot Timeline
 
 1. Docker pulls the base images and service images needed by the stack.
@@ -83,6 +93,8 @@ After the stack is up, run through these checks to confirm everything is working
    ```
 
 3. **Softphone registers** — configure a SIP client (Linphone, Zoiper, or any PJSIP-compatible softphone) with an extension credential. Set the server to `<host-ip>:5080`. After registration, go to Configure -> Extensions — the extension status should show as registered.
+
+   The browser softphone is available inside the dashboard too. Open the phone bubble, select an operator, click `Connect`, and wait for `Registered`.
 
 4. **Inbound call routes** — go to Configure -> Inbound, create an inbound route with a DID, assign a published flow, and dial the DID from the softphone. The call should execute the flow.
 

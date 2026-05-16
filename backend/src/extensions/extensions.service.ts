@@ -169,7 +169,6 @@ export class ExtensionsService implements OnModuleInit {
     const endpointFlags = transportType === 'webrtc'
       ? [
           'dtls_auto_generate_cert = yes',
-          'webrtc = yes',
           'use_avpf = yes',
           'media_encryption = dtls',
           'ice_support = yes',
@@ -181,7 +180,7 @@ export class ExtensionsService implements OnModuleInit {
       return {
         username: extension.username,
         password: extension.password,
-        transport: transportType === 'webrtc' ? 'transport-wss' : 'transport-udp',
+        transport: transportType === 'webrtc' ? 'transport-ws' : 'transport-udp',
         endpointFlags: [
           ...endpointFlags,
           `acl = ${this.vpnAclName(extension.username)}`,
@@ -192,7 +191,7 @@ export class ExtensionsService implements OnModuleInit {
     return {
       username: extension.username,
       password: extension.password,
-      transport: transportType === 'webrtc' ? 'transport-wss' : 'transport-udp',
+      transport: transportType === 'webrtc' ? 'transport-ws' : 'transport-udp',
       endpointFlags,
     };
   }

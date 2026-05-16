@@ -2,6 +2,8 @@ import { Inject, Injectable, OnModuleInit, forwardRef } from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
+import * as http from "node:http";
+import * as os from "node:os";
 import { join } from "path";
 import { DataSource, Repository } from "typeorm";
 import { InboundRouteEntity } from "../inbound-routes/entities/inbound-route.entity";
@@ -39,6 +41,16 @@ export interface AmiPjsipAor {
   lastQualifiedAt: string | null;
 }
 
+interface DockerNetworkSummary {
+  Name?: string;
+  Driver?: string;
+  IPAM?: {
+    Config?: Array<{
+      Subnet?: string;
+    }>;
+  };
+}
+
 @Injectable()
 export class AsteriskConfigService implements OnModuleInit {
   private readonly logger = new AppLogger(AsteriskConfigService.name);
@@ -56,6 +68,8 @@ export class AsteriskConfigService implements OnModuleInit {
   constructor(
     @InjectRepository(SipExtensionEntity)
     private readonly extensionsRepository: Repository<SipExtensionEntity>,
+    @InjectRepository(InboundRouteEntity)
+    private readonly inboundRoutesRepository: Repository<InboundRouteEntity>,
     @InjectRepository(SipTrunkEntity)
     private readonly trunksRepository: Repository<SipTrunkEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -66,6 +80,14 @@ export class AsteriskConfigService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await runSqlMigrations(this.dataSource);
     await this.writeTrunksConfig();
+    try {
+      await this.syncWebRTCConfig();
+    } catch (error) {
+      this.logger.error(
+        "failed to regenerate webrtc config on startup",
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
     try {
       const extensions = await this.extensionsRepository.find({
         order: { username: "ASC" },
@@ -91,11 +113,23 @@ export class AsteriskConfigService implements OnModuleInit {
     const relayStatus = await this.vpnService.getRelayStatus();
     const externalAddress = await this.getRelayExternalAddress(relayStatus);
     await this.writeExtensionsConfig(extensions, externalAddress);
+    const routes = await this.inboundRoutesRepository.find({
+      order: { did: "ASC" },
+    });
+    await this.writeInboundRoutesConfig(routes);
     try {
       await this.reloadResPjsip();
     } catch (error) {
       this.logger.error(
         "failed to reload pjsip",
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+    try {
+      await this.reloadDialplan();
+    } catch (error) {
+      this.logger.error(
+        "failed to reload dialplan",
         error instanceof Error ? error.stack : String(error),
       );
     }
@@ -114,6 +148,9 @@ export class AsteriskConfigService implements OnModuleInit {
   }
 
   async writeInboundRoutesConfig(routes: InboundRouteEntity[]): Promise<void> {
+    const extensions = await this.extensionsRepository.find({
+      order: { username: "ASC" },
+    });
     await fs.mkdir(this.configDir, { recursive: true });
     await this.ensureIncludeAtFileEnd(
       join(this.configDir, "extensions.conf"),
@@ -121,7 +158,7 @@ export class AsteriskConfigService implements OnModuleInit {
     );
     await fs.writeFile(
       join(this.configDir, "extensions_callytics_inbound.conf"),
-      this.buildInboundRoutesConfig(routes),
+      this.buildInboundRoutesConfig(routes, extensions),
       "utf8",
     );
   }
@@ -165,6 +202,24 @@ export class AsteriskConfigService implements OnModuleInit {
 
   async reloadResPjsip(): Promise<void> {
     await this.sendAmiCommand("module reload res_pjsip.so");
+  }
+
+  async syncWebRTCConfig(): Promise<void> {
+    await fs.mkdir(this.configDir, { recursive: true });
+    const dockerBridgeSubnets = await this.listDockerBridgeSubnets();
+    const localNets = this.buildWebRtcLocalNets(dockerBridgeSubnets);
+    await fs.writeFile(
+      join(this.configDir, "pjsip_webrtc.conf"),
+      this.buildWebRtcConfig(localNets),
+      "utf8",
+    );
+    this.logger.log(
+      `syncWebRTCConfig discovered bridge subnets: ${dockerBridgeSubnets.length > 0 ? dockerBridgeSubnets.join(", ") : "none"}`,
+    );
+    this.logger.log(
+      `syncWebRTCConfig wrote local_net entries: ${localNets.join(", ")}`,
+    );
+    await this.reloadWebRtcModules();
   }
 
   async syncUdpTransport(externalAddress: string | null): Promise<void> {
@@ -467,11 +522,12 @@ export class AsteriskConfigService implements OnModuleInit {
       const endpointLines = [
         `[${extension.username}]`,
         "type = endpoint",
-        `transport = ${extension.transport}`,
         "context = callytics-inbound",
         "disallow = all",
+        "allow = opus",
         "allow = ulaw",
         "allow = alaw",
+        "webrtc = yes",
         "direct_media = no",
         "force_rport = yes",
         "rewrite_contact = yes",
@@ -621,12 +677,20 @@ export class AsteriskConfigService implements OnModuleInit {
     );
   }
 
-  private buildInboundRoutesConfig(routes: InboundRouteEntity[]): string {
+  private buildInboundRoutesConfig(
+    routes: InboundRouteEntity[],
+    extensions: Array<Pick<SipExtensionEntity, "username">> = [],
+  ): string {
     const lines: string[] = [
       "; auto-generated by callytics — do not edit manually",
       "",
       "[callytics-inbound]",
     ];
+    for (const extension of extensions) {
+      lines.push(`exten => ${extension.username},1,Dial(PJSIP/${extension.username},30)`);
+      lines.push(`exten => ${extension.username},n,Hangup()`);
+      lines.push("");
+    }
     for (const route of routes) {
       lines.push(`exten => ${route.did},1,Stasis(callytics)`);
       lines.push(`exten => ${route.did},n,Hangup()`);
@@ -695,11 +759,12 @@ export class AsteriskConfigService implements OnModuleInit {
       "",
       "[callytics-endpoint-template](!)",
       "type = endpoint",
-      "transport = transport-udp",
       "context = callytics-inbound",
       "disallow = all",
+      "allow = opus",
       "allow = ulaw",
       "allow = alaw",
+      "webrtc = yes",
       "direct_media = no",
       "force_rport = yes",
       "rewrite_contact = yes",
@@ -781,6 +846,46 @@ export class AsteriskConfigService implements OnModuleInit {
     return [...header, "", ...blocks].join("\n\n").trimEnd() + "\n";
   }
 
+  private async listDockerBridgeSubnets(): Promise<string[]> {
+    try {
+      const response = await this.dockerSocketRequest("/networks");
+      const networks = JSON.parse(response) as DockerNetworkSummary[];
+      return networks
+        .filter((network) => (network.Driver || "").trim().toLowerCase() === "bridge")
+        .flatMap((network) => network.IPAM?.Config ?? [])
+        .map((config) => (config.Subnet || "").trim())
+        .filter((subnet) => subnet.length > 0);
+    } catch (error) {
+      this.logger.warn(
+        `syncWebRTCConfig could not read Docker bridge networks: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return [];
+    }
+  }
+
+  private buildWebRtcLocalNets(dockerBridgeSubnets: string[]): string[] {
+    const localNets = [
+      this.getHostLocalNet(),
+      ...dockerBridgeSubnets,
+      "127.0.0.0/8",
+    ];
+    return Array.from(new Set(localNets.filter((entry) => entry.trim().length > 0)));
+  }
+
+  private buildWebRtcConfig(localNets: string[]): string {
+    return [
+      "; auto-generated by callytics — do not edit manually",
+      "",
+      "[transport-ws]",
+      "type = transport",
+      "protocol = ws",
+      "bind = 0.0.0.0:8088",
+      "ice_support = yes",
+      ...localNets.map((localNet) => `local_net = ${localNet}`),
+      "",
+    ].join("\n");
+  }
+
   private getLocalLanNet(): string {
     const configuredLocalNet = process.env.LOCAL_NET?.trim();
     if (configuredLocalNet) {
@@ -797,6 +902,77 @@ export class AsteriskConfigService implements OnModuleInit {
     }
 
     return "10.20.0.0/16";
+  }
+
+  private getHostLocalNet(): string {
+    const hostIp = process.env.HOST_IP?.trim() || "";
+    if (!hostIp) {
+      return "127.0.0.1/32";
+    }
+
+    const interfaces = os.networkInterfaces();
+    for (const records of Object.values(interfaces)) {
+      for (const record of records || []) {
+        if (!record || record.family !== "IPv4" || record.address !== hostIp) {
+          continue;
+        }
+        if (record.cidr) {
+          return record.cidr;
+        }
+        if (record.netmask) {
+          const prefix = this.netmaskToPrefix(record.netmask);
+          return `${hostIp}/${prefix}`;
+        }
+      }
+    }
+
+    return `${hostIp}/32`;
+  }
+
+  private netmaskToPrefix(netmask: string): number {
+    return netmask
+      .split(".")
+      .map((octet) => Number(octet))
+      .filter((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)
+      .reduce((count, octet) => {
+        const bits = octet.toString(2).padStart(8, "0");
+        return count + bits.split("").filter((bit) => bit === "1").length;
+      }, 0);
+  }
+
+  private async reloadWebRtcModules(): Promise<void> {
+    await this.sendAmiCommand("module reload res_pjsip.so");
+    await this.sendAmiCommand("module reload res_rtp_asterisk.so");
+  }
+
+  private dockerSocketRequest(path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const request = http.request(
+        {
+          socketPath: "/var/run/docker.sock",
+          host: "localhost",
+          method: "GET",
+          path,
+        },
+        (response) => {
+          let body = "";
+          response.setEncoding("utf8");
+          response.on("data", (chunk: string) => {
+            body += chunk;
+          });
+          response.on("end", () => {
+            if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+              reject(new Error(`Docker API GET ${path} failed (${response.statusCode ?? "unknown"})`));
+              return;
+            }
+            resolve(body);
+          });
+        },
+      );
+
+      request.on("error", reject);
+      request.end();
+    });
   }
 
   private async sendAmiCommand(command: string): Promise<void> {

@@ -134,6 +134,13 @@ Current audio mount expectations:
 - backend mounts `./storage` at `/app/storage`, including `./storage/audio/`
 - Asterisk mounts `./storage/audio/converted` at `/var/lib/asterisk/sounds/callytics`
 
+Current WebRTC softphone behavior:
+
+- backend startup regenerates Asterisk WebRTC config automatically
+- WebSocket transport is configured on port `8088`
+- ICE support is enabled for browser media negotiation
+- Docker bridge subnets are auto-discovered and written as `local_net` entries for correct RTP routing
+
 ## What the user sees when it works
 
 At the end, the CLI should print:
