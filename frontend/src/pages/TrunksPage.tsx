@@ -166,6 +166,7 @@ const COUNTRY_DIAL_PREFIX: Record<string, string> = {
 const emptySettings: SystemSettings = {
   default_outbound_trunk_id: null,
   record_outbound_calls: false,
+  recording_retention_days: 0,
 };
 
 function toForm(item: SipTrunkItem | null): TrunkFormState {
@@ -275,8 +276,8 @@ export function TrunksPage() {
         getSettings(),
         listTrunks(1000, 0),
       ]);
-      setSettings(settingsResponse.data);
-      setDraftSettings(settingsResponse.data);
+      setSettings(settingsResponse);
+      setDraftSettings(settingsResponse);
       setSettingsTrunkOptions(
         trunksResponse.data
           .filter((item) => item.enabled)
@@ -530,7 +531,7 @@ export function TrunksPage() {
     }
   };
 
-  const handleSettingsDraftChange = (patch: Partial<SystemSettings>) => {
+  const handleSettingsDraftChange = (patch: Partial<Pick<SystemSettings, 'default_outbound_trunk_id' | 'record_outbound_calls'>>) => {
     setDraftSettings((current) => ({ ...current, ...patch }));
   };
 

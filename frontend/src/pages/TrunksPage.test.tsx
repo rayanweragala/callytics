@@ -42,16 +42,14 @@ describe('TrunksPage', () => {
       total: 1,
     });
     (api.getSettings as any).mockResolvedValue({
-      data: {
-        default_outbound_trunk_id: null,
-        record_outbound_calls: false,
-      },
+      default_outbound_trunk_id: null,
+      record_outbound_calls: false,
+      recording_retention_days: 0,
     });
     (api.updateSettings as any).mockResolvedValue({
-      data: {
-        default_outbound_trunk_id: 1,
-        record_outbound_calls: false,
-      },
+      default_outbound_trunk_id: 1,
+      record_outbound_calls: false,
+      recording_retention_days: 0,
     });
     (api.listAllAudio as any).mockResolvedValue({ data: [] });
     (api.testTrunk as any).mockResolvedValue({

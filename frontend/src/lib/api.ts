@@ -27,6 +27,7 @@ import type {
   SipPacket,
   RegistrationHealthResponse,
   SipTrunkItem,
+  SettingsPatch,
   SystemSettings,
   TrunkDiagnosticsResult,
   TrunkTestResult,
@@ -358,16 +359,13 @@ export async function getHostConfig(): Promise<HostConfigResponse> {
   return response.data;
 }
 
-export async function getSettings(): Promise<DetailResponse<SystemSettings>> {
-  const response = await api.get<DetailResponse<SystemSettings>>('/settings');
+export async function getSettings(): Promise<SystemSettings> {
+  const response = await api.get<SystemSettings>('/settings');
   return response.data;
 }
 
-export async function updateSettings(payload: {
-  default_outbound_trunk_id?: number | null;
-  record_outbound_calls?: boolean;
-}): Promise<DetailResponse<SystemSettings>> {
-  const response = await api.put<DetailResponse<SystemSettings>>('/settings', payload);
+export async function updateSettings(payload: SettingsPatch): Promise<SystemSettings> {
+  const response = await api.patch<SystemSettings>('/settings', payload);
   return response.data;
 }
 

@@ -11,5 +11,6 @@ describe('SidebarNav', () => {
     expect(screen.getByText('webhook logs')).toBeInTheDocument();
     expect(screen.getByText('flow builder')).toBeInTheDocument();
     expect(screen.getByText('extensions')).toBeInTheDocument();
+    expect(screen.getByText('settings')).toBeInTheDocument();
   });
 });

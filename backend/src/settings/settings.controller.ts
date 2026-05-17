@@ -1,5 +1,4 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 
 @Controller('settings')
@@ -7,17 +6,17 @@ export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get()
-  getSettings() {
-    return this.settingsService.getSettings();
+  async getSettings() {
+    return this.settingsService.getAll();
   }
 
-  @Put()
-  updateSettings(@Body() dto: UpdateSettingsDto) {
-    return this.settingsService.updateSettings(dto);
+  @Patch()
+  async updateSettings(@Body() patch: Record<string, boolean | number | string | null>) {
+    return this.settingsService.updateMany(patch);
   }
 
   @Get('default-trunk')
-  getDefaultTrunk() {
+  async getDefaultTrunk() {
     return this.settingsService.getDefaultTrunk();
   }
 }

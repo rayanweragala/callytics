@@ -85,6 +85,9 @@ export function SidebarNav() {
             <NavLink to="/backup" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               backup & restore
             </NavLink>
+            <NavLink to="/settings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              settings
+            </NavLink>
             <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               preflight
             </NavLink>

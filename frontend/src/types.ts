@@ -620,10 +620,15 @@ export interface SipTrunkItem {
   createdAt: string;
 }
 
+export type SettingValue = boolean | number | string | null;
+
 export interface SystemSettings {
   default_outbound_trunk_id: number | null;
   record_outbound_calls: boolean;
+  recording_retention_days: number;
 }
+
+export type SettingsPatch = Partial<SystemSettings> & Record<string, SettingValue | undefined>;
 
 export interface TrunkTestResult {
   status: 'reachable' | 'unreachable' | 'not_loaded';
