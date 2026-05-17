@@ -50,6 +50,7 @@ import type {
   RelayTunnelStatus,
   VpnPeer,
   VpnStatus,
+  WebhookDeliveryItem,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -642,6 +643,44 @@ export async function listCallLogs(params: {
   callLogId?: number;
 }): Promise<PaginatedResponse<CallLogItem>> {
   const response = await api.get<PaginatedResponse<CallLogItem>>('/call-logs', { params });
+  return response.data;
+}
+
+export async function listWebhookDeliveries(params: {
+  page?: number;
+  limit?: number;
+  success?: 'true' | 'false';
+  flowId?: string;
+  nodeId?: string;
+  fromDate?: string;
+  toDate?: string;
+}): Promise<{
+  data: WebhookDeliveryItem[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  const response = await api.get<{
+    data: WebhookDeliveryItem[];
+    total: number;
+    page: number;
+    limit: number;
+  }>('/webhook-deliveries', {
+    params: {
+      page: params.page,
+      limit: params.limit,
+      success: params.success,
+      flow_id: params.flowId,
+      node_id: params.nodeId,
+      from_date: params.fromDate,
+      to_date: params.toDate,
+    },
+  });
+  return response.data;
+}
+
+export async function getWebhookNodeDeliveries(nodeId: string): Promise<{ data: WebhookDeliveryItem[] }> {
+  const response = await api.get<{ data: WebhookDeliveryItem[] }>(`/webhook-deliveries/node/${encodeURIComponent(nodeId)}`);
   return response.data;
 }
 

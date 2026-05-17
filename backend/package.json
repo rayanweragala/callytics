@@ -13,6 +13,7 @@
     "test:cov": "jest --coverage",
     "test:ci": "jest --ci --coverage --runInBand",
     "test:full": "jest --ci --coverage --runInBand --detectOpenHandles",
+    "migration:run": "ts-node src/db/run-migrations.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js"
   },

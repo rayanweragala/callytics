@@ -10,6 +10,7 @@ import { InboundRoutesPage } from './pages/InboundRoutesPage';
 import { RecordingsPage } from './pages/RecordingsPage';
 import { TrunksPage } from './pages/TrunksPage';
 import { CallLogsPage } from './pages/CallLogsPage';
+import { WebhookLogsPage } from './pages/WebhookLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { TemplatesPage } from './pages/TemplatesPage';
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/inbound" element={<InboundRoutesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/call-logs" element={<CallLogsPage />} />
+          <Route path="/webhook-logs" element={<WebhookLogsPage />} />
           <Route path="/preflight" element={<PreflightPage />} />
           <Route path="/firewall" element={<FirewallPage />} />
           <Route path="/vpn" element={<VpnPage />} />

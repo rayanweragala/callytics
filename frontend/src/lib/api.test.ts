@@ -345,6 +345,19 @@ describe('api library', () => {
     expect(axios.get).toHaveBeenCalledWith('/call-logs/export', { params: { search: '1001' }, responseType: 'blob' });
   });
 
+  it('webhook delivery helpers call correct endpoints', async () => {
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [], total: 0, page: 1, limit: 20 } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+
+    await api.listWebhookDeliveries({ page: 1, limit: 20, success: 'false', nodeId: 'wh-1' });
+    await api.getWebhookNodeDeliveries('wh/1');
+
+    expect(axios.get).toHaveBeenCalledWith('/webhook-deliveries', {
+      params: { page: 1, limit: 20, success: 'false', flow_id: undefined, node_id: 'wh-1', from_date: undefined, to_date: undefined },
+    });
+    expect(axios.get).toHaveBeenCalledWith('/webhook-deliveries/node/wh%2F1');
+  });
+
   it('operator/contact/queue helpers call correct endpoints', async () => {
     (axios.get as any).mockResolvedValueOnce({
       data: {

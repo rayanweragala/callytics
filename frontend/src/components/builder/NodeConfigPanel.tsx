@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { Edge, Node } from 'reactflow';
 import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ConferenceNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig, WebhookNodeConfig } from '../../types';
+import { getWebhookNodeDeliveries } from '../../lib/api';
+import { formatDateTime } from '../../lib/time';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
@@ -828,6 +830,7 @@ export function NodeConfigPanel({
 
           {selectedNode.data.type === 'webhook' ? (
             <WebhookConfigPanel
+              nodeId={selectedNode.id}
               config={selectedConfig}
               onConfigChange={onConfigChange}
               onConfigValueChange={onConfigValueChange}
@@ -1205,16 +1208,32 @@ function MenuConfig({
 }
 
 interface WebhookConfigPanelProps {
+  nodeId: string;
   config: Partial<WebhookNodeConfig> & Record<string, unknown>;
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
   saveAttempted?: boolean;
 }
 
-function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveAttempted }: WebhookConfigPanelProps) {
+function WebhookConfigPanel({ nodeId, config, onConfigChange, onConfigValueChange, saveAttempted }: WebhookConfigPanelProps) {
   const headers = Array.isArray(config['headers'])
     ? (config['headers'] as Array<{ key: string; value: string }>)
     : [];
+  const retryEnabled = config['retry_enabled'] !== false;
+  const rawMaxAttempts = typeof config['max_attempts'] === 'number'
+    ? config['max_attempts']
+    : Number(config['max_attempts']);
+  const maxAttempts = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 && rawMaxAttempts <= 5
+    ? rawMaxAttempts
+    : 3;
+  const [recentDeliveries, setRecentDeliveries] = useState<Array<{
+    id: string;
+    createdAt: string;
+    success: boolean;
+    attemptNumber: number;
+  }>>([]);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [deliveriesError, setDeliveriesError] = useState<string | null>(null);
 
   const addHeader = () => onConfigValueChange('headers', [...headers, { key: '', value: '' }]);
 
@@ -1226,6 +1245,49 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
   const removeHeader = (index: number) => {
     onConfigValueChange('headers', headers.filter((_, i) => i !== index));
   };
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRecentDeliveries = async () => {
+      if (!nodeId) {
+        setRecentDeliveries([]);
+        return;
+      }
+
+      setDeliveriesLoading(true);
+      setDeliveriesError(null);
+      try {
+        const response = await getWebhookNodeDeliveries(nodeId);
+        if (!active) {
+          return;
+        }
+        setRecentDeliveries(
+          response.data.slice(0, 5).map((item) => ({
+            id: item.id,
+            createdAt: item.createdAt,
+            success: item.success,
+            attemptNumber: item.attemptNumber,
+          })),
+        );
+      } catch {
+        if (!active) {
+          return;
+        }
+        setDeliveriesError('Failed to load recent deliveries');
+      } finally {
+        if (active) {
+          setDeliveriesLoading(false);
+        }
+      }
+    };
+
+    void loadRecentDeliveries();
+
+    return () => {
+      active = false;
+    };
+  }, [nodeId]);
 
   return (
     <>
@@ -1278,6 +1340,60 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
         />
         <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Include collected variables</span>
       </label>
+      <div className={styles.section}>
+        <span className={styles.sectionTitle}>Retry</span>
+        <label className={`${styles.field} ${styles.fieldRow}`}>
+          <input
+            type="checkbox"
+            checked={retryEnabled}
+            onChange={(e) => onConfigValueChange('retry_enabled', e.target.checked)}
+          />
+          <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Enable retries</span>
+        </label>
+        {retryEnabled ? (
+          <>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>max attempts</span>
+              <input
+                className={styles.input}
+                type="number"
+                min={1}
+                max={5}
+                value={String(maxAttempts)}
+                onChange={(e) => {
+                  const parsed = Number.parseInt(e.target.value, 10);
+                  const nextValue = Number.isFinite(parsed) ? Math.min(5, Math.max(1, parsed)) : 3;
+                  onConfigValueChange('max_attempts', nextValue);
+                }}
+              />
+            </label>
+            <label className={`${styles.field} ${styles.fieldRow}`}>
+              <input
+                type="checkbox"
+                checked={config['retry_on_5xx'] !== false}
+                onChange={(e) => onConfigValueChange('retry_on_5xx', e.target.checked)}
+              />
+              <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Retry on 5xx errors</span>
+            </label>
+            <label className={`${styles.field} ${styles.fieldRow}`}>
+              <input
+                type="checkbox"
+                checked={config['retry_on_timeout'] !== false}
+                onChange={(e) => onConfigValueChange('retry_on_timeout', e.target.checked)}
+              />
+              <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Retry on timeout / network error</span>
+            </label>
+            <label className={`${styles.field} ${styles.fieldRow}`}>
+              <input
+                type="checkbox"
+                checked={config['retry_on_4xx'] === true}
+                onChange={(e) => onConfigValueChange('retry_on_4xx', e.target.checked)}
+              />
+              <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Retry on 4xx errors</span>
+            </label>
+          </>
+        ) : null}
+      </div>
       <div className={`${styles.field} ${styles.fieldFull}`}>
         <span className={styles.fieldLabel}>headers</span>
         {headers.map((header, i) => (
@@ -1308,6 +1424,29 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
         >
           + add header
         </button>
+      </div>
+      <div className={styles.section}>
+        <span className={styles.sectionTitle}>Recent Deliveries</span>
+        {deliveriesLoading ? <div className={styles.empty}>Loading recent deliveries...</div> : null}
+        {!deliveriesLoading && deliveriesError ? <div className={styles.inlineWarning}>{deliveriesError}</div> : null}
+        {!deliveriesLoading && !deliveriesError && recentDeliveries.length === 0 ? (
+          <div className={styles.empty}>No recent deliveries.</div>
+        ) : null}
+        {!deliveriesLoading && !deliveriesError && recentDeliveries.length > 0 ? (
+          <div className={styles.deliveryList}>
+            {recentDeliveries.map((delivery) => (
+              <div key={delivery.id} className={styles.deliveryItem}>
+                <div className={styles.deliveryMeta}>
+                  <span className={styles.deliveryTime}>{formatDateTime(delivery.createdAt)}</span>
+                  <span className={styles.deliveryAttempt}>Attempt {delivery.attemptNumber}</span>
+                </div>
+                <span className={`${styles.deliveryBadge} ${delivery.success ? styles.deliverySuccess : styles.deliveryFailure}`}>
+                  {delivery.success ? 'SUCCESS' : 'FAILED'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </>
   );
