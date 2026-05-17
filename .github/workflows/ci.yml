@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('stasis/package-lock.json') }}
 
       - name: Install stasis dependencies
         if: steps.restore-stasis-cache.outputs.cache-hit != 'true'
@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('stasis/package-lock.json') }}
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
@@ -134,7 +134,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('backend/package-lock.json') }}
 
       - name: Install backend dependencies
         if: steps.restore-backend-cache.outputs.cache-hit != 'true'
@@ -146,7 +146,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('backend/package-lock.json') }}
 
       - name: Run backend unit tests
         id: run-backend-unit
@@ -237,7 +237,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install frontend dependencies
         if: steps.restore-frontend-cache.outputs.cache-hit != 'true'
@@ -249,7 +249,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Run frontend tests with coverage
         id: run-frontend-tests
