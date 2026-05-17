@@ -81,28 +81,24 @@ export class SettingsService implements OnModuleInit {
         : this.settingsRepository.create({ key, value: normalizedValue });
       await this.settingsRepository.save(entity);
     } catch (error: unknown) {
-      this.logger.error(
-        `failed to persist setting ${key}: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
+      if (error instanceof BadRequestException) {
+        this.logger.debug(`Validation error for setting ${key}: ${error.message}`);
+      } else {
+        this.logger.error(
+          `failed to persist setting ${key}: ${error instanceof Error ? error.message : String(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
       throw error;
     }
   }
 
   async updateMany(patch: Record<string, SettingValue>): Promise<SettingsMap> {
-    try {
-      const entries = Object.entries(patch);
-      for (const [key, value] of entries) {
-        await this.set(key, value);
-      }
-      return this.getAll();
-    } catch (error: unknown) {
-      this.logger.error(
-        `failed to update settings: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw error;
+    const entries = Object.entries(patch);
+    for (const [key, value] of entries) {
+      await this.set(key, value);
     }
+    return this.getAll();
   }
 
   async getDefaultTrunk(): Promise<{ data: SipTrunkEntity | null }> {

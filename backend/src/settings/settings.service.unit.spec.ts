@@ -66,7 +66,12 @@ describe('SettingsService', () => {
     ));
     trunksRepository.findOne.mockResolvedValue(null);
 
-    await expect(service.updateMany({ default_outbound_trunk_id: 99 })).rejects.toThrow(BadRequestException);
+    const debugSpy = jest.spyOn(service['logger'], 'debug').mockImplementation();
+    try {
+      await expect(service.updateMany({ default_outbound_trunk_id: 99 })).rejects.toThrow(BadRequestException);
+    } finally {
+      debugSpy.mockRestore();
+    }
   });
 
   it('returns null from getDefaultTrunk when the configured trunk is disabled or missing', async () => {
