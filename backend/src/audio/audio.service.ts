@@ -310,7 +310,7 @@ export class AudioService implements OnModuleInit {
     const previewPath = join(this.previewsDir, `${id}.wav`);
 
     try {
-      await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '8000', '-ac', '1', '-c:a', 'pcm_mulaw', convertedPath]);
+      await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '8000', '-ac', '1', '-c:a', 'pcm_s16le', convertedPath]);
       await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '8000', '-ac', '1', '-acodec', 'pcm_mulaw', '-f', 'mulaw', ulawPath]);
       await this.runCommand('ffmpeg', ['-y', '-i', inputPath, '-ar', '22050', '-ac', '1', '-c:a', 'pcm_s16le', previewPath]);
       const durationMs = await this.getDurationMs(previewPath);

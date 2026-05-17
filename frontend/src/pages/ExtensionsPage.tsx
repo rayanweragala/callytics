@@ -75,8 +75,11 @@ export function ExtensionsPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const sortedItems = useMemo(() => [...items].sort((a, b) => a.username.localeCompare(b.username)), [items]);
 
-  function buildSipUri(username: string): string {
+  function buildSipUri(username: string, transportType: 'sip' | 'webrtc'): string {
     const endpointHost = relayActive && relayHostIp ? relayHostIp : hostIp;
+    if (transportType === 'webrtc') {
+      return `sip:${username}@${endpointHost}`;
+    }
     return `sip:${username}@${endpointHost}:5080;transport=udp`;
   }
 
@@ -379,7 +382,7 @@ export function ExtensionsPage() {
                         {item.vpnOnly ? <span className={styles.vpnOnlyBadge}>VPN Only</span> : <span className={styles.vpnOnlyDash}>—</span>}
                       </td>
                       <td className={styles.sipUriCell}>
-                        <span className={styles.dataMono}>{buildSipUri(item.username)}</span>
+                        <span className={styles.dataMono}>{buildSipUri(item.username, item.transportType || 'sip')}</span>
                         {relayActive ? <span className={styles.relayBadge}>relay</span> : null}
                       </td>
                       <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>

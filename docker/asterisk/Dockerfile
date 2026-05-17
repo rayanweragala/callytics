@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     libedit-dev \
     binutils-dev \
     libsrtp2-dev \
+    libopus-dev \
     redis-tools \
     tshark \
     && apt-get clean \
@@ -47,11 +48,24 @@ RUN cd /usr/src && \
         --enable res_pjsip_session \
         --enable chan_pjsip \
         --enable app_stasis \
+        --enable codec_opus \
         menuselect.makeopts && \
     make -j$(nproc) && \
     make install && \
     make samples && \
     make config && \
+    mkdir -p /tmp/codec_opus && \
+    OPUS_ARCH="$(uname -m)" && \
+    if [ "$OPUS_ARCH" = "x86_64" ]; then OPUS_ARCH_DIR="x86-64"; else OPUS_ARCH_DIR="$OPUS_ARCH"; fi && \
+    OPUS_URL="https://downloads.digium.com/pub/telephony/codec_opus/asterisk-20.0/${OPUS_ARCH_DIR}/codec_opus-20.0_current-${OPUS_ARCH}.tar.gz" && \
+    if ! curl -fsSL "$OPUS_URL" -o /tmp/codec_opus.tar.gz; then \
+        curl -fsSL "https://downloads.digium.com/pub/telephony/codec_opus/asterisk-20.0/x86-64/codec_opus-20.0_current-x86_64.tar.gz" -o /tmp/codec_opus.tar.gz; \
+    fi && \
+    tar -xzf /tmp/codec_opus.tar.gz -C /tmp/codec_opus && \
+    find /tmp/codec_opus -name '*.so' -exec cp {} /usr/lib/asterisk/modules/ \; && \
+    mkdir -p /var/lib/asterisk/documentation/thirdparty && \
+    find /tmp/codec_opus -name 'codec_opus_config-*.xml' -exec cp {} /var/lib/asterisk/documentation/thirdparty/ \; && \
+    rm -rf /tmp/codec_opus /tmp/codec_opus.tar.gz && \
     ldconfig && \
     groupadd -f wireshark && \
     (id -u asterisk >/dev/null 2>&1 && usermod -aG wireshark asterisk || true)

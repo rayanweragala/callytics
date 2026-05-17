@@ -152,6 +152,9 @@ export class ExtensionsService implements OnModuleInit {
     if (!extension) {
       throw new NotFoundException(`Extension ${id} not found`);
     }
+    if (extension.transportType === 'webrtc') {
+      return { data: { content: 'Use the browser softphone to register this extension' } };
+    }
     const hostIp = process.env.HOST_IP || '127.0.0.1';
     const content = `sip:${extension.username}@${hostIp}:5080\npassword:${extension.password}\ntransport:udp`;
     return { data: { content } };
@@ -168,11 +171,13 @@ export class ExtensionsService implements OnModuleInit {
     const transportType = extension.transportType === 'webrtc' ? 'webrtc' : 'sip';
     const endpointFlags = transportType === 'webrtc'
       ? [
+          'webrtc = yes',
           'dtls_auto_generate_cert = yes',
           'use_avpf = yes',
           'media_encryption = dtls',
           'ice_support = yes',
           'media_use_received_transport = yes',
+          'rtcp_mux = yes',
         ]
       : [];
 

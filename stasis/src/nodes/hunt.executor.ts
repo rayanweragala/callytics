@@ -67,7 +67,6 @@ async function playBridgeMedia(ariClient: AriLike, bridgeId: string, media: stri
     bridgeId,
     media,
     playbackId,
-    announcer_format: 'ulaw',
   });
 }
 

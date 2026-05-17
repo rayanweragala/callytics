@@ -67,6 +67,34 @@
   gap: 8px;
 }
 
+.dialRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
 .fieldLabel {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -121,6 +149,11 @@
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
+}
+
+.callButton {
+  flex: 0 0 72px;
+  width: 72px;
 }
 
 .connectButton {

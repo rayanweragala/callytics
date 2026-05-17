@@ -37,7 +37,7 @@ async function playMedia(
     };
   };
 
-  await client.bridges.play({ bridgeId: target.id, media, playbackId: playback.id, announcer_format: 'ulaw' });
+  await client.bridges.play({ bridgeId: target.id, media, playbackId: playback.id });
 }
 
 function getCounterKey(session: CallSession, node: FlowNode, kind: 'timeout' | 'invalid'): string {

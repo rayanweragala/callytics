@@ -9,7 +9,7 @@ import type { OperatorItem } from '../../types';
 import styles from './Softphone.module.css';
 
 type RegistrationState = 'unregistered' | 'connecting' | 'registered';
-type CallState = 'idle' | 'incoming' | 'active' | 'ended';
+type CallState = 'idle' | 'incoming' | 'outgoing' | 'active' | 'ended' | 'failed';
 
 interface SoftphoneOperator extends OperatorItem {
   extension: NonNullable<OperatorItem['extension']>;
@@ -24,10 +24,20 @@ interface SipIdentity {
 }
 
 interface SipSessionEventMap {
+  connecting: () => void;
   ended: () => void;
   failed: () => void;
   accepted: () => void;
   confirmed: () => void;
+}
+
+interface SipCallOptions {
+  mediaConstraints: { audio: boolean; video: boolean };
+  sessionDescriptionHandlerOptions?: {
+    peerConnectionOptions?: {
+      rtcConfiguration?: RTCConfiguration;
+    };
+  };
 }
 
 interface SipSession {
@@ -63,6 +73,7 @@ interface SipUserAgentEventMap {
 }
 
 interface SipUserAgent {
+  call(target: string, options: SipCallOptions): SipSession;
   start(): void;
   stop(): void;
   on<T extends keyof SipUserAgentEventMap>(event: T, handler: SipUserAgentEventMap[T]): void;
@@ -106,10 +117,12 @@ export function Softphone() {
   const [callDurationSeconds, setCallDurationSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [dialDestination, setDialDestination] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const uaRef = useRef<SipUserAgent | null>(null);
   const sessionRef = useRef<SipSession | null>(null);
+  const boundSessionRef = useRef<SipSession | null>(null);
   const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ringtoneContextRef = useRef<AudioContext | null>(null);
@@ -320,6 +333,7 @@ export function Softphone() {
     setMuted(false);
     setCallDurationSeconds(0);
     setCallerId(null);
+    boundSessionRef.current = null;
     sessionRef.current = null;
     if (audioRef.current) {
       audioRef.current.srcObject = null;
@@ -339,6 +353,17 @@ export function Softphone() {
     resetCallUi();
     setCallState('ended');
     scheduleEndedReset();
+  };
+
+  const handleCallFailed = () => {
+    resetCallUi();
+    setCallState('failed');
+    clearEndedTimer();
+    endedTimerRef.current = setTimeout(() => {
+      setCallState('idle');
+      setCallerId(null);
+      setActionError(null);
+    }, CALL_ENDED_RESET_MS);
   };
 
   const startDurationTimer = () => {
@@ -367,8 +392,19 @@ export function Softphone() {
   };
 
   const bindSession = (session: SipSession) => {
+    if (boundSessionRef.current === session) {
+      return;
+    }
+
+    boundSessionRef.current = session;
     sessionRef.current = session;
     attachRemoteAudio(session);
+    session.on('connecting', () => {
+      clearEndedTimer();
+      if (session.direction === 'outgoing') {
+        setCallState('outgoing');
+      }
+    });
     session.on('accepted', () => {
       clearEndedTimer();
       setCallState('active');
@@ -382,7 +418,23 @@ export function Softphone() {
       }
     });
     session.on('ended', handleCallEnded);
-    session.on('failed', handleCallEnded);
+    session.on('failed', handleCallFailed);
+  };
+
+  const showOutgoingCallUi = (session: SipSession, destination: string) => {
+    if (sessionRef.current === session && boundSessionRef.current === session) {
+      setCallerId(destination);
+      setCallState('outgoing');
+      setExpanded(true);
+      return;
+    }
+
+    clearEndedTimer();
+    resetCallUi();
+    bindSession(session);
+    setCallerId(destination);
+    setCallState('outgoing');
+    setExpanded(true);
   };
 
   const connect = async () => {
@@ -425,7 +477,9 @@ export function Softphone() {
         setActionError(null);
       });
       userAgent.on('newRTCSession', ({ session }) => {
-        if (session.direction !== 'incoming') {
+        if (session.direction === 'outgoing') {
+          const destination = session.remote_identity?.uri?.user?.trim() || callerId || '';
+          showOutgoingCallUi(session, destination);
           return;
         }
         clearEndedTimer();
@@ -461,6 +515,36 @@ export function Softphone() {
       setRegistrationState('unregistered');
     } catch (error) {
       setActionError(getApiError(error, 'Failed to stop softphone'));
+    }
+  };
+
+  const startOutboundCall = async () => {
+    const userAgent = uaRef.current;
+    const hostIp = hostConfig?.hostIp;
+    const destination = dialDestination.trim();
+    if (!userAgent || !hostIp || !destination) {
+      return;
+    }
+
+    setActionError(null);
+
+    try {
+      const session = userAgent.call(`sip:${destination}@${hostIp}`, {
+        mediaConstraints: {
+          audio: true,
+          video: false,
+        },
+        sessionDescriptionHandlerOptions: {
+          peerConnectionOptions: {
+            rtcConfiguration: {
+              iceServers: [],
+            },
+          },
+        },
+      });
+      showOutgoingCallUi(session, destination);
+    } catch (error) {
+      setActionError(getApiError(error, 'Failed to start call'));
     }
   };
 
@@ -580,12 +664,39 @@ export function Softphone() {
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Operator extension</label>
               <SearchableSelect
-                disabled={registrationState === 'connecting' || callState === 'active'}
+                disabled={registrationState === 'connecting' || callState !== 'idle'}
                 onChange={setSelectedOperatorId}
                 options={operatorOptions}
                 placeholder="Select operator"
                 value={selectedOperatorId}
               />
+            </div>
+          ) : null}
+
+          {registrationState === 'registered' && callState === 'idle' ? (
+            <div className={styles.field}>
+              <label className={styles.fieldLabel} htmlFor="softphone-destination">
+                Destination
+              </label>
+              <div className={styles.dialRow}>
+                <input
+                  className={styles.input}
+                  id="softphone-destination"
+                  onChange={(event) => setDialDestination(event.target.value)}
+                  placeholder="Extension or number"
+                  type="text"
+                  value={dialDestination}
+                />
+                <button
+                  className={`${styles.actionButton} ${styles.answerButton} ${styles.callButton}`}
+                  onClick={() => {
+                    void startOutboundCall();
+                  }}
+                  type="button"
+                >
+                  Call
+                </button>
+              </div>
             </div>
           ) : null}
 
@@ -611,6 +722,24 @@ export function Softphone() {
                   type="button"
                 >
                   Reject
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {callState === 'outgoing' ? (
+            <div className={styles.callCard}>
+              <div className={styles.sectionLabel}>Calling...</div>
+              <div className={styles.callerId}>{callerId || 'Unknown destination'}</div>
+              <div className={styles.actions}>
+                <button
+                  className={`${styles.actionButton} ${styles.rejectButton}`}
+                  onClick={() => {
+                    void hangupCall();
+                  }}
+                  type="button"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
@@ -648,6 +777,10 @@ export function Softphone() {
             <div className={styles.helperText}>Call ended</div>
           ) : null}
 
+          {callState === 'failed' ? (
+            <div className={styles.helperText}>Call failed</div>
+          ) : null}
+
           <div className={styles.actions}>
             <button
               className={`${styles.actionButton} ${
@@ -656,7 +789,7 @@ export function Softphone() {
               disabled={
                 loading ||
                 Boolean(loadError) ||
-                Boolean(callState === 'active') ||
+                callState !== 'idle' ||
                 (!selectedOperator && registrationState !== 'registered')
               }
               onClick={() => {

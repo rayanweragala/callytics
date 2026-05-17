@@ -59,6 +59,11 @@ The backend also writes WebRTC-specific Asterisk settings automatically:
 - ICE support is enabled for WebRTC media negotiation
 - Docker bridge subnets are auto-discovered and written as `local_net` entries so RTP routing stays correct
 
+## Audio and codec notes
+
+- Asterisk is built with Opus codec support through Sangoma `codec_opus`.
+- Audio files are stored as PCM WAV so Asterisk playback stays compatible across prompts and generated media.
+
 ## First Boot Timeline
 
 1. Docker pulls the base images and service images needed by the stack.

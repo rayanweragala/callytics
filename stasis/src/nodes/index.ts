@@ -163,7 +163,6 @@ async function playMedia(
     bridgeId: target.id,
     media,
     playbackId: playback.id,
-    announcer_format: "ulaw",
   });
 }
 

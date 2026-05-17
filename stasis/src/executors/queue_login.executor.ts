@@ -155,7 +155,6 @@ async function playAudioFile(
       bridgeId: session.inboundBridge.id,
       media: `sound:${soundPath}`,
       playbackId: playback.id,
-      announcer_format: 'ulaw',
     });
     return;
   }
@@ -371,7 +370,6 @@ export async function executeQueueLogin(
             bridgeId: session.inboundBridge.id,
             media: `sound:${promptPath}`,
             playbackId: playback.id,
-            announcer_format: 'ulaw',
           });
         } else {
           await channel.play({ media: `sound:${promptPath}` }, playback as { id: string });

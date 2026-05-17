@@ -31,6 +31,15 @@ While the call is active:
 - `Hangup` ends the active session.
 - `Mute` disables your local microphone until you click `Unmute`.
 
+## Outbound calling
+
+Operators can place outbound calls directly from the softphone bubble.
+
+1. Type an extension number or external number into the dial field.
+2. Click `Call`.
+3. While the destination is ringing, the softphone shows `Calling...` with a `Cancel` button.
+4. Once the other side answers, the live call view appears with the timer plus `Hangup` and `Mute` controls.
+
 ## Limitations
 
 - Refreshing the browser disconnects the softphone. After a refresh, click `Connect` again so the browser re-registers.
