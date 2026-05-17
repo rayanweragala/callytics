@@ -27,12 +27,10 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     if (context.getType() !== 'http') {
       return next.handle();
     }
-
     const startedAt = Date.now();
     const http = context.switchToHttp();
     const request = http.getRequest<HttpRequestLike>();
     const response = http.getResponse<HttpResponseLike>();
-
     const logRequest = (statusCode: number) => {
       AppLogger.event('HttpRequest', {
         method: request.method || 'UNKNOWN',
@@ -41,7 +39,6 @@ export class HttpLoggingInterceptor implements NestInterceptor {
         durationMs: Date.now() - startedAt,
       });
     };
-
     return next.handle().pipe(
       tap(() => logRequest(Number(response.statusCode || 200))),
       catchError((error: HttpErrorLike) => {
