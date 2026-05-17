@@ -331,6 +331,10 @@ jobs:
         run: npx tsc -b --noEmit
         working-directory: frontend
 
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
       - name: TypeScript check backend
         run: npx tsc -b --noEmit
         working-directory: backend
