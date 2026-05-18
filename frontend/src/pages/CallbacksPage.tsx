@@ -64,6 +64,7 @@ export function CallbacksPage() {
   const [executeStateById, setExecuteStateById] = useState<Record<number, ExecuteState>>({});
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const pollRef = useRef<number | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
@@ -138,6 +139,7 @@ export function CallbacksPage() {
   };
 
   const handleCancel = async (id: number) => {
+    setIsCancelling(true);
     setRowErrors((current) => ({ ...current, [id]: '' }));
     try {
       await cancelCallback(id);
@@ -145,6 +147,8 @@ export function CallbacksPage() {
       await load(page);
     } catch (error) {
       setRowErrors((current) => ({ ...current, [id]: getApiError(error, 'failed to cancel callback') }));
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -260,7 +264,8 @@ export function CallbacksPage() {
         title="Cancel callback"
         message="Cancel callback?"
         cancelLabel="no"
-        confirmLabel="confirm"
+        confirmLabel={isCancelling ? 'cancelling…' : 'confirm'}
+        isLoading={isCancelling}
         onCancel={() => setConfirmCancelId(null)}
         onConfirm={() => {
           if (confirmCancelId !== null) {

@@ -485,6 +485,7 @@ export function ExtensionsPage() {
           message="Delete this extension? This cannot be undone."
           cancelLabel="cancel"
           confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+          isLoading={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}`}
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => {
             if (confirmDeleteId !== null) {

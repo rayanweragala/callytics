@@ -12,6 +12,7 @@ interface ConfirmDialogProps {
   onSecondary?: () => void;
   onCancel: () => void;
   inline?: boolean;
+  isLoading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -25,6 +26,7 @@ export function ConfirmDialog({
   onSecondary,
   onCancel,
   inline = false,
+  isLoading = false,
 }: ConfirmDialogProps) {
   useEffect(() => {
     if (!open) {
@@ -33,8 +35,10 @@ export function ConfirmDialog({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        event.preventDefault();
-        onCancel();
+        if (!isLoading) {
+          event.preventDefault();
+          onCancel();
+        }
       }
     };
 
@@ -42,7 +46,7 @@ export function ConfirmDialog({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onCancel, open]);
+  }, [isLoading, onCancel, open]);
 
   if (!open) {
     return null;
@@ -61,11 +65,34 @@ export function ConfirmDialog({
         <p className={styles.message} id="confirm-dialog-message">{message}</p>
       </div>
       <div className={styles.actions}>
-        <button className={styles.cancelButton} onClick={onCancel} type="button">{cancelLabel}</button>
+        <button
+          className={styles.cancelButton}
+          onClick={onCancel}
+          type="button"
+          disabled={isLoading}
+        >
+          {cancelLabel}
+        </button>
         {secondaryLabel && onSecondary ? (
-          <button className={styles.secondaryButton} onClick={onSecondary} type="button">{secondaryLabel}</button>
+          <button
+            className={styles.secondaryButton}
+            onClick={onSecondary}
+            type="button"
+            disabled={isLoading}
+          >
+            {secondaryLabel}
+          </button>
         ) : null}
-        <button className={styles.confirmButton} onClick={onConfirm} type="button">{confirmLabel}</button>
+        <button
+          className={`${styles.confirmButton}${isLoading ? ` ${styles.confirmButtonLoading}` : ''}`}
+          onClick={onConfirm}
+          type="button"
+          disabled={isLoading}
+          aria-busy={isLoading}
+        >
+          <span className={styles.confirmButtonLabel}>{confirmLabel}</span>
+          {isLoading ? <span className={styles.confirmSpinner} aria-hidden="true" /> : null}
+        </button>
       </div>
     </div>
   );

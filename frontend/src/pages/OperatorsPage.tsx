@@ -512,6 +512,7 @@ export function OperatorsPage() {
           message="Delete this operator? They will be logged out."
           cancelLabel="cancel"
           confirmLabel={confirmDeleteId !== null && deletingId === confirmDeleteId ? 'deleting…' : 'delete'}
+          isLoading={deletingId !== null}
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => {
             if (confirmDeleteId !== null) {

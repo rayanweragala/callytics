@@ -91,6 +91,20 @@
   cursor: pointer;
 }
 
+.traceButton:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.emptyState {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  border-top: 1px solid var(--border-default);
+}
+
 @media (max-width: 720px) {
   .head,
   .row {

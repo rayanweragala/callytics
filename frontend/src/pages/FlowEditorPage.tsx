@@ -270,6 +270,9 @@ export function FlowEditorPage() {
   const [timeoutWarningConfirmVisible, setTimeoutWarningConfirmVisible] = useState(false);
   const [timeoutWarningMessage, setTimeoutWarningMessage] = useState<string | null>(null);
   const [loadRefError, setLoadRefError] = useState<string | null>(null);
+  const [flowLoadError, setFlowLoadError] = useState<string | null>(null);
+  const [isLoadingFlow, setIsLoadingFlow] = useState(!isDraftRoute);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [pastedNodeIds, setPastedNodeIds] = useState<string[]>([]);
   const nodeValidationIssues = useMemo(() => validateNodeConfigurations(nodes, edges), [nodes, edges]);
   const nodeValidationMap = useMemo(
@@ -475,8 +478,13 @@ export function FlowEditorPage() {
     fitDone.current = false;
     setIsInitialized(false);
     setIsDraft(isDraftRoute);
+    setFlowLoadError(null);
     let active = true;
     const load = async () => {
+      if (!isDraftRoute) {
+        setIsLoadingFlow(true);
+      }
+      try {
       if (isDraftRoute) {
         const draftFlow = createDraftFlow();
         const draftSourceFlow: FlowDetail = {
@@ -524,6 +532,13 @@ export function FlowEditorPage() {
       setSelectedNodeId(focusedNodeId); setSelectedNodeIds(focusedNodeId ? [focusedNodeId] : []); setSelectedEdgeId(null); setEditingGroupId(null); setIsInitialized(true);
       if (focusedNodeId) {
         pendingSubmenuFocusRef.current = null;
+      }
+      } catch (error) {
+        if (!active) return;
+        const msg = getApiError(error, 'failed to load flow');
+        setFlowLoadError(msg);
+      } finally {
+        if (active) setIsLoadingFlow(false);
       }
     };
     void load();
@@ -1112,6 +1127,8 @@ export function FlowEditorPage() {
   };
   const handleConfirmRestore = async () => {
     if (!pendingRestoreVersion || !flow) return;
+    setIsRestoring(true);
+    try {
     const restored = await flowData.restoreVersion(flow.id, pendingRestoreVersion.id);
     if (!restored) return;
     const breadcrumbResponse = await flowData.loadBreadcrumb(flow.id);
@@ -1122,6 +1139,9 @@ export function FlowEditorPage() {
     userEditedRef.current = false;
     setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null);
     setPendingRestoreVersion(null); setRestoreConfirmOpen(false);
+    } finally {
+      setIsRestoring(false);
+    }
   };
   const handleCompareVersion = async (version: FlowVersionSummary) => {
     if (!flow) return;
@@ -1466,6 +1486,40 @@ export function FlowEditorPage() {
 
         <section ref={canvasPanelRef} className={styles.canvasPanel} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { userEditedRef.current = true; handleDrop(event, rfInstance); }}>
           {loadRefError ? <div className={styles.loadRefError}>{loadRefError}</div> : null}
+          {flowLoadError ? (
+            <div className={styles.flowLoadErrorState}>
+              <p className={styles.flowLoadErrorMessage}>{flowLoadError}</p>
+              <button
+                className={styles.flowLoadRetryButton}
+                type="button"
+                onClick={() => {
+                  setFlowLoadError(null);
+                  setIsLoadingFlow(true);
+                  // Re-trigger load by resetting initialized — the effect will re-run on currentFlowId
+                  setIsInitialized(false);
+                  void (async () => {
+                    try {
+                      const [response, breadcrumbResponse] = await Promise.all([getFlow(String(currentFlowId)), getFlowBreadcrumb(currentFlowId)]);
+                      const nextRootFlowId = breadcrumbResponse.data[0]?.flowId ?? response.data.id;
+                      setFlow(response.data); setBreadcrumb(breadcrumbResponse.data); setRootFlowId(nextRootFlowId);
+                      const mappedNodes = mapFlowToNodes(response.data);
+                      const nextNodes = decorateEditorNodes(mappedNodes, null);
+                      const nextEdges = attachEdgeMetadata(mapFlowToEdges(response.data), nextNodes, handleDeleteEdgeWithUserTracking);
+                      setNodes(nextNodes); setEdges(nextEdges); setSavedSnapshot(buildEditorSnapshot(response.data, nextNodes, nextEdges));
+                      userEditedRef.current = false;
+                      setSelectedNodeId(null); setSelectedNodeIds([]); setSelectedEdgeId(null); setEditingGroupId(null); setIsInitialized(true);
+                    } catch (retryError) {
+                      setFlowLoadError(getApiError(retryError, 'failed to load flow'));
+                    } finally {
+                      setIsLoadingFlow(false);
+                    }
+                  })();
+                }}
+              >
+                retry
+              </button>
+            </div>
+          ) : null}
           <div className={styles.canvasWrapper}>
             {/* Empty canvas hint — visible only when just the start node exists */}
             {nodes.filter((n) => !String(n.id).startsWith(SUBFLOW_JUMP_NODE_ID_PREFIX) && n.type !== 'group').length <= 1 ? (
@@ -1617,7 +1671,7 @@ export function FlowEditorPage() {
       />
 
       <ConfirmDialog open={confirmLeaveOpen} title="Unsaved changes" message="You have unsaved changes. Leave anyway?" confirmLabel="Leave" onConfirm={() => { const action = pendingLeaveActionRef.current; pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); if (action) performLeaveAction(action); }} onCancel={() => { pendingLeaveActionRef.current = null; setConfirmLeaveOpen(false); }} />
-      <ConfirmDialog open={restoreConfirmOpen} title="Restore version" message="Restore this version? Current unsaved changes will be lost." confirmLabel="Restore" onConfirm={() => void handleConfirmRestore()} onCancel={() => { setPendingRestoreVersion(null); setRestoreConfirmOpen(false); }} />
+      <ConfirmDialog open={restoreConfirmOpen} title="Restore version" message="Restore this version? Current unsaved changes will be lost." confirmLabel="Restore" isLoading={isRestoring} onConfirm={() => void handleConfirmRestore()} onCancel={() => { if (!isRestoring) { setPendingRestoreVersion(null); setRestoreConfirmOpen(false); } }} />
     </div>
   );
 }

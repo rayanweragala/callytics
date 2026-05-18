@@ -50,6 +50,7 @@ export function CampaignDetailPage() {
     activeCallCount: number;
   } | null>(null);
   const [confirmStopInline, setConfirmStopInline] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -276,13 +277,20 @@ export function CampaignDetailPage() {
         title="Stop campaign"
         message="Stop this campaign?"
         cancelLabel="cancel"
-        confirmLabel="stop"
-        onCancel={() => setConfirmStopInline(false)}
+        confirmLabel={isStopping ? 'stopping…' : 'stop'}
+        isLoading={isStopping}
+        onCancel={() => { if (!isStopping) setConfirmStopInline(false); }}
         onConfirm={() => {
-          setConfirmStopInline(false);
-          void stopCampaign(campaignId).then(() => loadCampaign()).catch((error) => {
-            setErrorText(getApiError(error, 'failed to stop campaign'));
-          });
+          setIsStopping(true);
+          void stopCampaign(campaignId)
+            .then(() => loadCampaign())
+            .catch((error) => {
+              setErrorText(getApiError(error, 'failed to stop campaign'));
+            })
+            .finally(() => {
+              setIsStopping(false);
+              setConfirmStopInline(false);
+            });
         }}
       />
     </PageLayout>

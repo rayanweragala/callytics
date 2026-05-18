@@ -366,6 +366,7 @@ export function InboundRoutesPage() {
         message="Delete this route? This cannot be undone."
         cancelLabel="cancel"
         confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+        isLoading={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}`}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
           if (confirmDeleteId !== null) {

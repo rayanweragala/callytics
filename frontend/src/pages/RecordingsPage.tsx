@@ -32,6 +32,7 @@ export function RecordingsPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showError = (msg: string | null) => {
@@ -85,6 +86,7 @@ export function RecordingsPage() {
   }, [page, limit]);
 
   const confirmDelete = async (id: number) => {
+    setIsDeleting(true);
     try {
       await deleteRecording(id);
       showSuccess(id);
@@ -96,6 +98,8 @@ export function RecordingsPage() {
       setFailedDeleteId(id);
       setConfirmId(null);
       window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 6000);
+    } finally {
+      setIsDeleting(false);
     }
   };
   const blockingLoadError = !isLoading && !isInitialLoad ? loadError : null;
@@ -183,7 +187,8 @@ export function RecordingsPage() {
             title="Delete recording"
             message="Delete this recording? This cannot be undone."
             cancelLabel="cancel"
-            confirmLabel="delete"
+            confirmLabel={isDeleting ? 'deleting…' : 'delete'}
+            isLoading={isDeleting}
             onCancel={() => setConfirmId(null)}
             onConfirm={() => {
               if (confirmId !== null) {

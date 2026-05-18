@@ -103,6 +103,7 @@ export function CampaignsPage() {
   const [uploadSkippedReasons, setUploadSkippedReasons] = useState<string[]>([]);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const showPagination = total > 0;
@@ -319,6 +320,7 @@ export function CampaignsPage() {
   };
 
   const handleDelete = async (campaignId: number) => {
+    setIsDeleting(true);
     clearInlineConfirm();
     setErrorText(null);
     try {
@@ -327,6 +329,8 @@ export function CampaignsPage() {
       showSuccess('Deleted');
     } catch (error) {
       setErrorText(getApiError(error, 'failed to delete campaign'));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -632,7 +636,8 @@ export function CampaignsPage() {
           title="Delete campaign"
           message="Delete this campaign?"
           cancelLabel="cancel"
-          confirmLabel="delete"
+          confirmLabel={isDeleting ? 'deleting…' : 'delete'}
+          isLoading={isDeleting}
           onCancel={clearInlineConfirm}
           onConfirm={() => {
             if (confirmDeleteId !== null) {

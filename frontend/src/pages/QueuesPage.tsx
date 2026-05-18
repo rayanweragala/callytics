@@ -527,6 +527,7 @@ export function QueuesPage() {
         message="Delete this queue? This cannot be undone."
         cancelLabel="cancel"
         confirmLabel={confirmDeleteId !== null && deletingId === confirmDeleteId ? 'deleting…' : 'delete'}
+        isLoading={deletingId !== null}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
           if (confirmDeleteId !== null) {

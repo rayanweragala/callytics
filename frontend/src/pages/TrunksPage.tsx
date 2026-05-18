@@ -1236,6 +1236,7 @@ export function TrunksPage() {
         message="Delete this trunk?"
         cancelLabel="cancel"
         confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+        isLoading={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}`}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
           if (confirmDeleteId !== null) {
