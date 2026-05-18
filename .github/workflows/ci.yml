@@ -22,20 +22,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Restore stasis node_modules cache
         id: restore-stasis-cache
         uses: actions/cache/restore@v4
         with:
           path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('stasis/package-lock.json') }}
+          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('stasis/package-lock.json') }}
 
       - name: Install stasis dependencies
-        if: steps.restore-stasis-cache.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: stasis
 
@@ -44,7 +43,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('stasis/package-lock.json') }}
+          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('stasis/package-lock.json') }}
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
@@ -74,7 +73,7 @@ jobs:
             echo "## Stasis Test Summary"
             echo ""
             echo "- App: stasis"
-            echo "- Node: 20"
+            echo "- Node: 24"
             echo "- Status: ${status}"
             echo "- Tests: ${{ steps.run-stasis-tests.outputs.tests_line }}"
             echo "- Started: $(date -u -d @${{ steps.run-stasis-tests.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
@@ -124,20 +123,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Restore backend node_modules cache
         id: restore-backend-cache
         uses: actions/cache/restore@v4
         with:
           path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('backend/package-lock.json') }}
+          key: backend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('backend/package-lock.json') }}
 
       - name: Install backend dependencies
-        if: steps.restore-backend-cache.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: backend
 
@@ -146,7 +144,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('backend/package-lock.json') }}
+          key: backend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('backend/package-lock.json') }}
 
       - name: Run backend unit tests
         id: run-backend-unit
@@ -199,7 +197,7 @@ jobs:
             echo "## Backend Test Summary"
             echo ""
             echo "- App: backend"
-            echo "- Node: 20"
+            echo "- Node: 24"
             echo "- Status: ${status}"
             echo "- Unit tests: ${{ steps.run-backend-unit.outputs.tests_line }}"
             echo "- Unit started: $(date -u -d @${{ steps.run-backend-unit.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
@@ -227,20 +225,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Restore frontend node_modules cache
         id: restore-frontend-cache
         uses: actions/cache/restore@v4
         with:
           path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('frontend/package-lock.json') }}
+          key: frontend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install frontend dependencies
-        if: steps.restore-frontend-cache.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: frontend
 
@@ -249,7 +246,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('frontend/package-lock.json') }}
+          key: frontend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Run frontend tests with coverage
         id: run-frontend-tests
@@ -279,7 +276,7 @@ jobs:
             echo "## Frontend Test Summary"
             echo ""
             echo "- App: frontend"
-            echo "- Node: 20"
+            echo "- Node: 24"
             echo "- Status: ${status}"
             echo "- Tests: ${{ steps.run-frontend-tests.outputs.tests_line }}"
             echo "- Started: $(date -u -d @${{ steps.run-frontend-tests.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
@@ -304,17 +301,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Restore workspace node_modules cache
         id: restore-workspace-cache
         uses: actions/cache/restore@v4
         with:
           path: node_modules
-          key: workspace-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: workspace-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
 
       - name: Install workspace dependencies
         if: steps.restore-workspace-cache.outputs.cache-hit != 'true'
@@ -325,7 +322,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: node_modules
-          key: workspace-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          key: workspace-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
 
       - name: TypeScript check frontend
         run: npx tsc -b --noEmit
