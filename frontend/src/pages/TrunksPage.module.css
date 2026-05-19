@@ -215,6 +215,11 @@
   opacity: 0.88;
 }
 
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .secondaryButton {
   display: inline-flex;
   align-items: center;
@@ -229,6 +234,11 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .editButton:hover {
@@ -250,6 +260,12 @@
   font-weight: 500;
   cursor: pointer;
   text-transform: lowercase;
+  transition: opacity 0.15s;
+}
+
+.toggleButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .toggleLabel {

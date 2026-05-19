@@ -370,3 +370,29 @@
 .input {
   font-size: 14px;
 }
+
+/* ── Skeleton loading state ───────────────────────────────── */
+@keyframes callLogShimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeletonRow td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.skeletonCell {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--border-strong) 25%,
+    var(--surface-elevated) 50%,
+    var(--border-strong) 75%
+  );
+  background-size: 600px 100%;
+  animation: callLogShimmer 1.4s ease-in-out infinite;
+  width: 80%;
+}

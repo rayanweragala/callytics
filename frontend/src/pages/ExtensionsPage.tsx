@@ -316,7 +316,7 @@ export function ExtensionsPage() {
                 />
               </label>
               <div className={styles.formActions}>
-                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
+                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
               </div>
               <div className={styles.vpnToggleField}>
                 <div>
@@ -390,7 +390,7 @@ export function ExtensionsPage() {
                         <div className={styles.actions}>
                           <>
                             <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => openEdit(item)} type="button">edit</button>
-                            <button className={`${styles.secondaryButton} ${styles.qrButton}`} onClick={() => void handleOpenQr(item)} type="button">{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
+                            <button className={`${styles.secondaryButton} ${styles.qrButton}`} onClick={() => void handleOpenQr(item)} type="button" disabled={busyKey === `qr-${item.id}`}>{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
                             <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
                           </>
                         </div>
@@ -459,8 +459,8 @@ export function ExtensionsPage() {
                               </span>
                             </div>
                             <div className={styles.formActions}>
-                              <button className={styles.secondaryButton} onClick={closeEdit} type="button">cancel</button>
-                              <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              <button className={styles.secondaryButton} onClick={closeEdit} type="button" disabled={busyKey === `edit-${item.id}`}>cancel</button>
+                              <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()} disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
                           </div>
                         </td>

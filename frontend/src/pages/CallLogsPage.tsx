@@ -101,6 +101,7 @@ export function CallLogsPage() {
   const [qualityDrawerCallId, setQualityDrawerCallId] = useState<string | null>(null);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [isSipLoading, setIsSipLoading] = useState(true);
 
   const [searchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState('');
@@ -211,6 +212,8 @@ export function CallLogsPage() {
         })));
       } catch {
         // Keep top section resilient to partial failures.
+      } finally {
+        if (active) setIsSipLoading(false);
       }
     };
 
@@ -354,7 +357,7 @@ export function CallLogsPage() {
           ) : null}
           <SipEndpointsPanel
             sipStatuses={pagedSipStatuses}
-            loading={false}
+            loading={isSipLoading}
             page={sipPage}
             totalPages={sipTotalPages}
             onPageChange={setSipPage}
@@ -402,103 +405,110 @@ export function CallLogsPage() {
         </div>
 
         <div className={styles.tableCard}>
-          {loading ? <div className={styles.emptyState}>Loading call logs...</div> : null}
-          {!loading && (
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Caller</th>
-                  <th>Direction</th>
-                  <th>Flow</th>
-                  <th>Campaign</th>
-                  <th>Duration</th>
-                  <th>Quality</th>
-                  <th>Date</th>
-                  <th>End reason</th>
-                  <th>Logs</th>
-                  <th className={styles.actionsHeader}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className={styles.emptyState}>No call logs found.</td>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Caller</th>
+                <th>Direction</th>
+                <th>Flow</th>
+                <th>Campaign</th>
+                <th>Duration</th>
+                <th>Quality</th>
+                <th>Date</th>
+                <th>End reason</th>
+                <th>Logs</th>
+                <th className={styles.actionsHeader}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: PAGE_LIMIT }).map((_, index) => (
+                  // eslint-disable-next-line react/no-array-index-key
+                  <tr key={index} className={styles.skeletonRow}>
+                    {Array.from({ length: 10 }).map((__, col) => (
+                      // eslint-disable-next-line react/no-array-index-key
+                      <td key={col}><span className={styles.skeletonCell} /></td>
+                    ))}
                   </tr>
-                ) : data.map((item) => {
-                  const quality = qualityByCall[item.callUuid];
-                  const from = shiftIso(item.startedAt, -10000);
-                  const to = shiftIso(item.endedAt ?? item.startedAt, 10000);
-                  const hasLogsDrillDown = Boolean(item.callUuid && from && to);
-                  return (
-                    <tr
-                      key={`${item.id}-${item.callUuid}`}
-                      className={styles.logRow}
-                      onClick={() => setTraceCallUuid(item.callUuid)}
-                    >
-                      <td className={styles.mono}>{item.callerNumber || '—'}</td>
-                      <td className={styles.mono}>{item.direction || '—'}</td>
-                      <td className={styles.flowName}>{item.flowName || '—'}</td>
-                      <td className={styles.flowName}>{item.campaignName || '—'}</td>
-                      <td className={styles.mono}>{formatDuration(item.durationSeconds)}</td>
-                      <td>
-                        {quality ? (
-                          <MosBadge
-                            grade={quality.grade}
-                            mos={quality.mos}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setQualityDrawerCallId(item.callUuid);
-                            }}
-                          />
-                        ) : (
-                          <span className={styles.missingQuality}>—</span>
-                        )}
-                      </td>
-                      <td className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</td>
-                      <td><span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span></td>
-                      <td>
-                        <button
-                          className={`${styles.traceButton} ${styles.logsButton}`}
-                          disabled={!hasLogsDrillDown}
+                ))
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className={styles.emptyState}>No call logs found.</td>
+                </tr>
+              ) : data.map((item) => {
+                const quality = qualityByCall[item.callUuid];
+                const from = shiftIso(item.startedAt, -10000);
+                const to = shiftIso(item.endedAt ?? item.startedAt, 10000);
+                const hasLogsDrillDown = Boolean(item.callUuid && from && to);
+                return (
+                  <tr
+                    key={`${item.id}-${item.callUuid}`}
+                    className={styles.logRow}
+                    onClick={() => setTraceCallUuid(item.callUuid)}
+                  >
+                    <td className={styles.mono}>{item.callerNumber || '—'}</td>
+                    <td className={styles.mono}>{item.direction || '—'}</td>
+                    <td className={styles.flowName}>{item.flowName || '—'}</td>
+                    <td className={styles.flowName}>{item.campaignName || '—'}</td>
+                    <td className={styles.mono}>{formatDuration(item.durationSeconds)}</td>
+                    <td>
+                      {quality ? (
+                        <MosBadge
+                          grade={quality.grade}
+                          mos={quality.mos}
                           onClick={(event) => {
                             event.stopPropagation();
-                            if (!hasLogsDrillDown || !from || !to) return;
-                            const params = new URLSearchParams({
-                              uniqueid: item.callUuid,
-                              from,
-                              to,
-                            });
-                            if (item.callerNumber) {
-                              params.set('callerNumber', item.callerNumber);
-                            }
-                            if (item.calleeNumber) {
-                              params.set('destination', item.calleeNumber);
-                            }
-                            navigate(`/logs?${params.toString()}`);
+                            setQualityDrawerCallId(item.callUuid);
                           }}
-                          type="button"
-                        >
-                          Logs
-                        </button>
-                      </td>
-                      <td className={styles.traceCell}>
-                        <button
-                          className={styles.traceButton}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setTraceCallUuid(item.callUuid);
-                          }}
-                          type="button"
-                        >
-                          {'>'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                        />
+                      ) : (
+                        <span className={styles.missingQuality}>—</span>
+                      )}
+                    </td>
+                    <td className={styles.timestamp}>{item.startedAt ? formatDateTime(item.startedAt) : '—'}</td>
+                    <td><span className={`${styles.badge} ${endReasonClass(item.endReason)}`}>{item.endReason || 'unknown'}</span></td>
+                    <td>
+                      <button
+                        className={`${styles.traceButton} ${styles.logsButton}`}
+                        disabled={!hasLogsDrillDown}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (!hasLogsDrillDown || !from || !to) return;
+                          const params = new URLSearchParams({
+                            uniqueid: item.callUuid,
+                            from,
+                            to,
+                          });
+                          if (item.callerNumber) {
+                            params.set('callerNumber', item.callerNumber);
+                          }
+                          if (item.calleeNumber) {
+                            params.set('destination', item.calleeNumber);
+                          }
+                          navigate(`/logs?${params.toString()}`);
+                        }}
+                        type="button"
+                      >
+                        Logs
+                      </button>
+                    </td>
+                    <td className={styles.traceCell}>
+                      <button
+                        className={styles.traceButton}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setTraceCallUuid(item.callUuid);
+                        }}
+                        type="button"
+                      >
+                        {'>'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
 
           {showPagination ? (
             <div className={styles.paginationWrap}>

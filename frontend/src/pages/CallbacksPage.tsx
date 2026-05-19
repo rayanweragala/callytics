@@ -133,8 +133,12 @@ export function CallbacksPage() {
       }, 1500);
       await load(page);
     } catch (error) {
-      setExecuteStateById((current) => ({ ...current, [id]: 'idle' }));
       setRowErrors((current) => ({ ...current, [id]: getApiError(error, 'failed to execute callback') }));
+    } finally {
+      // Only reset if still in loading — avoids clobbering the saved flash on success
+      setExecuteStateById((current) =>
+        current[id] === 'loading' ? { ...current, [id]: 'idle' } : current
+      );
     }
   };
 

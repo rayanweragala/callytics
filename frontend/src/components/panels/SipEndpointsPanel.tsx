@@ -1,5 +1,4 @@
 import { EndpointStatusRow } from '../EndpointStatusRow';
-import { Loading } from '../common/Loading';
 import type { SipEndpointStatus } from '../../types';
 import styles from './SipEndpointsPanel.module.css';
 
@@ -11,6 +10,8 @@ interface SipEndpointsPanelProps {
   onPageChange: (page: number) => void;
 }
 
+const SKELETON_COUNT = 3;
+
 export function SipEndpointsPanel({ sipStatuses, loading, page, totalPages, onPageChange }: SipEndpointsPanelProps) {
   const showPagination = sipStatuses.length > 0 || totalPages > 1;
   return (
@@ -20,7 +21,15 @@ export function SipEndpointsPanel({ sipStatuses, loading, page, totalPages, onPa
       </div>
       <div className={styles.panelBody}>
         {loading ? (
-          <Loading />
+          <div className={styles.endpointTable}>
+            {Array.from({ length: SKELETON_COUNT }).map((_, index) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <div key={index} className={styles.skeletonRow}>
+                <span className={styles.skeletonDot} />
+                <span className={styles.skeletonLine} />
+              </div>
+            ))}
+          </div>
         ) : (
           <div className={styles.endpointTable}>
             {sipStatuses.length === 0 ? <div className={styles.empty}>No extensions registered.</div> : sipStatuses.map((endpoint) => <EndpointStatusRow key={endpoint.endpoint} endpoint={endpoint} />)}

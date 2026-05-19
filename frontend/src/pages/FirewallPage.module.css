@@ -83,6 +83,15 @@
   border-color: var(--primitive-red);
 }
 
+.secondaryButton:disabled,
+.whitelistButton:disabled,
+.unblockButton:disabled,
+.optionCard:disabled,
+.durationButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .topGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.9fr) minmax(0, 1fr);

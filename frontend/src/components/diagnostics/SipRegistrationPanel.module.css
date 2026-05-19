@@ -140,3 +140,8 @@
   color: var(--primitive-amber);
   border-color: var(--primitive-amber);
 }
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

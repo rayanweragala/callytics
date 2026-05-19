@@ -1,6 +1,7 @@
 import { SearchableSelect, type SearchableSelectOption } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import type { AudioFileItem, ContactNumber, HuntDestination } from '../../types';
+import { getMediaBaseUrl } from '../../lib/backendBaseUrl';
 import styles from './HuntConfigPanel.module.css';
 
 interface HuntConfigPanelProps {
@@ -78,7 +79,7 @@ export function HuntConfigPanel({
     }
     return acc;
   }, {});
-  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const BASE = getMediaBaseUrl();
   const holdAudioItem = audioItems.find((item) => String(item.id) === String(config.hold_audio_file_id));
   const busyAudioItem = audioItems.find((item) => String(item.id) === String(config.busy_audio_file_id));
 

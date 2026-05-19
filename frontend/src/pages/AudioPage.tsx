@@ -13,9 +13,10 @@ import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
 import { formatDateTime } from '../lib/time';
 import { useWindowWidth } from '../hooks/useWindowWidth';
+import { getMediaBaseUrl } from '../lib/backendBaseUrl';
 import styles from './AudioPage.module.css';
 
-const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const backendBase = getMediaBaseUrl();
 const DEFAULT_TTS_VOICE = 'en_US-lessac-medium';
 type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
 type PreviewState = 'idle' | 'busy' | 'failed';
@@ -295,7 +296,7 @@ export function AudioPage() {
             <input className={styles.input} placeholder="display name" value={uploadName} onChange={(e) => { clearUploadFeedback(); setUploadName(e.target.value); }} />
             <AudioUploadZone file={uploadFile} onFileSelect={(f) => { clearUploadFeedback(); setUploadFile(f); }} />
             <div className={styles.actionRow}>
-              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleUpload()}>
+              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleUpload()} disabled={uploadState === 'busy'}>
                 {uploadState === 'busy' ? 'uploading…' : uploadState === 'saved' ? 'uploaded ✓' : uploadState === 'failed' ? 'failed' : 'upload'}
               </button>
               {uploadError && <div className={styles.failedText}>{uploadError}</div>}
@@ -363,7 +364,7 @@ export function AudioPage() {
               <button className={styles.previewButton} type="button" disabled={previewState === 'busy'} onClick={() => void handlePreview()}>
                 {previewState === 'busy' ? 'previewing…' : 'preview'}
               </button>
-              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleTts()}>
+              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleTts()} disabled={ttsState === 'busy'}>
                 {ttsState === 'busy' ? 'saving…' : ttsState === 'saved' ? 'saved ✓' : ttsState === 'failed' ? 'failed' : 'save'}
               </button>
             </div>
