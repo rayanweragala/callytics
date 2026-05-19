@@ -1,7 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
+import { getSocketBaseUrl, getSocketPath } from './backendBaseUrl';
 
-const SOCKET_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const SOCKET_BASE_URL = getSocketBaseUrl();
 
 export const diagnosticsSocket: Socket = io(SOCKET_BASE_URL, {
   transports: ['websocket'],
+  path: getSocketPath(),
 });

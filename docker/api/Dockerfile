@@ -8,7 +8,8 @@ ENV NPM_CONFIG_AUDIT=false \
     NPM_CONFIG_FETCH_RETRY_FACTOR=2 \
     NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
     NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
-    NPM_CONFIG_FETCH_TIMEOUT=180000
+    NPM_CONFIG_FETCH_TIMEOUT=180000 \
+    NODE_PATH=/app/backend/node_modules:/app/node_modules
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
@@ -25,7 +26,7 @@ COPY package.json ./package.json
 COPY package-lock.json ./package-lock.json
 COPY backend/package.json ./backend/package.json
 
-RUN --mount=type=cache,target=/root/.npm npm ci --workspace backend --prefer-offline --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm npm ci --workspace backend --install-strategy=nested --prefer-offline --no-audit --no-fund
 
 COPY backend ./backend
 

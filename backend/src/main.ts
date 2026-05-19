@@ -1,20 +1,25 @@
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import express from 'express';
 import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { AppLogger } from './logger/app-logger';
 
 async function bootstrap(): Promise<void> {
+  const expressApp = express();
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
-    new ExpressAdapter(),
+    new ExpressAdapter(expressApp),
     {
+      bodyParser: true,
       logger: new AppLogger('NestApplication'),
     },
   );
   app.enableCors({ origin: '*' });
+  app.useWebSocketAdapter(new IoAdapter(app.getHttpServer()));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

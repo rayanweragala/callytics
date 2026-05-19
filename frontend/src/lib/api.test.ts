@@ -315,7 +315,7 @@ describe('api library', () => {
     await expect(api.getCapturePackets('abc/123')).resolves.toEqual([]);
     await expect(api.getCapturePackets('abc/123')).resolves.toEqual([]);
 
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3001/capture/packets/abc%2F123');
+    expect(fetchMock).toHaveBeenCalledWith('/api/capture/packets/abc%2F123');
     fetchMock.mockRestore();
   });
 

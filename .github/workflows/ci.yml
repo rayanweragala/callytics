@@ -31,19 +31,18 @@ jobs:
         id: restore-stasis-cache
         uses: actions/cache/restore@v4
         with:
-          path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('stasis/package-lock.json') }}
+          path: node_modules
+          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
 
       - name: Install stasis dependencies
-        run: npm ci
-        working-directory: stasis
+        run: npm ci --workspace stasis
 
       - name: Save stasis node_modules cache
         if: success() && steps.restore-stasis-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('stasis/package-lock.json') }}
+          path: node_modules
+          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
