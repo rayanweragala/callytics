@@ -52,7 +52,7 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
-          cache-dependency-path: stasis/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install stasis dependencies
         run: npm ci --workspace stasis
