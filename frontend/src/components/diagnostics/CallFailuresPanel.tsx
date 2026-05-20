@@ -6,6 +6,7 @@ import { SkeletonRow } from '../common/skeleton';
 
 interface CallFailuresPanelProps {
   items: DiagnosticsFailureItem[];
+  loading?: boolean;
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -13,7 +14,7 @@ interface CallFailuresPanelProps {
   onFailureClick?: (item: DiagnosticsFailureItem) => void;
 }
 
-export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTraceOpen, onFailureClick }: CallFailuresPanelProps) {
+export function CallFailuresPanel({ items, loading = false, page, totalPages, onPageChange, onTraceOpen, onFailureClick }: CallFailuresPanelProps) {
   return (
     <section className={styles.panel}>
       <div className={styles.header}>
@@ -33,7 +34,7 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTra
           <span>Trace</span>
         </div>
 
-        {items.length === 0 ? (
+        {loading ? (
           <>
             {Array.from({ length: 3 }, (_, i) => (
               <SkeletonRow key={i} columns={[
@@ -47,6 +48,8 @@ export function CallFailuresPanel({ items, page, totalPages, onPageChange, onTra
               ]} />
             ))}
           </>
+        ) : items.length === 0 ? (
+          <div className={styles.emptyState}>No call failures recorded.</div>
         ) : (
           items.map((item) => (
             <div className={styles.row} key={item.id} onClick={() => onFailureClick?.(item)} role="button" tabIndex={0} onKeyDown={(event) => {

@@ -6,6 +6,14 @@ For quick softphone setup, extensions can provide a QR code compatible with Linp
 
 Extension status is visible in diagnostics, making it easier to confirm whether a phone is registered and reachable. The same extensions can also be used by operators when logging into queues from their softphones.
 
+## WebRTC extensions
+
+WebRTC extensions are meant for the built-in browser softphone, not Zoiper or Linphone registration.
+
+- The SIP URI shown for a WebRTC extension is reference information only.
+- Registration for WebRTC extensions happens through the browser softphone.
+- QR provisioning is not available for WebRTC extensions.
+
 ## Capabilities
 
 - Database-backed PJSIP extension provisioning

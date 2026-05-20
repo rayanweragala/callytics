@@ -315,7 +315,7 @@ describe('api library', () => {
     await expect(api.getCapturePackets('abc/123')).resolves.toEqual([]);
     await expect(api.getCapturePackets('abc/123')).resolves.toEqual([]);
 
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3001/capture/packets/abc%2F123');
+    expect(fetchMock).toHaveBeenCalledWith('/api/capture/packets/abc%2F123');
     fetchMock.mockRestore();
   });
 
@@ -343,6 +343,19 @@ describe('api library', () => {
     expect(axios.get).toHaveBeenCalledWith('/call-logs/abc%2F123/trace');
     expect(axios.get).toHaveBeenCalledWith('/quality/abc%2F123');
     expect(axios.get).toHaveBeenCalledWith('/call-logs/export', { params: { search: '1001' }, responseType: 'blob' });
+  });
+
+  it('webhook delivery helpers call correct endpoints', async () => {
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [], total: 0, page: 1, limit: 20 } });
+    (axios.get as any).mockResolvedValueOnce({ data: { data: [] } });
+
+    await api.listWebhookDeliveries({ page: 1, limit: 20, success: 'false', nodeId: 'wh-1' });
+    await api.getWebhookNodeDeliveries('wh/1');
+
+    expect(axios.get).toHaveBeenCalledWith('/webhook-deliveries', {
+      params: { page: 1, limit: 20, success: 'false', flow_id: undefined, node_id: 'wh-1', from_date: undefined, to_date: undefined },
+    });
+    expect(axios.get).toHaveBeenCalledWith('/webhook-deliveries/node/wh%2F1');
   });
 
   it('operator/contact/queue helpers call correct endpoints', async () => {

@@ -70,7 +70,7 @@ async function playMedia(
     };
   };
 
-  await client.bridges.play({ bridgeId: target.id, media, playbackId: playback.id, announcer_format: 'ulaw' });
+  await client.bridges.play({ bridgeId: target.id, media, playbackId: playback.id });
 }
 
 async function playQueuePrompt(

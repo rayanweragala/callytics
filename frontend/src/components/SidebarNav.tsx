@@ -25,6 +25,9 @@ export function SidebarNav() {
             <NavLink to="/call-logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               call logs
             </NavLink>
+            <NavLink to="/webhook-logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              webhook logs
+            </NavLink>
             <NavLink to="/capture" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               capture
             </NavLink>
@@ -81,6 +84,9 @@ export function SidebarNav() {
             </NavLink>
             <NavLink to="/backup" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               backup & restore
+            </NavLink>
+            <NavLink to="/settings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
+              settings
             </NavLink>
             <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
               preflight

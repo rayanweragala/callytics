@@ -132,6 +132,10 @@ export function FirewallPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [whitelistValue, setWhitelistValue] = useState('');
+  const [unblockingIps, setUnblockingIps] = useState<Record<string, boolean>>({});
+  const [whitelistingIps, setWhitelistingIps] = useState<Record<string, boolean>>({});
+  const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const feedRef = useRef<HTMLDivElement | null>(null);
   const feedPausedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -199,6 +203,7 @@ export function FirewallPage() {
   }, []);
 
   const saveConfig = async (patch: Partial<FirewallConfig>) => {
+    setIsSavingConfig(true);
     setError(null);
     try {
       const next = await updateFirewallConfig({
@@ -214,36 +219,47 @@ export function FirewallPage() {
       saveTimerRef.current = setTimeout(() => setSavedFlash(false), 900);
     } catch (err) {
       setError(getApiError(err, 'failed to save firewall config'));
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
   const handleUnblock = async (ip: string) => {
+    setUnblockingIps((current) => ({ ...current, [ip]: true }));
     try {
       await unblockFirewallIp(ip);
       setBlocked((current) => current.filter((item) => item.ip !== ip));
     } catch (err) {
       setError(getApiError(err, 'failed to unblock address'));
+    } finally {
+      setUnblockingIps((current) => ({ ...current, [ip]: false }));
     }
   };
 
   const handleWhitelist = async (ip: string) => {
+    setWhitelistingIps((current) => ({ ...current, [ip]: true }));
     try {
       await whitelistFirewallIp(ip);
       setBlocked((current) => current.filter((item) => item.ip !== ip));
     } catch (err) {
       setError(getApiError(err, 'failed to whitelist address'));
+    } finally {
+      setWhitelistingIps((current) => ({ ...current, [ip]: false }));
     }
   };
 
   const addWhitelistTag = async () => {
     const value = whitelistValue.trim();
     if (!value) return;
+    setIsSavingWhitelist(true);
     try {
       await whitelistFirewallIp(value);
       setWhitelistValue('');
       setSavedFlash(true);
     } catch (err) {
       setError(getApiError(err, 'failed to add whitelist address'));
+    } finally {
+      setIsSavingWhitelist(false);
     }
   };
 
@@ -363,8 +379,8 @@ export function FirewallPage() {
                 <div className={styles.blockedMeta}>blocked {formatDateTime(item.createdAt)}</div>
                 <div className={styles.blockedMeta}>duration {item.expiresAt ? formatDateTime(item.expiresAt) : 'permanent'}</div>
                 <div className={styles.cardActions}>
-                  <button className={styles.whitelistButton} type="button" onClick={() => void handleWhitelist(item.ip)}>whitelist</button>
-                  <button className={styles.unblockButton} type="button" onClick={() => void handleUnblock(item.ip)}>unblock</button>
+                  <button className={styles.whitelistButton} type="button" onClick={() => void handleWhitelist(item.ip)} disabled={!!whitelistingIps[item.ip] || !!unblockingIps[item.ip]}>{whitelistingIps[item.ip] ? 'saving…' : 'whitelist'}</button>
+                  <button className={styles.unblockButton} type="button" onClick={() => void handleUnblock(item.ip)} disabled={!!unblockingIps[item.ip] || !!whitelistingIps[item.ip]}>{unblockingIps[item.ip] ? 'unblocking…' : 'unblock'}</button>
                 </div>
               </article>
             ))}
@@ -385,7 +401,7 @@ export function FirewallPage() {
             <div className={`${styles.savedFlash} ${savedFlash ? styles.savedFlashActive : ''}`}>saved</div>
             <div className={styles.optionGrid}>
               {(['iptables', 'fail2ban'] as const).map((mode) => (
-                <button className={`${styles.optionCard} ${config.enforcementMode === mode ? styles.optionCardActive : ''}`} type="button" key={mode} onClick={() => void saveConfig({ enforcementMode: mode })}>
+                <button className={`${styles.optionCard} ${config.enforcementMode === mode ? styles.optionCardActive : ''}`} type="button" key={mode} onClick={() => void saveConfig({ enforcementMode: mode })} disabled={isSavingConfig}>
                   <strong>{mode}</strong>
                   <span>{mode === 'iptables' ? 'local DROP rules, no service dependency' : 'host fail2ban jail integration'}</span>
                 </button>
@@ -398,12 +414,12 @@ export function FirewallPage() {
             <input className={styles.slider} type="range" min="1" max="60" value={Math.round(config.timeWindowSeconds / 60)} onChange={(event) => void saveConfig({ timeWindowSeconds: Number(event.target.value) * 60 })} />
             <div className={styles.durationButtons}>
               {[3600, 86400, null].map((value) => (
-                <button className={`${styles.durationButton} ${config.blockDurationSeconds === value ? styles.durationActive : ''}`} type="button" key={String(value)} onClick={() => void saveConfig({ blockDurationSeconds: value })}>{formatDuration(value)}</button>
+                <button className={`${styles.durationButton} ${config.blockDurationSeconds === value ? styles.durationActive : ''}`} type="button" key={String(value)} onClick={() => void saveConfig({ blockDurationSeconds: value })} disabled={isSavingConfig}>{formatDuration(value)}</button>
               ))}
             </div>
             <div className={styles.tagInputRow}>
               <input className={styles.input} value={whitelistValue} placeholder="whitelist IP" onChange={(event) => setWhitelistValue(event.target.value)} />
-              <button className={styles.secondaryButton} type="button" onClick={() => void addWhitelistTag()}>add</button>
+              <button className={styles.secondaryButton} type="button" onClick={() => void addWhitelistTag()} disabled={isSavingWhitelist}>{isSavingWhitelist ? 'adding…' : 'add'}</button>
             </div>
             <div className={styles.trunkSettings}>
               {stats.trunks.map((trunk) => (

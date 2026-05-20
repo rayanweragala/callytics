@@ -8,7 +8,9 @@ describe('SidebarNav', () => {
     renderWithRouter(<SidebarNav />);
     expect(screen.getByText('diagnostics')).toBeInTheDocument();
     expect(screen.getByText('logs')).toBeInTheDocument();
+    expect(screen.getByText('webhook logs')).toBeInTheDocument();
     expect(screen.getByText('flow builder')).toBeInTheDocument();
     expect(screen.getByText('extensions')).toBeInTheDocument();
+    expect(screen.getByText('settings')).toBeInTheDocument();
   });
 });

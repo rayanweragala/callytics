@@ -306,6 +306,22 @@
   overflow: hidden;
 }
 
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sectionTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
 .headerRow {
   display: flex;
   gap: 8px;
@@ -317,6 +333,66 @@
 .headerInput {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.deliveryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.deliveryItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.deliveryMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.deliveryTime,
+.deliveryAttempt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.deliveryTime {
+  color: var(--text-primary);
+}
+
+.deliveryAttempt {
+  color: var(--text-muted);
+}
+
+.deliveryBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.deliverySuccess {
+  color: var(--color-active);
+}
+
+.deliveryFailure {
+  color: var(--color-error);
 }
 
 .headerRemoveButton {

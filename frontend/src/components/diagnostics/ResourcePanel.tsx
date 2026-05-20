@@ -326,6 +326,7 @@ export function ResourcePanel() {
   const [data, setData] = useState<DiagnosticsResourcesResponse | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -371,10 +372,18 @@ export function ResourcePanel() {
           )}
           <button
             className={styles.refreshButton}
-            onClick={() => { void fetchData(); }}
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                await fetchData();
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
             type="button"
+            disabled={isRefreshing}
           >
-            Refresh Now
+            {isRefreshing ? 'Refreshing…' : 'Refresh Now'}
           </button>
         </div>
       </div>

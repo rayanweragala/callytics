@@ -151,7 +151,12 @@ export function TemplatesPage() {
         ) : null}
       </div>
 
+      {loading ? (
+        <Loading message="Loading templates..." />
+      ) : null}
+
       {!loading && !loadError ? (
+        <div className={styles.contentFadeIn}>
         <>
           {importJsonOpen ? (
             <section className={styles.importJsonPanel}>
@@ -226,10 +231,7 @@ export function TemplatesPage() {
 
           <ErrorMessage message={errorText} />
 
-          {loading ? (
-            <Loading message="Loading templates..." />
-          ) : (
-            <div className={styles.tableCard}>
+          <div className={styles.tableCard}>
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -279,7 +281,6 @@ export function TemplatesPage() {
                 </tbody>
               </table>
             </div>
-          )}
 
           <ConfirmDialog
             cancelLabel="Cancel"
@@ -391,6 +392,7 @@ export function TemplatesPage() {
             ) : null}
           </section>
         </>
+        </div>
       ) : null}
     </div>
   );

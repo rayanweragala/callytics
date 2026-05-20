@@ -162,6 +162,11 @@
   opacity: 0.88;
 }
 
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .secondaryButton {
   background: transparent;
   color: var(--text-secondary);
@@ -179,6 +184,11 @@
 .qrButton:hover {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .deleteButton {
@@ -355,6 +365,7 @@
 .skeletonW200 { width: 200px; }
 .skeletonW160 { width: 160px; }
 .skeletonW140 { width: 140px; }
+.skeletonW96  { width:  96px; }
 .skeletonW250 { width: 250px; }
 .skeletonW108 { width: 108px; }
 .skeletonW220 { width: 220px; }

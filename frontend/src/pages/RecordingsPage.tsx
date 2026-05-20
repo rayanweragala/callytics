@@ -7,11 +7,12 @@ import { SkeletonRow } from '../components/common/skeleton';
 import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { deleteRecording, listRecordings } from '../lib/api';
 import { getApiError } from '../lib/apiError';
+import { getMediaBaseUrl } from '../lib/backendBaseUrl';
 import { formatDateTime } from '../lib/time';
 import type { RecordingItem } from '../types';
 import styles from './RecordingsPage.module.css';
 
-const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const backendBase = getMediaBaseUrl();
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null || Number.isNaN(seconds)) return '00:00';
@@ -32,6 +33,7 @@ export function RecordingsPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showError = (msg: string | null) => {
@@ -85,6 +87,7 @@ export function RecordingsPage() {
   }, [page, limit]);
 
   const confirmDelete = async (id: number) => {
+    setIsDeleting(true);
     try {
       await deleteRecording(id);
       showSuccess(id);
@@ -96,6 +99,8 @@ export function RecordingsPage() {
       setFailedDeleteId(id);
       setConfirmId(null);
       window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 6000);
+    } finally {
+      setIsDeleting(false);
     }
   };
   const blockingLoadError = !isLoading && !isInitialLoad ? loadError : null;
@@ -183,7 +188,8 @@ export function RecordingsPage() {
             title="Delete recording"
             message="Delete this recording? This cannot be undone."
             cancelLabel="cancel"
-            confirmLabel="delete"
+            confirmLabel={isDeleting ? 'deleting…' : 'delete'}
+            isLoading={isDeleting}
             onCancel={() => setConfirmId(null)}
             onConfirm={() => {
               if (confirmId !== null) {

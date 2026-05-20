@@ -42,8 +42,11 @@ import { VpnPeerEntity } from './vpn/entities/vpn-peer.entity';
 import { FirewallModule } from './firewall/firewall.module';
 import { BackupModule } from './backup/backup.module';
 import { SettingsModule } from './settings/settings.module';
+import { SettingsEntity } from './settings/settings.entity';
 import { BackupHistoryEntity } from './backup/entities/backup-history.entity';
 import { BackupConfigEntity } from './backup/entities/backup-config.entity';
+import { WebhookDeliveryEntity } from './webhooks/entities/webhook-delivery.entity';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -75,8 +78,10 @@ import { BackupConfigEntity } from './backup/entities/backup-config.entity';
           QueueEntity,
           ContactNumberEntity,
           VpnPeerEntity,
+          SettingsEntity,
           BackupHistoryEntity,
           BackupConfigEntity,
+          WebhookDeliveryEntity,
         ],
         synchronize: false,
         logging: false,
@@ -108,6 +113,7 @@ import { BackupConfigEntity } from './backup/entities/backup-config.entity';
     VpnModule,
     BackupModule,
     SettingsModule,
+    WebhooksModule,
   ],
   controllers: [HealthController],
   providers: [

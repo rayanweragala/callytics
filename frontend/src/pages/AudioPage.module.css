@@ -188,6 +188,11 @@
   opacity: 0.88;
 }
 
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .secondaryButton {
   background: transparent;
   color: var(--text-secondary);
@@ -241,6 +246,11 @@
 .previewButton:hover {
   color: var(--text-primary);
   border-color: var(--border-strong);
+}
+
+.previewButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .failedButton,

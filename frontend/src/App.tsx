@@ -10,6 +10,7 @@ import { InboundRoutesPage } from './pages/InboundRoutesPage';
 import { RecordingsPage } from './pages/RecordingsPage';
 import { TrunksPage } from './pages/TrunksPage';
 import { CallLogsPage } from './pages/CallLogsPage';
+import { WebhookLogsPage } from './pages/WebhookLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { TemplatesPage } from './pages/TemplatesPage';
@@ -25,6 +26,7 @@ import { CallbacksPage } from './pages/CallbacksPage';
 import { VpnPage } from './pages/VpnPage';
 import { FirewallPage } from './pages/FirewallPage';
 import { BackupPage } from './pages/BackupPage';
+import { Softphone } from './components/Softphone/Softphone';
 
 export default function App() {
   return (
@@ -45,6 +47,7 @@ export default function App() {
           <Route path="/inbound" element={<InboundRoutesPage />} />
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/call-logs" element={<CallLogsPage />} />
+          <Route path="/webhook-logs" element={<WebhookLogsPage />} />
           <Route path="/preflight" element={<PreflightPage />} />
           <Route path="/firewall" element={<FirewallPage />} />
           <Route path="/vpn" element={<VpnPage />} />
@@ -58,6 +61,7 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
+      <Softphone />
     </div>
   );
 }

@@ -249,6 +249,25 @@ export interface WebhookNodeConfig {
   include_session_variables?: boolean;
   timeout_ms?: number | null;
   headers?: Array<{ key: string; value: string }>;
+  retry_enabled?: boolean;
+  max_attempts?: number;
+  retry_on_5xx?: boolean;
+  retry_on_timeout?: boolean;
+  retry_on_4xx?: boolean;
+}
+
+export interface WebhookDeliveryItem {
+  id: string;
+  flowId: number | null;
+  nodeId: string | null;
+  callId: string | null;
+  url: string;
+  attemptNumber: number;
+  httpStatus: number | null;
+  responseBody: string | null;
+  success: boolean;
+  errorMessage: string | null;
+  createdAt: string;
 }
 
 export interface FlowNodeData {
@@ -601,10 +620,15 @@ export interface SipTrunkItem {
   createdAt: string;
 }
 
+export type SettingValue = boolean | number | string | null;
+
 export interface SystemSettings {
   default_outbound_trunk_id: number | null;
   record_outbound_calls: boolean;
+  recording_retention_days: number;
 }
+
+export type SettingsPatch = Partial<SystemSettings> & Record<string, SettingValue | undefined>;
 
 export interface TrunkTestResult {
   status: 'reachable' | 'unreachable' | 'not_loaded';

@@ -27,6 +27,7 @@ import type {
   SipPacket,
   RegistrationHealthResponse,
   SipTrunkItem,
+  SettingsPatch,
   SystemSettings,
   TrunkDiagnosticsResult,
   TrunkTestResult,
@@ -50,9 +51,11 @@ import type {
   RelayTunnelStatus,
   VpnPeer,
   VpnStatus,
+  WebhookDeliveryItem,
 } from '../types';
+import { getApiBaseUrl } from './backendBaseUrl';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -357,16 +360,13 @@ export async function getHostConfig(): Promise<HostConfigResponse> {
   return response.data;
 }
 
-export async function getSettings(): Promise<DetailResponse<SystemSettings>> {
-  const response = await api.get<DetailResponse<SystemSettings>>('/settings');
+export async function getSettings(): Promise<SystemSettings> {
+  const response = await api.get<SystemSettings>('/settings');
   return response.data;
 }
 
-export async function updateSettings(payload: {
-  default_outbound_trunk_id?: number | null;
-  record_outbound_calls?: boolean;
-}): Promise<DetailResponse<SystemSettings>> {
-  const response = await api.put<DetailResponse<SystemSettings>>('/settings', payload);
+export async function updateSettings(payload: SettingsPatch): Promise<SystemSettings> {
+  const response = await api.patch<SystemSettings>('/settings', payload);
   return response.data;
 }
 
@@ -642,6 +642,44 @@ export async function listCallLogs(params: {
   callLogId?: number;
 }): Promise<PaginatedResponse<CallLogItem>> {
   const response = await api.get<PaginatedResponse<CallLogItem>>('/call-logs', { params });
+  return response.data;
+}
+
+export async function listWebhookDeliveries(params: {
+  page?: number;
+  limit?: number;
+  success?: 'true' | 'false';
+  flowId?: string;
+  nodeId?: string;
+  fromDate?: string;
+  toDate?: string;
+}): Promise<{
+  data: WebhookDeliveryItem[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  const response = await api.get<{
+    data: WebhookDeliveryItem[];
+    total: number;
+    page: number;
+    limit: number;
+  }>('/webhook-deliveries', {
+    params: {
+      page: params.page,
+      limit: params.limit,
+      success: params.success,
+      flow_id: params.flowId,
+      node_id: params.nodeId,
+      from_date: params.fromDate,
+      to_date: params.toDate,
+    },
+  });
+  return response.data;
+}
+
+export async function getWebhookNodeDeliveries(nodeId: string): Promise<{ data: WebhookDeliveryItem[] }> {
+  const response = await api.get<{ data: WebhookDeliveryItem[] }>(`/webhook-deliveries/node/${encodeURIComponent(nodeId)}`);
   return response.data;
 }
 

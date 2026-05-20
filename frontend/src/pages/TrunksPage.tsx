@@ -166,6 +166,7 @@ const COUNTRY_DIAL_PREFIX: Record<string, string> = {
 const emptySettings: SystemSettings = {
   default_outbound_trunk_id: null,
   record_outbound_calls: false,
+  recording_retention_days: 0,
 };
 
 function toForm(item: SipTrunkItem | null): TrunkFormState {
@@ -226,6 +227,7 @@ export function TrunksPage() {
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [isTogglingId, setIsTogglingId] = useState<Record<number, boolean>>({});
   const badgeTimersRef = useRef<Record<number, number>>({});
   const outboundPollRef = useRef<number | null>(null);
   const inboundPollRef = useRef<number | null>(null);
@@ -275,8 +277,8 @@ export function TrunksPage() {
         getSettings(),
         listTrunks(1000, 0),
       ]);
-      setSettings(settingsResponse.data);
-      setDraftSettings(settingsResponse.data);
+      setSettings(settingsResponse);
+      setDraftSettings(settingsResponse);
       setSettingsTrunkOptions(
         trunksResponse.data
           .filter((item) => item.enabled)
@@ -518,7 +520,7 @@ export function TrunksPage() {
   };
 
   const handleToggleEnabled = async (item: SipTrunkItem) => {
-    setBusyKey(`toggle-${item.id}`);
+    setIsTogglingId((current) => ({ ...current, [item.id]: true }));
     resetMessages();
     try {
       await updateTrunk(item.id, { enabled: !item.enabled });
@@ -526,11 +528,11 @@ export function TrunksPage() {
     } catch (error) {
       showError(getApiError(error, 'failed to update trunk status'));
     } finally {
-      setBusyKey(null);
+      setIsTogglingId((current) => ({ ...current, [item.id]: false }));
     }
   };
 
-  const handleSettingsDraftChange = (patch: Partial<SystemSettings>) => {
+  const handleSettingsDraftChange = (patch: Partial<Pick<SystemSettings, 'default_outbound_trunk_id' | 'record_outbound_calls'>>) => {
     setDraftSettings((current) => ({ ...current, ...patch }));
   };
 
@@ -894,7 +896,7 @@ export function TrunksPage() {
             </label>
             <div className={styles.formActions}>
               <button className={styles.secondaryButton} onClick={hideCreate} type="button">cancel</button>
-              <button className={styles.primaryButton} type="submit">{busyKey === 'create' ? 'saving…' : 'save trunk'}</button>
+              <button className={styles.primaryButton} type="submit" disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save trunk'}</button>
             </div>
           </form>
           {errorText ? <ErrorMessage message={errorText} /> : null}
@@ -999,8 +1001,8 @@ export function TrunksPage() {
                       <td className={styles.dataMono}>{item.port}</td>
                       <td className={styles.rowMuted}>{item.username ? 'Yes' : 'No'}</td>
                       <td>
-                        <button className={`${styles.toggleButton} ${item.enabled ? styles.toggleOn : styles.toggleOff}`} onClick={() => void handleToggleEnabled(item)} type="button">
-                          {busyKey === `toggle-${item.id}` ? <span className={styles.spinner} /> : <span className={styles.toggleKnob} />}
+                        <button className={`${styles.toggleButton} ${item.enabled ? styles.toggleOn : styles.toggleOff}`} onClick={() => void handleToggleEnabled(item)} type="button" disabled={!!isTogglingId[item.id]}>
+                          {isTogglingId[item.id] ? <span className={styles.spinner} /> : <span className={styles.toggleKnob} />}
                           <span>{item.enabled ? 'Enabled' : 'Disabled'}</span>
                         </button>
                       </td>
@@ -1212,7 +1214,7 @@ export function TrunksPage() {
                             </label>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
-                              <button className={styles.primaryButton} type="submit">{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              <button className={styles.primaryButton} type="submit" disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
                           </form>
                         </td>
@@ -1235,6 +1237,7 @@ export function TrunksPage() {
         message="Delete this trunk?"
         cancelLabel="cancel"
         confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+        isLoading={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}`}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
           if (confirmDeleteId !== null) {

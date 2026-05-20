@@ -16,6 +16,7 @@ import {
   updateQueue,
 } from '../lib/api';
 import { getApiError } from '../lib/apiError';
+import { getMediaBaseUrl } from '../lib/backendBaseUrl';
 import { formatDateTime } from '../lib/time';
 import { useWindowWidth } from '../hooks/useWindowWidth';
 import type { AudioFileItem, OperatorItem, QueueItem } from '../types';
@@ -83,7 +84,7 @@ function OperatorPickerRow({
 
 export function QueuesPage() {
   const windowWidth = useWindowWidth();
-  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const BASE = getMediaBaseUrl();
   const [queues, setQueues] = useState<QueueItem[]>([]);
   const [operators, setOperators] = useState<OperatorItem[]>([]);
   const [audioItems, setAudioItems] = useState<AudioFileItem[]>([]);
@@ -527,6 +528,7 @@ export function QueuesPage() {
         message="Delete this queue? This cannot be undone."
         cancelLabel="cancel"
         confirmLabel={confirmDeleteId !== null && deletingId === confirmDeleteId ? 'deleting…' : 'delete'}
+        isLoading={deletingId !== null}
         onCancel={() => setConfirmDeleteId(null)}
         onConfirm={() => {
           if (confirmDeleteId !== null) {

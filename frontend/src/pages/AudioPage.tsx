@@ -13,9 +13,10 @@ import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import type { AudioFileItem, AudioVoiceItem } from '../types';
 import { formatDateTime } from '../lib/time';
 import { useWindowWidth } from '../hooks/useWindowWidth';
+import { getMediaBaseUrl } from '../lib/backendBaseUrl';
 import styles from './AudioPage.module.css';
 
-const backendBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const backendBase = getMediaBaseUrl();
 const DEFAULT_TTS_VOICE = 'en_US-lessac-medium';
 type ActionState = 'idle' | 'busy' | 'saved' | 'failed';
 type PreviewState = 'idle' | 'busy' | 'failed';
@@ -60,6 +61,7 @@ export function AudioPage() {
   const [editName, setEditName] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
   const showPagination = total > 0;
 
@@ -211,6 +213,7 @@ export function AudioPage() {
   };
 
   const confirmDelete = async (id: number) => {
+    setIsDeleting(true);
     try {
       await deleteAudio(id);
       setDeletedId(id);
@@ -223,6 +226,8 @@ export function AudioPage() {
       if (failedDeleteTimerRef.current) window.clearTimeout(failedDeleteTimerRef.current);
       failedDeleteTimerRef.current = window.setTimeout(() => setFailedDeleteId(c => c === id ? null : c), 6000);
       setConfirmId(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -291,7 +296,7 @@ export function AudioPage() {
             <input className={styles.input} placeholder="display name" value={uploadName} onChange={(e) => { clearUploadFeedback(); setUploadName(e.target.value); }} />
             <AudioUploadZone file={uploadFile} onFileSelect={(f) => { clearUploadFeedback(); setUploadFile(f); }} />
             <div className={styles.actionRow}>
-              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleUpload()}>
+              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleUpload()} disabled={uploadState === 'busy'}>
                 {uploadState === 'busy' ? 'uploading…' : uploadState === 'saved' ? 'uploaded ✓' : uploadState === 'failed' ? 'failed' : 'upload'}
               </button>
               {uploadError && <div className={styles.failedText}>{uploadError}</div>}
@@ -359,7 +364,7 @@ export function AudioPage() {
               <button className={styles.previewButton} type="button" disabled={previewState === 'busy'} onClick={() => void handlePreview()}>
                 {previewState === 'busy' ? 'previewing…' : 'preview'}
               </button>
-              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleTts()}>
+              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleTts()} disabled={ttsState === 'busy'}>
                 {ttsState === 'busy' ? 'saving…' : ttsState === 'saved' ? 'saved ✓' : ttsState === 'failed' ? 'failed' : 'save'}
               </button>
             </div>
@@ -460,7 +465,8 @@ export function AudioPage() {
         title="Delete audio"
         message="Delete this audio?"
         cancelLabel="cancel"
-        confirmLabel="delete"
+        confirmLabel={isDeleting ? 'deleting…' : 'delete'}
+        isLoading={isDeleting}
         onCancel={() => setConfirmId(null)}
         onConfirm={() => {
           if (confirmId !== null) {

@@ -1,0 +1,274 @@
+.root {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  width: 280px;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.panel {
+  position: absolute;
+  right: 0;
+  bottom: 64px;
+  width: 280px;
+  padding: 14px;
+  background: var(--primitive-navy-800);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.statusValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.statusRegistered {
+  color: var(--primitive-green);
+}
+
+.statusUnregistered {
+  color: var(--primitive-red);
+}
+
+.statusConnecting {
+  color: var(--primitive-amber);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.fieldLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.helperText {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.callCard {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.12);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.callerId {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.duration {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primitive-green);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.callButton {
+  flex: 0 0 72px;
+  width: 72px;
+}
+
+.connectButton {
+  background: var(--primitive-amber);
+  color: var(--text-inverse);
+  border-color: var(--primitive-amber);
+}
+
+.answerButton {
+  background: var(--primitive-green);
+  color: var(--text-inverse);
+  border-color: var(--primitive-green);
+}
+
+.rejectButton {
+  background: var(--primitive-red);
+  color: var(--text-inverse);
+  border-color: var(--primitive-red);
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.secondaryActiveButton {
+  background: var(--primitive-navy-700);
+  border-color: var(--primitive-amber);
+  color: var(--primitive-amber);
+}
+
+.bubble {
+  pointer-events: auto;
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--primitive-amber);
+  background: var(--primitive-navy-800);
+  color: var(--primitive-amber);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.bubbleIncoming {
+  box-shadow: 0 0 0 0 var(--primitive-green-dim);
+  animation: incomingPulse 1.25s ease-out infinite;
+}
+
+.bubbleRegistered .indicator {
+  background: var(--primitive-green);
+}
+
+.bubbleUnregistered .indicator {
+  background: var(--primitive-red);
+}
+
+.bubbleConnecting .indicator {
+  background: var(--primitive-amber);
+}
+
+.icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.indicator {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--primitive-navy-800);
+  background: var(--primitive-red);
+}
+
+.audio {
+  display: none;
+}
+
+.panel [class*='container'] {
+  position: relative;
+}
+
+.panel [class*='dropdown'] {
+  position: absolute !important;
+  top: auto !important;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0 !important;
+}
+
+@keyframes incomingPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(61, 214, 140, 0.34);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(61, 214, 140, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(61, 214, 140, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .root {
+    width: min(280px, calc(100vw - 32px));
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .panel {
+    width: min(280px, calc(100vw - 32px));
+  }
+}

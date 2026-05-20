@@ -29,6 +29,7 @@ wireguard-config/callytics-relay.conf
 wireguard-config/relay-callytics-private.key
 wireguard-config/relay-callytics-public.key
 asterisk/base/pjsip_relay.conf
+asterisk/base/pjsip_webrtc.conf
 asterisk/base/pjsip_extensions_relay.conf
 asterisk/base/pjsip_callytics_trunks.conf
 asterisk/base/pjsip_callytics_extensions.conf

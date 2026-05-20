@@ -18,6 +18,8 @@ Outbound campaigns support CSV import, scheduling, retry-aware contact handling,
 
 Audio upload, ffmpeg conversion, and offline Piper TTS are integrated into one prompt library, and call recordings are available for browser playback and direct download.
 
+The browser softphone lets an operator register directly inside the dashboard, receive inbound calls, answer or reject them, and control mute or hangup without installing a separate SIP app.
+
 ## Monitoring and diagnostics
 
 Live dashboard views show active calls, queue state, and events, while call logs include execution traces and RTP quality scoring for post-call analysis.

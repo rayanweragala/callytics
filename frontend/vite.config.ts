@@ -1,5 +1,5 @@
 import { defineConfig, type Plugin } from 'vitest/config';
-import { createLogger } from 'vite';
+import { createLogger, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 
 const logger = createLogger();
@@ -21,50 +21,83 @@ const mockCssModulesPlugin: Plugin = {
   enforce: 'pre',
 };
 
-export default defineConfig({
-  plugins: [
-    ...(process.env.VITEST ? [mockCssModulesPlugin] : []),
-    react(),
-  ],
-  customLogger: {
-    ...logger,
-    warn(msg, options) {
-      if (suppressedWarnings.some((fragment) => msg.includes(fragment))) {
-        return;
-      }
-      logger.warn(msg, options);
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const devBackendTarget = env.VITE_DEV_BACKEND_TARGET?.trim() || env.VITE_API_BASE_URL?.trim() || 'http://localhost:3001';
+
+  return {
+    plugins: [
+      ...(process.env.VITEST ? [mockCssModulesPlugin] : []),
+      react(),
+    ],
+    optimizeDeps: {
+      include: ['jssip'],
     },
-  },
-  server: {
-    host: '0.0.0.0',
-    port: 3000,
-  },
-  preview: {
-    host: '0.0.0.0',
-    port: 3000,
-  },
-  define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version ?? 'dev'),
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    setupFiles: ['./src/test/setup.ts'],
-    reporters: process.argv.includes('--coverage') ? ['default'] : ['verbose'],
-    coverage: {
-      provider: 'v8' as const,
-      // Coverage measured only on lib/ and utils/ — the pure logic layer.
-      // Pages and components require browser E2E (deferred to a later phase).
-      // Matches the scoping pattern used in stasis/jest.config.js and backend/jest.config.js.
-      include: ['src/lib/**/*.ts', 'src/utils/**/*.ts'],
-      reporter: ['text', 'lcov'],
-      thresholds: {
-        lines: 68,
-        branches: 60,
-        functions: 63,
-        statements: 70,
+    build: {
+      commonjsOptions: {
+        include: [/jssip/, /node_modules/],
       },
+    },
+    customLogger: {
+      ...logger,
+      warn(msg, options) {
+        if (suppressedWarnings.some((fragment) => msg.includes(fragment))) {
+          return;
+        }
+        logger.warn(msg, options);
+      },
+    },
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+      proxy: {
+        '/api': {
+          target: devBackendTarget,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        '/socket.io': {
+          target: devBackendTarget,
+          changeOrigin: true,
+          ws: true,
+        },
+        '/media': {
+          target: devBackendTarget,
+          changeOrigin: true,
+        },
+        '/recordings': {
+          target: devBackendTarget,
+          changeOrigin: true,
+        },
+      },
+    },
+    preview: {
+      host: '0.0.0.0',
+      port: 3000,
+    },
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version ?? 'dev'),
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      setupFiles: ['./src/test/setup.ts'],
+      reporters: process.argv.includes('--coverage') ? ['default'] : ['verbose'],
+      coverage: {
+        provider: 'v8' as const,
+        // Coverage measured only on lib/ and utils/ — the pure logic layer.
+        // Pages and components require browser E2E (deferred to a later phase).
+        // Matches the scoping pattern used in stasis/jest.config.js and backend/jest.config.js.
+        include: ['src/lib/**/*.ts', 'src/utils/**/*.ts'],
+        reporter: ['text', 'lcov'],
+        thresholds: {
+          lines: 68,
+          branches: 60,
+          functions: 63,
+          statements: 70,
+        },
+      }
     }
-  }
+  };
 });

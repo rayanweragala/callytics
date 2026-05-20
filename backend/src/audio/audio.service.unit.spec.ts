@@ -121,6 +121,37 @@ describe('AudioService', () => {
       expect(result.data.id).toBe(1);
     });
 
+    it('should convert Asterisk playback assets to PCM wav and keep ulaw as a separate artifact', async () => {
+      const file = { originalname: 'test.mp3', buffer: Buffer.from('test'), mimetype: 'audio/mpeg' } as Express.Multer.File;
+      const asset = { id: 1, name: 'test', storagePathOriginal: 'orig', sourceType: 'upload', createdAt: new Date(), updatedAt: new Date() };
+      audioRepo.create.mockReturnValue(asset);
+      audioRepo.save.mockResolvedValue(asset);
+      audioRepo.findOne.mockResolvedValue(asset);
+
+      jest.spyOn(fs, 'writeFile').mockResolvedValue(undefined);
+
+      const runCommandSpy = jest.spyOn(service as any, 'runCommand')
+        .mockResolvedValueOnce({ stdout: '', stderr: '' })
+        .mockResolvedValueOnce({ stdout: '', stderr: '' })
+        .mockResolvedValueOnce({ stdout: '', stderr: '' })
+        .mockResolvedValueOnce({ stdout: '1.5', stderr: '' });
+
+      await service.upload(file);
+
+      expect(runCommandSpy).toHaveBeenNthCalledWith(
+        1,
+        'ffmpeg',
+        expect.arrayContaining(['-c:a', 'pcm_s16le']),
+      );
+      expect(runCommandSpy.mock.calls[0]?.[1]).toContainEqual(expect.stringMatching(/\/1\.wav$/));
+      expect(runCommandSpy).toHaveBeenNthCalledWith(
+        2,
+        'ffmpeg',
+        expect.arrayContaining(['-acodec', 'pcm_mulaw', '-f', 'mulaw']),
+      );
+      expect(runCommandSpy.mock.calls[1]?.[1]).toContainEqual(expect.stringMatching(/\/1\.ulaw$/));
+    });
+
     it('should throw BadRequestException if file is missing', async () => {
       await expect(service.upload(null as any)).rejects.toThrow(BadRequestException);
     });

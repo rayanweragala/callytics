@@ -407,6 +407,11 @@ export function buildCanvasNode(type: BuilderNodeType, index: number): Node<Flow
       method: 'POST',
       include_caller: false,
       include_session_variables: false,
+      retry_enabled: true,
+      max_attempts: 3,
+      retry_on_5xx: true,
+      retry_on_timeout: true,
+      retry_on_4xx: false,
       timeout_ms: 5000,
       headers: [],
     };

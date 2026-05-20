@@ -610,6 +610,7 @@ export function VpnPage() {
         message={peerToRevoke ? `Revoke "${peerToRevoke.name}"? This removes access immediately.` : 'Revoke this peer?'}
         cancelLabel="cancel"
         confirmLabel={peerToRevoke && revokingPeerId === peerToRevoke.id ? 'revoking…' : 'revoke'}
+        isLoading={peerToRevoke !== null && revokingPeerId === peerToRevoke.id}
         onCancel={() => setPeerToRevoke(null)}
         onConfirm={() => {
           if (peerToRevoke) {
@@ -623,6 +624,7 @@ export function VpnPage() {
         message="Stop and remove WireGuard container? This will disconnect all peers."
         cancelLabel="cancel"
         confirmLabel={removingVpn ? 'removing…' : 'remove'}
+        isLoading={removingVpn}
         onCancel={() => setConfirmRemoveVpn(false)}
         onConfirm={() => void handleRemoveVpn()}
       />

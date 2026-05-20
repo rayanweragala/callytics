@@ -66,6 +66,13 @@
   font-weight: 500;
   cursor: pointer;
   text-transform: lowercase;
+  transition: opacity 0.15s;
+}
+
+.secondaryButton:disabled,
+.historyButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .stopButton {

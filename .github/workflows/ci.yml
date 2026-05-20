@@ -14,37 +14,48 @@ permissions:
   contents: read
 
 jobs:
+  filter:
+    name: Filter Paths
+    runs-on: ubuntu-latest
+    outputs:
+      stasis: ${{ steps.filter.outputs.stasis }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            stasis:
+              - 'stasis/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+
   stasis-test:
     name: Stasis Tests
+    needs: filter
+    if: needs.filter.outputs.stasis == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Restore stasis node_modules cache
-        id: restore-stasis-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install stasis dependencies
-        if: steps.restore-stasis-cache.outputs.cache-hit != 'true'
-        run: npm ci
-        working-directory: stasis
-
-      - name: Save stasis node_modules cache
-        if: success() && steps.restore-stasis-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: stasis/node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+        run: npm ci --workspace stasis
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
@@ -74,7 +85,7 @@ jobs:
             echo "## Stasis Test Summary"
             echo ""
             echo "- App: stasis"
-            echo "- Node: 20"
+            echo "- Node: 24"
             echo "- Status: ${status}"
             echo "- Tests: ${{ steps.run-stasis-tests.outputs.tests_line }}"
             echo "- Started: $(date -u -d @${{ steps.run-stasis-tests.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
@@ -92,6 +103,8 @@ jobs:
 
   backend-test:
     name: Backend Tests
+    needs: filter
+    if: needs.filter.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -124,29 +137,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Restore backend node_modules cache
-        id: restore-backend-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
-        if: steps.restore-backend-cache.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: backend
-
-      - name: Save backend node_modules cache
-        if: success() && steps.restore-backend-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: backend/node_modules
-          key: backend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Run backend unit tests
         id: run-backend-unit
@@ -165,7 +165,7 @@ jobs:
           exit $status
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://callytics:***@localhost:5432/callytics
+          DATABASE_URL: postgresql://callytics:callytics@localhost:5432/callytics
           NODE_ENV: test
 
       - name: Run backend integration tests
@@ -185,7 +185,7 @@ jobs:
           exit $status
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://callytics:***@localhost:5432/callytics
+          DATABASE_URL: postgresql://callytics:callytics@localhost:5432/callytics
           NODE_ENV: test
 
       - name: Write backend job summary
@@ -199,7 +199,7 @@ jobs:
             echo "## Backend Test Summary"
             echo ""
             echo "- App: backend"
-            echo "- Node: 20"
+            echo "- Node: 24"
             echo "- Status: ${status}"
             echo "- Unit tests: ${{ steps.run-backend-unit.outputs.tests_line }}"
             echo "- Unit started: $(date -u -d @${{ steps.run-backend-unit.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
@@ -221,35 +221,24 @@ jobs:
 
   frontend-test:
     name: Frontend Tests
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Restore frontend node_modules cache
-        id: restore-frontend-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
-        if: steps.restore-frontend-cache.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: frontend
-
-      - name: Save frontend node_modules cache
-        if: success() && steps.restore-frontend-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: frontend/node_modules
-          key: frontend-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
 
       - name: Run frontend tests with coverage
         id: run-frontend-tests
@@ -279,7 +268,7 @@ jobs:
             echo "## Frontend Test Summary"
             echo ""
             echo "- App: frontend"
-            echo "- Node: 20"
+            echo "- Node: 24"
             echo "- Status: ${status}"
             echo "- Tests: ${{ steps.run-frontend-tests.outputs.tests_line }}"
             echo "- Started: $(date -u -d @${{ steps.run-frontend-tests.outputs.started_at }} '+%Y-%m-%d %H:%M:%S UTC')"
@@ -297,44 +286,62 @@ jobs:
 
   build-check:
     name: Build Check
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true' || needs.filter.outputs.backend == 'true' || needs.filter.outputs.stasis == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [stasis-test, backend-test, frontend-test]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Restore workspace node_modules cache
-        id: restore-workspace-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: workspace-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install workspace dependencies
-        if: steps.restore-workspace-cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Save workspace node_modules cache
-        if: success() && steps.restore-workspace-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: node_modules
-          key: workspace-node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
-
       - name: TypeScript check frontend
+        if: needs.filter.outputs.frontend == 'true'
         run: npx tsc -b --noEmit
         working-directory: frontend
 
       - name: TypeScript check backend
+        if: needs.filter.outputs.backend == 'true'
         run: npx tsc -b --noEmit
         working-directory: backend
 
       - name: TypeScript check stasis
+        if: needs.filter.outputs.stasis == 'true'
         run: npx tsc -b --noEmit
         working-directory: stasis
+
+  ci-pass:
+    name: CI Pass
+    if: always()
+    needs: [stasis-test, backend-test, frontend-test, build-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          STASIS_OUTCOME="${{ needs.stasis-test.result }}"
+          BACKEND_OUTCOME="${{ needs.backend-test.result }}"
+          FRONTEND_OUTCOME="${{ needs.frontend-test.result }}"
+          BUILD_OUTCOME="${{ needs.build-check.result }}"
+          
+          echo "Stasis: $STASIS_OUTCOME"
+          echo "Backend: $BACKEND_OUTCOME"
+          echo "Frontend: $FRONTEND_OUTCOME"
+          echo "Build: $BUILD_OUTCOME"
+          
+          # All jobs must either succeed or be skipped
+          for result in "$STASIS_OUTCOME" "$BACKEND_OUTCOME" "$FRONTEND_OUTCOME" "$BUILD_OUTCOME"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Error: One or more required jobs failed: $result"
+              exit 1
+            fi
+          done
+          echo "All jobs passed or were skipped correctly."

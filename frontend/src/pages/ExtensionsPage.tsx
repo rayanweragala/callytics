@@ -75,8 +75,11 @@ export function ExtensionsPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const sortedItems = useMemo(() => [...items].sort((a, b) => a.username.localeCompare(b.username)), [items]);
 
-  function buildSipUri(username: string): string {
+  function buildSipUri(username: string, transportType: 'sip' | 'webrtc'): string {
     const endpointHost = relayActive && relayHostIp ? relayHostIp : hostIp;
+    if (transportType === 'webrtc') {
+      return `sip:${username}@${endpointHost}`;
+    }
     return `sip:${username}@${endpointHost}:5080;transport=udp`;
   }
 
@@ -313,7 +316,7 @@ export function ExtensionsPage() {
                 />
               </label>
               <div className={styles.formActions}>
-                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
+                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
               </div>
               <div className={styles.vpnToggleField}>
                 <div>
@@ -379,7 +382,7 @@ export function ExtensionsPage() {
                         {item.vpnOnly ? <span className={styles.vpnOnlyBadge}>VPN Only</span> : <span className={styles.vpnOnlyDash}>—</span>}
                       </td>
                       <td className={styles.sipUriCell}>
-                        <span className={styles.dataMono}>{buildSipUri(item.username)}</span>
+                        <span className={styles.dataMono}>{buildSipUri(item.username, item.transportType || 'sip')}</span>
                         {relayActive ? <span className={styles.relayBadge}>relay</span> : null}
                       </td>
                       <td className={styles.createdAt} title={item.createdAt}>{formatDateTime(item.createdAt)}</td>
@@ -387,7 +390,7 @@ export function ExtensionsPage() {
                         <div className={styles.actions}>
                           <>
                             <button className={`${styles.secondaryButton} ${styles.editButton}`} onClick={() => openEdit(item)} type="button">edit</button>
-                            <button className={`${styles.secondaryButton} ${styles.qrButton}`} onClick={() => void handleOpenQr(item)} type="button">{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
+                            <button className={`${styles.secondaryButton} ${styles.qrButton}`} onClick={() => void handleOpenQr(item)} type="button" disabled={busyKey === `qr-${item.id}`}>{busyKey === `qr-${item.id}` ? 'loading…' : 'qr'}</button>
                             <button className={`${styles.secondaryButton} ${styles.deleteButton}`} onClick={() => setConfirmDeleteId(item.id)} type="button">delete</button>
                           </>
                         </div>
@@ -456,8 +459,8 @@ export function ExtensionsPage() {
                               </span>
                             </div>
                             <div className={styles.formActions}>
-                              <button className={styles.secondaryButton} onClick={closeEdit} type="button">cancel</button>
-                              <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              <button className={styles.secondaryButton} onClick={closeEdit} type="button" disabled={busyKey === `edit-${item.id}`}>cancel</button>
+                              <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()} disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
                           </div>
                         </td>
@@ -482,6 +485,7 @@ export function ExtensionsPage() {
           message="Delete this extension? This cannot be undone."
           cancelLabel="cancel"
           confirmLabel={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}` ? 'deleting…' : 'delete'}
+          isLoading={confirmDeleteId !== null && busyKey === `delete-${confirmDeleteId}`}
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => {
             if (confirmDeleteId !== null) {

@@ -95,6 +95,7 @@ services:
       NODE_ENV: development
       RECORDINGS_INTERNAL_TOKEN: callytics-recordings-internal
       GEOIP_DIR: /app/geoip
+      NODE_PATH: /app/backend/node_modules:/app/node_modules
     depends_on:
       asterisk:
         condition: service_healthy
@@ -114,10 +115,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/web/Dockerfile
+    network_mode: "host"
     environment:
       VITE_DISPLAY_TIMEZONE: ${VITE_DISPLAY_TIMEZONE:-UTC}
-    ports:
-      - 127.0.0.1:3000:3000
     volumes:
       - .:/app
       - /app/node_modules

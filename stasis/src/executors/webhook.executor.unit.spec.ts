@@ -1,5 +1,6 @@
 import { fireWebhookAsync } from "./webhook.executor";
 import type { CallSession } from "../callSession";
+import * as redis from "../redis";
 
 describe("webhook.executor fireWebhookAsync", () => {
   function makeSession(): CallSession {
@@ -33,6 +34,7 @@ describe("webhook.executor fireWebhookAsync", () => {
     const pendingPromise = new Promise<Response>((resolve) => {
       resolvePromise = resolve;
     });
+    jest.spyOn(redis, "publish").mockResolvedValue(undefined);
     const fetchSpy = jest
       .spyOn(global, "fetch")
       .mockReturnValue(pendingPromise);
@@ -45,7 +47,8 @@ describe("webhook.executor fireWebhookAsync", () => {
     const result = fireWebhookAsync(node as any, session as any);
     expect(result).toBeUndefined();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    resolvePromise({ ok: true, status: 200 } as Response);
+    resolvePromise({ ok: true, status: 200, text: async () => "ok" } as Response);
+    await Promise.resolve();
     await Promise.resolve();
   });
 
@@ -64,9 +67,11 @@ describe("webhook.executor fireWebhookAsync", () => {
   });
 
   it("sends POST body with caller and session variables when configured", () => {
+    jest.spyOn(redis, "publish").mockResolvedValue(undefined);
     const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
+      text: async () => "ok",
     } as any);
     const session = makeSession();
     const node = {
@@ -104,9 +109,11 @@ describe("webhook.executor fireWebhookAsync", () => {
   });
 
   it("forwards webhook recording fields in the POST body", () => {
+    jest.spyOn(redis, "publish").mockResolvedValue(undefined);
     const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
+      text: async () => "ok",
     } as any);
     const session = makeSession();
     const node = {
@@ -145,9 +152,11 @@ describe("webhook.executor fireWebhookAsync", () => {
   });
 
   it("includes callback outcome data in the POST body when triggered by a callback node", () => {
+    jest.spyOn(redis, "publish").mockResolvedValue(undefined);
     const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
+      text: async () => "ok",
     } as any);
     const session = makeSession();
     const node = {
@@ -180,5 +189,84 @@ describe("webhook.executor fireWebhookAsync", () => {
       source: "dtmf",
     });
     expect(body.variables).toEqual({});
+  });
+
+  it("publishes webhook delivery with non-2xx marked as failure", async () => {
+    const publishSpy = jest.spyOn(redis, "publish").mockResolvedValue(undefined);
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: async () => "upstream unavailable",
+    } as Response);
+
+    const session = makeSession();
+    const node = {
+      nodeKey: "wh-1",
+      type: "webhook",
+      config: {
+        url: "http://example.com",
+        method: "POST",
+        retry_enabled: true,
+        max_attempts: 4,
+      },
+    };
+
+    fireWebhookAsync(node as any, session as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(publishSpy).toHaveBeenCalledWith(
+      "webhook:delivery",
+      expect.objectContaining({
+        flow_id: 1,
+        node_id: "wh-1",
+        call_id: "ch-1",
+        url: "http://example.com",
+        attempt_number: 1,
+        http_status: 503,
+        response_body: "upstream unavailable",
+        success: false,
+        error_message: null,
+        retry_enabled: true,
+        max_attempts: 4,
+        retry_on_5xx: true,
+        retry_on_timeout: true,
+        retry_on_4xx: false,
+      }),
+    );
+  });
+
+  it("enables retries by default when retry config is missing", async () => {
+    const publishSpy = jest.spyOn(redis, "publish").mockResolvedValue(undefined);
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: async () => "upstream unavailable",
+    } as Response);
+
+    const session = makeSession();
+    const node = {
+      nodeKey: "wh-1",
+      type: "webhook",
+      config: {
+        url: "http://example.com",
+        method: "POST",
+      },
+    };
+
+    fireWebhookAsync(node as any, session as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(publishSpy).toHaveBeenCalledWith(
+      "webhook:delivery",
+      expect.objectContaining({
+        retry_enabled: true,
+        max_attempts: 3,
+        retry_on_5xx: true,
+        retry_on_timeout: true,
+        retry_on_4xx: false,
+      }),
+    );
   });
 });

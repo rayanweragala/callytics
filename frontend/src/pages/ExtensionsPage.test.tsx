@@ -212,4 +212,29 @@ describe('ExtensionsPage coverage boost', () => {
     // The relay badge must not appear
     expect(screen.queryByText('relay')).not.toBeInTheDocument();
   });
+
+  it('shows WebRTC SIP URI without port or transport parameter', async () => {
+    vi.mocked(api.listExtensions).mockResolvedValue({
+      data: [
+        {
+          id: 2,
+          username: '202',
+          password: 'secret',
+          displayName: 'WebRTC 202',
+          transportType: 'webrtc',
+          vpnOnly: false,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(api.getHostConfig).mockResolvedValue(mockHostConfig);
+    vi.mocked(api.getVpnStatus).mockResolvedValue(mockVpnStatus as Awaited<ReturnType<typeof api.getVpnStatus>>);
+    vi.mocked(api.getVpnRelayStatus).mockResolvedValue(mockRelayInactive);
+
+    renderWithRouter(<ExtensionsPage />);
+
+    expect(await screen.findByText('sip:202@127.0.0.1')).toBeInTheDocument();
+    expect(screen.queryByText('sip:202@127.0.0.1:5080;transport=udp')).not.toBeInTheDocument();
+  });
 });

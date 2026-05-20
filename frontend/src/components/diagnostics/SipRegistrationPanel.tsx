@@ -89,7 +89,7 @@ export function SipRegistrationPanel({ items, loading, onRefresh }: SipRegistrat
         </div>
         <div className={styles.headerActions}>
           <span className={styles.liveMeta}><LiveDot active />auto-refresh 30s</span>
-          <button className={styles.refreshButton} onClick={onRefresh} type="button">Refresh Now</button>
+          <button className={styles.refreshButton} onClick={onRefresh} type="button" disabled={loading}>{loading ? 'Refreshing…' : 'Refresh Now'}</button>
         </div>
       </div>
 

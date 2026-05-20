@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { InboundRouteEntity } from '../inbound-routes/entities/inbound-route.entity';
 import { SipExtensionEntity } from '../extensions/entities/sip-extension.entity';
 import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { VpnModule } from '../vpn/vpn.module';
@@ -7,7 +8,7 @@ import { AsteriskConfigService } from './asterisk-config.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SipExtensionEntity, SipTrunkEntity]),
+    TypeOrmModule.forFeature([SipExtensionEntity, InboundRouteEntity, SipTrunkEntity]),
     forwardRef(() => VpnModule),
   ],
   providers: [AsteriskConfigService],

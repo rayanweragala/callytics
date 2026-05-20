@@ -71,6 +71,7 @@ export function DiagnosticsPage() {
   const [failuresError, setFailuresError] = useState<string | null>(null);
   const [failuresPage, setFailuresPage] = useState(1);
   const [failuresTotal, setFailuresTotal] = useState(0);
+  const [failuresLoading, setFailuresLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [traceCallUuid, setTraceCallUuid] = useState<string | null>(null);
   const [ladderCallId, setLadderCallId] = useState<string | null>(null);
@@ -121,6 +122,7 @@ export function DiagnosticsPage() {
 
   const refreshFailures = async (page: number) => {
     setFailuresError(null);
+    setFailuresLoading(true);
     try {
       const offset = (page - 1) * FAILURES_PAGE_SIZE;
       const response = await getDiagnosticsFailures(FAILURES_PAGE_SIZE, offset);
@@ -140,6 +142,7 @@ export function DiagnosticsPage() {
       setFailuresError(getApiError(error, 'failed to load failures'));
     } finally {
       setIsFailuresInitial(false);
+      setFailuresLoading(false);
     }
   };
 
@@ -429,6 +432,7 @@ export function DiagnosticsPage() {
             ) : (
               <CallFailuresPanel
                 items={failures}
+                loading={failuresLoading}
                 onPageChange={setFailuresPage}
                 page={failuresPage}
                 totalPages={failureTotalPages}

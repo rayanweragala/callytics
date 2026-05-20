@@ -87,6 +87,7 @@ export default defineConfig({
             { text: 'Screenshots', link: '/features/screenshots' },
             { text: 'IVR Flow Builder', link: '/features/ivr' },
             { text: 'SIP Extensions', link: '/features/extensions' },
+            { text: 'Browser Softphone', link: '/features/softphone' },
             { text: 'SIP Trunks', link: '/features/trunks' },
             { text: 'Queues & Operators', link: '/features/queues' },
             { text: 'Outbound Campaigns', link: '/features/campaigns' },

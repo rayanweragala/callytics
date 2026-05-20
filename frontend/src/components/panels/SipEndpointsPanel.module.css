@@ -86,3 +86,40 @@
     padding: 0 14px;
   }
 }
+
+/* ── Skeleton loading state ───────────────────────────────── */
+@keyframes sipShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  min-height: 40px;
+}
+
+.skeletonDot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  opacity: 0.6;
+}
+
+.skeletonLine {
+  flex: 1;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--border-strong) 25%,
+    var(--surface-elevated) 50%,
+    var(--border-strong) 75%
+  );
+  background-size: 400px 100%;
+  animation: sipShimmer 1.4s ease-in-out infinite;
+}

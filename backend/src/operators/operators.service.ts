@@ -22,6 +22,7 @@ export type OperatorStatus = 'offline' | 'available' | 'busy';
 export interface OperatorExtensionResponse {
   id: number;
   username: string;
+  password: string;
   transportType: 'sip' | 'webrtc';
 }
 
@@ -394,6 +395,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
         `SELECT
           e.id AS extension_id,
           e.username AS extension_username,
+          e.password AS extension_password,
           e.transport_type AS extension_transport_type,
           c.id AS contact_id,
           c.label AS contact_label,
@@ -417,6 +419,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
         `SELECT
           e.id AS extension_id,
           e.username AS extension_username,
+          e.password AS extension_password,
           e.transport_type AS extension_transport_type,
           c.id AS contact_id,
           c.label AS contact_label,
@@ -445,6 +448,7 @@ export class OperatorsService implements OnModuleInit, OnModuleDestroy {
         ? {
             id: Number(row.extension_id),
             username: String(row.extension_username),
+            password: String(row.extension_password),
             transportType: row.extension_transport_type === 'webrtc' ? 'webrtc' : 'sip',
           }
         : null,

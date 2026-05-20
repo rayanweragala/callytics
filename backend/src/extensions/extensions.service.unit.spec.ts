@@ -166,6 +166,39 @@ describe('ExtensionsService', () => {
       expect(result.data.password).toBe('new');
     });
 
+    it('should build websocket + webrtc endpoint flags for webrtc extensions', async () => {
+      const entity = {
+        id: 1,
+        username: '1234',
+        password: 'old',
+        displayName: null,
+        transportType: 'sip',
+        vpnOnly: false,
+        createdAt: new Date(),
+      };
+      extensionsRepo.findOne.mockResolvedValue(entity);
+      extensionsRepo.save.mockResolvedValue({ ...entity, transportType: 'webrtc' });
+      extensionsRepo.find.mockResolvedValue([{ ...entity, transportType: 'webrtc' }]);
+      inboundRoutesRepo.findOne.mockResolvedValue(null);
+
+      await service.update(1, { transportType: 'webrtc' });
+
+      expect(asteriskConfigService.syncExtensions).toHaveBeenCalledWith([
+        expect.objectContaining({
+          transport: 'transport-ws',
+          endpointFlags: expect.arrayContaining([
+            'webrtc = yes',
+            'dtls_auto_generate_cert = yes',
+            'use_avpf = yes',
+            'media_encryption = dtls',
+            'ice_support = yes',
+            'media_use_received_transport = yes',
+            'rtcp_mux = yes',
+          ]),
+        }),
+      ]);
+    });
+
     it('should save VPN-only ACL config and trigger PJSIP reload through syncExtensions', async () => {
       const entity = {
         id: 1,
@@ -253,6 +286,55 @@ describe('ExtensionsService', () => {
 
       expect(result.data.deleted).toBe(true);
       expect(extensionsRepo.delete).toHaveBeenCalledWith({ id: 1 });
+    });
+  });
+
+  describe('getQrContent', () => {
+    it('should return SIP provisioning content for SIP extensions', async () => {
+      const extension = {
+        id: 1,
+        username: '101',
+        password: 'secret',
+        transportType: 'sip',
+      };
+      const originalHostIp = process.env.HOST_IP;
+      process.env.HOST_IP = '10.20.115.95';
+      extensionsRepo.findOne.mockResolvedValue(extension);
+
+      try {
+        await expect(service.getQrContent(1)).resolves.toEqual({
+          data: {
+            content: 'sip:101@10.20.115.95:5080\npassword:secret\ntransport:udp',
+          },
+        });
+      } finally {
+        if (originalHostIp === undefined) {
+          delete process.env.HOST_IP;
+        } else {
+          process.env.HOST_IP = originalHostIp;
+        }
+      }
+    });
+
+    it('should return browser softphone guidance for WebRTC extensions', async () => {
+      extensionsRepo.findOne.mockResolvedValue({
+        id: 2,
+        username: '102',
+        password: 'secret',
+        transportType: 'webrtc',
+      });
+
+      await expect(service.getQrContent(2)).resolves.toEqual({
+        data: {
+          content: 'Use the browser softphone to register this extension',
+        },
+      });
+    });
+
+    it('should throw NotFoundException when QR content extension is missing', async () => {
+      extensionsRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getQrContent(999)).rejects.toThrow(NotFoundException);
     });
   });
 });

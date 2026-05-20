@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { Edge, Node } from 'reactflow';
 import type { AudioFileItem, BuilderNodeType, CallbackNodeConfig, ConferenceNodeConfig, ContactNumber, ExtensionItem, FlowNodeData, OperatorItem, QueueItem, SipTrunkItem, TransferNodeConfig, WebhookNodeConfig } from '../../types';
+import { getWebhookNodeDeliveries } from '../../lib/api';
+import { getMediaBaseUrl } from '../../lib/backendBaseUrl';
+import { formatDateTime } from '../../lib/time';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { AudioPreviewPlayer } from '../audio/AudioPreviewPlayer';
 import { HuntConfigPanel } from '../panels/HuntConfigPanel';
@@ -14,10 +17,6 @@ import {
   isValidMenuBranchValue,
   sanitizeMenuBranches,
 } from '../../pages/FlowEditorPage.helpers';
-
-// TODO(cleanup): VITE_API_BASE_URL base URL constant is redeclared
-// multiple times inside this file. Consolidate to a single
-// module-level constant in a future cleanup pass.
 
 type BuilderEdgeData = {
   branchKey: string | null;
@@ -37,6 +36,7 @@ const businessHoursDays: Array<{ key: string; label: string }> = [
   { key: 'sunday', label: 'Sun' },
 ];
 const quickMenuBranchOptions = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'];
+const MEDIA_BASE = getMediaBaseUrl();
 
 export interface NodeConfigPanelMenuExtra {
   selectedMenuLocalEdgeBranches: Set<string>;
@@ -107,7 +107,6 @@ export function NodeConfigPanel({
   trunks = [],
   saveAttempted = false,
 }: NodeConfigPanelProps) {
-  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const selectedConfig = (selectedNode?.data.config || {}) as Record<string, unknown>;
   const audioFileSelected = Number(selectedConfig.audio_file_id || 0) > 0;
   const promptAudioSelected = Number(selectedConfig.prompt_audio_file_id || 0) > 0;
@@ -250,7 +249,7 @@ export function NodeConfigPanel({
               </label>
               {(() => {
                 const srcPath = playAudioItem?.previewUrl || playAudioItem?.originalUrl;
-                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={playAudioItem.id} src={`${BASE}${srcPath}`} /> : null;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={playAudioItem.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
               })()}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>audio_file_path</span>
@@ -305,7 +304,7 @@ export function NodeConfigPanel({
               </label>
               {(() => {
                 const srcPath = getDigitsAudioItem?.previewUrl || getDigitsAudioItem?.originalUrl;
-                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={getDigitsAudioItem.id} src={`${BASE}${srcPath}`} /> : null;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={getDigitsAudioItem.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
               })()}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>prompt_path</span>
@@ -479,7 +478,7 @@ export function NodeConfigPanel({
                 </label>
                 {(() => {
                   const srcPath = transferWaitingAudioItem?.previewUrl || transferWaitingAudioItem?.originalUrl;
-                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`transfer-waiting-${transferWaitingAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`transfer-waiting-${transferWaitingAudioItem?.id}`} src={`${MEDIA_BASE}${srcPath}`} /> : null;
                 })()}
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>NO_ANSWER_SOUND</span>
@@ -492,7 +491,7 @@ export function NodeConfigPanel({
                 </label>
                 {(() => {
                   const srcPath = transferNoAnswerAudioItem?.previewUrl || transferNoAnswerAudioItem?.originalUrl;
-                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`transfer-no-answer-${transferNoAnswerAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`transfer-no-answer-${transferNoAnswerAudioItem?.id}`} src={`${MEDIA_BASE}${srcPath}`} /> : null;
                 })()}
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>on_no_answer</span>
@@ -647,7 +646,7 @@ export function NodeConfigPanel({
                     </label>
                     {(() => {
                       const srcPath = callbackDtmfPromptAudioItem?.previewUrl || callbackDtmfPromptAudioItem?.originalUrl;
-                      return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`callback-dtmf-${callbackDtmfPromptAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                      return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`callback-dtmf-${callbackDtmfPromptAudioItem?.id}`} src={`${MEDIA_BASE}${srcPath}`} /> : null;
                     })()}
                     <label className={styles.field}>
                       <span className={styles.fieldLabel}>dtmf max digits</span>
@@ -753,7 +752,7 @@ export function NodeConfigPanel({
                 </label>
                 {(() => {
                   const srcPath = callbackConfirmationAudioItem?.previewUrl || callbackConfirmationAudioItem?.originalUrl;
-                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`callback-confirm-${callbackConfirmationAudioItem?.id}`} src={`${BASE}${srcPath}`} /> : null;
+                  return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={`callback-confirm-${callbackConfirmationAudioItem?.id}`} src={`${MEDIA_BASE}${srcPath}`} /> : null;
                 })()}
               </>
             );
@@ -794,7 +793,7 @@ export function NodeConfigPanel({
               </label>
               {(() => {
                 const srcPath = selectedVoicemailIntroAudio?.previewUrl || selectedVoicemailIntroAudio?.originalUrl;
-                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailIntroAudio.id} src={`${BASE}${srcPath}`} /> : null;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailIntroAudio.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
               })()}
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>outro message</span>
@@ -808,7 +807,7 @@ export function NodeConfigPanel({
               </label>
               {(() => {
                 const srcPath = selectedVoicemailOutroAudio?.previewUrl || selectedVoicemailOutroAudio?.originalUrl;
-                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailOutroAudio.id} src={`${BASE}${srcPath}`} /> : null;
+                return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={selectedVoicemailOutroAudio.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
               })()}
               <label className={`${styles.field} ${styles.fieldRow}`}>
                 <input
@@ -828,6 +827,7 @@ export function NodeConfigPanel({
 
           {selectedNode.data.type === 'webhook' ? (
             <WebhookConfigPanel
+              nodeId={selectedNode.id}
               config={selectedConfig}
               onConfigChange={onConfigChange}
               onConfigValueChange={onConfigValueChange}
@@ -923,7 +923,6 @@ function MenuConfig({
   onRenameSubmenu,
   saveAttempted = false,
 }: MenuConfigProps) {
-  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const [branchDraft, setBranchDraft] = useState('');
   const menuPromptItem = audioItems.find((a) => String(a.id) === String(selectedConfig.prompt_audio_file_id));
   const timeoutItem = audioItems.find((a) => String(a.id) === String(selectedConfig.timeout_prompt_audio_id));
@@ -995,7 +994,7 @@ function MenuConfig({
       </label>
       {(() => {
         const srcPath = menuPromptItem?.previewUrl || menuPromptItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={menuPromptItem?.id} src={`${BASE}${srcPath}`} /> : null;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={menuPromptItem?.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
       })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>prompt_path</span>
@@ -1018,7 +1017,7 @@ function MenuConfig({
       </label>
       {(() => {
         const srcPath = timeoutItem?.previewUrl || timeoutItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={timeoutItem?.id} src={`${BASE}${srcPath}`} /> : null;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={timeoutItem?.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
       })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>invalid prompt audio</span>
@@ -1031,7 +1030,7 @@ function MenuConfig({
       </label>
       {(() => {
         const srcPath = invalidItem?.previewUrl || invalidItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={invalidItem?.id} src={`${BASE}${srcPath}`} /> : null;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={invalidItem?.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
       })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>timeout_ms</span>
@@ -1205,16 +1204,32 @@ function MenuConfig({
 }
 
 interface WebhookConfigPanelProps {
+  nodeId: string;
   config: Partial<WebhookNodeConfig> & Record<string, unknown>;
   onConfigChange: (field: string, value: string) => void;
   onConfigValueChange: (field: string, value: unknown) => void;
   saveAttempted?: boolean;
 }
 
-function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveAttempted }: WebhookConfigPanelProps) {
+function WebhookConfigPanel({ nodeId, config, onConfigChange, onConfigValueChange, saveAttempted }: WebhookConfigPanelProps) {
   const headers = Array.isArray(config['headers'])
     ? (config['headers'] as Array<{ key: string; value: string }>)
     : [];
+  const retryEnabled = config['retry_enabled'] !== false;
+  const rawMaxAttempts = typeof config['max_attempts'] === 'number'
+    ? config['max_attempts']
+    : Number(config['max_attempts']);
+  const maxAttempts = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 && rawMaxAttempts <= 5
+    ? rawMaxAttempts
+    : 3;
+  const [recentDeliveries, setRecentDeliveries] = useState<Array<{
+    id: string;
+    createdAt: string;
+    success: boolean;
+    attemptNumber: number;
+  }>>([]);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [deliveriesError, setDeliveriesError] = useState<string | null>(null);
 
   const addHeader = () => onConfigValueChange('headers', [...headers, { key: '', value: '' }]);
 
@@ -1226,6 +1241,49 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
   const removeHeader = (index: number) => {
     onConfigValueChange('headers', headers.filter((_, i) => i !== index));
   };
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRecentDeliveries = async () => {
+      if (!nodeId) {
+        setRecentDeliveries([]);
+        return;
+      }
+
+      setDeliveriesLoading(true);
+      setDeliveriesError(null);
+      try {
+        const response = await getWebhookNodeDeliveries(nodeId);
+        if (!active) {
+          return;
+        }
+        setRecentDeliveries(
+          response.data.slice(0, 5).map((item) => ({
+            id: item.id,
+            createdAt: item.createdAt,
+            success: item.success,
+            attemptNumber: item.attemptNumber,
+          })),
+        );
+      } catch {
+        if (!active) {
+          return;
+        }
+        setDeliveriesError('Failed to load recent deliveries');
+      } finally {
+        if (active) {
+          setDeliveriesLoading(false);
+        }
+      }
+    };
+
+    void loadRecentDeliveries();
+
+    return () => {
+      active = false;
+    };
+  }, [nodeId]);
 
   return (
     <>
@@ -1278,6 +1336,60 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
         />
         <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Include collected variables</span>
       </label>
+      <div className={styles.section}>
+        <span className={styles.sectionTitle}>Retry</span>
+        <label className={`${styles.field} ${styles.fieldRow}`}>
+          <input
+            type="checkbox"
+            checked={retryEnabled}
+            onChange={(e) => onConfigValueChange('retry_enabled', e.target.checked)}
+          />
+          <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Enable retries</span>
+        </label>
+        {retryEnabled ? (
+          <>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>max attempts</span>
+              <input
+                className={styles.input}
+                type="number"
+                min={1}
+                max={5}
+                value={String(maxAttempts)}
+                onChange={(e) => {
+                  const parsed = Number.parseInt(e.target.value, 10);
+                  const nextValue = Number.isFinite(parsed) ? Math.min(5, Math.max(1, parsed)) : 3;
+                  onConfigValueChange('max_attempts', nextValue);
+                }}
+              />
+            </label>
+            <label className={`${styles.field} ${styles.fieldRow}`}>
+              <input
+                type="checkbox"
+                checked={config['retry_on_5xx'] !== false}
+                onChange={(e) => onConfigValueChange('retry_on_5xx', e.target.checked)}
+              />
+              <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Retry on 5xx errors</span>
+            </label>
+            <label className={`${styles.field} ${styles.fieldRow}`}>
+              <input
+                type="checkbox"
+                checked={config['retry_on_timeout'] !== false}
+                onChange={(e) => onConfigValueChange('retry_on_timeout', e.target.checked)}
+              />
+              <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Retry on timeout / network error</span>
+            </label>
+            <label className={`${styles.field} ${styles.fieldRow}`}>
+              <input
+                type="checkbox"
+                checked={config['retry_on_4xx'] === true}
+                onChange={(e) => onConfigValueChange('retry_on_4xx', e.target.checked)}
+              />
+              <span className={`${styles.fieldLabel} ${styles.fieldLabelPlain}`}>Retry on 4xx errors</span>
+            </label>
+          </>
+        ) : null}
+      </div>
       <div className={`${styles.field} ${styles.fieldFull}`}>
         <span className={styles.fieldLabel}>headers</span>
         {headers.map((header, i) => (
@@ -1309,6 +1421,29 @@ function WebhookConfigPanel({ config, onConfigChange, onConfigValueChange, saveA
           + add header
         </button>
       </div>
+      <div className={styles.section}>
+        <span className={styles.sectionTitle}>Recent Deliveries</span>
+        {deliveriesLoading ? <div className={styles.empty}>Loading recent deliveries...</div> : null}
+        {!deliveriesLoading && deliveriesError ? <div className={styles.inlineWarning}>{deliveriesError}</div> : null}
+        {!deliveriesLoading && !deliveriesError && recentDeliveries.length === 0 ? (
+          <div className={styles.empty}>No recent deliveries.</div>
+        ) : null}
+        {!deliveriesLoading && !deliveriesError && recentDeliveries.length > 0 ? (
+          <div className={styles.deliveryList}>
+            {recentDeliveries.map((delivery) => (
+              <div key={delivery.id} className={styles.deliveryItem}>
+                <div className={styles.deliveryMeta}>
+                  <span className={styles.deliveryTime}>{formatDateTime(delivery.createdAt)}</span>
+                  <span className={styles.deliveryAttempt}>Attempt {delivery.attemptNumber}</span>
+                </div>
+                <span className={`${styles.deliveryBadge} ${delivery.success ? styles.deliverySuccess : styles.deliveryFailure}`}>
+                  {delivery.success ? 'SUCCESS' : 'FAILED'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }
@@ -1324,7 +1459,6 @@ interface QueueLoginConfigPanelProps {
 }
 
 function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioItems, audioOptions, onConfigValueChange, saveAttempted }: QueueLoginConfigPanelProps) {
-  const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   const queueOptions = (queueItems ?? []).map((q) => ({ value: String(q.id), label: q.name }));
   const timeoutModeOptions = [
     { value: 'flow_default', label: 'use flow default' },
@@ -1429,7 +1563,7 @@ function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioIt
       </label>
       {(() => {
         const srcPath = promptItem?.previewUrl || promptItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${BASE}${srcPath}`} /> : null;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={promptItem?.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
       })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>wrong PIN audio</span>
@@ -1442,7 +1576,7 @@ function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioIt
       </label>
       {(() => {
         const srcPath = wrongPinItem?.previewUrl || wrongPinItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={wrongPinItem?.id} src={`${BASE}${srcPath}`} /> : null;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={wrongPinItem?.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
       })()}
       <label className={styles.field}>
         <span className={styles.fieldLabel}>success audio</span>
@@ -1455,7 +1589,7 @@ function QueueLoginConfigPanel({ config, flowDefaultTimeout, queueItems, audioIt
       </label>
       {(() => {
         const srcPath = successItem?.previewUrl || successItem?.originalUrl;
-        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={successItem?.id} src={`${BASE}${srcPath}`} /> : null;
+        return srcPath && srcPath.trim() ? <AudioPreviewPlayer key={successItem?.id} src={`${MEDIA_BASE}${srcPath}`} /> : null;
       })()}
     </>
   );

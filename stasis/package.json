@@ -23,6 +23,7 @@
     "redis": "^4.7.0"
   },
   "devDependencies": {
+    "@types/ari-client": "^2.2.14",
     "@types/bcrypt": "^6.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.5.4",

@@ -158,7 +158,8 @@ export function FlowsPage() {
         title="Delete flow"
         message="Delete this flow? This cannot be undone."
         cancelLabel="cancel"
-        confirmLabel={confirmId !== null && busyId === confirmId ? 'deleting…' : 'delete'}
+        confirmLabel={busyId !== null ? 'deleting…' : 'delete'}
+        isLoading={busyId !== null}
         onCancel={() => setConfirmId(null)}
         onConfirm={() => {
           if (confirmId !== null) {

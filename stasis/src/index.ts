@@ -1038,7 +1038,29 @@ async function start(): Promise<void> {
       await executeCallback(client, payload);
     });
 
-    client.on(
+    // @types/ari-client has incomplete event overloads; "StasisStart" is missing from this listener chain.
+    (client.on as unknown as (
+      eventName: "StasisStart",
+      listener: (
+        event: {
+          args?: string[];
+          channel?: {
+            caller?: { number?: string };
+            dnid?: string;
+            dialplan?: { context?: string; exten?: string };
+          };
+        },
+        channel: {
+          id: string;
+          answer: () => Promise<void>;
+          play: (
+            opts: { media: string },
+            playback: { id: string },
+          ) => Promise<void>;
+          hangup: () => Promise<void>;
+        },
+      ) => Promise<void>,
+    ) => void)(
       "StasisStart",
       async (
         event: {
