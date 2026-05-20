@@ -31,8 +31,8 @@ jobs:
         id: restore-stasis-cache
         uses: actions/cache/restore@v4
         with:
-          path: node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
+          path: stasis/node_modules
+          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('stasis/package-lock.json') }}
 
       - name: Install stasis dependencies
         run: npm ci --workspace stasis
@@ -41,8 +41,8 @@ jobs:
         if: success() && steps.restore-stasis-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: node_modules
-          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
+          path: stasis/node_modules
+          key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('stasis/package-lock.json') }}
 
       - name: Run stasis tests with coverage
         id: run-stasis-tests
@@ -334,6 +334,10 @@ jobs:
       - name: TypeScript check backend
         run: npx tsc -b --noEmit
         working-directory: backend
+
+      - name: Install stasis dependencies
+        run: npm ci
+        working-directory: stasis
 
       - name: TypeScript check stasis
         run: npx tsc -b --noEmit
