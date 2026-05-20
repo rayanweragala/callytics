@@ -1,0 +1,96 @@
+name: Bug Report
+description: Something is not working
+labels: ['bug', 'needs-triage']
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the bug? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps to trigger the bug
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Install script (install.sh)
+        - Manual Docker setup
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS and version
+      placeholder: Ubuntu 22.04
+    validations:
+      required: true
+  - type: input
+    id: docker-version
+    attributes:
+      label: Docker version
+      placeholder: docker --version
+    validations:
+      required: true
+  - type: input
+    id: docker-compose-version
+    attributes:
+      label: Docker Compose version
+      placeholder: docker compose version
+    validations:
+      required: true
+  - type: textarea
+    id: docker-compose-ps
+    attributes:
+      label: docker compose ps output
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: docker-compose-logs-backend
+    attributes:
+      label: docker compose logs backend --tail=50 output
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: docker-compose-logs-asterisk
+    attributes:
+      label: docker compose logs asterisk --tail=30 output
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: env-contents
+    attributes:
+      label: .env contents
+      description: REPLACE sensitive values (ARI password, ENCRYPTION_KEY, RECORDINGS_INTERNAL_TOKEN) with REDACTED.
+    validations:
+      required: false
+  - type: textarea
+    id: browser-errors
+    attributes:
+      label: Browser console errors
+      description: Only if the issue is UI-related.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true

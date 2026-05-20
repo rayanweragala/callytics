@@ -1,0 +1,27 @@
+'area: frontend':
+  - changed-files:
+    - any-glob-to-any-file: 'frontend/**'
+
+'area: backend':
+  - changed-files:
+    - any-glob-to-any-file: 'backend/**'
+
+'area: stasis':
+  - changed-files:
+    - any-glob-to-any-file: 'stasis/**'
+
+'area: docs':
+  - changed-files:
+    - any-glob-to-any-file: ['docs/**', 'docs-site/**']
+
+'area: ci':
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+
+'area: asterisk':
+  - changed-files:
+    - any-glob-to-any-file: 'asterisk/**'
+
+'area: docker':
+  - changed-files:
+    - any-glob-to-any-file: ['docker-compose.yml', 'Dockerfile']

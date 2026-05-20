@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Docs troubleshooting
+    url: https://docs.callytics.dev/troubleshooting
+    about: Read the docs first
+  - name: GitHub Discussions
+    url: https://github.com/rayanweragala/callytics/discussions
+    about: Ask the community

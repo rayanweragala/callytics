@@ -1,0 +1,45 @@
+name: Feature Request
+description: Suggest an idea for Callytics
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: who-benefits
+    attributes:
+      label: Who benefits
+      options:
+        - Developers building voice automations
+        - Self-hosters / homelab
+        - Small call centers
+        - Automation agencies
+        - AI agent builders
+        - SaaS teams
+        - All users
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true

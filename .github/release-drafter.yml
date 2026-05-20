@@ -1,0 +1,41 @@
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+  - title: '📚 Documentation'
+    labels:
+      - 'area: docs'
+  - title: '🔧 CI & Maintenance'
+    labels:
+      - 'area: ci'
+  - title: '🐳 Docker & Infrastructure'
+    labels:
+      - 'area: docker'
+
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+
+template: |
+  ## v$RESOLVED-VERSION
+  
+  $CHANGES
+  
+  ---
+  Thank you to all contributors!
+
+name-template: 'v$RESOLVED-VERSION'
+tag-template: 'v$RESOLVED-VERSION'
+
+version-resolver:
+  major:
+    labels:
+      - 'breaking'
+  minor:
+    labels:
+      - 'enhancement'
+  patch:
+    labels:
+      - 'bug'
+  default: patch
