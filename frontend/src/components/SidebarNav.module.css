@@ -12,7 +12,8 @@
 }
 
 .brandArea {
-  padding: 16px 16px 8px;
+  padding: 16px 16px 16px;
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
@@ -32,15 +33,19 @@
 }
 
 .footer {
-  border-top: 1px solid var(--border-strong);
-  padding: 8px 0 12px;
+  border-top: 1px solid var(--border-subtle);
+  padding: 16px 0;
+  margin-top: auto;
   flex-shrink: 0;
 }
 
 .group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
+}
+.group:first-child .groupLabel {
+  padding-top: 12px;
 }
 
 .groupLabel {
@@ -49,8 +54,8 @@
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  padding: 20px 16px 6px;
+  letter-spacing: 0.10em;
+  padding: 24px 16px 6px;
   opacity: 1;
 }
 
@@ -70,27 +75,27 @@
   cursor: pointer;
   text-decoration: none;
   display: block;
-  transition: color 150ms ease-in-out, background 150ms ease-in-out, border-left-color 150ms ease-in-out;
+  transition: color 120ms ease, background 120ms ease, border-left-color 120ms ease;
   border-radius: 0;
 }
 
 .item:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--bg-elevated) 50%, transparent);
   border-left-color: transparent;
 }
 
 .itemActive {
-  color: var(--accent);
-  background: rgba(245, 166, 35, 0.07);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
   border-left-color: var(--accent);
   font-weight: 600;
   padding-left: 14px;
 }
 
 .itemActive:hover {
-  color: var(--accent);
-  background: var(--accent-dim);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
 }
 
 .commandButton {
@@ -234,7 +239,8 @@
   .itemActive {
     border-left-color: transparent;
     border-bottom-color: var(--accent);
-    background: var(--accent-dim);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
   }
 
   .footer {
