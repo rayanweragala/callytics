@@ -9,6 +9,7 @@ import { deleteRecording, listRecordings } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { getMediaBaseUrl } from '../lib/backendBaseUrl';
 import { formatDateTime } from '../lib/time';
+import { useToast } from '../context/ToastContext';
 import type { RecordingItem } from '../types';
 import styles from './RecordingsPage.module.css';
 
@@ -22,7 +23,7 @@ function formatDuration(seconds: number | null): string {
 }
 
 export function RecordingsPage() {
-  const [errorText, setErrorText] = useState<string | null>(null);
+  const { showToast } = useToast();
   const [items, setItems] = useState<RecordingItem[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
@@ -35,13 +36,6 @@ export function RecordingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showError = (msg: string | null) => {
-    setErrorText(msg);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
-  };
-
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showSuccess = (id: number | null) => {
     setDeletedId(id);
@@ -51,7 +45,6 @@ export function RecordingsPage() {
 
   useEffect(() => {
     return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, []);
@@ -95,7 +88,7 @@ export function RecordingsPage() {
       setActiveId((current) => (current === id ? null : current));
       void load(page, limit);
     } catch (error) {
-      showError(getApiError(error, 'failed to delete recording'));
+      showToast(getApiError(error, 'failed to delete recording'), 'error');
       setFailedDeleteId(id);
       setConfirmId(null);
       window.setTimeout(() => setFailedDeleteId((current) => (current === id ? null : current)), 6000);
@@ -145,7 +138,7 @@ export function RecordingsPage() {
                   <td colSpan={6} className={styles.emptyState}>No recordings yet. Recordings appear here automatically after calls.</td>
                 </tr>
               ) : items.map((item) => (
-                <tr key={item.id}>
+                <tr key={item.id} className="table-row-hover">
                   <td>
                     <div className={styles.name}>{item.callId.slice(0, 16)}</div>
                     <div className={styles.meta}>{item.flowName || 'unknown flow'}</div>
@@ -181,7 +174,6 @@ export function RecordingsPage() {
                 onPageChange={setPage}
               />
             ) : null}
-            {errorText ? <ErrorMessage message={errorText} /> : null}
           </div>
           <ConfirmDialog
             open={confirmId !== null}

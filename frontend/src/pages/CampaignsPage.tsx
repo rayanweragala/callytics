@@ -109,7 +109,7 @@ export function CampaignsPage() {
   const showPagination = total > 0;
   const formOpen = createOpen || editingCampaign !== null;
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : editingCampaign ? 'save campaign' : 'add campaign';
-  const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
+  const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton} btn-press` : `${styles.primaryButton} btn-press`;
   const blockingLoadError = !loading ? loadError : null;
 
   const flowOptions = useMemo(
@@ -406,7 +406,7 @@ export function CampaignsPage() {
       <div className={styles.pageHeader}>
         <PageLayout title="campaigns" subtitle="outbound" />
         <button
-          className={styles.primaryButton}
+          className={`${styles.primaryButton} btn-press`}
           type="button"
           onClick={() => {
             clearInlineConfirm();
@@ -598,7 +598,7 @@ export function CampaignsPage() {
                     : 0;
                   const showProgress = campaign.status === 'running' || campaign.status === 'completed';
                   return (
-                    <tr key={campaign.id}>
+                    <tr key={campaign.id} className="table-row-hover">
                       <td className={styles.nameCell}>{campaign.name}</td>
                       <td>{campaign.flowName || '—'}</td>
                       <td>{campaign.trunkName || '—'}</td>

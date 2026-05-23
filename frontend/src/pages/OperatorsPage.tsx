@@ -242,7 +242,7 @@ export function OperatorsPage() {
 
   const pageActions = (
     <button
-      className={styles.primaryButton}
+      className={`${styles.primaryButton} btn-press`}
       type="button"
       onClick={() => {
         showError(null);
@@ -336,7 +336,7 @@ export function OperatorsPage() {
               />
             </label>
             <div className={styles.formActions}>
-              <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={creating}>
+              <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleCreate()} disabled={creating}>
                 {creating ? 'creating…' : 'add operator'}
               </button>
             </div>
@@ -398,7 +398,7 @@ export function OperatorsPage() {
                 </tr>
               ) : operators.map((op) => (
                 <Fragment key={op.id}>
-                  <tr>
+                  <tr className="table-row-hover">
                     <td className={styles.rowValue}>{op.name}</td>
                     <td className={styles.dataMono}>{op.extension?.username || '—'}</td>
                     <td className={styles.rowMuted}>{op.contactNumber?.label || '—'}</td>
@@ -483,7 +483,7 @@ export function OperatorsPage() {
                           </label>
                           <div className={styles.formActions}>
                             <button className={styles.secondaryButton} type="button" onClick={closeEdit} disabled={saving}>cancel</button>
-                            <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()} disabled={saving}>
+                            <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleUpdate()} disabled={saving}>
                               {saving ? 'saving…' : 'save changes'}
                             </button>
                           </div>

@@ -216,3 +216,62 @@ button {
   cursor: pointer;
   transition: opacity 0.1s, background 0.1s, border-color 0.1s, color 0.1s;
 }
+
+/* ─── PAGE ENTRY ANIMATION ─── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageEnter 180ms ease-out both;
+}
+
+/* ─── TABLE ROW HOVER LIFT ─── */
+.table-row-hover {
+  border-left: 1px solid transparent;
+  transition: background 120ms ease, border-left-color 120ms ease;
+}
+
+.table-row-hover:hover {
+  background: var(--bg-elevated);
+  border-left-color: var(--accent);
+}
+
+/* ─── BUTTON PRESS FEEDBACK ─── */
+.btn-press {
+  transition: transform 80ms ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+.btn-press:disabled {
+  transform: none;
+}
+
+/* ─── REDUCED MOTION OVERRIDES ─── */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+
+  .table-row-hover {
+    transition: none;
+  }
+
+  .btn-press {
+    transition: none;
+  }
+
+  .btn-press:active {
+    transform: none;
+  }
+}

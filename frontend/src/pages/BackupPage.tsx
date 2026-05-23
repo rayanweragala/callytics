@@ -460,7 +460,7 @@ export function BackupPage() {
                 label="Include recordings"
                 onToggle={() => setCreateIncludeRecordings((current) => !current)}
               />
-              <button className={styles.primaryButton} disabled={creatingBackup || restoring} onClick={() => void handleCreateBackup()} type="button">
+              <button className={`${styles.primaryButton} btn-press`} disabled={creatingBackup || restoring} onClick={() => void handleCreateBackup()} type="button">
                 {creatingBackup ? 'creating…' : 'Create Backup'}
               </button>
             </div>
@@ -506,7 +506,7 @@ export function BackupPage() {
                 onToggle={() => setFileRestoreOptions((current) => ({ ...current, restoreRecordings: !current.restoreRecordings }))}
               />
               <button
-                className={styles.primaryButton}                disabled={restoring || !selectedFile}
+                className={`${styles.primaryButton} btn-press`}                disabled={restoring || !selectedFile}
                 onClick={() => void handleRestoreFromFile()}
                 type="button"
               >
@@ -615,7 +615,8 @@ export function BackupPage() {
                                     onToggle={() => setRowOption(item.id, { restoreRecordings: !options.restoreRecordings })}
                                   />
                                   <button
-                                    className={styles.primaryButton}                                    disabled={restoring}
+                                    className={`${styles.primaryButton} btn-press`}
+                                    disabled={restoring}
                                     onClick={() => void handleRestoreFromHistory(item)}
                                     type="button"
                                   >

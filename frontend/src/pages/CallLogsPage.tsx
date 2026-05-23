@@ -443,7 +443,7 @@ export function CallLogsPage() {
                 return (
                   <tr
                     key={`${item.id}-${item.callUuid}`}
-                    className={styles.logRow}
+                    className={`${styles.logRow} table-row-hover`}
                     onClick={() => setTraceCallUuid(item.callUuid)}
                   >
                     <td className={styles.mono}>{item.callerNumber || '—'}</td>

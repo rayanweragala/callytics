@@ -209,7 +209,7 @@ export function ContactNumbersPage() {
   };
 
   const pageActions = (
-    <button className={styles.primaryButton} type="button" onClick={() => setCreateOpen((v) => !v)}>
+    <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => setCreateOpen((v) => !v)}>
       {createOpen ? 'cancel' : 'add contact'}
     </button>
   );
@@ -249,7 +249,7 @@ export function ContactNumbersPage() {
             <input className={styles.input} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
           </label>
           <div className={styles.actions}>
-            <button className={styles.primaryButton} type="button" onClick={() => void submitCreate()} disabled={creating}>{creating ? 'creating…' : 'create contact'}</button>
+            <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void submitCreate()} disabled={creating}>{creating ? 'creating…' : 'create contact'}</button>
           </div>
         </div>
       ) : null}
@@ -278,7 +278,7 @@ export function ContactNumbersPage() {
                 </tr>
               ) : items.map((item) => (
                 <Fragment key={item.id}>
-                  <tr>
+                  <tr className="table-row-hover">
                     <td className={styles.rowValue}>{item.label}</td>
                     <td className={styles.dataMono}>{item.number}</td>
                     <td className={styles.rowMuted}>{item.trunkId ? trunkMap.get(item.trunkId) || `#${item.trunkId}` : '—'}</td>
@@ -324,7 +324,7 @@ export function ContactNumbersPage() {
                           </label>
                           <div className={styles.actions}>
                             <button className={styles.secondaryButton} type="button" onClick={closeEdit} disabled={saving}>cancel</button>
-                            <button className={styles.primaryButton} type="button" onClick={() => void submitEdit()} disabled={saving}>{saving ? 'saving…' : 'save'}</button>
+                            <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void submitEdit()} disabled={saving}>{saving ? 'saving…' : 'save'}</button>
                           </div>
                         </div>
                       </td>

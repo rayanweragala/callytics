@@ -260,7 +260,7 @@ export function QueuesPage() {
 
   const pageActions = (
     <button
-      className={styles.primaryButton}
+      className={`${styles.primaryButton} btn-press`}
       type="button"
       onClick={() => {
         setErrorText(null);
@@ -358,7 +358,7 @@ export function QueuesPage() {
                 </label>
               </div>
               <div className={styles.formActions}>
-                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={creating}>
+                <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleCreate()} disabled={creating}>
                   {creating ? 'creating…' : 'add queue'}
                 </button>
               </div>
@@ -402,7 +402,7 @@ export function QueuesPage() {
                 </tr>
               ) : queues.map((q) => (
                 <Fragment key={q.id}>
-                  <tr>
+                  <tr className="table-row-hover">
                     <td className={styles.rowValue}>{q.name}</td>
                     <td className={styles.rowMuted}>{q.operators.map((o) => o.name).join(', ') || '—'}</td>
                     <td className={styles.dataMono}>{q.maxWaitSeconds}s</td>
@@ -500,7 +500,7 @@ export function QueuesPage() {
                             </div>
                             <div className={styles.formActions}>
                               <button className={styles.cancelButton} type="button" onClick={cancelEdit} disabled={saving}>cancel</button>
-                              <button className={styles.primaryButton} type="button" onClick={() => void handleSave()} disabled={saving}>
+                              <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleSave()} disabled={saving}>
                                 {saving ? 'saving…' : 'save'}
                               </button>
                             </div>

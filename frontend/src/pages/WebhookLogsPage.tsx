@@ -186,7 +186,7 @@ export function WebhookLogsPage() {
                   return (
                     <Fragment key={group.id}>
                       <tr
-                        className={styles.logRow}
+                        className={`${styles.logRow} table-row-hover`}
                         onClick={() => setExpandedRowId((current) => (current === group.id ? null : group.id))}
                       >
                         <td className={styles.timestamp}>{formatDateTime(group.firstAttempt.createdAt)}</td>

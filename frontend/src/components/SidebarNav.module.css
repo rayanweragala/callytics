@@ -64,7 +64,7 @@
   cursor: pointer;
   text-decoration: none;
   display: block;
-  transition: color 0.1s, background 0.1s, border-left-color 0.1s;
+  transition: color 150ms ease-in-out, background 150ms ease-in-out, border-left-color 150ms ease-in-out;
   border-radius: 0;
 }
 
@@ -95,6 +95,12 @@
   padding: 12px 16px;
   border-top: 1px solid var(--border-strong);
   flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
 }
 
 /* ── Tablet: slightly compact ── */

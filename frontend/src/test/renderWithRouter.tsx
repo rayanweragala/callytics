@@ -6,13 +6,17 @@ interface RenderWithRouterOptions extends Omit<RenderOptions, 'wrapper'> {
   initialEntries?: string[];
 }
 
+import { ToastProvider } from '../context/ToastContext';
+
 function RouterWrapper({ children, initialEntries }: { children: ReactNode; initialEntries: string[] }) {
   return (
     <MemoryRouter
       initialEntries={initialEntries}
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
-      {children}
+      <ToastProvider>
+        {children}
+      </ToastProvider>
     </MemoryRouter>
   );
 }

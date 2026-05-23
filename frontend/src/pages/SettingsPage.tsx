@@ -6,17 +6,18 @@ import { DesktopRequired } from '../components/DesktopRequired/DesktopRequired';
 import { useWindowWidth } from '../hooks/useWindowWidth';
 import { getSettings, updateSettings } from '../lib/api';
 import { getApiError } from '../lib/apiError';
+import { useToast } from '../context/ToastContext';
 import styles from './SettingsPage.module.css';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
 export function SettingsPage() {
   const windowWidth = useWindowWidth();
+  const { showToast } = useToast();
   const saveTimerRef = useRef<number | null>(null);
   const [retentionDays, setRetentionDays] = useState('0');
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
 
   useEffect(() => {
@@ -45,12 +46,11 @@ export function SettingsPage() {
     const parsedValue = Number(retentionDays);
     if (!Number.isInteger(parsedValue) || parsedValue < 0) {
       setSaveState('failed');
-      setSaveError('retention days must be a non-negative whole number');
+      showToast('retention days must be a non-negative whole number', 'error');
       return;
     }
 
     setSaveState('saving');
-    setSaveError(null);
 
     try {
       const settings = await updateSettings({ recording_retention_days: parsedValue });
@@ -62,7 +62,7 @@ export function SettingsPage() {
       saveTimerRef.current = window.setTimeout(() => setSaveState('idle'), 2000);
     } catch (error) {
       setSaveState('failed');
-      setSaveError(getApiError(error, 'failed to save settings'));
+      showToast(getApiError(error, 'failed to save settings'), 'error');
     }
   };
 
@@ -117,7 +117,7 @@ export function SettingsPage() {
           </div>
           <div className={styles.actionRow}>
             <button
-              className={`${styles.primaryButton} ${saveState === 'failed' ? styles.failedButton : ''}`}
+              className={`${styles.primaryButton} ${saveState === 'failed' ? styles.failedButton : ''} btn-press`}
               disabled={saveState === 'saving'}
               onClick={() => void handleSave()}
               type="button"
@@ -125,7 +125,6 @@ export function SettingsPage() {
               {saveLabel}
             </button>
           </div>
-          {saveError ? <ErrorMessage message={saveError} /> : null}
         </section>
 
         <section className={styles.card}>
