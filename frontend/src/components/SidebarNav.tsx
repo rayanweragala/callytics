@@ -1,8 +1,10 @@
 import { NavLink } from 'react-router-dom';
+import { sidebarNavigationGroups, useCommandPalette } from './CommandPalette';
 import styles from './SidebarNav.module.css';
 
 export function SidebarNav() {
   const appVersion = import.meta.env.VITE_APP_VERSION ?? 'dev';
+  const { openPalette, recordVisit, shortcutLabel } = useCommandPalette();
 
   return (
     <aside className={styles.sidebar}>
@@ -14,86 +16,30 @@ export function SidebarNav() {
         />
       </div>
       <nav className={styles.nav} aria-label="Primary navigation">
-          <div className={styles.group}>
-            <div className={styles.groupLabel}>MONITOR</div>
-            <NavLink to="/" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item} end>
-              diagnostics
-            </NavLink>
-            <NavLink to="/logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              logs
-            </NavLink>
-            <NavLink to="/call-logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              call logs
-            </NavLink>
-            <NavLink to="/webhook-logs" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              webhook logs
-            </NavLink>
-            <NavLink to="/capture" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              capture
-            </NavLink>
-            <NavLink to="/recordings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              recordings
-            </NavLink>
+        {sidebarNavigationGroups.map((group) => (
+          <div className={styles.group} key={group.label}>
+            <div className={styles.groupLabel}>{group.label}</div>
+            {group.items.map((item) => (
+              <NavLink
+                className={({ isActive }) => (isActive ? `${styles.item} ${styles.itemActive}` : styles.item)}
+                end={item.end}
+                key={item.route}
+                onClick={() => recordVisit(item)}
+                to={item.route}
+              >
+                {item.label}
+              </NavLink>
+            ))}
           </div>
-          <div className={styles.group}>
-            <div className={styles.groupLabel}>CONFIGURE</div>
-            <NavLink to="/flows" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              flow builder
-            </NavLink>
-            <NavLink to="/extensions" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              extensions
-            </NavLink>
-            <NavLink to="/contacts" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              contacts
-            </NavLink>
-            <NavLink to="/operators" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              operators
-            </NavLink>
-            <NavLink to="/queues" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              queues
-            </NavLink>
-            <NavLink to="/callbacks" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              callbacks
-            </NavLink>
-            <NavLink to="/trunks" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              trunks
-            </NavLink>
-            <NavLink to="/inbound" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              inbound
-            </NavLink>
-            <NavLink to="/templates" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              templates
-            </NavLink>
-            <NavLink to="/audio" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              audio
-            </NavLink>
-          </div>
-          <div className={styles.group}>
-            <div className={styles.groupLabel}>OUTBOUND</div>
-            <NavLink to="/campaigns" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              campaigns
-            </NavLink>
-          </div>
-          <div className={styles.group}>
-            <div className={styles.groupLabel}>SYSTEM</div>
-            <NavLink to="/firewall" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              firewall
-            </NavLink>
-            <NavLink to="/vpn" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              vpn
-            </NavLink>
-            <NavLink to="/backup" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              backup & restore
-            </NavLink>
-            <NavLink to="/settings" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              settings
-            </NavLink>
-            <NavLink to="/preflight" className={({ isActive }) => isActive ? `${styles.item} ${styles.itemActive}` : styles.item}>
-              preflight
-            </NavLink>
-          </div>
-        </nav>
-      <div className={styles.version}>v{appVersion}</div>
+        ))}
+      </nav>
+      <div className={styles.footer}>
+        <button className={styles.commandButton} onClick={openPalette} type="button">
+          <span>command palette</span>
+          <span className={styles.commandShortcut}>{shortcutLabel}</span>
+        </button>
+        <div className={styles.version}>v{appVersion}</div>
+      </div>
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
+import { CommandPalette } from './components/CommandPalette';
 import { SidebarNav } from './components/SidebarNav';
 import styles from './App.module.css';
 import { DiagnosticsPage } from './pages/DiagnosticsPage';
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
+      <CommandPalette />
       <Softphone />
     </div>
   );

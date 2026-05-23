@@ -82,7 +82,7 @@
 
   /* ─── SIDEBAR ─── */
   --sidebar-bg:     var(--primitive-navy-950);
-  --sidebar-width:  200px;
+  --sidebar-width:  216px;
 
   /* ─── TYPOGRAPHY ─── */
   --font-mono: 'JetBrains Mono', 'Space Mono', monospace;

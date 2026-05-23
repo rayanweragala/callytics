@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
+import { CommandPaletteProvider } from './components/CommandPalette';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastProvider } from './context/ToastContext';
 import { ToastContainer } from './components/ToastContainer';
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ToastProvider>
-        <RouterProvider router={router} />
+        <CommandPaletteProvider>
+          <RouterProvider router={router} />
+        </CommandPaletteProvider>
         <ToastContainer />
       </ToastProvider>
     </ErrorBoundary>
