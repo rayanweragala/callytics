@@ -77,6 +77,9 @@
   --diff-green-tint: rgba(61, 214, 140, 0.10);
 
 
+  /* ─── NODE TYPE COLORS ─── */
+  --color-node-conference: #2dd4bf;
+
   /* ─── SIDEBAR ─── */
   --sidebar-bg:     var(--primitive-navy-950);
   --sidebar-width:  200px;

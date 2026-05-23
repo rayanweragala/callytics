@@ -613,7 +613,7 @@ export function CampaignsPage() {
                         {showProgress ? (
                           <div className={styles.progressInline}>
                             <span className={styles.mono}>{campaign.answeredCount}/{campaign.totalContacts}</span>
-                            <span className={styles.progressTrack}><span className={styles.progressFill} style={{ width: `${percent}%` }} /></span>
+                            <span className={styles.progressTrack}><span className={styles.progressFill} style={{ ['--bar-width' as string]: `${percent}%` }} /></span>
                           </div>
                         ) : '—'}
                       </td>

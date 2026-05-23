@@ -65,8 +65,10 @@ function OperatorPickerRow({
         })}
       </div>
       {unselected.length > 0 ? (
-        <div style={{ marginTop: selectedIds.length > 0 ? 8 : 0 }}>
-          {/* dynamic marginTop — inline style intentional */}
+        <div
+          className={styles.operatorSelectWrap}
+          style={{ ['--operator-select-gap' as string]: selectedIds.length > 0 ? '8px' : '0px' }}
+        >
           <SearchableSelect
             options={unselected.map((op) => ({ value: String(op.id), label: op.name }))}
             value={null}

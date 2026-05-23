@@ -147,7 +147,7 @@ export function QualityDrawer({ callId, onClose }: QualityDrawerProps) {
                   <div className={styles.metricTrack}>
                     <div
                       className={`${styles.metricFill} ${metricClass(metric.grade)}`}
-                      style={{ width: `${metric.fillPct}%` }}
+                      style={{ ['--bar-width' as string]: `${metric.fillPct}%` }}
                     />
                   </div>
                 </article>

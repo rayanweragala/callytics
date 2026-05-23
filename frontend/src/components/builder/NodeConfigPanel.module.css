@@ -255,7 +255,7 @@
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 600;
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
 }
 
 .toggleSwitch {

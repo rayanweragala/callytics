@@ -179,6 +179,7 @@
 .progressFill {
   display: block;
   height: 100%;
+  width: var(--bar-width);
   background: var(--color-active);
 }
 

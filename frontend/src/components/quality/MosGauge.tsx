@@ -28,7 +28,7 @@ export function MosGauge({ label, value, unit, plainLabel, fillPct, grade }: Mos
         </span>
       </div>
       <div className={styles.track}>
-        <div className={`${styles.fill} ${gradeClass(grade)}`} style={{ width: `${safeFill}%` }} />
+        <div className={`${styles.fill} ${gradeClass(grade)}`} style={{ ['--bar-width' as string]: `${safeFill}%` }} />
       </div>
     </div>
   );

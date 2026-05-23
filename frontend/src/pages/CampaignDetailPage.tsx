@@ -195,7 +195,7 @@ export function CampaignDetailPage() {
               {(campaign.status === 'running' || campaign.status === 'completed') ? (
                 <div className={styles.progressRow}>
                   <span className={styles.mono}>{effectiveProgress.answeredCount}/{effectiveProgress.totalContacts}</span>
-                  <span className={styles.progressTrack}><span className={styles.progressFill} style={{ width: `${progressPercent}%` }} /></span>
+                  <span className={styles.progressTrack}><span className={styles.progressFill} style={{ ['--bar-width' as string]: `${progressPercent}%` }} /></span>
                 </div>
               ) : null}
             </>

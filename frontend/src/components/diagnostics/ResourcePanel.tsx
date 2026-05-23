@@ -152,7 +152,7 @@ function MemoryCard({ data }: MemoryCardProps) {
       <div className={styles.bar}>
         <div
           className={`${styles.barFill} ${threshClass}`}
-          style={{ width: `${pct}%`, ['--bar-fill' as string]: `var(--resource-${pct > 85 ? 'danger' : pct > 60 ? 'warn' : 'ok'})` }}
+          style={{ ['--bar-width' as string]: `${pct}%`, ['--bar-fill' as string]: `var(--resource-${pct > 85 ? 'danger' : pct > 60 ? 'warn' : 'ok'})` }}
         />
       </div>
       <div className={styles.barStats}>

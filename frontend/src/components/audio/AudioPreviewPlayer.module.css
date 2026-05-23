@@ -40,6 +40,7 @@
   border-radius: 2px;
   accent-color: var(--accent);
   background: var(--border-default);
+  background-size: var(--bar-width) 100%;
 }
 
 .range::-webkit-slider-thumb {

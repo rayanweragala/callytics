@@ -612,6 +612,7 @@
   height: 28px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
+  background: var(--accent-bar-color);
 }
 
 .configPanelMeta {

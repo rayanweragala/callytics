@@ -167,6 +167,10 @@
   margin-top: 4px;
 }
 
+.operatorSelectWrap {
+  margin-top: var(--operator-select-gap);
+}
+
 .operatorTag {
   display: flex;
   align-items: center;

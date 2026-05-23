@@ -18,7 +18,6 @@
   background: var(--primitive-navy-800);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
   display: flex;
   flex-direction: column;
   gap: 12px;

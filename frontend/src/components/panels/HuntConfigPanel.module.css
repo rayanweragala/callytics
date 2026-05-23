@@ -97,7 +97,7 @@
   background: var(--bg-elevated);
   color: var(--text-primary);
   padding: 0 8px;
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
 }
 
 .targetValueCell {
