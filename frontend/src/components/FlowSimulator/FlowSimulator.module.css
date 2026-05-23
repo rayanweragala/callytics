@@ -16,12 +16,20 @@
   right: 0;
   height: 100%;
   width: 380px;
+  max-width: 380px;
   background: var(--bg-base);
   border-left: 1px solid var(--border-strong);
   display: flex;
   flex-direction: column;
   pointer-events: all;
   z-index: 200;
+}
+
+@media (max-width: 480px) {
+  .panel {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .header {

@@ -335,6 +335,9 @@ jobs:
         run: npx tsc -b --noEmit
         working-directory: backend
 
+      - name: Install stasis dependencies
+        run: npm ci --workspace stasis
+
       - name: TypeScript check stasis
         run: npx tsc -b --noEmit
         working-directory: stasis

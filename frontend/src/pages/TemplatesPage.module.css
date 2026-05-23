@@ -68,6 +68,11 @@
   font-family: var(--font-mono);
   font-size: 20px;
   cursor: pointer;
+  transition: color 0.15s;
+}
+
+.panelCloseButton:hover {
+  color: var(--text-primary);
 }
 
 .panelTitle {
@@ -189,6 +194,11 @@
   font-size: 12px;
   padding: 0;
   cursor: pointer;
+  transition: color 0.15s;
+}
+
+.formatToggle:hover {
+  color: var(--text-primary);
 }
 
 .formatToggleIcon {
@@ -221,6 +231,7 @@
   font-family: var(--font-mono);
   font-size: 12px;
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, filter 0.12s ease;
 }
 
 .modalCancelButton {
@@ -229,10 +240,19 @@
   border: 1px solid var(--border-strong);
 }
 
+.modalCancelButton:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
 .modalImportButton {
   background: var(--accent);
   color: var(--bg-base);
   border: 1px solid var(--accent);
+}
+
+.modalImportButton:not(:disabled):hover {
+  filter: brightness(1.08);
 }
 
 .modalImportButton:disabled {
@@ -257,6 +277,11 @@
   font-size: 12px;
   cursor: pointer;
   padding: 0;
+  transition: color 0.15s;
+}
+
+.guideToggle:hover {
+  color: var(--text-primary);
 }
 
 .guideIcon {
@@ -291,6 +316,11 @@
   padding: 14px 16px;
   cursor: pointer;
   text-align: left;
+  transition: background 0.15s ease-in-out;
+}
+
+.accordionHeader:hover {
+  background: var(--bg-surface);
 }
 
 .accordionItemOpen .accordionHeader {

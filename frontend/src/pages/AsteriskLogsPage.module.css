@@ -143,6 +143,12 @@
   border-color: var(--accent);
 }
 
+.levelPill:not(.levelPillActive):hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
 .searchInput {
   width: 280px;
   border: 1px solid var(--border-strong);
