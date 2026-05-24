@@ -66,7 +66,8 @@ export const sidebarNavigationGroups: SidebarNavigationGroup[] = [
   {
     label: 'MONITOR',
     items: [
-      { label: 'diagnostics', route: '/', category: 'Page', iconKey: 'page', keywords: ['monitor', 'dashboard', 'health'], end: true },
+      { label: 'dashboard', route: '/dashboard', category: 'Page', iconKey: 'page', keywords: ['monitor', 'live operations', 'dashboard'], end: true },
+      { label: 'diagnostics', route: '/diagnostics', category: 'Page', iconKey: 'page', keywords: ['monitor', 'diagnostics', 'health'] },
       { label: 'logs', route: '/logs', category: 'Page', iconKey: 'page', keywords: ['asterisk logs', 'system logs'] },
       { label: 'call logs', route: '/call-logs', category: 'Page', iconKey: 'page', keywords: ['calls', 'history'] },
       { label: 'webhook logs', route: '/webhook-logs', category: 'Page', iconKey: 'page', keywords: ['webhooks', 'deliveries'] },
