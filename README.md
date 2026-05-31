@@ -4,7 +4,7 @@ Self-hosted open-source voice automation platform. One command installs everythi
 
 ## Demo
 
-<video src="docs/demo.mp4" controls width="100%"></video>
+[<video src="docs/demo.mp4" controls width="100%"></video>](https://github.com/user-attachments/assets/de2eba03-0c37-4704-ad56-2663d17373e8)
 
 ## What it is
 
