@@ -1,0 +1,1088 @@
+.dashboard {
+  min-height: 100vh;
+  margin: -28px -32px 0;
+  padding: 52px 24px 32px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.commandBar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  z-index: 40;
+  height: 52px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(240px, 1fr) minmax(260px, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.commandBrand {
+  color: var(--text-primary);
+}
+
+.commandStatus,
+.commandContext {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.commandStatus {
+  justify-content: center;
+}
+
+.commandContext {
+  justify-content: flex-end;
+}
+
+.liveDot {
+  color: var(--accent);
+  font-size: 8px;
+  line-height: 1;
+}
+
+.streamingLabel {
+  color: var(--color-info);
+}
+
+.clock {
+  color: var(--text-primary);
+}
+
+.staleBanner {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 -24px;
+  background: var(--accent-dim);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--color-warning);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard[data-stale='true'] .panel > *,
+.dashboard[data-stale='true'] .summaryStrip {
+  opacity: 0.6;
+}
+
+.summaryStrip {
+  height: 88px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.metricCell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 18px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.metricCell:last-child {
+  border-right: none;
+}
+
+.metricLabel,
+.metricDetail,
+.sparklineLabel,
+.sparklineCount,
+.sectionLabel,
+.mixTitle {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metricValue {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.metricDetail {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.panel {
+  min-width: 0;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.activeCallsPanel {
+  grid-column: 1 / span 8;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 16px;
+  align-self: start;
+}
+
+.systemHealthPanel {
+  grid-column: 9 / span 4;
+  grid-row: 1 / span 2;
+}
+
+.registrationsPanel {
+  grid-column: 9 / span 4;
+  grid-row: 3;
+}
+
+.campaignPanel {
+  grid-column: 1 / span 5;
+  grid-row: 2;
+}
+
+.queuesPanel {
+  grid-column: 6 / span 3;
+  grid-row: 2;
+}
+
+.failuresPanel {
+  grid-column: 1 / span 8;
+  grid-row: 3;
+}
+
+.panelHeader {
+  display: flex;
+  min-height: 24px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.panelHeader span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.sparklineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+}
+
+.sparklineCount {
+  margin-left: 12px;
+  color: var(--text-secondary);
+}
+
+.sparkline {
+  width: 120px;
+  height: 24px;
+  flex: 0 0 auto;
+  color: var(--color-warning);
+}
+
+.sparklineBar {
+  fill: currentColor;
+}
+
+.callsTable,
+.statusTable,
+.failuresTable {
+  table-layout: fixed;
+}
+
+.callsTable th,
+.callsTable td,
+.statusTable th,
+.statusTable td,
+.failuresTable th,
+.failuresTable td {
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.callsTable th,
+.statusTable th,
+.failuresTable th {
+  height: 30px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.callsTable td {
+  height: 36px;
+}
+
+.callsTable th:nth-child(1) {
+  width: 23%;
+}
+
+.callsTable th:nth-child(2) {
+  width: 13%;
+  text-align: right;
+}
+
+.callsTable th:nth-child(3) {
+  width: 21%;
+}
+
+.callsTable th:nth-child(4) {
+  width: 26%;
+}
+
+.callsTable th:nth-child(5) {
+  width: 17%;
+}
+
+.callRow {
+  border-left: 1px solid transparent;
+}
+
+.rowHot {
+  border-left-color: var(--color-warning);
+}
+
+.callerId,
+.numeric,
+.codeText,
+.signalText,
+.reasonRecoverable,
+.reasonPlatform {
+  font-family: var(--font-mono);
+}
+
+.numeric {
+  text-align: right;
+}
+
+.codeText,
+.signalText {
+  color: var(--text-secondary);
+}
+
+.stateBadge,
+.statusText {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.stateIvr {
+  color: var(--color-warning);
+  background: var(--accent-dim);
+  border-color: var(--color-warning);
+}
+
+.stateBridged,
+.statusOk,
+.registrationOk {
+  color: var(--color-info);
+}
+
+.stateBridged {
+  background: var(--color-info-tint);
+  border-color: var(--color-info);
+}
+
+.stateQueued,
+.statusUnknown {
+  color: var(--text-muted);
+}
+
+.stateQueued {
+  background: var(--color-muted-tint);
+}
+
+.emptyState {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+.emptyState div {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.emptyState span {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.topology {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 12px;
+  color: var(--color-info);
+}
+
+.topologyLine {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.topologyNodeOk {
+  fill: var(--color-info-tint);
+  stroke: var(--color-info);
+  stroke-width: 1;
+  rx: 2px;
+}
+
+.topologyText {
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-anchor: middle;
+}
+
+.statusTable td {
+  height: 28px;
+}
+
+.statusWarn,
+.registrationWarn {
+  color: var(--color-warning);
+}
+
+.statusDegraded,
+.reasonPlatform {
+  color: var(--primitive-orange);
+}
+
+.statusDown {
+  color: var(--color-error);
+}
+
+.ledgerSection + .ledgerSection {
+  margin-top: 18px;
+}
+
+.sectionLabel {
+  margin-bottom: 6px;
+}
+
+.registrationRow {
+  display: grid;
+  grid-template-columns: minmax(112px, 1fr) minmax(72px, 0.8fr) minmax(74px, auto) minmax(42px, auto);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.registrationName {
+  color: var(--text-primary);
+}
+
+.registrationSignal {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.signalBar {
+  position: relative;
+  display: block;
+  height: 11px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.signalRegistered {
+  border-top-color: var(--color-info);
+}
+
+.signalRejected::before {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 32%;
+  content: '';
+  border-top: 1px solid var(--color-warning);
+}
+
+.signalRejected::after {
+  position: absolute;
+  top: -9px;
+  left: 30%;
+  content: 'x';
+  color: var(--color-warning);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.extensionRow {
+  display: grid;
+  grid-template-columns: 64px 80px minmax(0, 1fr);
+  align-items: center;
+  min-height: 28px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.extensionRow span:first-child {
+  color: var(--text-primary);
+}
+
+.extensionOffline {
+  color: var(--text-muted);
+}
+
+.extensionOffline span:first-child {
+  color: var(--text-muted);
+}
+
+.progressList {
+  display: grid;
+  gap: 10px;
+}
+
+.progressRow {
+  display: grid;
+  grid-template-columns: 76px minmax(92px, 1fr) minmax(116px, auto) 48px;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.progressLabel {
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.10em;
+}
+
+.progressTrack,
+.queueTrack,
+.mixTrack {
+  display: block;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.progressTrack {
+  height: 9px;
+}
+
+.progressFill,
+.queueFill,
+.mixFill {
+  display: block;
+  height: 100%;
+  width: var(--bar-width);
+}
+
+.progressDialed {
+  background: var(--color-warning);
+}
+
+.progressAnswered,
+.queuePressureLive {
+  background: var(--color-info);
+}
+
+.progressFailed,
+.queuePressureHigh,
+.mixFill {
+  background: var(--primitive-orange);
+}
+
+.progressPending,
+.queuePressureEmpty {
+  background: var(--border-strong);
+}
+
+.width70 {
+  --bar-width: 70.1%;
+}
+
+.width35 {
+  --bar-width: 34.8%;
+}
+
+.width30 {
+  --bar-width: 30%;
+}
+
+.width8 {
+  --bar-width: 8%;
+}
+
+.width5 {
+  --bar-width: 5%;
+}
+
+.progressValue {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.progressRate {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.campaignMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.queueList {
+  display: grid;
+  gap: 11px;
+}
+
+.queueRow {
+  display: grid;
+  gap: 6px;
+}
+
+.queueLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.queueStats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-left: 8px;
+}
+
+.queueName {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.queueTrack {
+  height: 5px;
+}
+
+.queueFull {
+  --bar-width: 100%;
+}
+
+.queueMedium {
+  --bar-width: 70%;
+}
+
+.queueLow {
+  --bar-width: 28%;
+}
+
+.queueEmpty {
+  --bar-width: 0%;
+}
+
+.failuresContent {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.failuresTable th:nth-child(1) {
+  width: 14%;
+}
+
+.failuresTable th:nth-child(2) {
+  width: 21%;
+}
+
+.failuresTable th:nth-child(3) {
+  width: 22%;
+}
+
+.failuresTable th:nth-child(4) {
+  width: 21%;
+}
+
+.failuresTable td {
+  height: 32px;
+}
+
+.reasonRecoverable {
+  color: var(--color-warning);
+}
+
+.failureMix {
+  min-width: 0;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.mixTitle {
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+
+.mixRow {
+  display: grid;
+  grid-template-columns: minmax(86px, 1fr) 20px minmax(52px, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.mixCount {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.mixTrack {
+  height: 7px;
+}
+
+.mixWidth6 {
+  --bar-width: 100%;
+}
+
+.mixWidth4 {
+  --bar-width: 66%;
+}
+
+.mixWidth3 {
+  --bar-width: 50%;
+}
+
+.mixWidth1 {
+  --bar-width: 16%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard *,
+  .dashboard *::before,
+  .dashboard *::after {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .mainGrid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .activeCallsPanel,
+  .systemHealthPanel,
+  .registrationsPanel,
+  .campaignPanel,
+  .queuesPanel,
+  .failuresPanel {
+    grid-row: auto;
+  }
+
+  .activeCallsPanel,
+  .failuresPanel {
+    grid-column: 1 / span 8;
+  }
+
+  .systemHealthPanel,
+  .registrationsPanel {
+    grid-column: span 4;
+  }
+
+  .campaignPanel {
+    grid-column: span 5;
+  }
+
+  .queuesPanel {
+    grid-column: span 3;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard {
+    margin: -20px -24px 0;
+  }
+
+  .commandBar {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    height: auto;
+    min-height: 52px;
+    padding: 6px 24px;
+  }
+
+  .commandStatus {
+    justify-content: flex-start;
+  }
+
+  .commandContext {
+    justify-content: flex-start;
+  }
+
+  .summaryStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    height: auto;
+  }
+
+  .metricCell {
+    min-height: 88px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    margin: -16px;
+    padding: 0 12px 24px;
+  }
+
+  .commandBar {
+    position: sticky;
+    left: auto;
+    right: auto;
+    top: 0;
+    margin: 0 -12px;
+  }
+
+  .summaryStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 -12px;
+  }
+
+  .mainGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .activeCallsPanel,
+  .systemHealthPanel,
+  .registrationsPanel,
+  .campaignPanel,
+  .queuesPanel,
+  .failuresPanel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .activeCallsPanel {
+    overflow-x: auto;
+  }
+
+  .callsTable,
+  .failuresTable {
+    min-width: 720px;
+  }
+
+  .failuresContent {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-x: auto;
+  }
+
+  .progressRow,
+  .registrationRow {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .queueLine {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .progressValue,
+  .progressRate,
+  .registrationSignal {
+    text-align: left;
+  }
+}
+
+.topologyFlowLine {
+  fill: none;
+  stroke: var(--color-info);
+  stroke-width: 1;
+  stroke-dasharray: 4 8;
+  animation: flow 1.5s linear infinite;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topologyFlowLine {
+    animation: none !important;
+  }
+}
+
+/* ── WebSocket status dot variants ──────────────────────────────────────── */
+
+.liveDotReconnecting {
+  color: var(--color-warning);
+  font-size: 8px;
+  line-height: 1;
+  animation: pulse 1s ease infinite;
+}
+
+.liveDotDisconnected {
+  color: var(--color-error);
+  font-size: 8px;
+  line-height: 1;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Row flash (Task 10) ─────────────────────────────────────────────────── */
+
+.rowFlash {
+  border-left-color: var(--color-info) !important;
+  transition: border-left-color 500ms ease;
+}
+
+/* ── Trace expansion row (Task 9) ────────────────────────────────────────── */
+
+.traceRow td {
+  padding: 0;
+}
+
+.tracePanel {
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.tracePanelTitle {
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tracePanelEmpty {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.traceEventList {
+  display: grid;
+  gap: 4px;
+}
+
+.traceEvent {
+  display: grid;
+  grid-template-columns: 80px minmax(120px, 1fr) minmax(100px, 1fr) 80px;
+  gap: 8px;
+  align-items: center;
+  min-height: 22px;
+  color: var(--text-secondary);
+}
+
+.traceEventTs {
+  color: var(--text-muted);
+}
+
+.traceEventNode {
+  color: var(--text-primary);
+}
+
+.traceEventType {
+  color: var(--text-secondary);
+}
+
+.traceStatusOk {
+  color: var(--color-info);
+}
+
+.traceStatusActive {
+  color: var(--color-warning);
+}
+
+.traceStatusError {
+  color: var(--color-error);
+}
+
+/* ── Failure row expansion (Fix 2) ──────────────────────────────────────── */
+
+.failureTraceRow td {
+  padding: 0;
+}
+
+.failureTracePanel {
+  padding: 10px 12px;
+  background: transparent;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.failureTraceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 16px;
+}
+
+.failureTraceField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.failureTraceLabel {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.failureTraceValue {
+  color: var(--text-primary);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+
+
+.topologyNodeWarn {
+  fill: var(--accent-dim);
+  stroke: var(--color-warning);
+  stroke-width: 1;
+  rx: 2px;
+}
+
+.topologyNodeDown {
+  fill: var(--color-error-tint, color-mix(in srgb, var(--color-error) 15%, transparent));
+  stroke: var(--color-error);
+  stroke-width: 1;
+  rx: 2px;
+}
+
+/* ── Empty state helper (queues, campaign, registrations) ────────────────── */
+
+.noCampaign {
+  padding: 20px 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveDotReconnecting {
+    animation: none;
+  }
+
+  .rowFlash {
+    transition: none;
+  }
+}

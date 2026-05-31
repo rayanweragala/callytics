@@ -11,6 +11,7 @@ import { createExtension, deleteExtension, getExtensionQrContent, getHostConfig,
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import { useWindowWidth } from '../hooks/useWindowWidth';
+import { useToast } from '../context/ToastContext';
 import type { ExtensionItem } from '../types';
 import styles from './ExtensionsPage.module.css';
 
@@ -37,6 +38,7 @@ const EXTENSION_DID_CONFLICT_MESSAGE = 'This number is already in use as an inbo
 
 export function ExtensionsPage() {
   const windowWidth = useWindowWidth();
+  const { showToast } = useToast();
   const [items, setItems] = useState<ExtensionItem[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<ExtensionFormState>(emptyForm);
@@ -45,7 +47,6 @@ export function ExtensionsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [errorText, setErrorText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -59,15 +60,8 @@ export function ExtensionsPage() {
   const [limit, setLimit] = useState(10);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editPanelRef = useRef<HTMLDivElement | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  const showError = (msg: string | null) => {
-    setErrorText(msg);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
-  };
 
 
 
@@ -112,13 +106,8 @@ export function ExtensionsPage() {
     void load(limit, offset);
   }, [limit, offset]);
 
-  useEffect(() => () => {
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-  }, []);
-
   const resetMessages = () => {
-    showError(null);
-    setDeletedId(null);
+    if (deletedId !== null) setDeletedId(null);
     setCreateUsernameError(null);
     setEditUsernameError(null);
   };
@@ -153,7 +142,7 @@ export function ExtensionsPage() {
       await load(limit, 0);
     } catch (error) {
       if (!applyExtensionConflictError(error, 'create')) {
-        showError(getApiError(error, 'failed to create extension'));
+        showToast(getApiError(error, 'failed to create extension'), 'error');
       }
     } finally {
       setBusyKey(null);
@@ -214,7 +203,7 @@ export function ExtensionsPage() {
       await load(limit, offset);
     } catch (error) {
       if (!applyExtensionConflictError(error, 'edit')) {
-        showError(getApiError(error, 'failed to update extension'));
+        showToast(getApiError(error, 'failed to update extension'), 'error');
       }
     } finally {
       setBusyKey(null);
@@ -234,7 +223,7 @@ export function ExtensionsPage() {
       setOffset(nextOffset);
       await load(limit, nextOffset);
     } catch (error) {
-      showError(getApiError(error, 'failed to delete extension'));
+      showToast(getApiError(error, 'failed to delete extension'), 'error');
     } finally {
       setBusyKey(null);
     }
@@ -249,7 +238,7 @@ export function ExtensionsPage() {
       const dataUrl = await QRCode.toDataURL(uri, { width: 220, margin: 1 });
       setQrModal({ username: item.username, uri, dataUrl });
     } catch (error) {
-      showError(getApiError(error, 'failed to generate qr code'));
+      showToast(getApiError(error, 'failed to generate qr code'), 'error');
     } finally {
       setBusyKey(null);
     }
@@ -316,7 +305,7 @@ export function ExtensionsPage() {
                 />
               </label>
               <div className={styles.formActions}>
-                <button className={styles.primaryButton} type="button" onClick={() => void handleCreate()} disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
+                <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleCreate()} disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save extension'}</button>
               </div>
               <div className={styles.vpnToggleField}>
                 <div>
@@ -339,7 +328,6 @@ export function ExtensionsPage() {
                 </span>
               </div>
             </div>
-            {errorText ? <ErrorMessage message={errorText} /> : null}
           </section>
         ) : null}
 
@@ -371,8 +359,8 @@ export function ExtensionsPage() {
                 <tr><td colSpan={7} className={styles.emptyState}>No extensions yet.</td></tr>
               ) : (
                 sortedItems.map((item) => (
-                  <Fragment key={item.id}>
-                    <tr>
+                   <Fragment key={item.id}>
+                    <tr className="table-row-hover">
                       <td className={styles.dataMono}>{item.username}</td>
                       <td className={styles.displayName}>{item.displayName || '—'}</td>
                       <td>
@@ -460,7 +448,7 @@ export function ExtensionsPage() {
                             </div>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={closeEdit} type="button" disabled={busyKey === `edit-${item.id}`}>cancel</button>
-                              <button className={styles.primaryButton} type="button" onClick={() => void handleUpdate()} disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleUpdate()} disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
                           </div>
                         </td>
@@ -477,7 +465,6 @@ export function ExtensionsPage() {
             onPageChange={(nextPage) => setOffset((nextPage - 1) * limit)}
           />
 
-          {errorText ? <ErrorMessage message={errorText} /> : null}
         </div>
         <ConfirmDialog
           open={confirmDeleteId !== null}

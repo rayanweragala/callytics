@@ -273,8 +273,8 @@ export class AudioService implements OnModuleInit {
         SELECT COUNT(*)::int AS count
         FROM flow_nodes n
         JOIN call_flows f ON f.current_version_id = n.flow_version_id
-        WHERE n.config_json ? 'audio_file_id'
-          AND (n.config_json ->> 'audio_file_id')::int = $1
+        WHERE (n.config_json ->> 'audio_file_id') = $1::text
+           OR (n.config_json ->> 'prompt_audio_file_id') = $1::text
       `,
       [id],
     );

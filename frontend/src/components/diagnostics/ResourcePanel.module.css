@@ -195,6 +195,7 @@
 
 .barFill {
   height: 100%;
+  width: var(--bar-width);
   border-radius: var(--radius-full);
   background: var(--bar-fill, var(--resource-ok));
   transition: width 400ms ease-out, background 400ms ease-out;

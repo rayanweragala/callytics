@@ -9,6 +9,13 @@
   flex-direction: column;
   height: calc(100vh - 48px); /* fill remaining viewport below app shell */
   overflow: hidden;
+  animation: pageEnter 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
 }
 
 .editorNotice {
@@ -612,6 +619,7 @@
   height: 28px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
+  background: var(--accent-bar-color);
 }
 
 .configPanelMeta {

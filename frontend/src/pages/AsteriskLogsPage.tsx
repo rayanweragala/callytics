@@ -246,7 +246,7 @@ export function AsteriskLogsPage() {
                 return (
                   <Fragment key={rowKey}>
                     <tr
-                      className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)} ${isExpanded ? styles.rowExpanded : ''}`.trim()}
+                      className={`${styles.row} ${channelGroupClass} ${rowHighlightClass(entry.level)} ${isExpanded ? styles.rowExpanded : ''} table-row-hover`.trim()}
                       onClick={() => setExpandedRowKey((current) => (current === rowKey ? null : rowKey))}
                     >
                       <td className={`${styles.timestamp} ${styles.timestampCol}`}>{formatDateTime(entry.timestamp)}</td>

@@ -1269,7 +1269,7 @@ export function FlowEditorPage() {
   // ── Derived UI labels ────────────────────────────────────────────────────────
   const saveLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'failed' : 'save';
   const saveStatusLabel = saveState === 'saving' ? 'saving…' : saveState === 'saved' ? 'saved ✓' : saveState === 'failed' ? 'save failed' : hasUnsavedChanges ? 'unsaved changes' : 'up to date';
-  const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton;
+  const saveButtonClass = saveState === 'failed' ? `${styles.primaryButton} ${styles.failedButton} btn-press` : `${styles.primaryButton} btn-press`;
   const flowDefaultTimeout = getFlowDefaultTimeoutMs(nodes);
   const leaveFlowEditor = async () => { const canLeave = await ensureSavedBeforeNavigation(); if (canLeave) { navigate('/flows'); return; } requestLeave({ kind: 'navigate', to: '/flows' }); };
 
@@ -1407,7 +1407,7 @@ export function FlowEditorPage() {
               fix now
             </button>
             <button
-              className={styles.primaryButton}
+              className={`${styles.primaryButton} btn-press`}
               type="button"
               onClick={() => { void saveFlow(undefined, { allowTimeoutWarningBypass: true }); }}
             >

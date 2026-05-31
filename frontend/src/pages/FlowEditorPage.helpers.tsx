@@ -7,6 +7,7 @@ import type {
   FlowSnapshotSubflow,
   SubmenuBranchFlow,
 } from '../types';
+import styles from './FlowEditorPage.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1445,21 +1446,11 @@ export function minimapNodeColor(node: Node<FlowNodeData>): string {
 export function renderPaletteIcon(type: BuilderNodeType) {
   if (type === 'business_hours') {
     return (
-      <span
-        style={{
-          width: 16,
-          height: 16,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-        }}
-        aria-hidden="true"
-      >
+      <span className={styles.paletteIconWrap} aria-hidden="true">
         <svg
           viewBox="0 0 16 16"
           focusable="false"
-          style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}
+          className={styles.paletteIconSvg}
         >
           <circle cx="8" cy="8" r="5.5" />
           <path d="M8 4.5V8L10.5 9.5" />
@@ -1470,21 +1461,11 @@ export function renderPaletteIcon(type: BuilderNodeType) {
 
   if (type === 'voicemail') {
     return (
-      <span
-        style={{
-          width: 16,
-          height: 16,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-        }}
-        aria-hidden="true"
-      >
+      <span className={styles.paletteIconWrap} aria-hidden="true">
         <svg
           viewBox="0 0 16 16"
           focusable="false"
-          style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}
+          className={styles.paletteIconSvg}
         >
           <circle cx="5" cy="8" r="2.5" />
           <circle cx="11" cy="8" r="2.5" />
@@ -1496,21 +1477,11 @@ export function renderPaletteIcon(type: BuilderNodeType) {
 
   if (type === 'queue') {
     return (
-      <span
-        style={{
-          width: 16,
-          height: 16,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-        }}
-        aria-hidden="true"
-      >
+      <span className={styles.paletteIconWrap} aria-hidden="true">
         <svg
           viewBox="0 0 16 16"
           focusable="false"
-          style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}
+          className={styles.paletteIconSvg}
         >
           <circle cx="4" cy="4" r="1.5" />
           <circle cx="8" cy="6" r="1.5" />
@@ -1526,21 +1497,11 @@ export function renderPaletteIcon(type: BuilderNodeType) {
 
   if (type !== 'menu') return null;
   return (
-    <span
-      style={{
-        width: 16,
-        height: 16,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--text-secondary)',
-      }}
-      aria-hidden="true"
-    >
+    <span className={styles.paletteIconWrap} aria-hidden="true">
       <svg
         viewBox="0 0 16 16"
         focusable="false"
-        style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.2 }}
+        className={styles.paletteIconSvg}
       >
         <rect x="2" y="2" width="4" height="4" rx="1" />
         <rect x="10" y="2" width="4" height="4" rx="1" />

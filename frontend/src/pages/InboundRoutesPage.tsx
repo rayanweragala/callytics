@@ -209,7 +209,7 @@ export function InboundRoutesPage() {
 
   const pageActions = (
     <button
-      className={styles.primaryButton}
+      className={`${styles.primaryButton} btn-press`}
       onClick={() => {
         resetMessages();
         setEditingId(null);
@@ -260,7 +260,7 @@ export function InboundRoutesPage() {
               }} />
             </label>
             <div className={styles.formActions}>
-              <button className={styles.primaryButton} disabled={!createForm.flowId} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save route'}</button>
+              <button className={`${styles.primaryButton} btn-press`} disabled={!createForm.flowId} type="button" onClick={() => void handleCreate()}>{busyKey === 'create' ? 'saving…' : 'save route'}</button>
             </div>
           </div>
         {errorText ? <ErrorMessage message={errorText} /> : null}
@@ -296,7 +296,7 @@ export function InboundRoutesPage() {
             <tbody>
               {sortedItems.map((item) => (
                 <Fragment key={item.id}>
-                  <tr>
+                  <tr className="table-row-hover">
                     <td className={styles.dataMono}>{item.did}</td>
                     <td className={styles.labelText}>{item.label || '—'}</td>
                     <td className={styles.flowText}>{item.flowName || `flow ${item.flowId}`}</td>
@@ -342,7 +342,7 @@ export function InboundRoutesPage() {
                           </label>
                           <div className={styles.formActions}>
                             <button className={styles.secondaryButton} onClick={closeEdit} type="button">cancel</button>
-                            <button className={styles.primaryButton} disabled={!editForm.flowId} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                            <button className={`${styles.primaryButton} btn-press`} disabled={!editForm.flowId} type="button" onClick={() => void handleUpdate()}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                           </div>
                         </div>
                       </td>

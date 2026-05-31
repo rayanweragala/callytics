@@ -792,7 +792,7 @@ export function TrunksPage() {
   };
 
   const pageActions = (
-    <button className={styles.primaryButton} onClick={openCreate} type="button">
+    <button className={`${styles.primaryButton} btn-press`} onClick={openCreate} type="button">
       {createOpen ? 'cancel' : 'add trunk'}
     </button>
   );
@@ -896,7 +896,7 @@ export function TrunksPage() {
             </label>
             <div className={styles.formActions}>
               <button className={styles.secondaryButton} onClick={hideCreate} type="button">cancel</button>
-              <button className={styles.primaryButton} type="submit" disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save trunk'}</button>
+              <button className={`${styles.primaryButton} btn-press`} type="submit" disabled={busyKey === 'create'}>{busyKey === 'create' ? 'saving…' : 'save trunk'}</button>
             </div>
           </form>
           {errorText ? <ErrorMessage message={errorText} /> : null}
@@ -943,7 +943,7 @@ export function TrunksPage() {
         {settingsDirty ? (
           <div className={`${styles.formActions} ${styles.formActionsTop}`}>
             <button className={styles.secondaryButton} onClick={() => setDraftSettings(settings)} disabled={settingsSaving} type="button">cancel</button>
-            <button className={styles.primaryButton} onClick={() => void handleSaveSettings()} disabled={settingsSaving} type="button">
+            <button className={`${styles.primaryButton} btn-press`} onClick={() => void handleSaveSettings()} disabled={settingsSaving} type="button">
               {settingsSaving ? 'saving…' : 'save changes'}
             </button>
           </div>
@@ -994,7 +994,7 @@ export function TrunksPage() {
                 const presetLabel = PROVIDER_PRESETS[item.providerPreset as keyof typeof PROVIDER_PRESETS]?.label || item.providerPreset || 'Generic / Local';
                 return (
                   <Fragment key={item.id}>
-                    <tr className={styles.row}>
+                    <tr className={`${styles.row} table-row-hover`}>
                       <td className={styles.rowValue}>{item.name}</td>
                       <td className={styles.rowMuted}>{presetLabel}</td>
                       <td className={styles.dataMono}>{item.host}</td>
@@ -1095,7 +1095,7 @@ export function TrunksPage() {
                                 />
                               </label>
                               <button
-                                className={styles.primaryButton}
+                                className={`${styles.primaryButton} btn-press`}
                                 type="button"
                                 onClick={() => void handleStartOutboundTest()}
                                 disabled={outboundTest.isSubmitting}
@@ -1123,7 +1123,7 @@ export function TrunksPage() {
                             <div className={styles.expandedInboundRow}>
                               <div className={styles.expandedDescription}>Generates a synthetic inbound call through this trunk into your inbound routing.</div>
                               <button
-                                className={styles.primaryButton}
+                                className={`${styles.primaryButton} btn-press`}
                                 type="button"
                                 onClick={() => void handleStartInboundTest()}
                                 disabled={inboundTest.isSubmitting}
@@ -1214,7 +1214,7 @@ export function TrunksPage() {
                             </label>
                             <div className={styles.formActions}>
                               <button className={styles.secondaryButton} onClick={hideEdit} type="button">cancel</button>
-                              <button className={styles.primaryButton} type="submit" disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
+                              <button className={`${styles.primaryButton} btn-press`} type="submit" disabled={busyKey === `edit-${item.id}`}>{busyKey === `edit-${item.id}` ? 'saving…' : 'save changes'}</button>
                             </div>
                           </form>
                         </td>

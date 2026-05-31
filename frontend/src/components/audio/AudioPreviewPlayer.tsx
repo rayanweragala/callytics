@@ -158,7 +158,7 @@ export function AudioPreviewPlayer({ src, isActive = true, autoPlay = false }: A
             audio.currentTime = Number(event.target.value);
             setCurrentTime(audio.currentTime);
           }}
-          style={{ backgroundSize: `${progress}% 100%` } as React.CSSProperties}
+          style={{ ['--bar-width' as string]: `${progress}%` }}
           disabled={!isValidSrc}
         />
         <div className={styles.time}>{formatTime(currentTime)} / {formatTime(duration)}</div>

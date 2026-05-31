@@ -9,12 +9,13 @@ import { deleteFlow, listFlows } from '../lib/api';
 import { getApiError } from '../lib/apiError';
 import { formatDateTime } from '../lib/time';
 import { useWindowWidth } from '../hooks/useWindowWidth';
+import { useToast } from '../context/ToastContext';
 import type { FlowSummary } from '../types';
 import styles from './FlowsPage.module.css';
 
 export function FlowsPage() {
   const windowWidth = useWindowWidth();
-  const [errorText, setErrorText] = useState<string | null>(null);
+  const { showToast } = useToast();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [flows, setFlows] = useState<FlowSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,13 +24,6 @@ export function FlowsPage() {
   const [deletedId, setDeletedId] = useState<number | null>(null);
   const [failedDeleteId, setFailedDeleteId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showError = (msg: string | null) => {
-    setErrorText(msg);
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-    if (msg) errorTimerRef.current = setTimeout(() => setErrorText(null), 6000);
-  };
 
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showSuccess = (id: number | null) => {
@@ -40,7 +34,6 @@ export function FlowsPage() {
 
   useEffect(() => {
     return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, []);
@@ -81,7 +74,7 @@ export function FlowsPage() {
       setConfirmId(null);
       void loadFlows(page, limit);
     } catch (error) {
-      showError(getApiError(error, 'failed to delete flow'));
+      showToast(getApiError(error, 'failed to delete flow'), 'error');
       setFailedDeleteId(id);
       setConfirmId(null);
       window.setTimeout(() => {
@@ -99,7 +92,7 @@ export function FlowsPage() {
       {windowWidth < 768 ? <DesktopRequired /> : null}
       <div className={styles.pageHeader}>
         <PageLayout title="flow builder" subtitle="configure" />
-        <button className={styles.primaryButton} onClick={() => void handleCreate()} type="button">
+        <button className={`${styles.primaryButton} btn-press`} onClick={() => void handleCreate()} type="button">
           new flow
         </button>
       </div>
@@ -121,7 +114,7 @@ export function FlowsPage() {
                 <tr><td colSpan={3} className={styles.emptyState}>No flows yet.</td></tr>
               ) : (
                 flows.map((flow) => (
-                  <tr key={flow.id}>
+                  <tr key={flow.id} className="table-row-hover">
                     <td>
                       <div className={styles.flowName}>{flow.name}</div>
                       <div className={styles.flowDescription}>{flow.description || '—'}</div>
@@ -150,7 +143,6 @@ export function FlowsPage() {
             totalPages={totalPages}
             onPageChange={setPage}
           />
-          <ErrorMessage message={errorText} />
         </div>
       ) : null}
       <ConfirmDialog

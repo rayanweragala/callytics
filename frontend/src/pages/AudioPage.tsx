@@ -296,7 +296,7 @@ export function AudioPage() {
             <input className={styles.input} placeholder="display name" value={uploadName} onChange={(e) => { clearUploadFeedback(); setUploadName(e.target.value); }} />
             <AudioUploadZone file={uploadFile} onFileSelect={(f) => { clearUploadFeedback(); setUploadFile(f); }} />
             <div className={styles.actionRow}>
-              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleUpload()} disabled={uploadState === 'busy'}>
+              <button className={uploadState === 'failed' ? `${styles.primaryButton} ${styles.failedButton} btn-press` : `${styles.primaryButton} btn-press`} type="button" onClick={() => void handleUpload()} disabled={uploadState === 'busy'}>
                 {uploadState === 'busy' ? 'uploading…' : uploadState === 'saved' ? 'uploaded ✓' : uploadState === 'failed' ? 'failed' : 'upload'}
               </button>
               {uploadError && <div className={styles.failedText}>{uploadError}</div>}
@@ -364,7 +364,7 @@ export function AudioPage() {
               <button className={styles.previewButton} type="button" disabled={previewState === 'busy'} onClick={() => void handlePreview()}>
                 {previewState === 'busy' ? 'previewing…' : 'preview'}
               </button>
-              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton}` : styles.primaryButton} type="button" onClick={() => void handleTts()} disabled={ttsState === 'busy'}>
+              <button className={ttsState === 'failed' ? `${styles.primaryButton} ${styles.failedButton} btn-press` : `${styles.primaryButton} btn-press`} type="button" onClick={() => void handleTts()} disabled={ttsState === 'busy'}>
                 {ttsState === 'busy' ? 'saving…' : ttsState === 'saved' ? 'saved ✓' : ttsState === 'failed' ? 'failed' : 'save'}
               </button>
             </div>
@@ -445,7 +445,7 @@ export function AudioPage() {
                         {editError ? <div className={`${styles.failedText} ${styles.fullWidth}`}>{editError}</div> : null}
                         <div className={styles.actions}>
                           <button className={styles.secondaryButton} type="button" onClick={closeEdit} disabled={savingEdit}>cancel</button>
-                          <button className={styles.primaryButton} type="button" onClick={() => void saveEdit()} disabled={savingEdit}>{savingEdit ? 'saving…' : 'save'}</button>
+                          <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void saveEdit()} disabled={savingEdit}>{savingEdit ? 'saving…' : 'save'}</button>
                         </div>
                       </div>
                     </td>

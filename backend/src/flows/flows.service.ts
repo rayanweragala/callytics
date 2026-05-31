@@ -1142,6 +1142,13 @@ export class FlowsService implements OnModuleInit {
       await manager
         .createQueryBuilder()
         .delete()
+        .from('call_node_logs')
+        .where('flow_id IN (:...flowIds)', { flowIds })
+        .execute();
+
+      await manager
+        .createQueryBuilder()
+        .delete()
         .from(CallFlowEntity)
         .where('id IN (:...flowIds)', { flowIds })
         .execute();

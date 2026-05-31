@@ -671,7 +671,7 @@ export function VpnPage() {
             placeholder="peer name"
             value={peerName}
           />
-          <button className={styles.primaryButton} type="button" onClick={() => void handleAddPeer()} disabled={peerLoading}>
+          <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleAddPeer()} disabled={peerLoading}>
             {peerLoading ? 'adding...' : 'Add Peer'}
           </button>
         </section>
@@ -783,7 +783,7 @@ export function VpnPage() {
                   <div className={styles.relayForm}>
                     <input className={styles.input} placeholder="VPS Public Key" value={relayPublicKey} onChange={(event) => setRelayPublicKey(event.target.value)} />
                     <input className={styles.input} placeholder="VPS Public IP" value={relayPublicIp} onChange={(event) => setRelayPublicIp(event.target.value)} />
-                    <button className={styles.primaryButton} type="button" onClick={() => void handleRelayConfig()}>generate config</button>
+                    <button className={`${styles.primaryButton} btn-press`} type="button" onClick={() => void handleRelayConfig()}>generate config</button>
                     {relayConfig ? (
                       <div className={styles.relayConfigResult}>
                         <div className={styles.commandLabel}>CALLYTICS CONFIG</div>
@@ -793,7 +793,7 @@ export function VpnPage() {
                         </button>
                         <div className={styles.relayActions}>
                           <button
-                            className={styles.primaryButton}
+                            className={`${styles.primaryButton} btn-press`}
                             type="button"
                             onClick={() => void handleActivateRelayTunnel()}
                             disabled={relayActivateLoading || relayTransitioning}

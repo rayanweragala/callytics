@@ -3,15 +3,13 @@
   height: 100%;
   min-width: 200px;
   min-height: 150px;
-  border: 1px solid rgba(var(--accent-rgb), 0.42);
+  border: 1px solid var(--accent-dim);
   background:
-    linear-gradient(180deg, rgba(var(--accent-rgb), 0.14), rgba(var(--accent-rgb), 0.05) 28%, rgba(var(--accent-rgb), 0.04)),
-    rgba(var(--accent-rgb), 0.03);
+    linear-gradient(180deg, var(--accent-dim), transparent 40%),
+    var(--accent-dim);
   border-radius: var(--radius-lg);
   position: relative;
-  box-shadow:
-    inset 0 0 0 1px rgba(var(--accent-rgb), 0.08),
-    inset 0 24px 40px rgba(9, 14, 30, 0.08);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
 }
 
 .selected {
@@ -32,15 +30,15 @@
   min-height: 28px;
   max-width: calc(100% - 20px);
   padding: 0 10px;
-  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  border: 1px solid var(--accent-dim);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-surface) 84%, rgba(var(--accent-rgb), 0.16));
+  background: var(--bg-elevated);
   backdrop-filter: blur(8px);
 }
 
 .label,
 .labelInput {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-primary);
 }
@@ -68,7 +66,7 @@
 }
 
 .resizerLine {
-  border-color: rgba(var(--accent-rgb), 0.45) !important;
+  border-color: var(--accent-dim) !important;
   border-style: dashed !important;
 }
 

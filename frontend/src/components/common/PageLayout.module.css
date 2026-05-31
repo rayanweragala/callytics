@@ -3,6 +3,13 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  animation: pageEnter 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
 }
 
 .header {

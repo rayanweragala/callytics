@@ -77,7 +77,7 @@ function nodeTypeColor(type: string): string {
     case 'get_digits': case 'menu': case 'business_hours': return 'var(--accent)';
     case 'transfer': case 'hunt': return 'var(--primitive-blue)';
     case 'queue': case 'queue_login': return 'var(--primitive-navy-300)';
-    case 'conference': return '#2dd4bf';
+    case 'conference': return 'var(--color-node-conference)';
     case 'callback': return 'var(--primitive-orange)';
     default: return 'var(--text-muted)';
   }
@@ -173,7 +173,7 @@ export function NodeConfigPanel({
         <div className={pageStyles.configPanelHeader}>
           <span
             className={pageStyles.configPanelAccentBar}
-            style={{ background: nodeTypeColor(selectedNode?.data.type ?? (selectedEdgeSourceNode?.data.type ?? 'hangup')) }}
+            style={{ ['--accent-bar-color' as string]: nodeTypeColor(selectedNode?.data.type ?? (selectedEdgeSourceNode?.data.type ?? 'hangup')) }}
           />
           <div className={pageStyles.configPanelMeta}>
             <div className={pageStyles.configPanelType}>

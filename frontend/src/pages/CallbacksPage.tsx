@@ -215,7 +215,7 @@ export function CallbacksPage() {
                 (() => {
                   const operatorDisplay = resolveOperatorDisplay(item);
                   return (
-                    <tr key={item.id} className={styles.row}>
+                    <tr key={item.id} className={`${styles.row} table-row-hover`}>
                       <td className={styles.dataMono}>{item.id}</td>
                       <td className={styles.dataMono}>{item.customerNumber || <span className={styles.dashMuted}>—</span>}</td>
                       <td className={operatorDisplay.mono ? styles.dataMono : undefined}>

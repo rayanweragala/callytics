@@ -19,7 +19,8 @@ describe('MosGauge', () => {
     expect(screen.getByText('12.35ms')).toBeInTheDocument();
     expect(screen.getByText('slight')).toBeInTheDocument();
 
-    const fill = container.querySelector('div[style*="width"]') as HTMLDivElement;
-    expect(fill.style.width).toBe('100%');
+    const fill = container.querySelector('div[style*="--bar-width"]') as HTMLDivElement;
+    expect(fill).not.toBeNull();
+    expect(fill.style.getPropertyValue('--bar-width')).toBe('100%');
   });
 });

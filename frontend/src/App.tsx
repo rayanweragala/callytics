@@ -1,6 +1,8 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { CommandPalette } from './components/CommandPalette';
 import { SidebarNav } from './components/SidebarNav';
 import styles from './App.module.css';
+import { DashboardPage } from './pages/DashboardPage';
 import { DiagnosticsPage } from './pages/DiagnosticsPage';
 import { AudioPage } from './pages/AudioPage';
 import { ExtensionsPage } from './pages/ExtensionsPage';
@@ -34,7 +36,9 @@ export default function App() {
       <SidebarNav />
       <main className={styles.contentArea}>
         <Routes>
-          <Route path="/" element={<DiagnosticsPage />} />
+          <Route path="/" element={<Navigate replace to="/dashboard" />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/diagnostics" element={<DiagnosticsPage />} />
           <Route path="/logs" element={<AsteriskLogsPage />} />
           <Route path="/capture" element={<CapturePage />} />
           <Route path="/audio" element={<AudioPage />} />
@@ -61,6 +65,7 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
+      <CommandPalette />
       <Softphone />
     </div>
   );

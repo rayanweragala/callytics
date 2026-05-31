@@ -161,6 +161,7 @@
 
 .metricFill {
   height: 100%;
+  width: var(--bar-width);
   border-radius: inherit;
 }
 
