@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-// TEMP: uncomment after screenshot
-/*
 import {
   getDiagnosticsHealth,
   getDiagnosticsRegistrations,
@@ -11,8 +9,6 @@ import {
   listCallLogs,
 } from '../lib/api';
 import { diagnosticsSocket } from '../lib/socket';
-import { getApiError } from '../lib/apiError';
-*/
 import type {
   DiagnosticsSystemHealth,
   RegistrationHealthResponse,
@@ -216,29 +212,7 @@ export function DashboardPage() {
   const [staleElapsed, setStaleElapsed] = useState('');
 
   // Active calls: keyed by callId
-  const [activeCalls, setActiveCalls] = useState<Map<string, ActiveCallEntry>>(() => {
-    const m = new Map<string, ActiveCallEntry>();
-    const now = Date.now();
-    const calls = [
-      { callId: '1', caller: '+1 415 *** 0192', flowId: 'billing-main', duration: 3 * 60 + 42, node: 'collect_account_id', nodeType: 'ivr' },
-      { callId: '2', caller: '+1 212 *** 8810', flowId: 'support-escalate', duration: 28, node: 'queue_support_l2', nodeType: 'queue' },
-      { callId: '3', caller: '+44 20 *** 4102', flowId: 'outbound-renewal', duration: 6 * 60 + 19, node: 'agent_bridge', nodeType: 'bridge' },
-      { callId: '4', caller: '+1 305 *** 2031', flowId: 'main-menu', duration: 1 * 60 + 7, node: 'route_sales', nodeType: 'ivr' },
-      { callId: '5', caller: '+1 718 *** 4401', flowId: 'billing-main', duration: 52, node: 'payment_confirm', nodeType: 'ivr' },
-    ];
-    for (const c of calls) {
-      m.set(c.callId, {
-        callId: c.callId,
-        caller: c.caller,
-        flowId: c.flowId as any,
-        startedAt: now - c.duration * 1000,
-        currentNode: c.node,
-        nodeType: c.nodeType,
-        events: [],
-      });
-    }
-    return m;
-  });
+  const [activeCalls, setActiveCalls] = useState<Map<string, ActiveCallEntry>>(new Map());
   const [callTick, setCallTick] = useState(0);
   const [pressureHistory, setPressureHistory] = useState<number[]>(Array(16).fill(0));
   const [lastEndedTs, setLastEndedTs] = useState<number | null>(null);
@@ -251,93 +225,12 @@ export function DashboardPage() {
 
   // REST data
   const [health, setHealth] = useState<DiagnosticsSystemHealth | null>(null);
-  const [registrations, setRegistrations] = useState<RegistrationHealthResponse>(() => ({
-    trunks: [
-      { trunkName: 'twilio-primary', host: '', status: 'registered', lastRegistration: '42ms', expiresIn: null },
-      { trunkName: 'bandwidth-backup', host: '', status: 'registered', lastRegistration: '51ms', expiresIn: null },
-      { trunkName: 'telnyx-eu', host: '', status: 'rejected' as any, lastRegistration: '403', expiresIn: null },
-    ],
-    extensions: [
-      { extension: '1001', displayName: 'desk-01', status: 'registered', registeredIp: null, lastSeen: null, expiresIn: null },
-      { extension: '1002', displayName: 'last 12m', status: 'unregistered', registeredIp: null, lastSeen: null, expiresIn: null },
-      { extension: '1003', displayName: 'softphone', status: 'registered', registeredIp: null, lastSeen: null, expiresIn: null },
-    ]
-  } as any));
-  const [failures, setFailures] = useState<DiagnosticsFailureItem[]>(() => [
-    {
-      id: 1,
-      callId: 'fail-1',
-      time: '14:02:11',
-      callerId: '+1 646 ***8812',
-      flowName: 'billing-main',
-      failedNodeType: 'payment_confirm',
-      errorMessage: 'dtmf_timeout',
-      durationSeconds: 0,
-    },
-    {
-      id: 2,
-      callId: 'fail-2',
-      time: '14:01:48',
-      callerId: '+1 305 ***2031',
-      flowName: 'support-escalate',
-      failedNodeType: 'queue_support_l2',
-      errorMessage: 'no_agents',
-      durationSeconds: 0,
-    },
-    {
-      id: 3,
-      callId: 'fail-3',
-      time: '14:00:19',
-      callerId: '+44 20 ***7710',
-      flowName: 'outbound-renewal',
-      failedNodeType: 'dial_attempt',
-      errorMessage: 'trunk_403',
-      durationSeconds: 0,
-    },
-    {
-      id: 4,
-      callId: 'fail-4',
-      time: '13:59:02',
-      callerId: '+1 718 ***4401',
-      flowName: 'main-menu',
-      failedNodeType: 'speech_input',
-      errorMessage: 'asr_no_match',
-      durationSeconds: 0,
-    },
-  ] as any);
-  const [callLogStats, setCallLogStats] = useState<CallLogStats | null>(() => ({
-    today: 1284,
-    answered: 1107,
-    missed: 43,
-    avgDurationSecs: 161,
-  }));
-  const [runningCampaign, setRunningCampaign] = useState<CampaignItem | null>(() => ({
-    id: 1,
-    name: 'outbound-renewal-q2',
-    status: 'running',
-    maxConcurrent: 12,
-    maxRetries: 3,
-    direction: 'outbound',
-    description: '',
-    config: {} as any,
-    createdAt: '',
-    updatedAt: '',
-  } as any));
-  const [campaignProgress, setCampaignProgress] = useState<CampaignProgress | null>(() => ({
-    status: 'running',
-    totalContacts: 12000,
-    dialedCount: 8420,
-    answeredCount: 2931,
-    failedCount: 418,
-    pendingCount: 3580,
-    activeCallCount: 12,
-  } as any));
-  const queues = [
-    { id: '1', name: 'priority', wait: '05', operatorCount: 1, pressure: '5.0x', fillClass: styles.queueFull, colorClass: styles.queuePressureHigh },
-    { id: '2', name: 'support_l1', wait: '08', operatorCount: 4, pressure: '2.0x', fillClass: styles.queueMedium, colorClass: styles.queuePressureLive },
-    { id: '3', name: 'sales', wait: '02', operatorCount: 3, pressure: '0.7x', fillClass: styles.queueLow, colorClass: styles.queuePressureLive },
-    { id: '4', name: 'billing', wait: '00', operatorCount: 2, pressure: '0.0x', fillClass: styles.queueEmpty, colorClass: styles.queuePressureEmpty },
-  ];
+  const [registrations, setRegistrations] = useState<RegistrationHealthResponse>(EMPTY_REGISTRATIONS);
+  const [failures, setFailures] = useState<DiagnosticsFailureItem[]>([]);
+  const [callLogStats, setCallLogStats] = useState<CallLogStats | null>(null);
+  const [runningCampaign, setRunningCampaign] = useState<CampaignItem | null>(null);
+  const [campaignProgress, setCampaignProgress] = useState<CampaignProgress | null>(null);
+  const [queues, setQueues] = useState<QueueItem[]>([]);
 
   // ---------------------------------------------------------------------------
   // Derived values
@@ -345,27 +238,12 @@ export function DashboardPage() {
   const isStale = wsStatus === 'disconnected';
 
   const activeCallsArray = [...activeCalls.values()];
-  const activeNow = 18;
+  const activeNow = activeCalls.size;
 
-  const failuresLast15m = 12;
+  const failuresLast15m = failures.length;
 
-  const healthSignals = [
-    { service: 'Asterisk', state: 'OK' as const, signal: 'channels 18' },
-    { service: 'ARI', state: 'OK' as const, signal: 'streaming' },
-    { service: 'DB', state: 'OK' as const, signal: '8ms' },
-    { service: 'Redis', state: 'WARN' as const, signal: '92ms' },
-    { service: 'CPU', state: 'OK' as const, signal: '41%' },
-    { service: 'Memory', state: 'WARN' as const, signal: '78%' },
-  ];
-  const healthMap = new Map<string, 'OK' | 'WARN' | 'DEGRADED' | 'DOWN' | 'UNKNOWN'>([
-    ['pstn', 'OK'],
-    ['sip', 'OK'],
-    ['asterisk', 'OK'],
-    ['ari', 'OK'],
-    ['app', 'OK'],
-    ['db', 'OK'],
-    ['redis', 'WARN'],
-  ]);
+  const healthSignals = resolveHealthSignals(health);
+  const healthMap = buildHealthMap(health);
   const failureMix = buildFailureMix(failures);
 
   // ---------------------------------------------------------------------------
@@ -390,11 +268,6 @@ export function DashboardPage() {
     flashTimers.current.set(callId, timer);
   }
 
-  // ---------------------------------------------------------------------------
-  // Task 1 & 2 — WebSocket (call events + timeline)
-  // ---------------------------------------------------------------------------
-  // TEMP: uncomment after screenshot
-  /*
   useEffect(() => {
     function handleConnect() {
       setWsStatus('connected');
@@ -477,7 +350,6 @@ export function DashboardPage() {
       diagnosticsSocket.off('call:timeline', handleCallTimeline);
     };
   }, []);
-  */
 
   // Cleanup flash timers on unmount
   useEffect(() => {
@@ -488,9 +360,6 @@ export function DashboardPage() {
     };
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Task 1 — Clock tick, stale elapsed, active count → pressure history
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     const timer = window.setInterval(() => {
       setCurrentTime(formatTime(new Date()));
@@ -512,13 +381,6 @@ export function DashboardPage() {
     return () => window.clearInterval(timer);
   }, [lastEventTs]);
 
-  // ---------------------------------------------------------------------------
-  // Task 4 — System health poll
-  // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
-  // TEMP: uncomment after screenshot
-  // ---------------------------------------------------------------------------
-  /*
   async function refreshHealth() {
     try {
       const result = await getDiagnosticsHealth();
@@ -528,7 +390,6 @@ export function DashboardPage() {
     }
   }
 
-  // Task 5 — Registrations poll
   async function refreshRegistrations() {
     try {
       const result = await getDiagnosticsRegistrations();
@@ -538,7 +399,6 @@ export function DashboardPage() {
     }
   }
 
-  // Task 8 — Failures poll
   async function refreshFailures() {
     try {
       const result = await getDiagnosticsFailures(10, 0);
@@ -548,7 +408,6 @@ export function DashboardPage() {
     }
   }
 
-  // Task 3 — Call log stats poll
   async function refreshCallLogStats() {
     try {
       const { dateFrom, dateTo } = getTodayRange();
@@ -568,7 +427,6 @@ export function DashboardPage() {
     }
   }
 
-  // Task 6 — Campaign poll
   async function refreshCampaign() {
     try {
       const result = await listCampaigns(100, 0);
@@ -585,7 +443,6 @@ export function DashboardPage() {
     }
   }
 
-  // Task 7 — Queues poll
   async function refreshQueues() {
     try {
       const result = await listQueues(1, 50);
@@ -621,40 +478,46 @@ export function DashboardPage() {
       window.clearInterval(queuesTimer);
     };
   }, []);
-  */
 
   // ---------------------------------------------------------------------------
   // Summary strip metrics
   // ---------------------------------------------------------------------------
+  const answerRate = callLogStats && callLogStats.today > 0
+    ? ((callLogStats.answered / callLogStats.today) * 100).toFixed(1)
+    : null;
+  const missRate = callLogStats && callLogStats.today > 0
+    ? ((callLogStats.missed / callLogStats.today) * 100).toFixed(1)
+    : null;
+
   const summaryMetrics = [
     {
       label: 'CALLS TODAY',
-      value: '1,284',
+      value: callLogStats ? callLogStats.today.toLocaleString() : '—',
       detail: 'TODAY',
     },
     {
       label: 'ANSWERED',
-      value: '1,107',
-      detail: '86.2% RATE',
+      value: callLogStats ? callLogStats.answered.toLocaleString() : '—',
+      detail: answerRate !== null ? `${answerRate}% RATE` : 'TODAY',
     },
     {
       label: 'MISSED',
-      value: '43',
-      detail: '3.3% RATE',
+      value: callLogStats ? callLogStats.missed.toLocaleString() : '—',
+      detail: missRate !== null ? `${missRate}% RATE` : 'TODAY',
     },
     {
       label: 'AVG DURATION',
-      value: '02:41',
+      value: formatAvgDuration(callLogStats?.avgDurationSecs ?? null),
       detail: 'TODAY',
     },
     {
       label: 'ACTIVE NOW',
-      value: '18',
+      value: String(activeNow),
       detail: wsStatus === 'connected' ? 'WS LIVE' : wsStatus === 'reconnecting' ? 'WS RECONNECTING' : 'WS OFFLINE',
     },
     {
       label: 'FAILURES',
-      value: '12',
+      value: String(failuresLast15m),
       detail: 'LAST 15M',
     },
   ];
@@ -957,91 +820,97 @@ export function DashboardPage() {
           />
           {!runningCampaign || !campaignProgress ? (
             <div className={styles.noCampaign}>NO ACTIVE CAMPAIGN</div>
-          ) : (
-            <>
-              <div className={styles.progressList}>
-                {/* DIALED */}
-                <div className={styles.progressRow}>
-                  <span className={styles.progressLabel}>DIALED</span>
-                  <span className={styles.progressTrack}>
-                    <span
-                      className={`${styles.progressFill} ${styles.progressDialed}`}
-                      style={{ width: '70.1%' }}
-                    />
-                  </span>
-                  <span className={styles.progressValue}>
-                    8,420 / 12,000
-                  </span>
-                  <span className={styles.progressRate}>
-                    70.1%
-                  </span>
+          ) : (() => {
+            const total = campaignProgress.totalContacts || 1;
+            const dialedPct = ((campaignProgress.dialedCount / total) * 100).toFixed(1);
+            const answeredPct = ((campaignProgress.answeredCount / total) * 100).toFixed(1);
+            const failedPct = ((campaignProgress.failedCount / total) * 100).toFixed(1);
+            const pendingPct = ((campaignProgress.pendingCount / total) * 100).toFixed(1);
+            const maxActive = runningCampaign.maxConcurrent || 1;
+            const activePct = Math.min(100, Math.round((campaignProgress.activeCallCount / maxActive) * 100));
+            const answerRateCampaign = campaignProgress.dialedCount > 0
+              ? ((campaignProgress.answeredCount / campaignProgress.dialedCount) * 100).toFixed(1)
+              : '0.0';
+            return (
+              <>
+                <div className={styles.progressList}>
+                  {/* DIALED */}
+                  <div className={styles.progressRow}>
+                    <span className={styles.progressLabel}>DIALED</span>
+                    <span className={styles.progressTrack}>
+                      <span
+                        className={`${styles.progressFill} ${styles.progressDialed}`}
+                        style={{ width: `${dialedPct}%` }}
+                      />
+                    </span>
+                    <span className={styles.progressValue}>
+                      {campaignProgress.dialedCount.toLocaleString()} / {total.toLocaleString()}
+                    </span>
+                    <span className={styles.progressRate}>{dialedPct}%</span>
+                  </div>
+                  {/* ANSWERED */}
+                  <div className={styles.progressRow}>
+                    <span className={styles.progressLabel}>ANSWERED</span>
+                    <span className={styles.progressTrack}>
+                      <span
+                        className={`${styles.progressFill} ${styles.progressAnswered}`}
+                        style={{ width: `${answeredPct}%` }}
+                      />
+                    </span>
+                    <span className={styles.progressValue}>
+                      {campaignProgress.answeredCount.toLocaleString()}
+                    </span>
+                    <span className={styles.progressRate}>{answeredPct}%</span>
+                  </div>
+                  {/* FAILED */}
+                  <div className={styles.progressRow}>
+                    <span className={styles.progressLabel}>FAILED</span>
+                    <span className={styles.progressTrack}>
+                      <span
+                        className={`${styles.progressFill} ${styles.progressFailed}`}
+                        style={{ width: `${failedPct}%` }}
+                      />
+                    </span>
+                    <span className={styles.progressValue}>
+                      {campaignProgress.failedCount.toLocaleString()}
+                    </span>
+                    <span className={styles.progressRate}>{failedPct}%</span>
+                  </div>
+                  {/* PENDING */}
+                  <div className={styles.progressRow}>
+                    <span className={styles.progressLabel}>PENDING</span>
+                    <span className={styles.progressTrack}>
+                      <span
+                        className={`${styles.progressFill} ${styles.progressPending}`}
+                        style={{ width: `${pendingPct}%` }}
+                      />
+                    </span>
+                    <span className={styles.progressValue}>
+                      {campaignProgress.pendingCount.toLocaleString()}
+                    </span>
+                    <span className={styles.progressRate} />
+                  </div>
+                  {/* ACTIVE */}
+                  <div className={styles.progressRow}>
+                    <span className={styles.progressLabel}>ACTIVE</span>
+                    <span className={styles.progressTrack}>
+                      <span
+                        className={`${styles.progressFill} ${styles.progressAnswered}`}
+                        style={{ width: `${activePct}%` }}
+                      />
+                    </span>
+                    <span className={styles.progressValue}>{campaignProgress.activeCallCount} calls now</span>
+                    <span className={styles.progressRate} />
+                  </div>
                 </div>
-                {/* ANSWERED */}
-                <div className={styles.progressRow}>
-                  <span className={styles.progressLabel}>ANSWERED</span>
-                  <span className={styles.progressTrack}>
-                    <span
-                      className={`${styles.progressFill} ${styles.progressAnswered}`}
-                      style={{ width: '34.8%' }}
-                    />
-                  </span>
-                  <span className={styles.progressValue}>
-                    2,931
-                  </span>
-                  <span className={styles.progressRate}>
-                    34.8%
-                  </span>
+                <div className={styles.campaignMeta}>
+                  <span>max concurrent&nbsp;&nbsp;{runningCampaign.maxConcurrent}</span>
+                  <span>answer rate&nbsp;&nbsp;{answerRateCampaign}%</span>
+                  <span>failures&nbsp;&nbsp;{campaignProgress.failedCount.toLocaleString()}</span>
                 </div>
-                {/* FAILED */}
-                <div className={styles.progressRow}>
-                  <span className={styles.progressLabel}>FAILED</span>
-                  <span className={styles.progressTrack}>
-                    <span
-                      className={`${styles.progressFill} ${styles.progressFailed}`}
-                      style={{ width: '5.0%' }}
-                    />
-                  </span>
-                  <span className={styles.progressValue}>
-                    418
-                  </span>
-                  <span className={styles.progressRate}>
-                    5.0%
-                  </span>
-                </div>
-                {/* PENDING */}
-                <div className={styles.progressRow}>
-                  <span className={styles.progressLabel}>PENDING</span>
-                  <span className={styles.progressTrack}>
-                    <span
-                      className={`${styles.progressFill} ${styles.progressPending}`}
-                      style={{ width: '29.8%' }}
-                    />
-                  </span>
-                  <span className={styles.progressValue}>
-                    3,580
-                  </span>
-                  <span className={styles.progressRate} />
-                </div>
-                {/* ACTIVE */}
-                <div className={styles.progressRow}>
-                  <span className={styles.progressLabel}>ACTIVE</span>
-                  <span className={styles.progressTrack}>
-                    <span
-                      className={`${styles.progressFill} ${styles.progressAnswered}`}
-                      style={{ width: '100%' }}
-                    />
-                  </span>
-                  <span className={styles.progressValue}>12 calls now</span>
-                  <span className={styles.progressRate} />
-                </div>
-              </div>
-              <div className={styles.campaignMeta}>
-                <span>dial rate&nbsp;&nbsp;42/min</span>
-                <span>answer rate&nbsp;&nbsp;34.8%</span>
-                <span>failure drift&nbsp;&nbsp;+1.2%</span>
-              </div>
-            </>
-          )}
+              </>
+            );
+          })()}
         </section>
 
         {/* Queues */}
@@ -1051,21 +920,35 @@ export function DashboardPage() {
             <div className={styles.noCampaign}>NO QUEUES CONFIGURED</div>
           ) : (
             <div className={styles.queueList}>
-              {queues.map((queue) => (
-                <div className={styles.queueRow} key={queue.id}>
-                  <div className={styles.queueLine}>
-                    <span className={styles.queueName}>{queue.name}</span>
-                    <div className={styles.queueStats}>
-                      <span>wait {queue.wait}</span>
-                      <span>agents {String(queue.operatorCount).padStart(2, '0')}</span>
-                      <span>pressure {queue.pressure}</span>
+              {queues.map((queue) => {
+                const operatorCount = queue.operatorCount ?? 0;
+                const maxWaitSecs = queue.maxWaitSeconds ?? 0;
+                const waitDisplay = maxWaitSecs >= 60
+                  ? `${Math.floor(maxWaitSecs / 60)}m`
+                  : `${String(maxWaitSecs).padStart(2, '0')}s`;
+                // No live pressure data in QueueItem — show neutral state
+                const fillClass = styles.queueEmpty;
+                const colorClass = styles.queuePressureEmpty;
+                const fillPct = 0;
+                return (
+                  <div className={styles.queueRow} key={queue.id}>
+                    <div className={styles.queueLine}>
+                      <span className={styles.queueName}>{queue.name}</span>
+                      <div className={styles.queueStats}>
+                        <span>wait {waitDisplay}</span>
+                        <span>agents {String(operatorCount).padStart(2, '0')}</span>
+                        <span>max wait {waitDisplay}</span>
+                      </div>
                     </div>
+                    <span className={styles.queueTrack}>
+                      <span
+                        className={`${styles.queueFill} ${fillClass} ${colorClass}`}
+                        style={{ width: `${fillPct}%` }}
+                      />
+                    </span>
                   </div>
-                  <span className={styles.queueTrack}>
-                    <span className={`${styles.queueFill} ${queue.fillClass} ${queue.colorClass}`} />
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

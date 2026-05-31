@@ -1,41 +1,27 @@
 # callytics
 
-Self-hosted open source call center platform. One command installs everything on Linux via Docker.
+Self-hosted open-source voice automation platform. One command installs everything on Linux via Docker.
 
-![callytics](frontend/public/callytics-logo.png)
+## Demo
+
+<video src="docs/demo.mp4" controls width="100%"></video>
 
 ## What it is
 
-callytics is a self-hosted call center platform for developers and small businesses who need programmable IVR, call routing, SIP trunks, and a live operations dashboard without Twilio pricing or FreePBX complexity.
+Callytics is a self-hosted voice automation platform for developers and small businesses who need programmable IVR, call routing, SIP trunks, and a live operations dashboard — without Twilio pricing or FreePBX complexity.
 
-It is built around Asterisk ARI + Stasis, so call flows are database-driven and update instantly from the UI, with no manual dialplan editing required.
-
-## Screenshots
-
-**Flow Builder Canvas — a full IVR flow with multiple nodes**
-
-![Flow Builder Canvas](./docs/screenshots/flow-builder.png)
-
-**SIP Ladder Diagram — a live call's SIP exchange**
-
-![SIP Ladder Diagram](./docs/screenshots/sip-ladder.png)
-
-**Dashboard / Diagnostics page**
-
-![Dashboard / Diagnostics page](./docs/screenshots/dashboard-diagnostics.png)
-
-**Call Logs page**
-
-![Call Logs page](./docs/screenshots/call-logs.png)
+It is built around Asterisk ARI + Stasis, so call flows are database-driven and update instantly from the UI with no manual dialplan editing required.
 
 ## Features
 
 - Programmable IVR with a visual flow builder, 13 node types, templates, and instant database-driven updates
+- Live operations dashboard with real-time active calls, system health, SIP registration status, queue depth, and campaign progress
 - SIP operations for extensions, trunks, inbound DID routing, hunt groups, queues, callbacks, conferences, and outbound campaigns
 - Audio tooling for uploads, `ffmpeg` conversion, offline Piper TTS, call recordings, browser preview, and download
-- Live visibility through dashboards, recent events, call logs, execution traces, RTP quality scoring, and Asterisk log translation
 - SIP and network diagnostics including live packet capture, ladder diagrams, pcap export, trunk testing, registration status, and resource usage
 - Security and platform operations with SIP auto-blocking, GeoIP, WireGuard peer management, VPN-only extension controls, backups, restore, and network preflight checks
+- Browser softphone built in — no external SIP client needed for testing
+- Command palette (`Ctrl+K`) for instant navigation across flows, extensions, trunks, and pages
 
 ## Quick start
 
@@ -50,9 +36,9 @@ bash scripts/install.sh
 
 Before running `bash scripts/install.sh`, copy `.env.example` to `.env` and set these values:
 
-- `HOST_IP` - set to your machine's LAN IP address, not `127.0.0.1`. Run `ip route get 1 | awk '{print $7; exit}'` to find it. Leaving it as `127.0.0.1` means softphones on other devices will fail to register and SIP QR codes will be wrong.
-- `RECORDINGS_INTERNAL_TOKEN` - change from the default value. Used to authenticate internal recording requests between Stasis and backend.
-- `SIP_PORT` - default `5080`. Only change if that port is already in use on your host.
+- `HOST_IP` — set to your machine's LAN IP address, not `127.0.0.1`. Run `ip route get 1 | awk '{print $7; exit}'` to find it. Leaving it as `127.0.0.1` means softphones on other devices will fail to register and SIP QR codes will be wrong.
+- `RECORDINGS_INTERNAL_TOKEN` — change from the default value. Used to authenticate internal recording requests between Stasis and backend.
+- `SIP_PORT` — default `5080`. Only change if that port is already in use on your host.
 
 Then open `http://localhost:3000`
 
