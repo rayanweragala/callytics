@@ -97,17 +97,28 @@ export default async function seed(): Promise<void> {
     }
 
     const nodes = [
-      { node_key: 'start', type: 'start', label: 'Start', config_json: {} },
+      {
+        node_key: 'start',
+        type: 'start',
+        label: 'Start',
+        position_x: -328.43864981174517,
+        position_y: -9.612838531075454,
+        config_json: {},
+      },
       {
         node_key: 'greet',
         type: 'play_audio',
         label: 'Greeting',
+        position_x: -322.0300907910282,
+        position_y: 222.69742596991506,
         config_json: { audio_file_id: '2', audio_file_path: 'tt-monkeys' },
       },
       {
         node_key: 'menu',
         type: 'menu',
         label: 'Main Menu',
+        position_x: -396.28301617708473,
+        position_y: 439.0573391149339,
         config_json: {
           prompt_audio_file_id: 1,
           prompt_path: 'tt-weasels',
@@ -123,17 +134,32 @@ export default async function seed(): Promise<void> {
           final_failure_path: null,
         },
       },
-      { node_key: 'bye', type: 'hangup', label: 'Goodbye', config_json: {} },
+      {
+        node_key: 'bye',
+        type: 'hangup',
+        label: 'Goodbye',
+        position_x: 130.79572048964144,
+        position_y: 521.3871614689248,
+        config_json: {},
+      },
     ];
 
     for (const node of nodes) {
       await client.query(
         `
           INSERT INTO flow_nodes (
-            flow_version_id, node_key, type, label, config_json
-          ) VALUES ($1, $2, $3, $4, $5::jsonb)
+            flow_version_id, node_key, type, label, position_x, position_y, config_json
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
         `,
-        [versionId, node.node_key, node.type, node.label, JSON.stringify(node.config_json)],
+        [
+          versionId,
+          node.node_key,
+          node.type,
+          node.label,
+          node.position_x,
+          node.position_y,
+          JSON.stringify(node.config_json),
+        ],
       );
     }
 
