@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Callytics Runtime Architecture",
+    "output": "docs/callytics-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1390, 700],
+    "repository": {
+      "url": "https://github.com/rayanweragala/callytics.git",
+      "revision": "47dec3b9279d2ff8e2c4ca17ba9dfc5b493b980c"
+    }
+  },
+  "components": [
+    { "id": "browser", "type": "external", "label": "Operator Browser", "pos": [32, 292], "size": [140, 64], "sources": [{ "path": "frontend/src/App.tsx", "line": 33, "label": "routes and shell" }] },
+    { "id": "frontend", "type": "frontend", "label": "Frontend Web", "sublabel": "Vite :3000", "pos": [220, 292], "size": [140, 64], "sources": [{ "path": "frontend/vite.config.ts", "line": 50, "label": "dev server + proxy" }] },
+    { "id": "backend", "type": "backend", "label": "NestJS API", "sublabel": "HTTP + Socket.IO :3001", "pos": [408, 292], "size": [150, 64], "sources": [{ "path": "backend/src/main.ts", "line": 21, "label": "CORS + WebSocket" }, { "path": "backend/src/app.module.ts", "line": 92, "label": "domain modules" }] },
+    { "id": "redis", "type": "messagebus", "label": "Redis", "sublabel": "pub/sub + streams :6380", "pos": [612, 292], "size": [140, 64], "sources": [{ "path": "stasis/src/redis.ts", "line": 49, "label": "runtime events" }] },
+    { "id": "stasis", "type": "backend", "label": "Stasis Runtime", "sublabel": "flow execution + telemetry", "pos": [806, 292], "size": [158, 64], "sources": [{ "path": "stasis/src/index.ts", "line": 910, "label": "monitors + ARI" }, { "path": "stasis/src/runtime.ts", "line": 319, "label": "runFlow" }] },
+    { "id": "asterisk", "type": "backend", "label": "Asterisk", "sublabel": "ARI :8088 + SIP :5080", "pos": [1018, 292], "size": [150, 64], "sources": [{ "path": "docker-compose.yml", "line": 27, "label": "host network + ARI" }] },
+    { "id": "pstn", "type": "external", "label": "SIP / PSTN", "sublabel": "carriers, phones, trunks", "pos": [1222, 292], "size": [150, 64] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "flows, calls, config :5432", "pos": [510, 476], "size": [154, 64], "sources": [{ "path": "backend/src/app.module.ts", "line": 57, "label": "TypeORM connection" }, { "path": "docker-compose.yml", "line": 3, "label": "database service" }] },
+    { "id": "media", "type": "database", "label": "Mounted Media", "sublabel": "audio, recordings, backups", "pos": [804, 476], "size": [158, 64], "sources": [{ "path": "backend/src/main.ts", "line": 30, "label": "media mount" }, { "path": "docker-compose.yml", "line": 83, "label": "recording volume" }] },
+    { "id": "wireguard", "type": "security", "label": "WireGuard", "sublabel": "optional VPN :51820/udp", "pos": [1040, 476], "size": [150, 64], "sources": [{ "path": "docker-compose.yml", "line": 147, "label": "VPN profile" }] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Public operator / carrier boundary", "wraps": ["browser", "pstn"], "pad": 18 },
+    { "kind": "region", "label": "Docker Compose host", "wraps": ["frontend", "backend", "redis", "stasis", "asterisk", "postgres", "media"], "pad": 22 },
+    { "kind": "security-group", "label": "Optional private access", "wraps": ["wireguard"], "pad": 14 }
+  ],
+  "connections": [
+    { "id": "browser-frontend", "from": "browser", "to": "frontend", "label": "HTTP", "variant": "emphasis" },
+    { "id": "frontend-backend", "from": "frontend", "to": "backend", "label": "REST / Socket.IO", "variant": "emphasis", "labelDy": -26 },
+    { "id": "backend-redis", "from": "backend", "to": "redis", "label": "commands + events", "variant": "emphasis", "labelDy": -26 },
+    { "id": "redis-stasis", "from": "redis", "to": "stasis", "label": "pub/sub", "variant": "emphasis" },
+    { "id": "stasis-asterisk", "from": "stasis", "to": "asterisk", "label": "ARI + AMI", "variant": "emphasis" },
+    { "id": "asterisk-pstn", "from": "asterisk", "to": "pstn", "label": "SIP / RTP", "variant": "emphasis" },
+    { "id": "backend-postgres", "from": "backend", "to": "postgres", "label": "SQL", "route": "orthogonal-v", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Primary Runtime", "items": ["UI requests enter through Vite proxy or deployed web serving", "NestJS owns HTTP, Socket.IO, domain APIs, and scheduled work", "Redis carries control and telemetry between API and telephony runtime"] },
+    { "dot": "emerald", "title": "Durable State", "items": ["PostgreSQL stores call flows, versions, SIP configuration, logs, and settings", "Stasis can write ordered call-node logs directly to PostgreSQL", "Docker volumes hold converted audio, recordings, voicemail, GeoIP, and backups"] },
+    { "dot": "rose", "title": "Trust Boundaries", "items": ["SIP/RTP crosses from external carriers into host-network Asterisk", "API and ARI are local runtime services; recording requests use an internal token", "WireGuard is an optional private path for protected extension and operations access"] }
+  ]
+}

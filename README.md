@@ -10,6 +10,10 @@ Self-hosted open-source voice automation platform. One command installs everythi
 
 Callytics is a self-hosted voice automation platform for developers and small businesses who need programmable IVR, call routing, SIP trunks, and a live operations dashboard — without Twilio pricing or FreePBX complexity.
 
+See the [interactive high-level runtime architecture](docs/callytics-architecture.html) for the primary UI-to-telephony path, external dependencies, and trust boundaries.
+
+[![Callytics runtime architecture](docs/callytics-architecture.png)](docs/callytics-architecture.html)
+
 It is built around Asterisk ARI + Stasis, so call flows are database-driven and update instantly from the UI with no manual dialplan editing required.
 
 ## Features
