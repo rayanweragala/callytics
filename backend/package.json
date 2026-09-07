@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "dist/main.js",
   "overrides": {
-    "rxjs": "7.8.1"
+    "rxjs": "7.8.2"
   },
   "scripts": {
     "test": "jest",
@@ -21,44 +21,44 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@maxmind/geoip2-node": "^6.3.4",
-    "@nestjs/common": "^11.1.21",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.1.21",
-    "@nestjs/platform-express": "^11.1.21",
-    "@nestjs/platform-socket.io": "^11.1.21",
-    "@nestjs/schedule": "^6.1.3",
-    "@nestjs/typeorm": "^11.0.1",
-    "@nestjs/websockets": "^11.1.21",
+    "@maxmind/geoip2-node": "^7.1.0",
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.1",
+    "@nestjs/platform-express": "^12.0.1",
+    "@nestjs/platform-socket.io": "^12.0.1",
+    "@nestjs/schedule": "^12.0.1",
+    "@nestjs/typeorm": "^12.0.1",
+    "@nestjs/websockets": "^12.0.1",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
-    "libphonenumber-js": "^1.12.42",
+    "class-validator": "^0.15.1",
+    "libphonenumber-js": "^1.13.12",
     "multer": "^2.1.1",
     "pcap-writer": "^1.0.1",
-    "pg": "^8.12.0",
+    "pg": "^8.23.0",
     "qrcode": "^1.5.4",
-    "redis": "^4.7.0",
+    "redis": "^6.2.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
+    "rxjs": "^7.8.2",
     "socket.io": "^4.7.5",
-    "typeorm": "^0.3.20"
+    "typeorm": "^1.1.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.21",
-    "@nestjs/schematics": "^11.1.0",
-    "@nestjs/testing": "^11.1.21",
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/schematics": "^12.0.0",
+    "@nestjs/testing": "^12.0.1",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.0.0",
-    "@types/node": "^22.5.4",
+    "@types/node": "^26.4.1",
     "@types/qrcode": "^1.5.6",
-    "@types/supertest": "^7.2.0",
-    "jest": "^30.3.0",
+    "@types/supertest": "^7.2.1",
+    "jest": "^30.5.1",
     "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
+    "typescript": "^7.0.2"
   }
 }
