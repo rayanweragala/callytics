@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /backend
+      - /frontend
+      - /stasis
+      - /docs-site
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      npm:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /docker/*
+    schedule:
+      interval: monthly
+    groups:
+      docker:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
