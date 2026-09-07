@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 
 WORKDIR /app
 ENV NPM_CONFIG_AUDIT=false \
