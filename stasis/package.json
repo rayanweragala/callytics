@@ -17,20 +17,20 @@
   "dependencies": {
     "ari-client": "^2.2.0",
     "bcrypt": "^6.0.0",
-    "dotenv": "^16.0.0",
+    "dotenv": "^17.4.2",
     "libphonenumber-js": "^1.12.42",
     "pg": "^8.11.0",
-    "redis": "^4.7.0"
+    "redis": "^6.2.1"
   },
   "devDependencies": {
     "@types/ari-client": "^2.2.14",
     "@types/bcrypt": "^6.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^22.5.4",
+    "@types/node": "^26.4.1",
     "@types/pg": "^8.11.0",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
+    "typescript": "^7.0.2"
   }
 }
