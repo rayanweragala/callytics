@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-alpine
+FROM node:26-alpine
 
 WORKDIR /app
 ENV NPM_CONFIG_AUDIT=false \
