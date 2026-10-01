@@ -20,16 +20,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
       - name: Restore stasis node_modules cache
         id: restore-stasis-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: node_modules
           key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
@@ -39,7 +39,7 @@ jobs:
 
       - name: Save stasis node_modules cache
         if: success() && steps.restore-stasis-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: node_modules
           key: stasis-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload stasis coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stasis-coverage
           path: stasis/coverage/
@@ -120,16 +120,16 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
       - name: Restore backend node_modules cache
         id: restore-backend-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: backend/node_modules
           key: backend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('backend/package-lock.json') }}
@@ -140,7 +140,7 @@ jobs:
 
       - name: Save backend node_modules cache
         if: success() && steps.restore-backend-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: backend/node_modules
           key: backend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('backend/package-lock.json') }}
@@ -210,7 +210,7 @@ jobs:
 
       - name: Upload backend coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: backend/coverage/
@@ -222,16 +222,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
       - name: Restore frontend node_modules cache
         id: restore-frontend-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: frontend/node_modules
           key: frontend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('frontend/package-lock.json') }}
@@ -242,7 +242,7 @@ jobs:
 
       - name: Save frontend node_modules cache
         if: success() && steps.restore-frontend-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: frontend/node_modules
           key: frontend-node-modules-${{ runner.os }}-node-24-${{ hashFiles('frontend/package-lock.json') }}
@@ -285,7 +285,7 @@ jobs:
 
       - name: Upload frontend coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: frontend/coverage/
@@ -298,16 +298,16 @@ jobs:
     needs: [stasis-test, backend-test, frontend-test]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
       - name: Restore workspace node_modules cache
         id: restore-workspace-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: node_modules
           key: workspace-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
@@ -318,7 +318,7 @@ jobs:
 
       - name: Save workspace node_modules cache
         if: success() && steps.restore-workspace-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: node_modules
           key: workspace-node-modules-${{ runner.os }}-node-24-${{ hashFiles('package-lock.json') }}
