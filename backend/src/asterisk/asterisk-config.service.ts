@@ -62,8 +62,8 @@ export class AsteriskConfigService implements OnModuleInit {
   private readonly amiPassword =
     process.env.AMI_PASSWORD || process.env.AMI_PASS || "callytics";
   private readonly extensionsInclude =
-    "#include pjsip_callytics_extensions.conf";
-  private readonly trunksInclude = "#include pjsip_callytics_trunks.conf";
+    "#tryinclude pjsip_callytics_extensions.conf";
+  private readonly trunksInclude = "#tryinclude pjsip_callytics_trunks.conf";
 
   constructor(
     @InjectRepository(SipExtensionEntity)
@@ -154,7 +154,7 @@ export class AsteriskConfigService implements OnModuleInit {
     await fs.mkdir(this.configDir, { recursive: true });
     await this.ensureIncludeAtFileEnd(
       join(this.configDir, "extensions.conf"),
-      "#include extensions_callytics_inbound.conf",
+      "#tryinclude extensions_callytics_inbound.conf",
     );
     await fs.writeFile(
       join(this.configDir, "extensions_callytics_inbound.conf"),
@@ -708,6 +708,11 @@ export class AsteriskConfigService implements OnModuleInit {
     ]);
   }
 
+  /**
+   * Appends missing include lines to a config file. A file that already
+   * references the include (as #include or #tryinclude) is left untouched,
+   * so the tracked base config does not change on every save.
+   */
   private async ensureIncludesAtFileEnd(
     filePath: string,
     includeLines: string[],
@@ -719,17 +724,22 @@ export class AsteriskConfigService implements OnModuleInit {
       content = "";
     }
 
-    const includeSet = new Set(includeLines.map((line) => line.trim()));
-    const lines = content
-      .split(/\r?\n/)
-      .filter((line) => !includeSet.has(line.trim()));
-
-    while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
-      lines.pop();
+    const existingFiles = new Set(
+      content
+        .split(/\r?\n/)
+        .map((line) => line.trim().match(/^#(?:try)?include\s+(\S+)/)?.[1])
+        .filter((name): name is string => Boolean(name)),
+    );
+    const missing = includeLines.filter((line) => {
+      const fileName = line.trim().match(/^#(?:try)?include\s+(\S+)/)?.[1];
+      return !fileName || !existingFiles.has(fileName);
+    });
+    if (missing.length === 0) {
+      return;
     }
 
-    const body = lines.join("\n");
-    const includeBlock = includeLines.join("\n");
+    const body = content.trimEnd();
+    const includeBlock = missing.join("\n");
     const next = body ? `${body}\n\n${includeBlock}\n` : `${includeBlock}\n`;
 
     await fs.writeFile(filePath, next, "utf8");
