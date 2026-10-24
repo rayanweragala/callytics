@@ -54,6 +54,8 @@ export interface CallSession {
   startedAt: Date;
   recording: CallRecordingState | null;
   inboundBridge: InboundBridgeState | null;
+  /** True once the caller's channel is gone (hangup requested, left Stasis or destroyed). */
+  callerGone?: boolean;
 }
 
 export function createSession(
@@ -76,13 +78,19 @@ export function createSession(
     startedAt: now,
     recording: null,
     inboundBridge: null,
+    callerGone: false,
   };
+}
+
+export function markCallerGone(session: CallSession): void {
+  session.callerGone = true;
 }
 
 export function markCallEnded(
   session: CallSession,
   endedAt: Date = new Date(),
 ): string {
+  session.callerGone = true;
   if (session.call_ended_at) {
     return session.call_ended_at;
   }

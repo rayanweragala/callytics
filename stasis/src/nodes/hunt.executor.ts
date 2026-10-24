@@ -4,6 +4,7 @@ import { resolveAudioMediaPath } from '../audioResolver';
 import { FlowNode } from '../flowLoader';
 import { registerHuntWaiter, rejectHuntWaiter } from '../huntManager';
 import { logEvent } from '../logger';
+import { isHangupError, waitForPlaybackFinished } from '../lib/playback';
 import { beginNodeRecording, persistSessionRecording } from '../bridgeRecording';
 import { formatDialNumber } from '../lib/formatDialNumber';
 import { fetchTrunkDialFormat } from '../lib/trunkResolver';
@@ -70,36 +71,6 @@ async function playBridgeMedia(ariClient: AriLike, bridgeId: string, media: stri
   });
 }
 
-function waitForPlaybackFinished(ariClient: AriLike, playbackId: string, channelId: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onFinished = (event: { playback?: { id?: string } }) => {
-      if (event.playback?.id !== playbackId) {
-        return;
-      }
-      cleanup();
-      resolve();
-    };
-
-    const onHangup = (event: { channel?: { id?: string } }) => {
-      if (event.channel?.id !== channelId) {
-        return;
-      }
-      cleanup();
-      reject(new Error('hangup'));
-    };
-
-    const cleanup = () => {
-      ariClient.removeListener('PlaybackFinished', onFinished);
-      ariClient.removeListener('StasisEnd', onHangup);
-      ariClient.removeListener('ChannelDestroyed', onHangup);
-    };
-
-    ariClient.on('PlaybackFinished', onFinished);
-    ariClient.on('StasisEnd', onHangup);
-    ariClient.on('ChannelDestroyed', onHangup);
-  });
-}
-
 async function stopPlayback(playback: { stop?: () => Promise<void> } | null): Promise<void> {
   if (!playback?.stop) {
     return;
@@ -127,8 +98,10 @@ function startHoldLoop(
       try {
         await playBridgeMedia(ariClient, bridgeId, media, playback.id);
         await waitForPlaybackFinished(ariClient, playback.id, inboundChannelId);
-      } catch {
-        if (!active) {
+      } catch (error) {
+        // Stop when the hold loop was stopped or the caller is gone; otherwise a
+        // failing playback would restart immediately and spin.
+        if (!active || isHangupError(error)) {
           break;
         }
       }
@@ -578,7 +551,8 @@ export async function executeHunt(
   let holdLoop: HoldLoopController | null = null;
   let holdMohMode: 'none' | 'auto' | 'default' = 'none';
   let pendingChannels: HuntExecutorChannel[] = [];
-  let inboundEnded = false;
+  // The caller may already be gone before this node starts listening for events.
+  let inboundEnded = session.callerGone;
 
   const onInboundTerminal = (event: { channel?: { id?: string } }) => {
     if (event.channel?.id !== channel.id) {
@@ -586,6 +560,10 @@ export async function executeHunt(
     }
     inboundEnded = true;
   };
+
+  if (inboundEnded) {
+    return 'hangup';
+  }
 
   if (!bridgeId || destinations.length === 0) {
     logEvent('HuntMissingBridgeOrDestinations', { channelId: channel.id, bridgeId: bridgeId || null, destinationCount: destinations.length });

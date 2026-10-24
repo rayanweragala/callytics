@@ -11,6 +11,7 @@ import {
   getActiveSessionCount,
   getSession,
   markCallEnded,
+  markCallerGone,
   removeSession,
 } from "./callSession";
 import { closeDbPool } from "./db";
@@ -31,6 +32,7 @@ import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManage
 import { resolveCallbackWaiter, hasCallbackWaiter } from "./callbackManager";
 import { resolveAudioMediaPath } from "./audioResolver";
 import { formatDialNumber } from "./lib/formatDialNumber";
+import { waitForPlaybackFinished } from "./lib/playback";
 import { closeRedisConnections, getPublisher, getSubscriber } from "./redis";
 import { buildInboundOriginateBody, parseInboundTestMessage } from "./trunk-test.util";
 import { accumulator as rtcpAmiAccumulator } from "./handlers/rtcp-ami.handler";
@@ -281,25 +283,6 @@ async function setTrunkTestStatus(
   );
 }
 
-function waitForPlaybackFinished(
-  ariClient: {
-    on: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
-    removeListener: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
-  },
-  playbackId: string,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const onFinished = (event: { playback?: { id?: string } }) => {
-      if (event.playback?.id !== playbackId) {
-        return;
-      }
-      ariClient.removeListener("PlaybackFinished", onFinished);
-      resolve();
-    };
-    ariClient.on("PlaybackFinished", onFinished);
-  });
-}
-
 async function runOutboundTestPlayback(
   channel: TestPlaybackChannel,
   ariClient: {
@@ -316,7 +299,7 @@ async function runOutboundTestPlayback(
   const playback = ariClient.Playback();
   const media = mediaPath ? `sound:${mediaPath}` : "sound:beep";
   await channel.play({ media }, playback);
-  await waitForPlaybackFinished(ariClient, playback.id);
+  await waitForPlaybackFinished(ariClient, playback.id, channel.id);
   await channel.hangup().catch(() => undefined);
 }
 
@@ -1564,6 +1547,17 @@ async function start(): Promise<void> {
     );
 
     client.on(
+      "ChannelHangupRequest",
+      (_event: unknown, channel: { id?: string } | undefined) => {
+        // Stop the flow as soon as the caller starts hanging up, before the channel is torn down.
+        const hangingUpSession = channel?.id ? getSession(channel.id) : undefined;
+        if (hangingUpSession) {
+          markCallerGone(hangingUpSession);
+        }
+      },
+    );
+
+    client.on(
       "ChannelDestroyed",
       async (
         event: {
@@ -1577,6 +1571,10 @@ async function start(): Promise<void> {
         },
         channel: { id: string },
       ) => {
+        const endingSession = getSession(channel.id);
+        if (endingSession) {
+          markCallerGone(endingSession);
+        }
         if (
           await campaignExecutor.handleChannelEnd(channel.id, event.cause_txt)
         ) {

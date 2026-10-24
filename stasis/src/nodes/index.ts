@@ -19,6 +19,7 @@ import { executeQueue } from "../executors/queue.executor";
 import { executeCallbackNode } from "./callback.executor";
 import { executeConference } from "./conference.executor";
 import { logEvent } from "../logger";
+import { isHangupError, waitForPlaybackFinished } from "../lib/playback";
 import { INTER_DIGIT_TIMEOUT_MS, resolveNodeTimeoutMs } from "../timeoutResolver";
 import { beginNodeRecording, persistSessionRecording } from "../bridgeRecording";
 
@@ -41,55 +42,6 @@ type PlaybackTarget =
 
 async function executeStart(): Promise<string> {
   return "default";
-}
-
-function waitForPlaybackFinished(
-  ariClient: unknown,
-  playbackId: string,
-  channelId: string,
-): Promise<void> {
-  const client = ariClient as {
-    on: (
-      event: string,
-      listener: (event: {
-        playback?: { id?: string };
-        channel?: { id?: string };
-      }) => void,
-    ) => void;
-    removeListener: (
-      event: string,
-      listener: (event: {
-        playback?: { id?: string };
-        channel?: { id?: string };
-      }) => void,
-    ) => void;
-  };
-
-  return new Promise((resolve, reject) => {
-    const onFinished = (event: { playback?: { id?: string } }) => {
-      if (event.playback?.id === playbackId) {
-        cleanup();
-        resolve();
-      }
-    };
-
-    const onHangup = (event: { channel?: { id?: string } }) => {
-      if (event.channel?.id === channelId) {
-        cleanup();
-        reject(new Error("hangup"));
-      }
-    };
-
-    const cleanup = () => {
-      client.removeListener("PlaybackFinished", onFinished);
-      client.removeListener("StasisEnd", onHangup);
-      client.removeListener("ChannelDestroyed", onHangup);
-    };
-
-    client.on("PlaybackFinished", onFinished);
-    client.on("StasisEnd", onHangup);
-    client.on("ChannelDestroyed", onHangup);
-  });
 }
 
 function getPlaybackTarget(
@@ -523,7 +475,11 @@ async function playTransferNoAnswerSound(
     offsetms: 0,
   });
   await waitForPlaybackFinished(ariClient, playback.id, inboundChannelId).catch(
-    () => undefined,
+    (error) => {
+      if (!isHangupError(error)) {
+        throw error;
+      }
+    },
   );
 }
 
@@ -549,8 +505,9 @@ function startTransferWaitingSoundLoop(
           ariClient,
           playback.id,
           inboundChannelId,
-        ).catch(() => undefined);
+        );
       } catch {
+        // Caller hung up or playback could not start: stop looping.
         break;
       }
     }
