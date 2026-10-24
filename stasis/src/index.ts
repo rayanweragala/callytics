@@ -38,10 +38,9 @@ import { CampaignExecutor } from "./campaign-executor";
 import { executeCallback, type CallbackExecutePayload } from "./callback-execute";
 import {
   hasDirectOutboundWaiter,
-  registerDirectOutboundWaiter,
-  rejectDirectOutboundWaiter,
   resolveDirectOutboundWaiter,
 } from "./directOutboundManager";
+import { resolveDirectOutboundTimeoutMs, waitForDirectOutboundAnswer } from "./directOutboundWait";
 
 const ARI_URL = process.env.ARI_URL || "http://127.0.0.1:8088";
 const ARI_USER = process.env.ARI_USER || "callytics";
@@ -51,7 +50,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:3001";
 const RECORDINGS_INTERNAL_TOKEN = process.env.RECORDINGS_INTERNAL_TOKEN || "";
 const STASIS_HEALTH_PORT = Number(process.env.STASIS_HEALTH_PORT || 3002);
 const TEST_STATUS_TTL_SECONDS = 300;
-const DIRECT_OUTBOUND_TIMEOUT_MS = 30_000;
+const DIRECT_OUTBOUND_TIMEOUT_MS = resolveDirectOutboundTimeoutMs(process.env.DIRECT_OUTBOUND_TIMEOUT_MS);
 const DIRECT_OUTBOUND_MOH_CLASS =
   process.env.DIRECT_OUTBOUND_MOH_CLASS
   || process.env.CALLBACK_MOH_CLASS
@@ -227,12 +226,13 @@ interface DirectOutboundAriClient {
   channels: {
     originate: (params: {
       endpoint: string;
+      channelId?: string;
       app: string;
       appArgs: string;
       callerId: string;
       timeout: number;
     }) => Promise<{ id?: string } | void>;
-    hangup: (params: { channelId: string }) => Promise<void>;
+    hangup: (params: { channelId: string; reason?: string }) => Promise<void>;
     startMoh?: (params: { channelId: string; mohClass?: string }) => Promise<void>;
     stopMoh?: (params: { channelId: string }) => Promise<void>;
   };
@@ -545,6 +545,7 @@ async function cleanupDirectOutboundCall(
   call: DirectOutboundActiveCall,
   endingChannelId: string | null,
   failureReason: string | null = null,
+  inboundHangupReason?: "congestion" | "no_answer" | "busy",
 ): Promise<void> {
   if (call.cleanupStarted) {
     return;
@@ -570,7 +571,9 @@ async function cleanupDirectOutboundCall(
     (channelId): channelId is string => Boolean(channelId && channelId !== endingChannelId),
   );
   for (const channelId of channelsToHangup) {
-    await ariClient.channels.hangup({ channelId }).catch(() => undefined);
+    // Without a reason Asterisk answers the unanswered inbound call with 603 Decline.
+    const reason = channelId === call.inboundChannelId && !call.answeredAt ? inboundHangupReason : undefined;
+    await ariClient.channels.hangup({ channelId, ...(reason ? { reason } : {}) }).catch(() => undefined);
   }
 
   if (call.answeredAt) {
@@ -590,61 +593,6 @@ async function cleanupDirectOutboundCall(
   await persistDirectOutboundRecording(call).catch((error) => {
     stasisLogger.error("[direct-outbound] persist recording failed:", error);
   });
-}
-
-async function waitForDirectOutboundAnswer(
-  ariClientRaw: unknown,
-  token: string,
-  inboundChannelId: string,
-  originate: () => Promise<void>,
-  timeoutMs: number,
-): Promise<{
-  answered: true;
-  channel: { id: string; hangup: () => Promise<void> };
-} | {
-  answered: false;
-  reason: "failed" | "destroyed" | "timeout" | "caller_disconnected";
-}> {
-  const ariClient = ariClientRaw as DirectOutboundAriClient;
-  const waiter = registerDirectOutboundWaiter(token);
-  let settled = false;
-  let timeoutHandle: NodeJS.Timeout | null = null;
-
-  const onInboundEnd = (event: { channel?: { id?: string } }) => {
-    if (event.channel?.id !== inboundChannelId) {
-      return;
-    }
-    rejectDirectOutboundWaiter(token, "caller_disconnected");
-  };
-
-  const cleanup = () => {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
-      timeoutHandle = null;
-    }
-    ariClient.removeListener("StasisEnd", onInboundEnd);
-    ariClient.removeListener("ChannelDestroyed", onInboundEnd);
-  };
-
-  ariClient.on("StasisEnd", onInboundEnd);
-  ariClient.on("ChannelDestroyed", onInboundEnd);
-
-  try {
-    await originate();
-  } catch {
-    rejectDirectOutboundWaiter(token, "failed");
-  }
-
-  timeoutHandle = setTimeout(() => {
-    rejectDirectOutboundWaiter(token, "timeout");
-  }, timeoutMs);
-
-  const result = await waiter;
-  if (!settled) {
-    settled = true;
-    cleanup();
-  }
-  return result;
 }
 
 async function handleDirectOutboundDial(
@@ -722,26 +670,44 @@ async function handleDirectOutboundDial(
   }
 
   const token = `direct-outbound-${call.inboundChannelId}-${Date.now()}`;
+  const outboundChannelId = `${token}-leg`;
   const endpoint = `PJSIP/${formattedDestination}@trunk-${trunk.id}`;
+  stasisLogger.log(
+    `[direct-outbound] originate endpoint=${endpoint} channelId=${outboundChannelId} timeoutMs=${DIRECT_OUTBOUND_TIMEOUT_MS}`,
+  );
   const waitResult = await waitForDirectOutboundAnswer(
-    ariClientRaw,
-    token,
-    call.inboundChannelId,
-    async () => {
-      const ariClient = ariClientRaw as DirectOutboundAriClient;
-      await ariClient.channels.originate({
-        endpoint,
-        app: ARI_APP,
-        appArgs: `direct-outbound,${token}`,
-        callerId: trunk.fromUser || "",
-        timeout: Math.max(1, Math.ceil(DIRECT_OUTBOUND_TIMEOUT_MS / 1000)),
-      });
+    ariClientRaw as DirectOutboundAriClient,
+    stasisLogger,
+    {
+      token,
+      inboundChannelId: call.inboundChannelId,
+      outboundChannelId,
+      timeoutMs: DIRECT_OUTBOUND_TIMEOUT_MS,
+      originate: async () => {
+        const ariClient = ariClientRaw as DirectOutboundAriClient;
+        await ariClient.channels.originate({
+          endpoint,
+          channelId: outboundChannelId,
+          app: ARI_APP,
+          appArgs: `direct-outbound,${token}`,
+          callerId: trunk.fromUser || "",
+          timeout: Math.max(1, Math.ceil(DIRECT_OUTBOUND_TIMEOUT_MS / 1000)),
+        });
+      },
     },
-    DIRECT_OUTBOUND_TIMEOUT_MS,
   );
 
   if (waitResult.answered === false) {
-    await cleanupDirectOutboundCall(ariClientRaw, call, null, waitResult.reason);
+    stasisLogger.warn(
+      `[direct-outbound] call ${call.callId} to ${destination} failed: ${waitResult.detail || waitResult.reason}`,
+    );
+    await cleanupDirectOutboundCall(
+      ariClientRaw,
+      call,
+      null,
+      waitResult.detail || waitResult.reason,
+      waitResult.reason === "timeout" ? "no_answer" : "congestion",
+    );
     return;
   }
 
