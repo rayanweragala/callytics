@@ -9,6 +9,7 @@ import * as os from 'node:os';
 import { promisify } from 'node:util';
 import { DataSource } from 'typeorm';
 import { runSqlMigrations } from '../db/run-sql-migrations';
+import { getAriCredentials } from '../common/asterisk-credentials';
 
 const execAsync = promisify(execCallback);
 
@@ -182,12 +183,12 @@ export class PreflightService implements OnModuleInit {
 
   private async checkAsteriskAri(): Promise<Omit<PreflightCheckResult, 'id' | 'label'>> {
     const ariUrl = (process.env.ARI_URL ?? 'http://127.0.0.1:8088').replace(/\/+$/, '');
-    const ariPassword = process.env.ARI_PASSWORD ?? 'callytics_ari_pass';
+    const ari = getAriCredentials();
 
     try {
       const response = await fetch(`${ariUrl}/ari/asterisk/info`, {
         headers: {
-          Authorization: `Basic ${Buffer.from(`callytics:${ariPassword}`).toString('base64')}`,
+          Authorization: `Basic ${Buffer.from(`${ari.user}:${ari.password}`).toString('base64')}`,
         },
       });
 
@@ -663,12 +664,12 @@ export class PreflightService implements OnModuleInit {
 
   private async isAriReachable(): Promise<boolean> {
     const ariUrl = (process.env.ARI_URL ?? 'http://127.0.0.1:8088').replace(/\/+$/, '');
-    const ariPassword = process.env.ARI_PASSWORD ?? 'callytics_ari_pass';
+    const ari = getAriCredentials();
 
     try {
       const response = await fetch(`${ariUrl}/ari/asterisk/info`, {
         headers: {
-          Authorization: `Basic ${Buffer.from(`callytics:${ariPassword}`).toString('base64')}`,
+          Authorization: `Basic ${Buffer.from(`${ari.user}:${ari.password}`).toString('base64')}`,
         },
       });
       return response.status === 200;

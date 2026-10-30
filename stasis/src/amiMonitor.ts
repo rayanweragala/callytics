@@ -80,6 +80,12 @@ async function pollEndpoints(): Promise<AmiEndpointRow[]> {
           continue;
         }
 
+        if (!loggedIn && message.Response === 'Error') {
+          // Without this a rejected login only shows up as "AMI timeout".
+          finalize(() => reject(new Error(`AMI login failed on ${AMI_HOST}:${AMI_PORT}: ${message.Message || 'unknown reason'}`)));
+          return;
+        }
+
         if (message.Event === 'EndpointList' && message.ActionID === actionId) {
           const contacts = (message.Contacts || '')
             .split(',')
