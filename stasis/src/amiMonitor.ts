@@ -101,6 +101,18 @@ async function pollEndpoints(): Promise<AmiEndpointRow[]> {
           continue;
         }
 
+        // Asterisk answers with an error instead of an empty list when no
+        // endpoint is configured yet. Waiting for EndpointListComplete would time out.
+        if (message.Response === 'Error' && message.ActionID === actionId) {
+          socket.write('Action: Logoff\r\n\r\n');
+          if (/no endpoints found/i.test(message.Message || '')) {
+            finalize(() => resolve(endpoints));
+          } else {
+            finalize(() => reject(new Error(`AMI PJSIPShowEndpoints failed: ${message.Message || 'unknown reason'}`)));
+          }
+          return;
+        }
+
         if (message.Event === 'EndpointListComplete' && message.ActionID === actionId) {
           socket.write('Action: Logoff\r\n\r\n');
           finalize(() => resolve(endpoints));
