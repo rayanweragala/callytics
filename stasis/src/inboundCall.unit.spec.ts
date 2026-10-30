@@ -2,6 +2,7 @@ import { runInboundCall, type InboundCallDeps, type InboundChannel } from './inb
 import { resolveStasisChannel } from './lib/ariChannel';
 import { addSession, getSession, removeSession } from './callSession';
 import type { Flow } from './flowLoader';
+import { releaseCallId, resetInviteGuard } from './lib/inviteGuard';
 
 const flow: Flow = {
   id: 7,
@@ -157,5 +158,121 @@ describe('resolveStasisChannel', () => {
     await runInboundCall(client, stasisEvent('3001', '100'), channel, '100', createDeps());
     expect(instance.answer).toHaveBeenCalledTimes(1);
     removeSession('chan-wrapped');
+  });
+});
+
+describe('retransmitted INVITE guard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetInviteGuard();
+  });
+
+  function channelWithCallId(id: string, callId: string | null) {
+    return {
+      ...createChannel(id),
+      getChannelVar: jest.fn(async () => {
+        if (callId === null) {
+          throw new Error('variable not found');
+        }
+        return { value: callId };
+      }),
+    };
+  }
+
+  it('drops a second channel with the same Call-ID before answer and keeps the original running', async () => {
+    const original = channelWithCallId('chan-1', 'abc@provider');
+    const duplicate = channelWithCallId('chan-2', 'abc@provider');
+    const runFlow = jest.fn().mockResolvedValue({ status: 'completed' });
+    const deps = createDeps({ runFlow });
+
+    await runInboundCall(client, stasisEvent('1001', '100'), original, '100', deps);
+    await runInboundCall(client, stasisEvent('1001', '100'), duplicate, '100', deps);
+
+    expect(original.answer).toHaveBeenCalledTimes(1);
+    expect(original.hangup).not.toHaveBeenCalled();
+    expect(duplicate.answer).not.toHaveBeenCalled();
+    expect(duplicate.hangup).toHaveBeenCalledTimes(1);
+    expect(runFlow).toHaveBeenCalledTimes(1);
+    expect(deps.publishCallEvent).toHaveBeenCalledTimes(1);
+    expect(getSession('chan-2')).toBeUndefined();
+    removeSession('chan-1');
+  });
+
+  it('drops the duplicate even while the original is still starting up', async () => {
+    const original = channelWithCallId('chan-a', 'same-id');
+    const duplicate = channelWithCallId('chan-b', 'same-id');
+    const deps = createDeps();
+
+    await Promise.all([
+      runInboundCall(client, stasisEvent('1', '100'), original, '100', deps),
+      runInboundCall(client, stasisEvent('1', '100'), duplicate, '100', deps),
+    ]);
+
+    expect(original.answer).toHaveBeenCalledTimes(1);
+    expect(duplicate.answer).not.toHaveBeenCalled();
+    removeSession('chan-a');
+  });
+
+  it('runs both calls when the Call-IDs differ', async () => {
+    const first = channelWithCallId('chan-x', 'call-1');
+    const second = channelWithCallId('chan-y', 'call-2');
+    const deps = createDeps();
+
+    await runInboundCall(client, stasisEvent('1', '100'), first, '100', deps);
+    await runInboundCall(client, stasisEvent('2', '100'), second, '100', deps);
+
+    expect(first.answer).toHaveBeenCalledTimes(1);
+    expect(second.answer).toHaveBeenCalledTimes(1);
+    expect(second.hangup).not.toHaveBeenCalled();
+    removeSession('chan-x');
+    removeSession('chan-y');
+  });
+
+  it('allows the same Call-ID again once the original channel has ended', async () => {
+    const original = channelWithCallId('chan-old', 'reused-id');
+    const next = channelWithCallId('chan-new', 'reused-id');
+    const deps = createDeps();
+
+    await runInboundCall(client, stasisEvent('1', '100'), original, '100', deps);
+    releaseCallId('chan-old');
+    await runInboundCall(client, stasisEvent('1', '100'), next, '100', deps);
+
+    expect(next.answer).toHaveBeenCalledTimes(1);
+    expect(next.hangup).not.toHaveBeenCalled();
+    removeSession('chan-old');
+    removeSession('chan-new');
+  });
+
+  it('releasing a duplicate channel does not free the original Call-ID', async () => {
+    const original = channelWithCallId('chan-o', 'keep-id');
+    const duplicate = channelWithCallId('chan-d', 'keep-id');
+    const third = channelWithCallId('chan-t', 'keep-id');
+    const deps = createDeps();
+
+    await runInboundCall(client, stasisEvent('1', '100'), original, '100', deps);
+    await runInboundCall(client, stasisEvent('1', '100'), duplicate, '100', deps);
+    releaseCallId('chan-d');
+    await runInboundCall(client, stasisEvent('1', '100'), third, '100', deps);
+
+    expect(third.answer).not.toHaveBeenCalled();
+    removeSession('chan-o');
+  });
+
+  it('behaves as before when the Call-ID cannot be read', async () => {
+    const first = channelWithCallId('chan-n1', null);
+    const second = channelWithCallId('chan-n2', null);
+    const plain = createChannel('chan-n3'); // no getChannelVar at all
+    const deps = createDeps();
+
+    await runInboundCall(client, stasisEvent('1', '100'), first, '100', deps);
+    await runInboundCall(client, stasisEvent('1', '100'), second, '100', deps);
+    await runInboundCall(client, stasisEvent('1', '100'), plain, '100', deps);
+
+    expect(first.answer).toHaveBeenCalledTimes(1);
+    expect(second.answer).toHaveBeenCalledTimes(1);
+    expect(plain.answer).toHaveBeenCalledTimes(1);
+    removeSession('chan-n1');
+    removeSession('chan-n2');
+    removeSession('chan-n3');
   });
 });

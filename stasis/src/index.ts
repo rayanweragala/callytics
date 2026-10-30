@@ -19,6 +19,7 @@ import { loadFlow, loadFlowById } from "./flowLoader";
 import migrate from "./migrate";
 import { runFlow } from "./runtime";
 import { runInboundCall } from "./inboundCall";
+import { releaseCallId } from "./lib/inviteGuard";
 import seed from "./seed";
 import { startAmiMonitor } from "./amiMonitor";
 import { startSipTrafficMonitor } from "./sipTrafficMonitor";
@@ -1288,6 +1289,8 @@ async function start(): Promise<void> {
         channel: { id: string },
       ) => {
         const channelId = channel.id;
+        // Free the SIP Call-ID so a new call is never blocked by the duplicate-INVITE guard.
+        releaseCallId(channelId);
         const session = getSession(channelId);
         if (session) {
           markCallEnded(session);

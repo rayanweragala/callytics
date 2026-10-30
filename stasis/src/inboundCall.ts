@@ -3,6 +3,7 @@ import { createSession, markCallEnded } from './callSession';
 import type { Flow } from './flowLoader';
 import type { CallEvent, SipTrafficEvent } from './telemetry';
 import { logEvent, stasisLogger } from './logger';
+import { dropIfDuplicateInvite } from './lib/inviteGuard';
 
 export interface InboundStasisEvent {
   args?: string[];
@@ -15,6 +16,7 @@ export interface InboundStasisEvent {
 
 export interface InboundChannel {
   id: string;
+  getChannelVar?: (params: { variable: string }) => Promise<{ value?: string }>;
   answer: () => Promise<void>;
   hangup: () => Promise<void>;
 }
@@ -64,6 +66,11 @@ export async function runInboundCall(
     removeSession,
     runFlow,
   } = deps;
+
+  // Drop a retransmitted INVITE before anything else: no telemetry, no flow, no 200 OK.
+  if (await dropIfDuplicateInvite(channel)) {
+    return;
+  }
 
   const callerNumber = event.channel?.caller?.number || "unknown";
   const inboundDid = String(
