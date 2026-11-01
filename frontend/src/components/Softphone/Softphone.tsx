@@ -29,6 +29,7 @@ interface SipSessionEventMap {
   failed: () => void;
   accepted: () => void;
   confirmed: () => void;
+  peerconnection: (payload: { peerconnection: RTCPeerConnection }) => void;
 }
 
 interface SipCallOptions {
@@ -376,19 +377,24 @@ export function Softphone() {
   };
 
   const attachRemoteAudio = (session: SipSession) => {
-    const peerConnection = session.connection;
-    const audioElement = audioRef.current;
-    if (!peerConnection || !audioElement) {
+    const listenForTracks = (peerConnection: RTCPeerConnection) => {
+      peerConnection.addEventListener('track', (event) => {
+        const [stream] = event.streams;
+        const audioElement = audioRef.current;
+        if (!stream || !audioElement) {
+          return;
+        }
+        audioElement.srcObject = stream;
+      });
+    };
+
+    // Outgoing sessions already have a peer connection here. For incoming sessions JsSIP
+    // only creates it in answer(), so wait for its 'peerconnection' event.
+    if (session.connection) {
+      listenForTracks(session.connection);
       return;
     }
-
-    peerConnection.addEventListener('track', (event) => {
-      const [stream] = event.streams;
-      if (!stream) {
-        return;
-      }
-      audioElement.srcObject = stream;
-    });
+    session.on('peerconnection', ({ peerconnection }) => listenForTracks(peerconnection));
   };
 
   const bindSession = (session: SipSession) => {
