@@ -115,9 +115,10 @@ services:
     build:
       context: .
       dockerfile: ./docker/web/Dockerfile
+      args:
+        # Baked into the bundle at build time; rebuild the frontend after changing it.
+        VITE_DISPLAY_TIMEZONE: ${VITE_DISPLAY_TIMEZONE:-UTC}
     network_mode: "host"
-    environment:
-      VITE_DISPLAY_TIMEZONE: ${VITE_DISPLAY_TIMEZONE:-UTC}
     volumes:
       - .:/app
       - /app/node_modules
