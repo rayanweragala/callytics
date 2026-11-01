@@ -20,6 +20,10 @@ COPY frontend ./frontend
 
 WORKDIR /app/frontend
 
+# Vite inlines VITE_* variables at build time, so the timezone must be known here.
+ARG VITE_DISPLAY_TIMEZONE=UTC
+ENV VITE_DISPLAY_TIMEZONE=$VITE_DISPLAY_TIMEZONE
+
 RUN npm run build
 
 FROM nginx:alpine

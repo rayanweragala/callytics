@@ -44,9 +44,9 @@ export class CallFlowEntity {
   @Column({ name: 'template_category', type: 'text', nullable: true })
   templateCategory!: string | null;
 
-  @Column({ name: 'created_at', type: 'timestamp' })
+  @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @Column({ name: 'updated_at', type: 'timestamp' })
+  @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }

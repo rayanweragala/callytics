@@ -406,8 +406,8 @@ export class AudioService implements OnModuleInit {
         tts_text TEXT,
         tts_voice VARCHAR(255),
         speed FLOAT DEFAULT 1.0,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
     await this.dataSource.query(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS speed FLOAT DEFAULT 1.0`);

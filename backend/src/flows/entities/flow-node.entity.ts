@@ -32,6 +32,6 @@ export class FlowNodeEntity {
   @Column({ name: 'subflow_id', type: 'integer', nullable: true, default: null })
   subflowId!: number | null;
 
-  @Column({ name: 'created_at', type: 'timestamp' })
+  @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

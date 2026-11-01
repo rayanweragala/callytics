@@ -26,6 +26,6 @@ export class FlowEdgeEntity {
   @Column({ name: 'target_handle', type: 'varchar', length: 100, nullable: true })
   targetHandle!: string | null;
 
-  @Column({ name: 'created_at', type: 'timestamp' })
+  @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

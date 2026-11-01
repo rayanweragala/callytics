@@ -14,7 +14,7 @@ export class FlowVersionEntity {
   @Column({ name: 'is_published', type: 'boolean', default: false })
   isPublished!: boolean;
 
-  @Column({ name: 'published_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt!: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -26,6 +26,6 @@ export class FlowVersionEntity {
   @Column({ name: 'node_count', type: 'integer', nullable: true })
   nodeCount!: number | null;
 
-  @Column({ name: 'created_at', type: 'timestamp' })
+  @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

@@ -35,6 +35,6 @@ export class SipTrunkEntity {
   @Column({ type: 'boolean', default: true })
   enabled!: boolean;
 
-  @Column({ name: 'created_at', type: 'timestamp', default: () => 'NOW()' })
+  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
   createdAt!: Date;
 }
