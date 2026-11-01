@@ -6,6 +6,7 @@ import { resolveNextEdge } from './engine/edgeResolver';
 import { publishCallEvent } from './telemetry';
 import { fireWebhookAsync } from './executors/webhook.executor';
 import { logEvent } from './logger';
+import { isHangupError } from './lib/playback';
 
 interface FlowStackFrame {
   flow: Flow;
@@ -356,6 +357,11 @@ export async function runFlow(
       break;
     }
 
+    if (session.callerGone && node.type !== 'webhook') {
+      logEvent('FlowStoppedCallerGone', { nodeId: node.nodeKey, nodeType: node.type, channelId: session.channelId });
+      break;
+    }
+
     // TODO(arch): Violation: synchronous node-log write is direct PostgreSQL from Stasis, not Redis->NestJS.
     // Needed today to keep entered_at ordering exact with node execution because Redis ordering is not guaranteed yet.
     // Correct fix: emit enter event on callytics:call-node-log and let NestJS persist.
@@ -368,10 +374,15 @@ export async function runFlow(
       result = await executeNode(channel as never, node, session, ariClient);
       runtimeError = consumeNodeError(session);
     } catch (error) {
-      runtimeError = error instanceof Error ? error.message : 'unknown error';
       result = 'hangup';
-      finalStatus = 'failed';
-      failureReason = runtimeError;
+      if (isHangupError(error) || session.callerGone) {
+        // The caller hung up while the node was running. That is a normal end of the call, not a flow failure.
+        logEvent('NodeInterruptedByHangup', { nodeId: node.nodeKey, nodeType: node.type, channelId: session.channelId });
+      } else {
+        runtimeError = error instanceof Error ? error.message : 'unknown error';
+        finalStatus = 'failed';
+        failureReason = runtimeError;
+      }
     }
 
     // TODO(arch): Violation: synchronous node-log update is direct PostgreSQL from Stasis, not Redis->NestJS.

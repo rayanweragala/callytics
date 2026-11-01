@@ -182,7 +182,7 @@ Phase 5 adds the first working diagnostics surface in the frontend and the suppo
 Implemented in this phase:
 
 - A dark-first "Control Room" diagnostics UI in the React frontend
-- A SIP status panel showing endpoint registration state for local endpoints such as `test-phone`
+- A SIP status panel showing endpoint registration state for local endpoints such as extensions created on the Extensions page
 - A live execution timeline panel showing node events per call
 - Stasis node executor instrumentation that publishes structured node events to Redis pub/sub
 - A backend Redis subscriber that relays SIP status and call timeline updates to the browser over Socket.io

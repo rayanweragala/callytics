@@ -11,6 +11,7 @@ import { runSqlMigrations } from '../db/run-sql-migrations';
 import { AppLogger } from '../logger/app-logger';
 import { SipTrunkEntity } from '../trunks/entities/sip-trunk.entity';
 import { DiagnosticsGateway } from './diagnostics.gateway';
+import { getAriCredentials } from '../common/asterisk-credentials';
 import type {
   AmiRegistrationDetail,
   AmiInboundRegistrationDetail,
@@ -70,8 +71,7 @@ const SIP_CODE_INFO: Record<number, SipCodeInfo> = {
 export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new AppLogger(DiagnosticsService.name);
   private readonly ariUrl = process.env.ARI_URL || 'http://127.0.0.1:8088';
-  private readonly ariUser = process.env.ARI_USER || 'callytics';
-  private readonly ariPass = process.env.ARI_PASS || 'callytics';
+  private readonly ariCredentials = getAriCredentials();
   private readonly amiHost = process.env.AMI_HOST || '127.0.0.1';
   private readonly amiPort = Number(process.env.AMI_PORT || 5038);
   private readonly amiUser = process.env.AMI_USER || 'callytics';
@@ -819,7 +819,7 @@ export class DiagnosticsService implements OnModuleInit, OnModuleDestroy {
     try {
       const response = await fetch(this.buildAriUrl(path), {
         headers: {
-          Authorization: `Basic ${Buffer.from(`${this.ariUser}:${this.ariPass}`).toString('base64')}`,
+          Authorization: `Basic ${Buffer.from(`${this.ariCredentials.user}:${this.ariCredentials.password}`).toString('base64')}`,
         },
       });
 

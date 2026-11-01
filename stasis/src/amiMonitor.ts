@@ -80,6 +80,12 @@ async function pollEndpoints(): Promise<AmiEndpointRow[]> {
           continue;
         }
 
+        if (!loggedIn && message.Response === 'Error') {
+          // Without this a rejected login only shows up as "AMI timeout".
+          finalize(() => reject(new Error(`AMI login failed on ${AMI_HOST}:${AMI_PORT}: ${message.Message || 'unknown reason'}`)));
+          return;
+        }
+
         if (message.Event === 'EndpointList' && message.ActionID === actionId) {
           const contacts = (message.Contacts || '')
             .split(',')
@@ -93,6 +99,18 @@ async function pollEndpoints(): Promise<AmiEndpointRow[]> {
             state: contacts.length > 0 ? 'registered' : 'unregistered',
           });
           continue;
+        }
+
+        // Asterisk answers with an error instead of an empty list when no
+        // endpoint is configured yet. Waiting for EndpointListComplete would time out.
+        if (message.Response === 'Error' && message.ActionID === actionId) {
+          socket.write('Action: Logoff\r\n\r\n');
+          if (/no endpoints found/i.test(message.Message || '')) {
+            finalize(() => resolve(endpoints));
+          } else {
+            finalize(() => reject(new Error(`AMI PJSIPShowEndpoints failed: ${message.Message || 'unknown reason'}`)));
+          }
+          return;
         }
 
         if (message.Event === 'EndpointListComplete' && message.ActionID === actionId) {

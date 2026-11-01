@@ -7,8 +7,11 @@ export type DirectOutboundWaiterResult =
   | { answered: true; channel: DirectOutboundChannel }
   | {
       answered: false;
-      reason: 'failed' | 'destroyed' | 'timeout' | 'caller_disconnected';
+      reason: DirectOutboundFailureReason;
+      detail?: string;
     };
+
+export type DirectOutboundFailureReason = 'failed' | 'destroyed' | 'timeout' | 'caller_disconnected';
 
 interface DirectOutboundWaiter {
   resolve: (result: DirectOutboundWaiterResult) => void;
@@ -37,12 +40,13 @@ export function resolveDirectOutboundWaiter(token: string, channel: DirectOutbou
 
 export function rejectDirectOutboundWaiter(
   token: string,
-  reason: 'failed' | 'destroyed' | 'timeout' | 'caller_disconnected' = 'failed',
+  reason: DirectOutboundFailureReason = 'failed',
+  detail?: string,
 ): void {
   const waiter = waiters.get(token);
   if (!waiter) {
     return;
   }
   waiters.delete(token);
-  waiter.resolve({ answered: false, reason });
+  waiter.resolve({ answered: false, reason, ...(detail ? { detail } : {}) });
 }

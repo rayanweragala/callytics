@@ -115,7 +115,7 @@ Pipeline jobs:
 
 ## Manual E2E call tests
 
-Requires the full Docker stack and softphones/extensions configured (`test-phone` caller and extension `2001` callee).
+Requires the full Docker stack and softphones/extensions configured (create a caller extension, for example `1001`, and a callee extension `2001` on the Extensions page).
 
 1. Start the stack:
 ```bash
@@ -125,7 +125,7 @@ docker compose up -d
 ```bash
 docker compose logs stasis -f
 ```
-3. Place the call from caller to DID `1234` (`sip:test-phone@<host>:5080`)
+3. Place the call from caller to DID `1234` (`sip:1001@<host>:5080`)
 4. Drive the IVR path:
    - Press `2` at first menu
    - Press `4` at submenu to reach hunt node

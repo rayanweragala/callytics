@@ -11,12 +11,15 @@ import {
   getActiveSessionCount,
   getSession,
   markCallEnded,
+  markCallerGone,
   removeSession,
 } from "./callSession";
 import { closeDbPool } from "./db";
 import { loadFlow, loadFlowById } from "./flowLoader";
 import migrate from "./migrate";
 import { runFlow } from "./runtime";
+import { runInboundCall } from "./inboundCall";
+import { releaseCallId } from "./lib/inviteGuard";
 import seed from "./seed";
 import { startAmiMonitor } from "./amiMonitor";
 import { startSipTrafficMonitor } from "./sipTrafficMonitor";
@@ -31,6 +34,8 @@ import { resolveHuntWaiter, rejectHuntWaiter, hasHuntWaiter } from "./huntManage
 import { resolveCallbackWaiter, hasCallbackWaiter } from "./callbackManager";
 import { resolveAudioMediaPath } from "./audioResolver";
 import { formatDialNumber } from "./lib/formatDialNumber";
+import { waitForPlaybackFinished } from "./lib/playback";
+import { resolveStasisChannel } from "./lib/ariChannel";
 import { closeRedisConnections, getPublisher, getSubscriber } from "./redis";
 import { buildInboundOriginateBody, parseInboundTestMessage } from "./trunk-test.util";
 import { accumulator as rtcpAmiAccumulator } from "./handlers/rtcp-ami.handler";
@@ -38,10 +43,9 @@ import { CampaignExecutor } from "./campaign-executor";
 import { executeCallback, type CallbackExecutePayload } from "./callback-execute";
 import {
   hasDirectOutboundWaiter,
-  registerDirectOutboundWaiter,
-  rejectDirectOutboundWaiter,
   resolveDirectOutboundWaiter,
 } from "./directOutboundManager";
+import { resolveDirectOutboundTimeoutMs, waitForDirectOutboundAnswer } from "./directOutboundWait";
 
 const ARI_URL = process.env.ARI_URL || "http://127.0.0.1:8088";
 const ARI_USER = process.env.ARI_USER || "callytics";
@@ -51,7 +55,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:3001";
 const RECORDINGS_INTERNAL_TOKEN = process.env.RECORDINGS_INTERNAL_TOKEN || "";
 const STASIS_HEALTH_PORT = Number(process.env.STASIS_HEALTH_PORT || 3002);
 const TEST_STATUS_TTL_SECONDS = 300;
-const DIRECT_OUTBOUND_TIMEOUT_MS = 30_000;
+const DIRECT_OUTBOUND_TIMEOUT_MS = resolveDirectOutboundTimeoutMs(process.env.DIRECT_OUTBOUND_TIMEOUT_MS);
 const DIRECT_OUTBOUND_MOH_CLASS =
   process.env.DIRECT_OUTBOUND_MOH_CLASS
   || process.env.CALLBACK_MOH_CLASS
@@ -227,12 +231,13 @@ interface DirectOutboundAriClient {
   channels: {
     originate: (params: {
       endpoint: string;
+      channelId?: string;
       app: string;
       appArgs: string;
       callerId: string;
       timeout: number;
     }) => Promise<{ id?: string } | void>;
-    hangup: (params: { channelId: string }) => Promise<void>;
+    hangup: (params: { channelId: string; reason?: string }) => Promise<void>;
     startMoh?: (params: { channelId: string; mohClass?: string }) => Promise<void>;
     stopMoh?: (params: { channelId: string }) => Promise<void>;
   };
@@ -281,25 +286,6 @@ async function setTrunkTestStatus(
   );
 }
 
-function waitForPlaybackFinished(
-  ariClient: {
-    on: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
-    removeListener: (event: string, listener: (event: { playback?: { id?: string } }) => void) => void;
-  },
-  playbackId: string,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const onFinished = (event: { playback?: { id?: string } }) => {
-      if (event.playback?.id !== playbackId) {
-        return;
-      }
-      ariClient.removeListener("PlaybackFinished", onFinished);
-      resolve();
-    };
-    ariClient.on("PlaybackFinished", onFinished);
-  });
-}
-
 async function runOutboundTestPlayback(
   channel: TestPlaybackChannel,
   ariClient: {
@@ -316,7 +302,7 @@ async function runOutboundTestPlayback(
   const playback = ariClient.Playback();
   const media = mediaPath ? `sound:${mediaPath}` : "sound:beep";
   await channel.play({ media }, playback);
-  await waitForPlaybackFinished(ariClient, playback.id);
+  await waitForPlaybackFinished(ariClient, playback.id, channel.id);
   await channel.hangup().catch(() => undefined);
 }
 
@@ -545,6 +531,7 @@ async function cleanupDirectOutboundCall(
   call: DirectOutboundActiveCall,
   endingChannelId: string | null,
   failureReason: string | null = null,
+  inboundHangupReason?: "congestion" | "no_answer" | "busy",
 ): Promise<void> {
   if (call.cleanupStarted) {
     return;
@@ -570,7 +557,9 @@ async function cleanupDirectOutboundCall(
     (channelId): channelId is string => Boolean(channelId && channelId !== endingChannelId),
   );
   for (const channelId of channelsToHangup) {
-    await ariClient.channels.hangup({ channelId }).catch(() => undefined);
+    // Without a reason Asterisk answers the unanswered inbound call with 603 Decline.
+    const reason = channelId === call.inboundChannelId && !call.answeredAt ? inboundHangupReason : undefined;
+    await ariClient.channels.hangup({ channelId, ...(reason ? { reason } : {}) }).catch(() => undefined);
   }
 
   if (call.answeredAt) {
@@ -590,61 +579,6 @@ async function cleanupDirectOutboundCall(
   await persistDirectOutboundRecording(call).catch((error) => {
     stasisLogger.error("[direct-outbound] persist recording failed:", error);
   });
-}
-
-async function waitForDirectOutboundAnswer(
-  ariClientRaw: unknown,
-  token: string,
-  inboundChannelId: string,
-  originate: () => Promise<void>,
-  timeoutMs: number,
-): Promise<{
-  answered: true;
-  channel: { id: string; hangup: () => Promise<void> };
-} | {
-  answered: false;
-  reason: "failed" | "destroyed" | "timeout" | "caller_disconnected";
-}> {
-  const ariClient = ariClientRaw as DirectOutboundAriClient;
-  const waiter = registerDirectOutboundWaiter(token);
-  let settled = false;
-  let timeoutHandle: NodeJS.Timeout | null = null;
-
-  const onInboundEnd = (event: { channel?: { id?: string } }) => {
-    if (event.channel?.id !== inboundChannelId) {
-      return;
-    }
-    rejectDirectOutboundWaiter(token, "caller_disconnected");
-  };
-
-  const cleanup = () => {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
-      timeoutHandle = null;
-    }
-    ariClient.removeListener("StasisEnd", onInboundEnd);
-    ariClient.removeListener("ChannelDestroyed", onInboundEnd);
-  };
-
-  ariClient.on("StasisEnd", onInboundEnd);
-  ariClient.on("ChannelDestroyed", onInboundEnd);
-
-  try {
-    await originate();
-  } catch {
-    rejectDirectOutboundWaiter(token, "failed");
-  }
-
-  timeoutHandle = setTimeout(() => {
-    rejectDirectOutboundWaiter(token, "timeout");
-  }, timeoutMs);
-
-  const result = await waiter;
-  if (!settled) {
-    settled = true;
-    cleanup();
-  }
-  return result;
 }
 
 async function handleDirectOutboundDial(
@@ -722,26 +656,44 @@ async function handleDirectOutboundDial(
   }
 
   const token = `direct-outbound-${call.inboundChannelId}-${Date.now()}`;
+  const outboundChannelId = `${token}-leg`;
   const endpoint = `PJSIP/${formattedDestination}@trunk-${trunk.id}`;
+  stasisLogger.log(
+    `[direct-outbound] originate endpoint=${endpoint} channelId=${outboundChannelId} timeoutMs=${DIRECT_OUTBOUND_TIMEOUT_MS}`,
+  );
   const waitResult = await waitForDirectOutboundAnswer(
-    ariClientRaw,
-    token,
-    call.inboundChannelId,
-    async () => {
-      const ariClient = ariClientRaw as DirectOutboundAriClient;
-      await ariClient.channels.originate({
-        endpoint,
-        app: ARI_APP,
-        appArgs: `direct-outbound,${token}`,
-        callerId: trunk.fromUser || "",
-        timeout: Math.max(1, Math.ceil(DIRECT_OUTBOUND_TIMEOUT_MS / 1000)),
-      });
+    ariClientRaw as DirectOutboundAriClient,
+    stasisLogger,
+    {
+      token,
+      inboundChannelId: call.inboundChannelId,
+      outboundChannelId,
+      timeoutMs: DIRECT_OUTBOUND_TIMEOUT_MS,
+      originate: async () => {
+        const ariClient = ariClientRaw as DirectOutboundAriClient;
+        await ariClient.channels.originate({
+          endpoint,
+          channelId: outboundChannelId,
+          app: ARI_APP,
+          appArgs: `direct-outbound,${token}`,
+          callerId: trunk.fromUser || "",
+          timeout: Math.max(1, Math.ceil(DIRECT_OUTBOUND_TIMEOUT_MS / 1000)),
+        });
+      },
     },
-    DIRECT_OUTBOUND_TIMEOUT_MS,
   );
 
   if (waitResult.answered === false) {
-    await cleanupDirectOutboundCall(ariClientRaw, call, null, waitResult.reason);
+    stasisLogger.warn(
+      `[direct-outbound] call ${call.callId} to ${destination} failed: ${waitResult.detail || waitResult.reason}`,
+    );
+    await cleanupDirectOutboundCall(
+      ariClientRaw,
+      call,
+      null,
+      waitResult.detail || waitResult.reason,
+      waitResult.reason === "timeout" ? "no_answer" : "congestion",
+    );
     return;
   }
 
@@ -1071,7 +1023,9 @@ async function start(): Promise<void> {
             dialplan?: { context?: string; exten?: string };
           };
         },
-        channel: {
+        channelResource: unknown,
+      ) => {
+        const channel = resolveStasisChannel<{
           id: string;
           answer: () => Promise<void>;
           play: (
@@ -1079,8 +1033,7 @@ async function start(): Promise<void> {
             playback: { id: string },
           ) => Promise<void>;
           hangup: () => Promise<void>;
-        },
-      ) => {
+        }>(client, event, channelResource);
         if (shutdownRequested) {
           stasisLogger.warn(`[shutdown] rejecting new channel during drain channelId=${channel.id}`);
           try {
@@ -1262,152 +1215,20 @@ async function start(): Promise<void> {
           return;
         }
 
-        const callerNumber = event.channel?.caller?.number || "unknown";
-        const inboundDid = String(
-          event.channel?.dnid || channelExten || "",
-        ).trim();
-        stasisLogger.log(`Incoming call: ${channel.id} from ${callerNumber}`);
-        try {
-          await publishSipTraffic({
-            callId: channel.id,
-            timestamp: new Date().toISOString(),
-            method: "INVITE",
-            from: callerNumber,
-            to: inboundDid || channelExten,
-            direction: "inbound",
-            responseCode: null,
-            rawMessage: `INVITE sip:${inboundDid || channelExten} SIP/2.0`,
-          });
-        } catch (err) {
-          stasisLogger.error(
-            "[telemetry] sip traffic publish failed (StasisStart):",
-            err,
-          );
-        }
-
-        let flow = null;
-        if (inboundDid) {
-          try {
-            const route = await resolveInboundRoute(inboundDid);
-            if (route) {
-              stasisLogger.log(
-                `[routing] inbound route found DID=${route.did} flow_id=${route.flowId}`,
-              );
-              flow = await loadFlowById(route.flowId);
-            } else {
-              stasisLogger.warn(
-                `[routing] no inbound route for DID ${inboundDid}, using default flow`,
-              );
-            }
-          } catch (error) {
-            stasisLogger.error(
-              `[routing] inbound route lookup failed DID=${inboundDid}:`,
-              error,
-            );
-          }
-        }
-
-        if (!flow) {
-          flow = await loadFlow();
-        }
-        if (!flow) {
-          stasisLogger.warn("No published flow found. Hanging up.");
-          try {
-            await channel.hangup();
-          } catch {}
-          return;
-        }
-
-        logEvent("StasisStart", {
-          channelId: channel.id,
-          callerId: callerNumber,
-          calledNumber: inboundDid || channelExten,
-          flowId: flow.id,
+        await runInboundCall(client, event, channel, channelExten, {
+          ariApp: ARI_APP,
+          failedCalls,
+          publishSipTraffic,
+          publishCallEvent,
+          resolveInboundRoute,
+          loadFlowById,
+          loadFlow,
+          createInboundBridge,
+          destroyInboundBridge,
+          addSession,
+          removeSession,
+          runFlow,
         });
-
-        const entryNode =
-          flow.nodes.find((node) => node.type === "start") || flow.nodes[0];
-        const session = createSession(
-          channel.id,
-          callerNumber,
-          flow,
-          entryNode.nodeKey,
-        );
-        addSession(session);
-
-        try {
-          await publishCallEvent({
-            callId: channel.id,
-            timestamp: new Date().toISOString(),
-            type: "started",
-            caller: callerNumber,
-            destination: inboundDid || channelExten,
-            flowId: flow.id,
-            flowVersionId: flow.versionId,
-            entryNodeKey: entryNode.nodeKey,
-          });
-        } catch (err) {
-          stasisLogger.error(
-            "[telemetry] call event publish failed (StasisStart):",
-            err,
-          );
-        }
-
-        try {
-          await channel.answer();
-          session.inboundBridge = await createInboundBridge(client, channel.id);
-          try {
-            await client.applications.subscribe({
-              applicationName: ARI_APP,
-              eventSource: `channel:${channel.id}`,
-            });
-            stasisLogger.log(
-              `Subscribed ARI app ${ARI_APP} to channel:${channel.id}`,
-            );
-          } catch (error) {
-            stasisLogger.error(
-              `Failed to subscribe ARI app ${ARI_APP} to channel:${channel.id}:`,
-              error,
-            );
-          }
-          await runFlow(channel, session, client).then((res) => {
-            if (res?.status === "failed") {
-              failedCalls.add(channel.id);
-            }
-          });
-        } catch (error) {
-          stasisLogger.error("Error running flow:", error);
-          const failureReason =
-            error instanceof Error ? error.message : "Unknown flow error";
-          failedCalls.add(channel.id);
-          try {
-            await publishCallEvent({
-              callId: channel.id,
-              timestamp: new Date().toISOString(),
-              type: "failed",
-              caller: session.callerNumber,
-              destination: inboundDid || channelExten,
-              flowId: session.flow.id,
-              flowVersionId: session.flow.versionId,
-              failedNode: "runtime",
-              failureReason,
-            });
-          } catch (err) {
-            stasisLogger.error(
-              "[telemetry] call event publish failed (flow error):",
-              err,
-            );
-          }
-          if (session.inboundBridge) {
-            await destroyInboundBridge(client, session.inboundBridge.id);
-            session.inboundBridge = null;
-          }
-          try {
-            await channel.hangup();
-          } catch {}
-          markCallEnded(session);
-          removeSession(channel.id);
-        }
       },
     );
 
@@ -1468,6 +1289,8 @@ async function start(): Promise<void> {
         channel: { id: string },
       ) => {
         const channelId = channel.id;
+        // Free the SIP Call-ID so a new call is never blocked by the duplicate-INVITE guard.
+        releaseCallId(channelId);
         const session = getSession(channelId);
         if (session) {
           markCallEnded(session);
@@ -1598,6 +1421,17 @@ async function start(): Promise<void> {
     );
 
     client.on(
+      "ChannelHangupRequest",
+      (_event: unknown, channel: { id?: string } | undefined) => {
+        // Stop the flow as soon as the caller starts hanging up, before the channel is torn down.
+        const hangingUpSession = channel?.id ? getSession(channel.id) : undefined;
+        if (hangingUpSession) {
+          markCallerGone(hangingUpSession);
+        }
+      },
+    );
+
+    client.on(
       "ChannelDestroyed",
       async (
         event: {
@@ -1611,6 +1445,10 @@ async function start(): Promise<void> {
         },
         channel: { id: string },
       ) => {
+        const endingSession = getSession(channel.id);
+        if (endingSession) {
+          markCallerGone(endingSession);
+        }
         if (
           await campaignExecutor.handleChannelEnd(channel.id, event.cause_txt)
         ) {

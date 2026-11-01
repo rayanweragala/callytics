@@ -149,6 +149,12 @@ export function startSipTrafficMonitor(redis: RedisClientType): void {
         continue;
       }
 
+      if (!loggedIn && message.Response === 'Error') {
+        stasisLogger.error(`SIP traffic monitor: AMI login failed on ${AMI_HOST}:${AMI_PORT}: ${message.Message || 'unknown reason'}`);
+        socket.end();
+        return;
+      }
+
       if (message.Event === 'RTCPReceived' || message.Event === 'RTCPSent') {
         handleAmiRtcpEvent(message, redis);
       }
